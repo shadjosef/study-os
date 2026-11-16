@@ -1,0 +1,75 @@
+.study-os-pane {
+  padding: 12px 14px 28px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.study-os-pane h4 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+.study-os-card {
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  border-radius: 10px;
+  padding: 11px 12px;
+  margin-bottom: 11px;
+}
+.study-os-hero {
+  border-color: var(--interactive-accent);
+}
+.study-os-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 11px;
+}
+.study-os-kpi {
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  border-radius: 8px;
+  padding: 7px 8px;
+  text-align: center;
+}
+.study-os-kpi small {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.study-os-kpi b {
+  font-size: 15px;
+}
+.study-os-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 7px 10px;
+  margin-top: 6px;
+  border-radius: 7px;
+  font-weight: 600;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.study-os-btn-primary {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+}
+.study-os-course-row {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.study-os-course-row:last-child {
+  border-bottom: none;
+}
+.study-os-bar {
+  height: 5px;
+  background: var(--background-modifier-border);
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 4px 0;
+}
+.study-os-bar > div {
+  height: 100%;
+  background: var(--interactive-accent);
+}

@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-pdf-dark="1">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Study-OS · Universal Practice, Reference Hub &amp; Adaptive Scheduler</title>
+  <link rel="stylesheet" href="./vendor/katex.min.css">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <!-- Top Global Navigation (hidden during active runner mode for zero distraction) -->
+  <header id="global-header" class="topbar">
+    <div class="topbar-inner">
+      <div class="brand" id="nav-brand" role="button" tabindex="0">
+        <span class="brand-dot"></span>
+        <div>
+          <strong>Study-OS</strong>
+          <small>Canvas × References × Schedule</small>
+        </div>
+      </div>
+
+      <nav class="main-tabs" aria-label="Primary views">
+        <button type="button" class="tab-btn active" data-nav="home">Command Center</button>
+        <button type="button" class="tab-btn" data-nav="references">Reference Hub</button>
+        <button type="button" class="tab-btn" data-nav="schedule">Schedule Studio</button>
+        <button type="button" class="tab-btn" data-nav="exams">Exam Simulator</button>
+        <button type="button" class="tab-btn" data-nav="course">Courses</button>
+        <button type="button" class="tab-btn" data-nav="analytics">Metrics &amp; AI</button>
+      </nav>
+
+      <div class="topbar-stats">
+        <span class="live-clock-pill" id="global-work-pill" title="Universal non-pausable working interval (capped at 75:00 · 1:5 recovery break)">Session 0:00 / 75m</span>
+        <button type="button" class="ghost-btn" id="global-work-action-btn" title="Start 75m working interval or take scaled 1:5 recovery break">Start 75m</button>
+        <span class="kpi-pill" title="Universal Productivity Index (100 = matching AI Par at 100% accuracy)">
+          <small>UPI</small> <b id="hdr-upi">—</b>
+        </span>
+        <span class="kpi-pill" title="Active day streak &amp; cumulative XP">
+          <b id="hdr-streak">0d</b> <small id="hdr-xp">0 XP</small>
+        </span>
+        <button type="button" class="ghost-btn sound-toggle-btn" id="hdr-sound-btn" title="Background sound masking (Shift+Click or M to quick-toggle)">Sound</button>
+        <button type="button" class="ghost-btn pdf-theme-toggle" id="hdr-pdf-dark" title="Invert white PDF crops in dark mode">PDF: Dark</button>
+        <button type="button" class="ghost-btn" id="hdr-theme" title="Switch light / dark theme">Light</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Sticky Distraction-Free Runner Bar (visible ONLY during active study run) -->
+  <header id="runner-header" class="runner-topbar" hidden>
+    <div class="runner-topbar-inner">
+      <button type="button" class="ghost-btn" id="run-exit-btn" title="Return to Command Center">← Hub</button>
+      <div class="runner-title-wrap">
+        <b id="run-header-title">Course · Question</b>
+        <small id="run-header-sub">Question 1 of 10</small>
+      </div>
+      <div class="runner-header-actions">
+        <span class="exam-clock-pill" id="run-exam-countdown" hidden title="Total WISEflow Exam Paper Time Remaining">180:00</span>
+        <button type="button" class="primary-btn" id="run-submit-exam-btn" hidden style="padding:6px 13px;font-size:13px">Submit Paper</button>
+        <span class="live-clock-pill" id="run-work-pill" title="Universal working interval (capped at 75:00 · auto-pauses when display focus leaves)">Session 0:00 / 75m</span>
+        <button type="button" class="ghost-btn" id="run-break-btn" title="Take scaled 1:5 off-screen recovery break (B)">Break (3m)</button>
+        <button type="button" class="live-clock-pill item-clock-pill" id="run-live-pill" title="Click or press P to pause/resume timer">Q 0:00</button>
+        <button type="button" class="ghost-btn" id="run-autopause-btn" title="Auto-pause is OFF by default so timers keep running while Excel, Jupyter, Calculator, or Obsidian are open over the browser">Auto: Off</button>
+        <button type="button" class="ghost-btn" id="run-fullscreen-btn" title="Toggle Fullscreen focus lock (F11)">Full</button>
+        <button type="button" class="ghost-btn" id="run-layout-btn" title="Toggle Side-by-Side Split Workspace vs Stacked View (V)">Split: ON</button>
+        <a id="run-obsidian-app-link" class="ghost-btn" href="#" title="Jump to exact section in Obsidian Desktop app">Obsidian ↗</a>
+        <button type="button" class="ghost-btn sound-toggle-btn" id="run-sound-btn" title="Background sound masking (Shift+Click or M to quick-toggle)">Sound</button>
+        <button type="button" class="ghost-btn pdf-theme-toggle" id="run-pdf-dark">PDF: Dark</button>
+        <button type="button" class="ghost-btn" id="run-theme-btn">Light</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+
+    <!-- VIEW 1: COMMAND CENTER (Zero-Decision-Fatigue Calendar Queue + All Courses) -->
+    <section id="view-home" class="view-section">
+      <!-- Zero-Decision-Fatigue Calendar Hero -->
+      <section id="up-next-hero" class="hero-card"></section>
+
+      <!-- Global Quick Metrics Strip -->
+      <section id="home-metrics-strip" class="metrics-grid"></section>
+
+      <!-- Active Resume Banner if a run is paused in memory -->
+      <section id="resume-banner" class="resume-card" hidden></section>
+
+      <!-- Canvas-Archive Cookie-Sync & Onboarding Strip -->
+      <section id="canvas-bridge-strip"></section>
+
+      <!-- Courses Grid -->
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">Active Semester Courses</span>
+          <h2>Universal Practice Banks</h2>
+        </div>
+        <div class="row-actions">
+          <select id="home-semester-filter" title="Filter by semester" style="padding:7px 10px;font-size:13px" hidden></select>
+          <button type="button" class="ghost-btn" id="btn-open-schedule-studio">Schedule / TimeEdit</button>
+          <button type="button" class="ghost-btn" id="btn-refresh-cal">↻ Sync Calendar</button>
+          <button type="button" class="ghost-btn" id="btn-import-json">Import Backup</button>
+          <input type="file" id="file-import-json" accept="application/json,.json" hidden>
+          <button type="button" class="ghost-btn" id="btn-export-backup">Export Backup</button>
+        </div>
+      </div>
+      <div id="courses-grid" class="courses-grid"></div>
+    </section>
+
+    <!-- VIEW 1B: MULTI-SEMESTER REFERENCE HUB (Browse Authored Obsidian Reference Sheets Online or Locally) -->
+    <section id="view-references" class="view-section" hidden>
+      <div id="references-hub-root"></div>
+    </section>
+
+    <!-- VIEW 1C: SCHEDULE STUDIO (TimeEdit .ics + Work Hours Auto-Adjuster + 1-Prompt LLM Importer) -->
+    <section id="view-schedule" class="view-section" hidden>
+      <div id="schedule-studio-root"></div>
+    </section>
+
+    <!-- VIEW 2: EXAM SIMULATOR HUB (All 5 Subjects · WISEflow FLOWmulti ±2% & Past Papers) -->
+    <section id="view-exams" class="view-section" hidden>
+      <div id="exams-hub-root"></div>
+    </section>
+
+    <!-- VIEW 2B: COURSE EXPLORER & BULK TASK MANAGER -->
+    <section id="view-course" class="view-section" hidden>
+      <div id="course-explorer-root"></div>
+    </section>
+
+    <!-- VIEW 3: COMPETITIVE STUDY RUNNER -->
+    <section id="view-runner" class="view-section" hidden>
+      <div id="runner-dashboard" class="panel run-summary-strip"></div>
+      <div id="runner-question-card" class="panel question-card"></div>
+      <details id="runner-jump-panel" class="panel">
+        <summary>Jump to question in this run</summary>
+        <div id="runner-jump-grid" class="jump-grid"></div>
+      </details>
+    </section>
+
+    <!-- VIEW 4: ANALYTICS, SUBGROUPS, CORRELATIONS & AI REVIEW BRIEF -->
+    <section id="view-analytics" class="view-section" hidden>
+      <div id="analytics-root"></div>
+    </section>
+  </main>
+
+  <!-- SLIDE-OVER OBSIDIAN REFERENCE DRAWER (Read Reference Side-by-Side Without Leaving Run!) -->
+  <aside id="ref-drawer" class="ref-drawer" hidden aria-label="Obsidian Reference Drawer">
+    <div class="ref-drawer-header">
+      <div class="grow">
+        <span class="eyebrow">Obsidian Vault Live Reader</span>
+        <h3 id="ref-drawer-title">Semester Reference</h3>
+      </div>
+      <a id="ref-drawer-obsidian-uri" class="ghost-btn" href="#">↗ Open in Obsidian</a>
+      <button type="button" class="ghost-btn" id="ref-drawer-close">✕ Close</button>
+    </div>
+    <div class="ref-drawer-controls">
+      <select id="ref-drawer-note-select" aria-label="Select vault note"></select>
+      <select id="ref-drawer-toc-select" aria-label="Jump to section heading"></select>
+    </div>
+    <div id="ref-drawer-body" class="ref-drawer-body markdown-body"></div>
+  </aside>
+  <div id="ref-backdrop" class="backdrop" hidden></div>
+
+  <!-- END-OF-RUN SUMMARY + 5-SECOND FRICTIONLESS CHECK-IN MODAL -->
+  <div id="checkin-modal" class="modal-wrap" hidden role="dialog" aria-modal="true" aria-labelledby="checkin-title">
+    <div class="modal-card">
+      <div id="checkin-summary-header"></div>
+      <hr class="divider">
+      <div class="checkin-form">
+        <div class="row-between">
+          <div>
+            <span class="eyebrow">5-Second AI Telemetry Check-In</span>
+            <h3 id="checkin-title">Log session context (optional, 3 taps)</h3>
+          </div>
+          <small class="muted">Correlates state → UPI &amp; Beat-AI</small>
+        </div>
+
+        <div class="pill-rating-group">
+          <label>Focus</label>
+          <div class="rating-pills" data-field="focus">
+            <button type="button" data-val="1">1 · Scattered</button>
+            <button type="button" data-val="2">2</button>
+            <button type="button" data-val="3">3 · Solid</button>
+            <button type="button" data-val="4" class="selected">4</button>
+            <button type="button" data-val="5">5 · Deep Flow</button>
+          </div>
+        </div>
+
+        <div class="pill-rating-group">
+          <label>Energy</label>
+          <div class="rating-pills" data-field="energy">
+            <button type="button" data-val="1">1 · Drained</button>
+            <button type="button" data-val="2">2</button>
+            <button type="button" data-val="3">3 · Normal</button>
+            <button type="button" data-val="4" class="selected">4</button>
+            <button type="button" data-val="5">5 · Sharp</button>
+          </div>
+        </div>
+
+        <div class="pill-rating-group">
+          <label>Start Inertia</label>
+          <div class="rating-pills" data-field="startInertia">
+            <button type="button" data-val="1">1 · Zero Friction</button>
+            <button type="button" data-val="2" class="selected">2 · Easy</button>
+            <button type="button" data-val="3">3 · Moderate</button>
+            <button type="button" data-val="4">4 · Procrastinated</button>
+            <button type="button" data-val="5">5 · Heavy Drag</button>
+          </div>
+        </div>
+
+        <div class="pill-rating-group">
+          <label>Quick Context Tags</label>
+          <div class="context-tags" id="checkin-tags">
+            <button type="button" class="tag-chip" data-tag="BI Library">BI Library</button>
+            <button type="button" class="tag-chip" data-tag="Home">Home</button>
+            <button type="button" class="tag-chip" data-tag="Flow State">Flow State</button>
+            <button type="button" class="tag-chip" data-tag="Low Sleep">Low Sleep</button>
+            <button type="button" class="tag-chip" data-tag="Phone Distraction">Phone Distraction</button>
+            <button type="button" class="tag-chip" data-tag="Concept Gap">Concept Gap</button>
+            <button type="button" class="tag-chip" data-tag="Post-Workout">Post-Gym</button>
+          </div>
+        </div>
+
+        <label class="field-label">
+          1-Line Takeaway / Bottleneck for AI (optional)
+          <input type="text" id="checkin-note" placeholder="e.g. Fast on MCQs, tripped up on terminal working capital sign in NPV...">
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="ghost-btn" id="checkin-skip-btn">Save Without Check-In</button>
+          <button type="button" class="primary-btn" id="checkin-save-btn">Save Session &amp; Update Dashboard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCALED 1:5 OFF-SCREEN RECOVERY BREAK MODAL (TIED TO UNIVERSAL 75M WORKING CAP) -->
+  <div id="break-modal" class="modal-wrap" hidden role="dialog" aria-modal="true" aria-labelledby="break-modal-title">
+    <div class="modal-card" style="max-width:480px">
+      <span class="eyebrow">1:5 Off-Screen Recovery</span>
+      <h3 id="break-modal-title" style="margin:4px 0 8px">Step Away From Screens</h3>
+      <div class="break-timer-display" id="break-countdown-lbl">05:00</div>
+      <p class="muted" id="break-ratio-note" style="margin:0 0 12px;font-size:13.5px">Scaled 1:5 from your working interval (capped at 75m / 15m break).</p>
+      <ul class="rubric-list" style="margin:0 0 16px">
+        <li class="rubric-item"><span><strong>Move &amp; hydrate:</strong> Stand up, open window, walk stairs, and drink water + electrolytes.</span></li>
+        <li class="rubric-item"><span><strong>Zero screens:</strong> No phone scrolling (preserves 20x hippocampal replay &amp; glutamate clearance).</span></li>
+        <li class="rubric-item"><span><strong>Panoramic gaze (&gt;20m):</strong> Look out at a distant horizon or close eyes to relax ciliary strain.</span></li>
+      </ul>
+      <div class="modal-actions">
+        <button type="button" class="ghost-btn" id="break-end-session-btn" title="Finish studying and stop universal timer until your next session">End Session</button>
+        <button type="button" class="ghost-btn" id="break-add-2m">+2 min</button>
+        <button type="button" class="primary-btn" id="break-resume-btn">Start Next 75m</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOW-FATIGUE BACKGROUND SOUND MASKING POPOVER -->
+  <aside id="sound-popover" class="sound-popover" hidden role="dialog" aria-label="Background Sound Masking">
+    <div class="sound-popover-head">
+      <div>
+        <span class="eyebrow" style="margin:0">Acoustic Masking</span>
+        <strong id="sound-status-lbl" style="display:block;font-size:14px">Off · Ready</strong>
+      </div>
+      <button type="button" class="primary-btn" id="sound-play-btn" style="padding:6px 14px;font-size:13px">Play (M)</button>
+    </div>
+
+    <div class="sound-preset-grid" id="sound-preset-grid">
+      <button type="button" class="sound-preset-btn active" data-sound-preset="brown">Deep Brown</button>
+      <button type="button" class="sound-preset-btn" data-sound-preset="speech">Speech Blocker</button>
+      <button type="button" class="sound-preset-btn" data-sound-preset="pink">Warm Pink</button>
+      <button type="button" class="sound-preset-btn" data-sound-preset="rain">Soft Rain</button>
+      <button type="button" class="sound-preset-btn" data-sound-preset="cabin">Cabin Hum</button>
+      <button type="button" class="sound-preset-btn" data-sound-preset="gamma40">Brown + 40Hz</button>
+    </div>
+    <p class="muted" id="sound-preset-desc" style="margin:6px 0 12px;font-size:12px;line-height:1.4">
+      Deep -6 dB/oct rumble · masks room noise with minimal ear fatigue over 75m blocks.
+    </p>
+
+    <div class="sound-slider-row">
+      <div class="row-between" style="margin:0 0 3px;font-size:12.5px">
+        <span>Volume</span>
+        <strong id="sound-vol-lbl">38%</strong>
+      </div>
+      <input type="range" id="sound-vol-slider" min="0" max="100" value="38" aria-label="Sound volume">
+    </div>
+
+    <div class="sound-slider-row" style="margin-top:9px">
+      <div class="row-between" style="margin:0 0 3px;font-size:12.5px">
+        <span>Tone (ear warmth)</span>
+        <strong id="sound-tone-lbl">Warm · 2.0 kHz</strong>
+      </div>
+      <input type="range" id="sound-tone-slider" min="0" max="100" value="52" aria-label="Sound warmth and treble cutoff">
+    </div>
+
+    <label class="sound-check-row" style="margin-top:11px">
+      <input type="checkbox" id="sound-break-mute" checked>
+      <span>Auto-mute during 1:5 breaks</span>
+    </label>
+  </aside>
+
+  <!-- RETINA FIGURE ZOOM LIGHTBOX -->
+  <div id="img-lightbox" class="img-lightbox" hidden role="dialog" aria-modal="true" aria-label="Zoomed figure preview">
+    <button type="button" class="ghost-btn img-lightbox-close" id="img-lightbox-close">✕ Close (Esc)</button>
+    <img id="img-lightbox-target" src="" alt="Zoomed course excerpt">
+  </div>
+
+  <script src="./vendor/marked.min.js"></script>
+  <script src="./vendor/katex.min.js"></script>
+  <script src="./vendor/auto-render.min.js"></script>
+  <script src="./js/render.js"></script>
+  <script src="./js/runner.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1125 @@
+{
+  "serverTime": "2026-11-17T08:24:02.392531+00:00",
+  "timezone": "Europe/Oslo",
+  "mode": "static_web",
+  "catalog": [
+    {
+      "courseId": "econ-2522",
+      "canvasId": "2522",
+      "code": "EXC 3420",
+      "title": "Economics I",
+      "shortTitle": "Economics",
+      "semester": "Autumn 2026",
+      "color": "#28654d",
+      "examInfo": {
+        "date": "2026-12-08",
+        "format": "3-hour WISEflow BYOD digital school exam",
+        "durationMinutes": 180,
+        "notes": "08.12.2026 09:00–12:00 · WISEflow + FLOWlock (Windows/macOS laptops only; BI calculator allowed) · Part 1: 10 MCQs (1/3, no negative marking) + Part 2: 3 Short Answers, max 200w (1/3) + Part 3: 1 Multi-part Analytical Case (1/3) · Holistic qualitative grading on economic judgement (never curriculum-dump)."
+      },
+      "questionCount": 180,
+      "mcqCount": 126,
+      "writtenOrCalcCount": 54,
+      "hardCount": 14,
+      "highDlpfcCount": 14,
+      "medDlpfcCount": 63,
+      "lowDlpfcCount": 103,
+      "flowmultiCount": 0,
+      "topicCount": 9,
+      "topics": [
+        {
+          "id": "1",
+          "number": 1,
+          "title": "Inequality, Production & Institutions",
+          "obsidianFile": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+          "obsidianHeading": "1. Topic 1: Prosperity, Inequality, and Planetary Limits",
+          "keywords": [
+            "rich/poor ratio",
+            "gdp per capita",
+            "ppp",
+            "capitalism",
+            "average product",
+            "marginal product",
+            "malthusian",
+            "specialization"
+          ]
+        },
+        {
+          "id": "2",
+          "number": 2,
+          "title": "Technology, Opportunity Cost & Incentives",
+          "obsidianFile": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+          "obsidianHeading": "2. Topic 2: Technology and Incentives",
+          "keywords": [
+            "opportunity cost",
+            "economic rent",
+            "reservation option",
+            "isocost",
+            "dominance",
+            "innovation rent",
+            "creative destruction",
+            "carbon tax"
+          ]
+        },
+        {
+          "id": "3",
+          "number": 3,
+          "title": "Optimal Choice, MRS, MRT & Working Hours",
+          "obsidianFile": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+          "obsidianHeading": "3. Topic 3: Optimal Choices — Scarcity, Wellbeing, and Working Hours",
+          "keywords": [
+            "indifference curve",
+            "mrs",
+            "mrt",
+            "feasible frontier",
+            "budget constraint",
+            "income effect",
+            "substitution effect",
+            "free time"
+          ]
+        },
+        {
+          "id": "4",
+          "number": 4,
+          "title": "The Firm, Employment Rent & Labour Discipline",
+          "obsidianFile": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+          "obsidianHeading": "4. Topic 4: The Firm and Labour Discipline",
+          "keywords": [
+            "incomplete contract",
+            "principal-agent",
+            "separation of ownership",
+            "employment rent",
+            "no-shirking",
+            "labour discipline",
+            "shirking"
+          ]
+        },
+        {
+          "id": "5",
+          "number": 5,
+          "title": "Supply, Demand & Competitive Markets",
+          "obsidianFile": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+          "obsidianHeading": "5. Topic 5: Supply, Demand, and Competitive Markets",
+          "keywords": [
+            "willingness to pay",
+            "marginal cost",
+            "price-taker",
+            "market equilibrium",
+            "consumer surplus",
+            "producer surplus",
+            "deadweight loss",
+            "tariff"
+          ]
+        },
+        {
+          "id": "6",
+          "number": 6,
+          "title": "Unemployment, Real Wages & the WS–PS Model",
+          "obsidianFile": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+          "obsidianHeading": "6. Topic 6: Unemployment and Real Wages",
+          "keywords": [
+            "labour force",
+            "unemployment rate",
+            "employment rate",
+            "participation rate",
+            "wage-setting",
+            "price-setting",
+            "ws-ps",
+            "real wage",
+            "markup"
+          ]
+        },
+        {
+          "id": "7",
+          "number": 7,
+          "title": "Labour Unions, Frontfag & Income Distribution",
+          "obsidianFile": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+          "obsidianHeading": "7. Topic 7: Labour Unions and Income Distribution",
+          "keywords": [
+            "lorenz curve",
+            "gini",
+            "trade union",
+            "bargaining effect",
+            "voice effect",
+            "frontfag",
+            "coordinated wage"
+          ]
+        },
+        {
+          "id": "8",
+          "number": 8,
+          "title": "Business Cycles, GDP & Consumption Smoothing",
+          "obsidianFile": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+          "obsidianHeading": "8. Topic 8: Business Cycles, GDP, and Consumption Smoothing",
+          "keywords": [
+            "value added",
+            "mainland gdp",
+            "recession",
+            "consumption smoothing",
+            "credit constraint",
+            "present bias",
+            "investment volatility"
+          ]
+        },
+        {
+          "id": "9",
+          "number": 9,
+          "title": "Inflation, CPI & Conflicting Claims",
+          "obsidianFile": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+          "obsidianHeading": "9. Topic 9: Inflation, CPI, and Conflicting Claims",
+          "keywords": [
+            "inflation",
+            "deflation",
+            "disinflation",
+            "cpi",
+            "gdp deflator",
+            "conflicting claims",
+            "bargaining gap",
+            "wage-price spiral",
+            "phillips curve"
+          ]
+        }
+      ],
+      "collections": [
+        {
+          "id": "SYN-MCQ",
+          "title": "Synthetic MCQ Drills (120)",
+          "kind": "drill"
+        },
+        {
+          "id": "SYN-SHORT",
+          "title": "Synthetic Short-Answer Drills (36)",
+          "kind": "drill"
+        },
+        {
+          "id": "SYN-CASE",
+          "title": "Synthetic Analytical Cases (12)",
+          "kind": "drill"
+        },
+        {
+          "id": "OBSID-BANK",
+          "title": "Exam-Calibrated Practice Bank (Obsidian)",
+          "kind": "drill"
+        }
+      ],
+      "obsidian": {
+        "vault": "Obsidian Vault",
+        "mainReference": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+        "workedExamples": "EXC3420-Obsidian/EXC3420-support/Worked Examples.md",
+        "practiceNote": "EXC3420-Obsidian/EXC3420-support/Practice.md"
+      },
+      "obsidianMainReference": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+      "obsidianUri": ""
+    },
+    {
+      "courseId": "acct-2527",
+      "canvasId": "2527",
+      "code": "EXC 3430",
+      "title": "Fundamentals of Accounting and Finance",
+      "shortTitle": "Accounting",
+      "semester": "Autumn 2026",
+      "color": "#1f5f8b",
+      "examInfo": {
+        "date": "2026-12-01",
+        "format": "3-hour FLOWmulti WISEflow digital school exam (180 points)",
+        "durationMinutes": 180,
+        "notes": "01.12.2026 09:00–12:00 · 180-pt WISEflow FLOWmulti: 10 MCQs (40 pts) + 4 Multi-Section Exercises (140 pts) · Official 2026 Title Page: whole numbers by default unless 3 decimals with DOT (.) announced (never comma!); minus sign (-50) for outflows/losses; ±2% rounding margin; carry rounded intermediates forward; type '.' in Section 13; zero formula sheet."
+      },
+      "questionCount": 42,
+      "mcqCount": 30,
+      "writtenOrCalcCount": 12,
+      "hardCount": 8,
+      "highDlpfcCount": 12,
+      "medDlpfcCount": 10,
+      "lowDlpfcCount": 20,
+      "flowmultiCount": 12,
+      "topicCount": 8,
+      "topics": [
+        {
+          "id": "1",
+          "number": 1,
+          "title": "Chapter 1 · Foundations & Accounting Information",
+          "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+          "obsidianHeading": "1 Introduction to accounting and finance",
+          "keywords": [
+            "relevance",
+            "faithful representation",
+            "materiality",
+            "management accounting",
+            "financial accounting",
+            "owners wealth",
+            "funding gap",
+            "adverse selection"
+          ]
+        },
+        {
+          "id": "2",
+          "number": 2,
+          "title": "Chapter 2 · Measuring & Reporting Financial Position (Balance Sheet)",
+          "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+          "obsidianHeading": "2 Measuring and reporting financial position",
+          "keywords": [
+            "statement of financial position",
+            "balance sheet",
+            "assets",
+            "liabilities",
+            "equity",
+            "accounting equation",
+            "current",
+            "non-current",
+            "conventions",
+            "prudence"
+          ]
+        },
+        {
+          "id": "3",
+          "number": 3,
+          "title": "Chapter 3 · Measuring & Reporting Financial Performance (Income Statement)",
+          "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+          "obsidianHeading": "3 Measuring and reporting financial performance",
+          "keywords": [
+            "income statement",
+            "revenue",
+            "cost of sales",
+            "gross profit",
+            "accruals",
+            "prepayments",
+            "depreciation",
+            "fifo",
+            "lifo",
+            "avco"
+          ]
+        },
+        {
+          "id": "DEB",
+          "number": 4,
+          "title": "Double-Entry Bookkeeping & T-Accounts",
+          "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+          "obsidianHeading": "DEB Double-entry bookkeeping",
+          "keywords": [
+            "double-entry",
+            "debit",
+            "credit",
+            "t-account",
+            "ledger",
+            "trial balance",
+            "closing entries"
+          ]
+        },
+        {
+          "id": "5",
+          "number": 5,
+          "title": "Chapter 5 · Measuring & Reporting Cash Flows",
+          "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+          "obsidianHeading": "5 Measuring and reporting cash flows",
+          "keywords": [
+            "cash flow",
+            "operating",
+            "investing",
+            "financing",
+            "direct method",
+            "indirect method",
+            "working capital",
+            "overdraft"
+          ]
+        },
+        {
+          "id": "7",
+          "number": 7,
+          "title": "Chapter 7 · Cost Behaviour, CVP, Break-Even & Relevant Costs",
+          "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+          "obsidianHeading": "7 The relevance and behaviour of costs",
+          "keywords": [
+            "relevant cost",
+            "opportunity cost",
+            "sunk cost",
+            "fixed cost",
+            "variable cost",
+            "contribution",
+            "break-even",
+            "margin of safety",
+            "operating gearing",
+            "scarce resource"
+          ]
+        },
+        {
+          "id": "8",
+          "number": 8,
+          "title": "Chapter 8 · Full Costing & Activity-Based Costing (ABC)",
+          "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+          "obsidianHeading": "8 Full costing",
+          "keywords": [
+            "full costing",
+            "job costing",
+            "process costing",
+            "batch costing",
+            "direct",
+            "indirect",
+            "overhead absorption rate",
+            "abc",
+            "cost driver",
+            "mark-up"
+          ]
+        },
+        {
+          "id": "10",
+          "number": 10,
+          "title": "Chapter 10 · Capital Investment Appraisal (NPV, IRR, Payback, ARR, RI)",
+          "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+          "obsidianHeading": "10 Making capital investment decisions",
+          "keywords": [
+            "npv",
+            "irr",
+            "payback",
+            "arr",
+            "accounting rate of return",
+            "discount factor",
+            "cost of capital",
+            "working capital",
+            "residual income"
+          ]
+        }
+      ],
+      "collections": [
+        {
+          "id": "WF-MOCK-A",
+          "title": "WISEflow Mock Exam A · Full Syllabus (180 pts, ±2% Auto-Graded)",
+          "kind": "mock_exam"
+        },
+        {
+          "id": "WF-MOCK-B",
+          "title": "WISEflow Mock Exam B · Full Syllabus (180 pts, ±2% Auto-Graded)",
+          "kind": "mock_exam"
+        },
+        {
+          "id": "WF-MOCK-C",
+          "title": "WISEflow Mock Exam C · Full Syllabus (180 pts, ±2% Auto-Graded)",
+          "kind": "mock_exam"
+        }
+      ],
+      "obsidian": {
+        "vault": "Obsidian Vault",
+        "mainReference": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "workedExamples": "EXC3430-Obsidian/EXC3430-support/Worked Examples.md",
+        "practiceNote": "EXC3430-Obsidian/EXC3430-support/Practice.md"
+      },
+      "obsidianMainReference": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+      "obsidianUri": ""
+    },
+    {
+      "courseId": "ob-2537",
+      "canvasId": "2537",
+      "code": "EXC 3460",
+      "title": "Organizational Behavior and Leadership",
+      "shortTitle": "OB & Leadership",
+      "semester": "Autumn 2026",
+      "color": "#6d3b8e",
+      "examInfo": {
+        "date": "2026-12-14",
+        "mockDate": "2026-11-19",
+        "format": "3-hour WISEflow BYOD digital school exam (100% MCQ)",
+        "durationMinutes": 180,
+        "notes": "Official Mock Exam: Thu 2026-11-19 (25 MCQs, 90 min, ungraded WISEflow diagnostic) · Final Exam: Mon 2026-12-14 14:00–17:00 (50 MCQs × 2 pts = 100 pts, 5 options A–E, A = 85–100 / >=43 correct, zero negative marking)."
+      },
+      "questionCount": 75,
+      "mcqCount": 75,
+      "writtenOrCalcCount": 0,
+      "hardCount": 14,
+      "highDlpfcCount": 14,
+      "medDlpfcCount": 56,
+      "lowDlpfcCount": 5,
+      "flowmultiCount": 0,
+      "topicCount": 14,
+      "topics": [
+        {
+          "id": "1",
+          "number": 1,
+          "title": "Lesson 1: Introduction to Organizational Behaviour",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "1. Lesson 1: Introduction to Organizational Behaviour",
+          "keywords": [
+            "ebm",
+            "evidence-based",
+            "contingency",
+            "fayol",
+            "mintzberg",
+            "katz",
+            "luthans",
+            "three levels"
+          ]
+        },
+        {
+          "id": "2",
+          "number": 2,
+          "title": "Lesson 2: Organizational Culture",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "2. Lesson 2: Organizational Culture",
+          "keywords": [
+            "culture",
+            "socialization",
+            "subculture",
+            "dominant culture",
+            "groysberg",
+            "iceberg",
+            "rituals"
+          ]
+        },
+        {
+          "id": "3",
+          "number": 3,
+          "title": "Lesson 3: Perception, Personality & Individual Differences",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "3. Lesson 3: Perception, Personality, and Individual Differences",
+          "keywords": [
+            "attribution",
+            "fundamental attribution error",
+            "actor-observer",
+            "halo",
+            "big five",
+            "mbti",
+            "dark triad",
+            "person-organization fit"
+          ]
+        },
+        {
+          "id": "4",
+          "number": 4,
+          "title": "Lesson 4: Groups and Teams",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "4. Lesson 4: Groups and Teams",
+          "keywords": [
+            "tuckman",
+            "punctuated equilibrium",
+            "groupthink",
+            "groupshift",
+            "social loafing",
+            "cohesiveness",
+            "psychological safety",
+            "work team"
+          ]
+        },
+        {
+          "id": "5",
+          "number": 5,
+          "title": "Lesson 5: Leadership Part 1 — Theories and Styles",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "5. Lesson 5: Leadership Part 1 — Theories and Styles",
+          "keywords": [
+            "fiedler",
+            "lpc",
+            "situational leadership",
+            "hersey-blanchard",
+            "path-goal",
+            "lmx",
+            "transformational",
+            "transactional",
+            "laissez-faire"
+          ]
+        },
+        {
+          "id": "6",
+          "number": 6,
+          "title": "Lesson 6: Leadership Part 2 — Charisma, Followership & Dark Side",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "6. Lesson 6: Leadership Part 2 — Charisma, Followership, and the Dark Side",
+          "keywords": [
+            "charisma",
+            "awestruck",
+            "menges",
+            "theranos",
+            "followership",
+            "kelley",
+            "destructive leadership",
+            "toxic triangle",
+            "einarsen"
+          ]
+        },
+        {
+          "id": "7",
+          "number": 7,
+          "title": "Lesson 7: Attitudes, Emotions & Workplace Stress",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "7. Lesson 7: Work Environment, Attitudes, Emotions, and Stress",
+          "keywords": [
+            "cognitive dissonance",
+            "evln",
+            "job satisfaction",
+            "affective events",
+            "emotional labor",
+            "surface acting",
+            "deep acting",
+            "jd-r",
+            "burnout"
+          ]
+        },
+        {
+          "id": "8",
+          "number": 8,
+          "title": "Lesson 8: Communication and Organizational Change",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "8. Lesson 8: Communication and Organizational Change",
+          "keywords": [
+            "channel richness",
+            "proxemics",
+            "allen curve",
+            "active listening",
+            "lewin",
+            "kotter",
+            "action research",
+            "appreciative inquiry",
+            "resistance to change"
+          ]
+        },
+        {
+          "id": "9",
+          "number": 9,
+          "title": "Lesson 9: Diversity and Creativity",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "9. Lesson 9: Diversity and Creativity",
+          "keywords": [
+            "surface-level diversity",
+            "deep-level diversity",
+            "biographical",
+            "hofstede",
+            "mumford",
+            "creativity"
+          ]
+        },
+        {
+          "id": "10",
+          "number": 10,
+          "title": "Lesson 10: Organizational Structure & HR Systems",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "10. Lesson 10: Organizational Theory, Structure, and HR Systems",
+          "keywords": [
+            "span of control",
+            "chain of command",
+            "centralization",
+            "formalization",
+            "matrix",
+            "mechanistic",
+            "organic",
+            "perrow",
+            "assessment center"
+          ]
+        },
+        {
+          "id": "11",
+          "number": 11,
+          "title": "Lesson 11: Technology, Algorithmic Management & Work",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "11. Lesson 11: Technology, Algorithmic Management, and Work",
+          "keywords": [
+            "sociomateriality",
+            "orlikowski",
+            "j-curve",
+            "autonomy paradox",
+            "transparency paradox",
+            "invisible cage",
+            "pacifying algorithm",
+            "kellogg"
+          ]
+        },
+        {
+          "id": "12",
+          "number": 12,
+          "title": "Lesson 12: Motivation, Job Design & Organizational Justice",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "12. Lesson 12: Motivation, Job Design, and Organizational Justice",
+          "keywords": [
+            "maslow",
+            "herzberg",
+            "mcclelland",
+            "self-determination",
+            "intrinsic",
+            "goal-setting",
+            "expectancy",
+            "equity",
+            "distributive",
+            "procedural",
+            "jcm"
+          ]
+        },
+        {
+          "id": "13",
+          "number": 13,
+          "title": "Lesson 13: Decision Making, Biases & Organizational Learning",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "13. Lesson 13: Decision Making, Emotions, and Organizational Learning",
+          "keywords": [
+            "bounded rationality",
+            "satisficing",
+            "confirmation bias",
+            "anchoring",
+            "escalation of commitment",
+            "sunk cost",
+            "availability",
+            "learning"
+          ]
+        },
+        {
+          "id": "14",
+          "number": 14,
+          "title": "Lesson 14: Conflict, Power, Politics & Negotiation",
+          "obsidianFile": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+          "obsidianHeading": "14. Lesson 14: Conflict, Power, Politics, and Negotiation",
+          "keywords": [
+            "task conflict",
+            "relationship conflict",
+            "thomas-kilmann",
+            "french and raven",
+            "coercive",
+            "expert",
+            "referent",
+            "dependence",
+            "batna",
+            "integrative"
+          ]
+        }
+      ],
+      "collections": [
+        {
+          "id": "nov19-mock-25",
+          "title": "Nov 19 Official-Format Mock Exam (25 MCQs · 90m Timed Rehearsal)",
+          "kind": "mock_exam",
+          "durationMinutes": 90
+        },
+        {
+          "id": "wiseflow-mock-1",
+          "title": "Full-Length 50-Question WISEflow Mock Exam (M1–M50)",
+          "kind": "mock"
+        }
+      ],
+      "obsidian": {
+        "vault": "Obsidian Vault",
+        "mainReference": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "workedExamples": "EXC3460-Obsidian/EXC3460-support/Worked Examples.md",
+        "practiceNote": "EXC3460-Obsidian/EXC3460-support/Practice.md"
+      },
+      "obsidianMainReference": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+      "obsidianUri": ""
+    },
+    {
+      "courseId": "prog-3021",
+      "canvasId": "3021",
+      "code": "EBA 3400",
+      "title": "Programming, Data Extraction and Visualisation",
+      "shortTitle": "Programming",
+      "semester": "Autumn 2026",
+      "color": "#1d5e8a",
+      "examInfo": {
+        "date": "2026-11-26",
+        "format": "3-hour WISEflow Home Exam (Jupyter Notebook .ipynb submission)",
+        "durationMinutes": 180,
+        "notes": "Home Exam 2 (40%, Part 1 & Part 2): Thu 2026-11-26 09:00–12:00 · Device Monitor mandatory · Submit anonymous .ipynb ONLY with executed outputs visible (code without output = 0 pts; upload >=10m early; withdraw old file before re-upload) · Strict 7-package whitelist: pandas, seaborn, matplotlib, random, math, datetime, numpy (other imports deduct points; AI tools = F; 85–100 = A)."
+      },
+      "questionCount": 37,
+      "mcqCount": 8,
+      "writtenOrCalcCount": 29,
+      "hardCount": 2,
+      "highDlpfcCount": 23,
+      "medDlpfcCount": 7,
+      "lowDlpfcCount": 7,
+      "flowmultiCount": 0,
+      "topicCount": 6,
+      "topics": [
+        {
+          "id": "1",
+          "number": 1,
+          "title": "Input, Strings & Conditionals",
+          "obsidianFile": "EBA3400 - Semester Reference.md",
+          "obsidianHeading": "02 Variables and Data Types",
+          "keywords": [
+            "input",
+            "float",
+            "int",
+            "string",
+            "slicing",
+            "isdigit",
+            "split",
+            "if",
+            "elif",
+            "else",
+            "f-string"
+          ]
+        },
+        {
+          "id": "2",
+          "number": 2,
+          "title": "Loops, Comprehensions & Simulations",
+          "obsidianFile": "EBA3400 - Semester Reference.md",
+          "obsidianHeading": "05 Loop Statements I",
+          "keywords": [
+            "for",
+            "while",
+            "range",
+            "enumerate",
+            "list comprehension",
+            "nested loop",
+            "simulation",
+            "inventory"
+          ]
+        },
+        {
+          "id": "3",
+          "number": 3,
+          "title": "Functions, Tuples & Dictionaries",
+          "obsidianFile": "EBA3400 - Semester Reference.md",
+          "obsidianHeading": "07 Functions",
+          "keywords": [
+            "def",
+            "return",
+            "tuple",
+            "unpacking",
+            "dictionary",
+            "items",
+            "set",
+            "distance"
+          ]
+        },
+        {
+          "id": "4",
+          "number": 4,
+          "title": "Scope, Modules & Debugging",
+          "obsidianFile": "EBA3400 - Semester Reference.md",
+          "obsidianHeading": "10 Part 1 Review and Debugging",
+          "keywords": [
+            "debugging",
+            "scope",
+            "math",
+            "random",
+            "precedence",
+            "indexerror",
+            "syntaxerror",
+            "typeerror"
+          ]
+        },
+        {
+          "id": "5",
+          "number": 5,
+          "title": "Pandas DataFrames, Cleaning & Aggregation",
+          "obsidianFile": "EBA3400 - Semester Reference.md",
+          "obsidianHeading": "12 Pandas2 - Preprocessing",
+          "keywords": [
+            "pandas",
+            "dataframe",
+            "series",
+            "loc",
+            "iloc",
+            "merge",
+            "isna",
+            "fillna",
+            "cut",
+            "groupby",
+            "crosstab"
+          ]
+        },
+        {
+          "id": "6",
+          "number": 6,
+          "title": "Time Series & Data Visualisation",
+          "obsidianFile": "EBA3400 - Semester Reference.md",
+          "obsidianHeading": "15 Matplotlib and Seaborn",
+          "keywords": [
+            "datetime",
+            "resample",
+            "matplotlib",
+            "seaborn",
+            "subplots",
+            "heatmap",
+            "scatter",
+            "histogram",
+            "line chart"
+          ]
+        }
+      ],
+      "collections": [
+        {
+          "id": "foundation-01",
+          "title": "Foundation 01: Input, Strings & Conditionals",
+          "kind": "drill"
+        },
+        {
+          "id": "foundation-02",
+          "title": "Foundation 02: Loops, Comprehensions & Simulations",
+          "kind": "drill"
+        },
+        {
+          "id": "foundation-03",
+          "title": "Foundation 03: Functions, Tuples & Dictionaries",
+          "kind": "drill"
+        },
+        {
+          "id": "mock-exam-a",
+          "title": "Midterm Mock Exam A (100 pts)",
+          "kind": "mock",
+          "durationMinutes": 120
+        },
+        {
+          "id": "mock-exam-b",
+          "title": "Midterm Mock Exam B (100 pts)",
+          "kind": "mock",
+          "durationMinutes": 120
+        },
+        {
+          "id": "concept-mcq",
+          "title": "Python & Pandas Trap Diagnostics (MCQ)",
+          "kind": "drill"
+        }
+      ],
+      "obsidian": {
+        "vault": "Obsidian Vault",
+        "mainReference": "EBA3400 - Semester Reference.md",
+        "workedExamples": "EBA3400 - Study and Updates.md",
+        "practiceNote": "EBA3400 - Study and Updates.md"
+      },
+      "obsidianMainReference": "EBA3400 - Semester Reference.md",
+      "obsidianUri": ""
+    }
+  ],
+  "references": [
+    {
+      "id": "econ-2522",
+      "courseId": "econ-2522",
+      "code": "EXC 3420",
+      "title": "Economics I",
+      "shortTitle": "Economics",
+      "semester": "Autumn 2026",
+      "color": "#28654d",
+      "file": "EXC3420-Obsidian/EXC3420 - Economics I.md",
+      "obsidianUri": "",
+      "headingCount": 14,
+      "headings": [
+        "EXC 3420 — Economics I (Oslo, Autumn 2026)",
+        "Course Index",
+        "Method & Formula Finder",
+        "1. Topic 1: Prosperity, Inequality, and Planetary Limits",
+        "2. Topic 2: Technology and Incentives",
+        "3. Topic 3: Optimal Choices — Scarcity, Wellbeing, and Working Hours",
+        "4. Topic 4: The Firm and Labour Discipline",
+        "5. Topic 5: Supply, Demand, and Competitive Markets",
+        "6. Topic 6: Unemployment and Real Wages",
+        "7. Topic 7: Labour Unions and Income Distribution",
+        "8. Topic 8: Business Cycles, GDP, and Consumption Smoothing",
+        "9. Topic 9: Inflation, CPI, and Conflicting Claims",
+        "10. Exam Strategy, Past-Paper Patterns, and Practice",
+        "11. Source Map, Term Schedule, and Verification"
+      ],
+      "companions": [
+        {
+          "label": "Worked Examples",
+          "file": "EXC3420-Obsidian/EXC3420-support/Worked Examples.md"
+        },
+        {
+          "label": "Practice Pack",
+          "file": "EXC3420-Obsidian/EXC3420-support/Practice.md"
+        }
+      ],
+      "questionCount": 329,
+      "updatedAt": "2026-11-16"
+    },
+    {
+      "id": "acct-2527",
+      "courseId": "acct-2527",
+      "code": "EXC 3430",
+      "title": "Fundamentals of Accounting and Finance",
+      "shortTitle": "Accounting",
+      "semester": "Autumn 2026",
+      "color": "#1f5f8b",
+      "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+      "obsidianUri": "",
+      "headingCount": 12,
+      "headings": [
+        "EXC3430 · Accounting and Finance",
+        "Actual tasks and nearby help",
+        "Method and formula finder",
+        "1 Introduction to accounting and finance",
+        "2 Measuring and reporting financial position",
+        "3 Measuring and reporting financial performance",
+        "DEB Double-entry bookkeeping",
+        "5 Measuring and reporting cash flows",
+        "7 The relevance and behaviour of costs",
+        "8 Full costing",
+        "10 Making capital investment decisions",
+        "Final checks and next step"
+      ],
+      "companions": [
+        {
+          "label": "Worked Examples",
+          "file": "EXC3430-Obsidian/EXC3430-support/Worked Examples.md"
+        },
+        {
+          "label": "Practice Pack",
+          "file": "EXC3430-Obsidian/EXC3430-support/Practice.md"
+        }
+      ],
+      "questionCount": 334,
+      "updatedAt": "2026-11-16"
+    },
+    {
+      "id": "math-2588",
+      "courseId": "",
+      "code": "EBA 1181",
+      "title": "Mathematics for Data Science",
+      "shortTitle": "Mathematics",
+      "semester": "Autumn 2026",
+      "color": "#1d4ed8",
+      "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianUri": "",
+      "headingCount": 22,
+      "headings": [
+        "Mathematics for Data Science - Semester Reference",
+        "Course index",
+        "1. Basic algebra and mathematical language",
+        "2. Rates of change, powers, roots and interest",
+        "3. Present value, cash flows and internal rate of return",
+        "4. Geometric series, annuities and continuous compounding",
+        "5. Linear and quadratic equations, substitutions and parameters",
+        "6. Polynomials, division and factorisation",
+        "7. Rational equations, radical equations and inequalities",
+        "8. Functions, lines, quadratics, circles and ellipses",
+        "9. Rational functions, limits, continuity and asymptotes",
+        "10. Inverse functions, exponentials and logarithms",
+        "11. Tangents and differentiation rules",
+        "12. Stationary points and optimisation in one variable",
+        "13. Implicit differentiation",
+        "14. Second derivatives, convexity and inflection points",
+        "15. Limits with L'Hôpital's rule",
+        "16. Marginal cost, revenue and cost optimum",
+        "17. Price elasticity",
+        "18. Linearisation and Taylor polynomials",
+        "19. Practice, assessment and final checks",
+        "20. Sources, scope and verification"
+      ],
+      "companions": [],
+      "questionCount": 0,
+      "updatedAt": "2026-11-04"
+    },
+    {
+      "id": "ob-2537",
+      "courseId": "ob-2537",
+      "code": "EXC 3460",
+      "title": "Organizational Behavior and Leadership",
+      "shortTitle": "OB & Leadership",
+      "semester": "Autumn 2026",
+      "color": "#6d3b8e",
+      "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+      "obsidianUri": "",
+      "headingCount": 17,
+      "headings": [
+        "EXC 3460 — Organizational Behaviour and Leadership (Oslo, Autumn 2026)",
+        "Semester Roadmap & Three-Level OB Mental Map",
+        "1. Lesson 1: Introduction to Organizational Behaviour",
+        "2. Lesson 2: Organizational Culture",
+        "3. Lesson 3: Perception, Personality, and Individual Differences",
+        "4. Lesson 4: Groups and Teams",
+        "5. Lesson 5: Leadership Part 1 — Theories and Styles",
+        "6. Lesson 6: Leadership Part 2 — Charisma, Followership, and the Dark Side",
+        "7. Lesson 7: Work Environment, Attitudes, Emotions, and Stress",
+        "8. Lesson 8: Communication and Organizational Change",
+        "9. Lesson 9: Diversity and Creativity",
+        "10. Lesson 10: Organizational Theory, Structure, and HR Systems",
+        "11. Lesson 11: Technology, Algorithmic Management, and Work",
+        "12. Lesson 12: Motivation, Job Design, and Organizational Justice",
+        "13. Lesson 13: Decision Making, Emotions, and Organizational Learning",
+        "14. Lesson 14: Conflict, Power, Politics, and Negotiation",
+        "15. Exam Strategy, Wiseflow Format, and Look-Alike Trap Manual"
+      ],
+      "companions": [
+        {
+          "label": "Worked Examples",
+          "file": "EXC3460-Obsidian/EXC3460-support/Worked Examples.md"
+        },
+        {
+          "label": "Practice Pack",
+          "file": "EXC3460-Obsidian/EXC3460-support/Practice.md"
+        }
+      ],
+      "questionCount": 120,
+      "updatedAt": "2026-11-16"
+    },
+    {
+      "id": "prog-3021",
+      "courseId": "prog-3021",
+      "code": "EBA 3400",
+      "title": "Programming, Data Extraction and Visualisation",
+      "shortTitle": "Programming",
+      "semester": "Autumn 2026",
+      "color": "#1d5e8a",
+      "file": "EBA3400 - Semester Reference.md",
+      "obsidianUri": "",
+      "headingCount": 19,
+      "headings": [
+        "EBA3400 - Semester Reference",
+        "Course index",
+        "01 Introduction",
+        "02 Variables and Data Types",
+        "03 Lists",
+        "04 Conditional Statements",
+        "05 Loop Statements I",
+        "06 Loop Statements II",
+        "07 Functions",
+        "08 Dictionary Tuple and Set",
+        "09 Scope Scripts and Modules",
+        "10 Part 1 Review and Debugging",
+        "11 Pandas1 - Objects",
+        "12 Pandas2 - Preprocessing",
+        "13 Pandas3 - Calculations",
+        "14 Pandas4 - Visualisations",
+        "15 Matplotlib and Seaborn",
+        "Appendix - Dates and Time Series",
+        "Final checks"
+      ],
+      "companions": [
+        {
+          "label": "Worked Examples",
+          "file": "EBA3400 - Study and Updates.md"
+        },
+        {
+          "label": "Practice Pack",
+          "file": "EBA3400 - Study and Updates.md"
+        }
+      ],
+      "questionCount": 60,
+      "updatedAt": "2026-11-16"
+    },
+    {
+      "id": "ref-eba3400-study-and-updates",
+      "courseId": "",
+      "code": "EBA3400",
+      "title": "EBA3400 - Study and Updates",
+      "shortTitle": "EBA3400",
+      "semester": "Reference Library",
+      "color": "#2c6e7f",
+      "file": "EBA3400 - Study and Updates.md",
+      "obsidianUri": "",
+      "headingCount": 3,
+      "headings": [
+        "EBA3400 - Study and Updates",
+        "Practice and readiness",
+        "Maintenance and source map"
+      ],
+      "companions": [],
+      "questionCount": 0,
+      "updatedAt": "2026-11-16"
+    }
+  ],
+  "canvasArchive": {
+    "connected": false,
+    "courses": [],
+    "unimportedCount": 0
+  },
+  "scheduleConfig": {
+    "enabled": false,
+    "prefs": {}
+  },
+  "progress": {
+    "records": {}
+  },
+  "calendar": {
+    "source": "static_web",
+    "blocks": []
+  },
+  "analytics": {},
+  "recentSessions": []
+}

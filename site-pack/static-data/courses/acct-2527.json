@@ -1,0 +1,4519 @@
+{
+  "schemaVersion": 1,
+  "courseId": "acct-2527",
+  "canvasId": "2527",
+  "code": "EXC 3430",
+  "title": "Fundamentals of Accounting and Finance",
+  "shortTitle": "Accounting",
+  "semester": "Autumn 2026",
+  "color": "#1f5f8b",
+  "examInfo": {
+    "date": "2026-12-01",
+    "format": "3-hour FLOWmulti WISEflow digital school exam (180 points)",
+    "durationMinutes": 180,
+    "notes": "01.12.2026 09:00–12:00 · 180-pt WISEflow FLOWmulti: 10 MCQs (40 pts) + 4 Multi-Section Exercises (140 pts) · Official 2026 Title Page: whole numbers by default unless 3 decimals with DOT (.) announced (never comma!); minus sign (-50) for outflows/losses; ±2% rounding margin; carry rounded intermediates forward; type '.' in Section 13; zero formula sheet."
+  },
+  "obsidian": {
+    "vault": "Obsidian Vault",
+    "mainReference": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+    "workedExamples": "EXC3430-Obsidian/EXC3430-support/Worked Examples.md",
+    "practiceNote": "EXC3430-Obsidian/EXC3430-support/Practice.md"
+  },
+  "topics": [
+    {
+      "id": "1",
+      "number": 1,
+      "title": "Chapter 1 · Foundations & Accounting Information",
+      "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+      "obsidianHeading": "1 Introduction to accounting and finance",
+      "keywords": [
+        "relevance",
+        "faithful representation",
+        "materiality",
+        "management accounting",
+        "financial accounting",
+        "owners wealth",
+        "funding gap",
+        "adverse selection"
+      ]
+    },
+    {
+      "id": "2",
+      "number": 2,
+      "title": "Chapter 2 · Measuring & Reporting Financial Position (Balance Sheet)",
+      "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+      "obsidianHeading": "2 Measuring and reporting financial position",
+      "keywords": [
+        "statement of financial position",
+        "balance sheet",
+        "assets",
+        "liabilities",
+        "equity",
+        "accounting equation",
+        "current",
+        "non-current",
+        "conventions",
+        "prudence"
+      ]
+    },
+    {
+      "id": "3",
+      "number": 3,
+      "title": "Chapter 3 · Measuring & Reporting Financial Performance (Income Statement)",
+      "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+      "obsidianHeading": "3 Measuring and reporting financial performance",
+      "keywords": [
+        "income statement",
+        "revenue",
+        "cost of sales",
+        "gross profit",
+        "accruals",
+        "prepayments",
+        "depreciation",
+        "fifo",
+        "lifo",
+        "avco"
+      ]
+    },
+    {
+      "id": "DEB",
+      "number": 4,
+      "title": "Double-Entry Bookkeeping & T-Accounts",
+      "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+      "obsidianHeading": "DEB Double-entry bookkeeping",
+      "keywords": [
+        "double-entry",
+        "debit",
+        "credit",
+        "t-account",
+        "ledger",
+        "trial balance",
+        "closing entries"
+      ]
+    },
+    {
+      "id": "5",
+      "number": 5,
+      "title": "Chapter 5 · Measuring & Reporting Cash Flows",
+      "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+      "obsidianHeading": "5 Measuring and reporting cash flows",
+      "keywords": [
+        "cash flow",
+        "operating",
+        "investing",
+        "financing",
+        "direct method",
+        "indirect method",
+        "working capital",
+        "overdraft"
+      ]
+    },
+    {
+      "id": "7",
+      "number": 7,
+      "title": "Chapter 7 · Cost Behaviour, CVP, Break-Even & Relevant Costs",
+      "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+      "obsidianHeading": "7 The relevance and behaviour of costs",
+      "keywords": [
+        "relevant cost",
+        "opportunity cost",
+        "sunk cost",
+        "fixed cost",
+        "variable cost",
+        "contribution",
+        "break-even",
+        "margin of safety",
+        "operating gearing",
+        "scarce resource"
+      ]
+    },
+    {
+      "id": "8",
+      "number": 8,
+      "title": "Chapter 8 · Full Costing & Activity-Based Costing (ABC)",
+      "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+      "obsidianHeading": "8 Full costing",
+      "keywords": [
+        "full costing",
+        "job costing",
+        "process costing",
+        "batch costing",
+        "direct",
+        "indirect",
+        "overhead absorption rate",
+        "abc",
+        "cost driver",
+        "mark-up"
+      ]
+    },
+    {
+      "id": "10",
+      "number": 10,
+      "title": "Chapter 10 · Capital Investment Appraisal (NPV, IRR, Payback, ARR, RI)",
+      "obsidianFile": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+      "obsidianHeading": "10 Making capital investment decisions",
+      "keywords": [
+        "npv",
+        "irr",
+        "payback",
+        "arr",
+        "accounting rate of return",
+        "discount factor",
+        "cost of capital",
+        "working capital",
+        "residual income"
+      ]
+    }
+  ],
+  "collections": [
+    {
+      "id": "WF-MOCK-A",
+      "title": "WISEflow Mock Exam A · Full Syllabus (180 pts, ±2% Auto-Graded)",
+      "kind": "mock_exam"
+    },
+    {
+      "id": "WF-MOCK-B",
+      "title": "WISEflow Mock Exam B · Full Syllabus (180 pts, ±2% Auto-Graded)",
+      "kind": "mock_exam"
+    },
+    {
+      "id": "WF-MOCK-C",
+      "title": "WISEflow Mock Exam C · Full Syllabus (180 pts, ±2% Auto-Graded)",
+      "kind": "mock_exam"
+    }
+  ],
+  "sources": {},
+  "questions": [
+    {
+      "id": "acct-2527:WFA-M1",
+      "localId": "WFA-M1",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "1",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFA-M1 · Fundamental qualitative characteristics",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Under the IASB Conceptual Framework (Chapter 1), which pair represents the two **fundamental** qualitative characteristics of useful financial information?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Comparability and verifiability",
+        "Relevance and faithful representation",
+        "Timeliness and understandability",
+        "Prudence and historic cost"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Distinguish fundamental qualities from the four enhancing qualities.",
+        "Information must both matter to decisions and accurately depict economic substance."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "**Relevance** and **faithful representation** are the two fundamental qualitative characteristics; comparability, verifiability, timeliness, and understandability are *enhancing* characteristics.",
+      "pitfall": "Confusing enhancing characteristics (comparability/verifiability) with fundamental characteristics.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "1 Introduction to accounting and finance",
+        "label": "Chapter 1 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-a",
+        "ch1",
+        "conceptual-framework"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-M2",
+      "localId": "WFA-M2",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "2",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFA-M2 · Asset recognition criteria on the SFP",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Nordic Design AS spends £40,000 training its sales staff on a new CRM system. How should this £40,000 expenditure be treated in the financial statements?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Capitalised as an intangible non-current asset and amortised over 5 years",
+        "Recognised immediately as an expense in the income statement because the firm lacks legal control over staff remaining",
+        "Recorded directly as a deduction from share capital without passing through profit",
+        "Held in current assets as prepaid employee goodwill"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Check the control test for an asset in Chapter 2.",
+        "Employees can resign, so future economic benefits from general training are not controlled by the entity."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Because the business cannot **control** employees' future service, staff training fails the asset recognition test and is expensed immediately in the income statement.",
+      "pitfall": "Capitalising internally incurred staff training or marketing spend as an intangible asset.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "2 Measuring and reporting financial position",
+        "label": "Chapter 2 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-a",
+        "ch2",
+        "asset-recognition"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-M3",
+      "localId": "WFA-M3",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "DEB",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFA-M3 · Double-entry effect of credit purchase settlement",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "When a business pays £12,000 from its bank account to settle an existing trade payable (with no settlement discount), what is the double-entry effect?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Debit Trade payables £12,000; Credit Cash at bank £12,000 (equity unchanged)",
+        "Debit Cash at bank £12,000; Credit Trade payables £12,000 (equity unchanged)",
+        "Debit Purchases expense £12,000; Credit Cash at bank £12,000 (equity decreases)",
+        "Debit Trade payables £12,000; Credit Retained earnings £12,000 (equity increases)"
+      ],
+      "answerIndex": 0,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Decreasing a liability is a Debit; decreasing an asset is a Credit.",
+        "Was any revenue earned or new expense incurred at the moment of cash settlement?"
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Paying a supplier reduces the liability **Trade payables** (**Debit £12,000**) and reduces the asset **Cash at bank** (**Credit £12,000**). Total assets and total liabilities fall equally; profit and equity are unaffected.",
+      "pitfall": "Treating supplier cash payment as an expense at settlement rather than when goods/services were incurred.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "DEB Double-entry bookkeeping",
+        "label": "Chapter DEB Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-a",
+        "deb",
+        "t-accounts"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-M4",
+      "localId": "WFA-M4",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "3",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFA-M4 · Accrued expense adjustment error",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "If an accountant forgets to record £8,500 of accrued electricity expense at year-end, what is the effect on the year-end financial statements?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Profit is understated by £8,500 and current liabilities are overstated by £8,500",
+        "Profit is overstated by £8,500 and current liabilities are understated by £8,500",
+        "Profit is overstated by £8,500 and cash is overstated by £8,500",
+        "Assets are overstated by £8,500 and liabilities are unaffected"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Write the missing entry: Dr Electricity expense £8,500, Cr Accruals (current liability) £8,500.",
+        "Omitting an expense makes profit too high; omitting the accrual makes liabilities too low."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Omitting an accrued expense leaves expenses £8,500 too low (**profit & equity overstated by £8,500**) and omits the current liability (**current liabilities understated by £8,500**). Cash is unaffected.",
+      "pitfall": "Assuming accrued expenses affect the year-end cash balance.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "3 Measuring and reporting financial performance",
+        "label": "Chapter 3 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-a",
+        "ch3",
+        "accruals"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-M5",
+      "localId": "WFA-M5",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "5",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFA-M5 · Working capital impact on operating cash flow",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "During 2026, operating profit is £90,000, depreciation is £18,000, inventories increased by £11,000, and trade payables increased by £7,000 (no other working capital items). Cash generated from operations is:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "£104,000",
+        "£112,000",
+        "£86,000",
+        "£126,000"
+      ],
+      "answerIndex": 0,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Add back non-cash depreciation to operating profit.",
+        "An inventory build-up absorbs cash (−£11,000), whereas higher trade payables conserve cash (+£7,000)."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "$\\text{Cash generated} = 90,000 + 18,000 - 11,000 + 7,000 = \\mathbf{£104,000}$.",
+      "pitfall": "Flipping the signs on working capital changes (adding inventory increase or subtracting payable increase).",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "5 Measuring and reporting cash flows",
+        "label": "Chapter 5 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-a",
+        "ch5",
+        "indirect-method"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-M6",
+      "localId": "WFA-M6",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "7",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFA-M6 · Relevant cost of inventory already in stock",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "A firm holds 400 kg of Specialty Alloy bought last year for £15/kg (historic cost £6,000). If not used on a one-off contract, it would be sold immediately as scrap for £9/kg; the alloy has no other use in the business. What is the relevant cost of using the 400 kg on the contract?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "£0, because the alloy is already paid for",
+        "£6,000 (historic purchase cost)",
+        "£3,600 (forgone net realisable scrap value)",
+        "£2,400 (book loss on disposal)"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Sunk purchase cost (£15/kg) is always irrelevant.",
+        "Ask what cash inflow the firm sacrifices by using the material instead of scrapping it."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "The historic £6,000 is sunk. Using the alloy sacrifices £9/kg in immediate scrap proceeds, so the relevant opportunity cost is $400 \\times £9 = \\mathbf{£3,600}$.",
+      "pitfall": "Treating existing material as free (£0) and ignoring its forgone scrap proceeds.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "7 The relevance and behaviour of costs",
+        "label": "Chapter 7 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-a",
+        "ch7",
+        "relevant-costs"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-M7",
+      "localId": "WFA-M7",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "7",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFA-M7 · Operating gearing and profit sensitivity",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Company H has high fixed costs and low variable cost per unit; Company L has low fixed costs and high variable cost per unit. At the same current sales volume and operating profit, if sales volume rises by 15%:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Company L's operating profit will increase by a larger percentage than Company H's",
+        "Company H's operating profit will increase by a larger percentage because its contribution margin ratio is higher",
+        "Both companies will experience the exact same 15% increase in operating profit",
+        "Company H has a lower break-even point when demand falls"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Recall operating gearing = Contribution / Operating profit.",
+        "High fixed costs with equal profit imply a larger total contribution, magnifying volume swings."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Company H has higher **operating gearing**: each extra unit sold generates a higher contribution while fixed costs stay constant, so profit rises (and falls) by a larger percentage than at Company L.",
+      "pitfall": "Mixing up operating gearing risk on the downside with profit sensitivity on the upside.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "7 The relevance and behaviour of costs",
+        "label": "Chapter 7 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-a",
+        "ch7",
+        "operating-gearing"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-M8",
+      "localId": "WFA-M8",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "8",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFA-M8 · Traditional volume-based costing vs ABC cross-subsidisation",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "When a multi-product factory switches from a single direct-labour-hour (DLH) overhead rate to Activity-Based Costing (ABC), low-volume complex batch products typically show:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "A lower unit cost under ABC because they consume fewer total labour hours",
+        "A higher unit cost under ABC because batch-level set-up and inspection costs are spread over fewer units",
+        "Unchanged unit cost, because total factory overhead is identical",
+        "Zero indirect cost, because ABC only traces direct materials"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Traditional DLH allocates set-up/inspection pools in proportion to volume.",
+        "Small complex batches trigger disproportionate set-ups per unit produced."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Traditional volume-based rates **under-cost** low-volume complex products and **over-cost** high-volume standard products; ABC assigns batch-level set-ups/inspections accurately, raising the reported unit cost of small complex batches.",
+      "pitfall": "Assuming fewer total DLHs means complex small batches become cheaper under ABC.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "8 Full costing",
+        "label": "Chapter 8 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-a",
+        "ch8",
+        "abc"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-M9",
+      "localId": "WFA-M9",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "10",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFA-M9 · Mutually exclusive projects: NPV vs IRR",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Projects X (initial outlay £50,000, IRR 22%, NPV +£14,000) and Y (initial outlay £200,000, IRR 17%, NPV +£29,000) are mutually exclusive at a 10% cost of capital with no capital rationing. To maximise shareholder wealth, the firm should:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Accept Project X because 22% IRR exceeds 17% IRR",
+        "Accept Project Y because it generates the higher positive Net Present Value (+£29,000)",
+        "Accept both X and Y because both have positive NPVs",
+        "Reject both until their IRRs are equal"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "IRR is a percentage rate and ignores project scale.",
+        "Which metric directly measures absolute shareholder wealth added in today's pounds?"
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "**NPV** directly measures absolute wealth creation in present-value monetary terms (+£29,000 vs +£14,000). For mutually exclusive projects, IRR suffers from the **scale problem**.",
+      "pitfall": "Ranking mutually exclusive projects of different sizes by IRR percentage instead of NPV.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10 Making capital investment decisions",
+        "label": "Chapter 10 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-a",
+        "ch10",
+        "npv-vs-irr"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-M10",
+      "localId": "WFA-M10",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "10",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFA-M10 · Working capital in NPV cash-flow schedules",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "A 4-year project requires £25,000 of net working capital at $t = 0$, maintained throughout Years 1–4 and fully recovered at the end of Year 4 ($t = 4$) at a 10% discount rate. What is the net effect of working capital on the project's **NPV**?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "£0, because −£25,000 at t=0 and +£25,000 at t=4 cancel out",
+        "Negative (−£7,924.66), because the t=4 recovery is discounted while the t=0 outflow is not",
+        "Negative (−£25,000), because working capital release is an accounting entry rather than cash",
+        "Positive (+£17,075.34), because working capital recovery adds to Year 4 profit"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Compare $-25,000$ at $t=0$ with $+25,000 / 1.10^4$ at $t=4$.",
+        "Time value of money means tying up cash for 4 years carries an opportunity cost."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "In undiscounted terms $-25,000 + 25,000 = 0$, but in present value $-25,000 + 25,000 / 1.10^4 = -25,000 + 17,075.34 = \\mathbf{-£7,924.66}$. Tying up working capital reduces NPV by the lost time value.",
+      "pitfall": "Omitting the t=4 working capital release OR claiming t=0 and t=4 cancel in PV terms.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10 Making capital investment decisions",
+        "label": "Chapter 10 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-a",
+        "ch10",
+        "working-capital"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-E1",
+      "localId": "WFA-E1",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "3",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFA-E1 · Nordic Craft Ltd · FIFO, Accruals, Income Statement & Equity (45 pts)",
+      "difficulty": 3,
+      "points": 45,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 1 (45 points)** under WISEflow FLOWmulti rules (2 decimals / ±2% rounding margin; use minus sign for negatives).\n\n**Data for Nordic Craft Ltd (Year ended 31 December 2026):**\n- **Sales revenue:** £420,000 (all credit sales). Irrecoverable receivables written off during 2026: **£4,000**.\n- **Inventory batches (FIFO cost flow):**\n  - 1 Jan opening inventory: `200 units @ £40 = £8,000`\n  - 14 Apr purchase: `500 units @ £44 = £22,000`\n  - 9 Oct purchase: `400 units @ £50 = £20,000`\n  - Total units sold during 2026: **800 units**.\n- **Operating costs & year-end adjustments:**\n  - Cash wages paid in 2026: **£140,000**; unpaid December wages accrued at year-end: **£6,000**.\n  - Cash rent paid in 2026: **£48,000**, which includes **£8,000** prepaid for Jan–Feb 2027.\n  - Workshop equipment cost **£120,000**, residual value **£20,000**, useful life **5 years** (straight-line depreciation).\n  - Other cash operating expenses: **£55,000** · Loan interest expense: **£10,000**.\n- **Equity roll-forward:** Opening total equity (1 Jan 2026) = **£250,000**; cash dividends paid in 2026 = **£30,000** (no new share issues).\n\n**Statement 1a:** Under rising unit purchase prices, FIFO reports a higher closing inventory value and higher profit than AVCO.\n**Statement 1b:** Paying a cash dividend to shareholders is recorded as an operating expense in the income statement.\n**Statement 1c:** Prepaid rent at year-end is classified as a current asset on the Statement of Financial Position.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. FIFO vs AVCO under rising prices",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Cash dividends are an income statement expense",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. Prepaid rent is a current asset on the SFP",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "clos_inv",
+          "group": "2. FIFO Inventory & Gross Profit (15 pts)",
+          "label": "Closing Inventory at 31 Dec (300 units under FIFO)",
+          "type": "number",
+          "expected": 15000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "cogs",
+          "group": "2. FIFO Inventory & Gross Profit (15 pts)",
+          "label": "Cost of Sales (COGS) for 2026",
+          "type": "number",
+          "expected": 35000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "gp",
+          "group": "2. FIFO Inventory & Gross Profit (15 pts)",
+          "label": "Gross Profit",
+          "type": "number",
+          "expected": 385000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "wages_exp",
+          "group": "3. Accrual Adjustments & Profit (18 pts)",
+          "label": "2026 Wages Expense (incl. year-end accrual)",
+          "type": "number",
+          "expected": 146000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "rent_exp",
+          "group": "3. Accrual Adjustments & Profit (18 pts)",
+          "label": "2026 Rent Expense (after prepayment adjustment)",
+          "type": "number",
+          "expected": 40000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "depr_exp",
+          "group": "3. Accrual Adjustments & Profit (18 pts)",
+          "label": "2026 Annual Straight-Line Depreciation",
+          "type": "number",
+          "expected": 20000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "op_profit",
+          "group": "3. Accrual Adjustments & Profit (18 pts)",
+          "label": "Operating Profit (EBIT)",
+          "type": "number",
+          "expected": 120000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "net_profit",
+          "group": "3. Accrual Adjustments & Profit (18 pts)",
+          "label": "Net Profit for the Year (after interest)",
+          "type": "number",
+          "expected": 110000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "clos_eq",
+          "group": "4. Statement of Financial Position Equity (6 pts)",
+          "label": "Closing Total Equity at 31 Dec 2026",
+          "type": "number",
+          "expected": 330000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 6
+        }
+      ],
+      "hints": [
+        "Under FIFO, the 800 sold units use all 200 opening units (@£40), all 500 April units (@£44), and 100 October units (@£50), leaving 300 October units in closing inventory.",
+        "Add accrued wages (+£6,000), deduct prepaid rent (−£8,000), deduct straight-line depreciation ((120,000 − 20,000)/5 = £20,000) and bad debts (£4,000). Dividends reduce Retained Earnings directly, not Net Profit."
+      ],
+      "rubricChecks": [
+        "Computed FIFO closing inventory (£15,000) and COGS (£35,000)",
+        "Adjusted wages (£146,000) and rent (£40,000) accurately under accruals",
+        "Kept dividends (£30,000) out of Net Profit (£110,000) and rolled forward Equity (£330,000)"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFA-E1 (45 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Wrong** *(dividends are an appropriation of retained earnings, not an expense)* · **1c. Right**.\n2. **FIFO Inventory & Gross Profit:**\n   - Available goods $= 8,000 + 22,000 + 20,000 = £50,000$ ($1,100$ units). Closing units $= 1,100 - 800 = 300$ units from 9 Oct batch $@ £50 = \\mathbf{£15,000}$.\n   - $\\text{COGS} = 50,000 - 15,000 = \\mathbf{£35,000}$ *(check: $200(40) + 500(44) + 100(50) = 8,000 + 22,000 + 5,000 = 35,000$)*.\n   - $\\text{Gross Profit} = 420,000 - 35,000 = \\mathbf{£385,000}$.\n3. **Operating & Net Profit:**\n   - Wages expense $= 140,000 + 6,000 = \\mathbf{£146,000}$ · Rent expense $= 48,000 - 8,000 = \\mathbf{£40,000}$ · Depreciation $= (120,000 - 20,000)/5 = \\mathbf{£20,000}$.\n   - Total operating expenses $= 146,000 + 40,000 + 20,000 + 4,000 + 55,000 = £265,000 \\implies \\text{Operating Profit} = 385,000 - 265,000 = \\mathbf{£120,000}$.\n   - $\\text{Net Profit} = 120,000 - 10,000 = \\mathbf{£110,000}$.\n4. **Closing Equity:** $250,000 + 110,000 - 30,000 = \\mathbf{£330,000}$.",
+      "pitfall": "Subtracting dividends inside Net Profit, or forgetting to subtract residual value (£20,000) in straight-line depreciation.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "3 Measuring and reporting financial performance",
+        "label": "Chapter 3 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 40.5,
+          "target": 56.2,
+          "max": 72.0
+        },
+        "exam": {
+          "min": 31.5,
+          "target": 45.0,
+          "max": 51.7
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "45-point WISEflow FLOWmulti exercise (45m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-a",
+        "ch2",
+        "ch3",
+        "fifo",
+        "accruals"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-E2",
+      "localId": "WFA-E2",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "5",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFA-E2 · Bergen Marine Ltd · Indirect Statement of Cash Flows (35 pts)",
+      "difficulty": 3,
+      "points": 35,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 2 (35 points)** for **Bergen Marine Ltd** (all figures in **£m**; enter numbers only, using a minus sign e.g. `-57` for net outflows).\n\n**Summary Data for 2026 (£m):**\n- **Operating profit (EBIT):** `84` (after charging depreciation of `26` and a **loss on disposal** of equipment of `5`).\n- The disposed equipment had a carrying amount (NBV) of `18` and was sold for **`13` cash**.\n- **Property, Plant & Equipment (carrying amount / NBV):** Opening `210` · Closing `236` (all additions were paid in cash).\n- **Working capital balances (Opening → Closing):**\n  - Inventories: `30 → 39`\n  - Trade receivables: `45 → 41`\n  - Trade payables: `28 → 22`\n- **Interest, Tax & Financing:** Interest paid in cash = `8`. Income statement tax charge = `16`; Tax payable on SFP went from Opening `14` to Closing `11`. New long-term bank loan raised = `20`; Cash dividends paid (classified under **Financing activities** here) = `12`.\n- **Opening cash / bank balance (1 Jan 2026):** Bank overdraft of **`-10`**.\n\n**Statement 1a:** A non-cash loss on disposal of non-current assets is added back to operating profit when reconciling to cash generated from operations, while the actual sale proceeds appear under investing activities.\n**Statement 1b:** Making a bonus issue of shares (capitalising reserves) generates a financing cash inflow.\n**Statement 1c:** Profitable rapidly growing firms can experience negative operating cash flow if inventory and receivable expansion exceeds operating cash generation.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. Disposal loss add-back & investing proceeds",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Bonus share issue creates financing cash inflow",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. Profitable growth can cause negative operating cash flow (overtrading)",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "cash_gen",
+          "group": "2. Operating Activities (£m, 13 pts)",
+          "label": "Cash Generated from Operations (before interest & tax)",
+          "type": "number",
+          "expected": 104.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 5
+        },
+        {
+          "id": "tax_paid",
+          "group": "2. Operating Activities (£m, 13 pts)",
+          "label": "Cash Tax Paid during 2026 (enter positive magnitude 19 or -19)",
+          "type": "number",
+          "expected": 19.0,
+          "altExpected": [
+            -19.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 4
+        },
+        {
+          "id": "net_op",
+          "group": "2. Operating Activities (£m, 13 pts)",
+          "label": "Net Cash from Operating Activities (after interest 8 & tax paid)",
+          "type": "number",
+          "expected": 77.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 4
+        },
+        {
+          "id": "ppe_add",
+          "group": "3. Investing & Financing Activities (£m, 12 pts)",
+          "label": "Cash Paid for PPE Additions (magnitude 70 or -70)",
+          "type": "number",
+          "expected": 70.0,
+          "altExpected": [
+            -70.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 4
+        },
+        {
+          "id": "net_inv",
+          "group": "3. Investing & Financing Activities (£m, 12 pts)",
+          "label": "Net Cash from Investing Activities (use minus sign)",
+          "type": "number",
+          "expected": -57.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 4
+        },
+        {
+          "id": "net_fin",
+          "group": "3. Investing & Financing Activities (£m, 12 pts)",
+          "label": "Net Cash from Financing Activities",
+          "type": "number",
+          "expected": 8.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 4
+        },
+        {
+          "id": "clos_cash",
+          "group": "4. Closing Cash Position (£m, 4 pts)",
+          "label": "Closing Cash Balance at 31 Dec 2026",
+          "type": "number",
+          "expected": 18.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 4
+        }
+      ],
+      "hints": [
+        "Cash generated = Operating profit (84) + Depreciation (26) + Disposal loss (5) − ΔInventory (9) + ΔReceivables decrease (4) − ΔPayables decrease (6).",
+        "Roll forward PPE NBV: Opening (210) + Additions − Disposal NBV (18) − Depreciation (26) = Closing (236) ⇒ Additions = 70. Net investing = −70 + 13 disposal cash = −57."
+      ],
+      "rubricChecks": [
+        "Added back both depreciation (26) and loss on disposal (5) in Operating cash",
+        "Reconciled Tax Paid (14 + 16 − 11 = 19) and PPE Additions (70) via roll-forward",
+        "Combined Opening Overdraft (−10) + Net Change (+28) = +18 Closing Cash"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFA-E2 (35 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Wrong** *(a bonus issue transfers reserves to share capital with zero cash flow)* · **1c. Right**.\n2. **Operating Activities (£m):**\n   - $\\text{Cash generated} = 84 + 26 + 5 - (39 - 30) + (45 - 41) - (28 - 22) = 115 - 9 + 4 - 6 = \\mathbf{104}$.\n   - $\\text{Tax paid} = 14 + 16 - 11 = \\mathbf{19}$.\n   - $\\text{Net cash from operating activities} = 104 - 8 - 19 = \\mathbf{77}$.\n3. **Investing & Financing Activities (£m):**\n   - $\\text{PPE Additions} = 236 - 210 + 18 + 26 = \\mathbf{70} \\implies \\text{Net investing cash flow} = -70 + 13 = \\mathbf{-57}$.\n   - $\\text{Net financing cash flow} = +20\\text{ (loan)} - 12\\text{ (dividends)} = \\mathbf{+8}$.\n4. **Closing Cash:** Net change $= 77 - 57 + 8 = +28 \\implies -10 + 28 = \\mathbf{+18\\text{ (£m)}}$.",
+      "pitfall": "Subtracting disposal loss instead of adding it back, or forgetting disposal NBV (18) and depreciation (26) when solving for PPE additions.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "5 Measuring and reporting cash flows",
+        "label": "Chapter 5 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 31.5,
+          "target": 43.8,
+          "max": 56.0
+        },
+        "exam": {
+          "min": 24.5,
+          "target": 35.0,
+          "max": 40.2
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "35-point WISEflow FLOWmulti exercise (35m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-a",
+        "ch5",
+        "cash-flows",
+        "disposal-loss"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-E3",
+      "localId": "WFA-E3",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "7",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFA-E3 · Oslo Mobility · Break-Even, Margin of Safety & Scarce Machine Hours (30 pts)",
+      "difficulty": 2,
+      "points": 30,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 3 (30 points)** for **Oslo Mobility Ltd**.\n\n**Part A — Single-Product CVP (Commuter e-bike):**\n- Selling price = **£500/unit** · Variable cost = **£300/unit** · Monthly fixed costs = **£120,000**.\n- Budgeted monthly sales volume = **800 units**.\n\n**Part B — Two-Product Limiting Factor Decision:**\nNext quarter, Oslo Mobility can also sell a **Cargo** model (Selling price **£750**, Variable cost **£450**, max monthly demand **300 units**) alongside **Commuter** (max monthly demand **600 units**). Specialised CNC machine capacity is capped at **2,100 machine hours (MH)** per month (Fixed costs remain **£120,000**):\n- **Commuter:** requires **2.5 MH** per unit.\n- **Cargo:** requires **5.0 MH** per unit.\n\n**Statement 1a:** Margin of safety (%) measures the percentage by which budgeted sales can fall before the business incurs an operating loss.\n**Statement 1b:** When machine hours are the single scarce limiting factor, products should be ranked by highest contribution per unit of output.\n**Statement 1c:** An increase in the income tax rate raises the pre-tax sales volume required to earn a specified **after-tax** target profit.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. Definition of Margin of Safety (%)",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Scarce factor ranking uses contribution per unit of output",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. Higher tax rate increases volume needed for an after-tax target profit",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "bep_u",
+          "group": "2. Part A · CVP & Target Profit (12 pts)",
+          "label": "Break-Even Sales Volume (units)",
+          "type": "number",
+          "expected": 600.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "units",
+          "points": 4
+        },
+        {
+          "id": "mos_pct",
+          "group": "2. Part A · CVP & Target Profit (12 pts)",
+          "label": "Margin of Safety as % of Budgeted Sales (enter 25 for 25%)",
+          "type": "number",
+          "expected": 25.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 4
+        },
+        {
+          "id": "tgt_u",
+          "group": "2. Part A · CVP & Target Profit (12 pts)",
+          "label": "Units Required for £70,000 Monthly Operating Profit",
+          "type": "number",
+          "expected": 950.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "units",
+          "points": 4
+        },
+        {
+          "id": "cm_mh_c",
+          "group": "3. Part B · Scarce Machine-Hour Optimal Plan (12 pts)",
+          "label": "Commuter Contribution per Machine Hour (£/MH)",
+          "type": "number",
+          "expected": 80.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/MH",
+          "points": 4
+        },
+        {
+          "id": "cargo_u",
+          "group": "3. Part B · Scarce Machine-Hour Optimal Plan (12 pts)",
+          "label": "Optimal Monthly Units of Cargo Produced",
+          "type": "number",
+          "expected": 120.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "units",
+          "points": 4
+        },
+        {
+          "id": "max_prof",
+          "group": "3. Part B · Scarce Machine-Hour Optimal Plan (12 pts)",
+          "label": "Maximum Monthly Operating Profit under Optimal Mix",
+          "type": "number",
+          "expected": 36000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        }
+      ],
+      "hints": [
+        "Unit CM for Commuter = £500 − £300 = £200. Margin of safety % = (Budgeted − BEP) / Budgeted × 100.",
+        "Rank by CM per scarce machine hour: Commuter = £200 / 2.5 MH = £80/MH vs Cargo = £300 / 5.0 MH = £60/MH. Fulfil Commuter's 600-unit demand first!"
+      ],
+      "rubricChecks": [
+        "Calculated BEP (600 units), MOS (25%), and target-profit volume (950 units)",
+        "Ranked Commuter (£80/MH) ahead of Cargo (£60/MH) despite Cargo's larger £300 unit CM",
+        "Allocated remaining 600 MH to 120 Cargo units for £36,000 maximum profit"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFA-E3 (30 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Wrong** *(rank by contribution **per unit of the scarce resource**, £/MH)* · **1c. Right**.\n2. **Part A (CVP):**\n   - $\\text{BEP} = 120,000 / (500 - 300) = \\mathbf{600\\text{ units}}$.\n   - $\\text{Margin of Safety \\%} = (800 - 600)/800 \\times 100 = \\mathbf{25\\%}$.\n   - $\\text{Target units} = (120,000 + 70,000)/200 = \\mathbf{950\\text{ units}}$.\n3. **Part B (Scarce Machine Hours):**\n   - Commuter: $£200 / 2.5\\text{ MH} = \\mathbf{£80/\\text{MH}}$ (Rank 1) · Cargo: $£300 / 5.0\\text{ MH} = £60/\\text{MH}$ (Rank 2).\n   - Produce max **600 Commuter** units ($600 \\times 2.5 = 1,500\\text{ MH}$). Remaining capacity $= 2,100 - 1,500 = 600\\text{ MH} \\implies 600 / 5.0 = \\mathbf{120\\text{ Cargo units}}$.\n   - $\\text{Max Operating Profit} = 600(200) + 120(300) - 120,000 = 120,000 + 36,000 - 120,000 = \\mathbf{£36,000}$.",
+      "pitfall": "Dividing Margin of Safety by BEP (600) instead of budgeted sales (800), or prioritising Cargo because £300 > £200 per unit.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "7 The relevance and behaviour of costs",
+        "label": "Chapter 7 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 27.0,
+          "target": 37.5,
+          "max": 48.0
+        },
+        "exam": {
+          "min": 21.0,
+          "target": 30.0,
+          "max": 34.5
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "30-point WISEflow FLOWmulti exercise (30m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-a",
+        "ch7",
+        "cvp",
+        "scarce-resource"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFA-E4",
+      "localId": "WFA-E4",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-A",
+      "topicId": "10",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFA-E4 · Fjord Tech · NPV, Working Capital Recovery, Payback & ARR (30 pts)",
+      "difficulty": 2,
+      "points": 30,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 4 (30 points)** for **Fjord Tech AS** (Cost of capital $r = 10\\%$).\n\n**Project Data:**\n- **Equipment outlay ($t = 0$):** £160,000 · Expected residual (disposal) value at $t = 4$: **£20,000** (4-year life, straight-line depreciation).\n- **Working capital:** **£20,000** required immediately at $t = 0$, fully recovered in cash at the end of Year 4 ($t = 4$).\n- **Annual net operating cash inflows** (before depreciation):\n  - $t = 1$: **£55,000** · $t = 2$: **£65,000** · $t = 3$: **£60,000** · $t = 4$: **£50,000**.\n- *(10% discount factors if needed: $t=1: 0.9091$, $t=2: 0.8264$, $t=3: 0.7513$, $t=4: 0.6830$.)*\n\n**Statement 1a:** Depreciation is a non-cash expense and must not be deducted from cash flows in an NPV schedule, though it reduces accounting profit in ARR.\n**Statement 1b:** Financing interest charges on loans used to fund the project should be subtracted as an annual cash outflow in the project's cash-flow line before discounting at the cost of capital.\n**Statement 1c:** Accounting Rate of Return (ARR) ignores the timing of cash flows within the project's life.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. Treatment of depreciation in NPV vs ARR",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Deduct loan interest in cash flows AND discount at cost of capital",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. ARR ignores time value / cash flow timing",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "cf0",
+          "group": "2. Project Cash Flows & Payback (12 pts)",
+          "label": "Total Initial Cash Outflow at t = 0 (incl. WC; use minus sign)",
+          "type": "number",
+          "expected": -180000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "cf4",
+          "group": "2. Project Cash Flows & Payback (12 pts)",
+          "label": "Total Terminal Cash Inflow in t = 4 (operating + salvage + WC release)",
+          "type": "number",
+          "expected": 90000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "payback",
+          "group": "2. Project Cash Flows & Payback (12 pts)",
+          "label": "Undiscounted Payback Period (in years)",
+          "type": "number",
+          "expected": 3.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "yrs",
+          "points": 4
+        },
+        {
+          "id": "npv",
+          "group": "3. NPV & Accounting Rate of Return (12 pts)",
+          "label": "Net Present Value (NPV at 10%)",
+          "type": "number",
+          "expected": 30269.11,
+          "altExpected": [
+            30215.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 6
+        },
+        {
+          "id": "avg_prof",
+          "group": "3. NPV & Accounting Rate of Return (12 pts)",
+          "label": "Average Annual Operating Profit (after £35,000 depreciation)",
+          "type": "number",
+          "expected": 22500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "arr",
+          "group": "3. NPV & Accounting Rate of Return (12 pts)",
+          "label": "ARR % on Average Equipment Investment (£90,000; enter 25 for 25%)",
+          "type": "number",
+          "expected": 25.0,
+          "altExpected": [
+            20.45
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 3
+        }
+      ],
+      "hints": [
+        "At t=0 combine −£160,000 equipment and −£20,000 working capital (= −£180,000). At t=4 combine £50,000 operating + £20,000 salvage + £20,000 working capital recovery (= +£90,000).",
+        "Cumulative cash flow after Year 3 is −180,000 + 55,000 + 65,000 + 60,000 = 0! Discounting at 10% accounts for financing costs, so never double-count interest."
+      ],
+      "rubricChecks": [
+        "Included £20,000 working capital outflow at t=0 and recovery at t=4",
+        "Computed exact NPV (+£30,262.28, or +£30,215 with 3-dec factors — both within ±2%)",
+        "Computed straight-line depreciation (£35,000/yr), average profit (£22,500), and ARR (25.0%)"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFA-E4 (30 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Wrong** *(discounting at the cost of capital already prices financing costs; deducting interest double-counts financing)* · **1c. Right**.\n2. **Cash Flows, Payback & NPV (10%):**\n   - $CF_0 = -160,000 - 20,000 = \\mathbf{-£180,000}$ · $CF_1 = 55,000$ · $CF_2 = 65,000$ · $CF_3 = 60,000$ · $CF_4 = 50,000 + 20,000 + 20,000 = \\mathbf{+£90,000}$.\n   - **Payback:** Cumulative cash after Year 3 $= -180,000 + 55,000 + 65,000 + 60,000 = 0 \\implies \\mathbf{3.00\\text{ years}}$.\n   - **NPV (exact):** $-180,000 + 55,000/1.1 + 65,000/1.21 + 60,000/1.331 + 90,000/1.4641 = \\mathbf{£30,269.11}$ *(3-dec table factors give £30,215.00, well inside ±2% tolerance)*.\n3. **ARR:** Annual depreciation $= (160,000 - 20,000)/4 = £35,000$. Average annual operating profit $= 57,500 - 35,000 = \\mathbf{£22,500}$. On average equipment investment $(160,000 + 20,000)/2 = £90,000$, $\\text{ARR} = 22,500 / 90,000 = \\mathbf{25.0\\%}$ *(or 20.45% if £20,000 WC is added to the denominator)*.",
+      "pitfall": "Forgetting working capital recovery (+£20,000) in t=4 or deducting £35,000 depreciation inside NPV cash flows.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10 Making capital investment decisions",
+        "label": "Chapter 10 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 27.0,
+          "target": 37.5,
+          "max": 48.0
+        },
+        "exam": {
+          "min": 21.0,
+          "target": 30.0,
+          "max": 34.5
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "30-point WISEflow FLOWmulti exercise (30m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-a",
+        "ch10",
+        "npv",
+        "payback",
+        "arr"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-M1",
+      "localId": "WFB-M1",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "1",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFB-M1 · Management vs financial accounting",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Which statement accurately contrasts **management accounting** with **financial accounting**?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Management accounting reports must comply strictly with IFRS and are published annually for external lenders",
+        "Management accounting is future- and decision-oriented, tailored flexibly to internal managers' needs with no statutory format",
+        "Financial accounting provides daily product-level contribution margins to factory supervisors",
+        "Management accounting excludes non-financial operational metrics"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Think about audience (internal vs external), regulation, and time horizon.",
+        "External reporting follows statutory rules; internal reporting follows decision usefulness."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "**Management accounting** serves internal managers with flexible, forward-looking, frequent operational and cost reports, unconstrained by external GAAP/IFRS templates.",
+      "pitfall": "Assuming management accounting is bound by IFRS valuation rules.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "1 Introduction to accounting and finance",
+        "label": "Chapter 1 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-b",
+        "ch1",
+        "management-vs-financial"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-M2",
+      "localId": "WFB-M2",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "2",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFB-M2 · Upward revaluation of property on the SFP",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "When an office building is revalued upward from a carrying amount of £900,000 to £1,150,000 under the IAS 16 revaluation model, the £250,000 gain is:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Credited directly to a Revaluation Reserve within equity (not realised distributable operating profit)",
+        "Recognised as cash sales revenue on the income statement",
+        "Recorded as a current liability until the building is sold",
+        "Ignored completely because historic cost prohibits all revaluations under IFRS"
+      ],
+      "answerIndex": 0,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Is an unrealised property revaluation gain distributable as a cash dividend?",
+        "Check how non-current asset revaluations affect equity reserves in Chapter 2."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "An upward revaluation increases non-current assets by £250,000 and credits a **Revaluation Reserve** (equity) rather than realised operating profit.",
+      "pitfall": "Treating unrealised upward PPE revaluation as realised operating profit.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "2 Measuring and reporting financial position",
+        "label": "Chapter 2 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-b",
+        "ch2",
+        "revaluation"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-M3",
+      "localId": "WFB-M3",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "3",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFB-M3 · Revenue recognition for advance customer deposits",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "On 15 December 2026, an airline receives £60,000 cash for flights scheduled in February 2027. In the 2026 financial statements, the £60,000 cash receipt creates:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "£60,000 of 2026 sales revenue and £60,000 of operating profit",
+        "A £60,000 current liability (deferred/unearned revenue) on the 31 Dec 2026 SFP, with £0 2026 revenue",
+        "A £60,000 trade receivable on the 31 Dec 2026 SFP",
+        "A £60,000 deduction from non-current assets"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Revenue is recognised when performance obligations (flying the passengers) are satisfied, not when cash arrives.",
+        "Until February 2027, the airline owes either the flight or a refund."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Under accrual accounting, cash received in advance of service delivery is recorded as **Deferred (unearned) revenue** under **current liabilities** (`Dr Cash £60k, Cr Deferred revenue £60k`).",
+      "pitfall": "Recognising revenue on cash receipt before service delivery.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "3 Measuring and reporting financial performance",
+        "label": "Chapter 3 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-b",
+        "ch3",
+        "revenue-recognition"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-M4",
+      "localId": "WFB-M4",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "3",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFB-M4 · Reducing-balance depreciation in Year 2",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "A delivery truck costs £80,000 with an estimated residual value of £10,000 and is depreciated using the **reducing-balance method at 25% per annum**. What is the depreciation charge in **Year 2**?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "£20,000",
+        "£17,500",
+        "£15,000",
+        "£13,125"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Reducing-balance applies the percentage directly to Opening Carrying Amount (NBV), NOT (Cost − Residual)!",
+        "Year 1 depr = 25% × £80,000 = £20,000 ⇒ Opening Year 2 NBV = £60,000."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Year 1 depreciation $= 0.25 \\times 80,000 = £20,000$, leaving Year 2 opening NBV $= £60,000$. Year 2 depreciation $= 0.25 \\times 60,000 = \\mathbf{£15,000}$ *(residual value is already baked into the 25% rate formula)*.",
+      "pitfall": "Subtracting residual value (£10,000) before applying the reducing-balance percentage.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "3 Measuring and reporting financial performance",
+        "label": "Chapter 3 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-b",
+        "ch3",
+        "depreciation"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-M5",
+      "localId": "WFB-M5",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "5",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFB-M5 · Classification of new share issue proceeds",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Proceeds of £500,000 received from issuing new ordinary shares for cash are reported on the Statement of Cash Flows under:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Operating activities",
+        "Investing activities",
+        "Financing activities",
+        "Statement of comprehensive income only (not on the cash-flow statement)"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Distinguish long-term capital providers (equity & debt) from asset acquisitions.",
+        "Issuing shares changes the long-term capital structure of the entity."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Cash raised from issuing shares (or borrowing/repaying long-term debt) is a **Financing activity** inflow.",
+      "pitfall": "Confusing buying another company's shares (investing) with issuing the firm's own shares (financing).",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "5 Measuring and reporting cash flows",
+        "label": "Chapter 5 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-b",
+        "ch5",
+        "financing-cash-flows"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-M6",
+      "localId": "WFB-M6",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "7",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFB-M6 · Allocated head-office overheads in keep-or-drop decisions",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Division West reports: Sales £300,000, Variable costs £190,000, Avoidable divisional fixed costs £80,000, and Apportioned head-office general overhead £50,000 (reported loss = −£20,000). Closing Division West saves **none** of the head-office overhead. Closing the division will change total company operating profit by:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "+£20,000",
+        "−£30,000",
+        "−£110,000",
+        "+£50,000"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Compare lost segment contribution (£300k − £190k = £110k) against avoidable fixed costs saved (£80k).",
+        "Apportioned head-office overhead (£50k) continues regardless and is irrelevant!"
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Division West generates £110,000 contribution and £80,000 avoidable fixed cost — a **+£30,000 relevant segment margin** toward head-office costs. Closing it **reduces** company profit by **£30,000**.",
+      "pitfall": "Dropping a division because arbitrary head-office cost apportionment makes its bottom line look negative.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "7 The relevance and behaviour of costs",
+        "label": "Chapter 7 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-b",
+        "ch7",
+        "keep-or-drop"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-M7",
+      "localId": "WFB-M7",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "8",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFB-M7 · Under- vs over-absorbed factory overhead",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Budgeted overhead is £360,000 for 30,000 budgeted machine hours (predetermined OAR = £12/MH). Actual machine hours worked are 32,000 MH and actual overhead incurred is £374,000. Overhead for the period is:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "£14,000 under-absorbed",
+        "£10,000 over-absorbed",
+        "£10,000 under-absorbed",
+        "£24,000 over-absorbed"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Compute Absorbed Overhead = Predetermined OAR (£12/MH) × Actual activity (32,000 MH).",
+        "Compare Absorbed (£384,000) against Actual Incurred (£374,000)."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Absorbed overhead $= £12 \\times 32,000 = £384,000$. Since absorbed (£384,000) exceeds actual incurred (£374,000) by £10,000, overhead is **£10,000 over-absorbed**.",
+      "pitfall": "Comparing actual overhead (£374k) to budgeted overhead (£360k) instead of absorbed overhead (£384k).",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "8 Full costing",
+        "label": "Chapter 8 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-b",
+        "ch8",
+        "overhead-absorption"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-M8",
+      "localId": "WFB-M8",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "8",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFB-M8 · Process costing vs job costing",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Which industry is most suited to **process costing** (averaging total period costs across identical output units) rather than specific job costing?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Bespoke architectural bridge design",
+        "Custom litigation legal services",
+        "Continuous oil refining or cement manufacturing",
+        "Custom superyacht shipbuilding"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Job costing tracks unique customer orders; process costing averages homogeneous mass output.",
+        "Identify the homogeneous continuous production environment."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Continuous **oil refining / cement manufacturing** produces indistinguishable units, so period costs are averaged per litre/tonne (**process costing**).",
+      "pitfall": "Applying job-order costing terminology to continuous homogeneous chemical/refining output.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "8 Full costing",
+        "label": "Chapter 8 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-b",
+        "ch8",
+        "job-vs-process"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-M9",
+      "localId": "WFB-M9",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "10",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFB-M9 · Annuity factor shortcut",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "A project requires £150,000 at $t = 0$ and generates an identical net cash inflow of £45,000 at the end of each of Years 1 to 5. At an 8% discount rate, the 5-year cumulative annuity factor is `3.9927`. The project's NPV is closest to:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "+£29,672",
+        "+£75,000",
+        "−£18,450",
+        "+£179,672"
+      ],
+      "answerIndex": 0,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "PV of equal inflows = Annual cash flow × Annuity factor.",
+        "Remember to subtract the initial £150,000 outlay!"
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "$\\text{PV of inflows} = 45,000 \\times 3.9927 = £179,671.50 \\implies \\text{NPV} = 179,671.50 - 150,000 = \\mathbf{+£29,671.50}$.",
+      "pitfall": "Reporting PV of inflows (£179,672) without subtracting the initial outlay (£150,000).",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10 Making capital investment decisions",
+        "label": "Chapter 10 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-b",
+        "ch10",
+        "annuity"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-M10",
+      "localId": "WFB-M10",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "10",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFB-M10 · Real vs nominal cash flows and discount rates",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "When evaluating capital projects in the presence of general inflation, the golden consistency rule requires:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Discounting nominal (money) cash flows at the real cost of capital",
+        "Discounting real cash flows at the nominal (money) cost of capital",
+        "Either discounting nominal cash flows at the nominal rate OR real cash flows at the real rate (both give the exact same NPV)",
+        "Ignoring inflation completely because sales prices and costs never change"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Recall Fisher's relation $(1 + m) = (1 + r)(1 + i)$.",
+        "Match nominal with nominal, or real with real — never mix them!"
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Consistency demands matching **nominal cash flows with the nominal discount rate** OR **real cash flows with the real discount rate**; via $(1+m)=(1+r)(1+i)$ both yield the identical NPV.",
+      "pitfall": "Discounting uninflated (real) cash flows using an inflation-loaded nominal WACC, which systematically understates NPV.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10 Making capital investment decisions",
+        "label": "Chapter 10 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-b",
+        "ch10",
+        "inflation"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-E1",
+      "localId": "WFB-E1",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "3",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFB-E1 · Viken Retail · Reducing-Balance Depreciation, Asset Disposal & Doubtful Debts (40 pts)",
+      "difficulty": 3,
+      "points": 40,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 1 (40 points)** for **Viken Retail AS** (Year ended 31 December 2026).\n\n**1. Delivery Fleet & 1 January Transactions:**\n- At 1 Jan 2026 (before transactions), the fleet had original cost **£200,000** and accumulated depreciation **£72,000** (Opening NBV = **£128,000**).\n- On **1 Jan 2026**, Viken sold an older van (original cost **£50,000**, accumulated depreciation **£28,000**) for **£17,000 cash**, and immediately purchased a replacement van for **£54,000 cash**.\n- Viken depreciates all vehicles at **25% per annum reducing-balance** on year-end carrying amount prior to 2026 depreciation.\n\n**2. Trade Receivables & Allowance for Doubtful Debts:**\n- Gross trade receivables at 31 Dec 2026 (before write-offs) = **£95,000**; Opening allowance for doubtful debts (1 Jan) = **£2,600**.\n- At 31 Dec, a bankrupt customer owing **£5,000** is written off as irrecoverable, and the closing allowance is set at **4%** of remaining trade receivables.\n\n**3. Draft Profit:** Draft operating profit **before** recording (i) the van disposal gain/loss, (ii) 2026 depreciation, and (iii) 2026 bad & doubtful debt charges was **£145,000**.\n\n**Statement 1a:** Changing depreciation method purely to hit a management bonus target violates faithful representation unless the pattern of economic benefit consumption genuinely changed.\n**Statement 1b:** Accumulated depreciation represents a ring-fenced cash fund set aside in the bank to buy replacement machinery.\n**Statement 1c:** Increasing the allowance for doubtful debts reduces both reported profit and net current assets.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. Depreciation method reflects economic consumption, not bonus smoothing",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Accumulated depreciation is a cash replacement fund",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. Higher doubtful-debt allowance lowers profit and net current assets",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "disp_gl",
+          "group": "2. Fleet Disposal & 2026 Depreciation (16 pts)",
+          "label": "Gain (+) or Loss (−) on Van Disposal (use minus sign for loss)",
+          "type": "number",
+          "expected": -5000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "depr26",
+          "group": "2. Fleet Disposal & 2026 Depreciation (16 pts)",
+          "label": "2026 Reducing-Balance Depreciation Expense (25%)",
+          "type": "number",
+          "expected": 40000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 6
+        },
+        {
+          "id": "clos_nbv",
+          "group": "2. Fleet Disposal & 2026 Depreciation (16 pts)",
+          "label": "Closing Fleet Carrying Amount (NBV) at 31 Dec 2026",
+          "type": "number",
+          "expected": 120000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "clos_allow",
+          "group": "3. Receivables & Final Operating Profit (18 pts)",
+          "label": "Closing Allowance for Doubtful Debts (4% of remaining receivables)",
+          "type": "number",
+          "expected": 3600.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "bd_exp",
+          "group": "3. Receivables & Final Operating Profit (18 pts)",
+          "label": "Total 2026 Bad & Doubtful Debts Expense in Income Statement",
+          "type": "number",
+          "expected": 6000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "net_ar",
+          "group": "3. Receivables & Final Operating Profit (18 pts)",
+          "label": "Net Trade Receivables Reported on 31 Dec 2026 SFP",
+          "type": "number",
+          "expected": 86400.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "final_op",
+          "group": "3. Receivables & Final Operating Profit (18 pts)",
+          "label": "Adjusted 2026 Operating Profit",
+          "type": "number",
+          "expected": 94000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 6
+        }
+      ],
+      "hints": [
+        "Disposed van NBV = £50,000 − £28,000 = £22,000; sold for £17,000 ⇒ −£5,000 loss. Active fleet NBV before 2026 depreciation = (£128,000 − £22,000) + £54,000 = £160,000.",
+        "Write off £5,000 first so remaining receivables = £90,000. Closing allowance = 4% × £90,000 = £3,600 (only the £1,000 increase over £2,600 opening allowance is an extra expense alongside the £5,000 write-off!)."
+      ],
+      "rubricChecks": [
+        "Calculated van disposal loss (−£5,000), 2026 depreciation (£40,000), and closing NBV (£120,000)",
+        "Charged £5,000 write-off + £1,000 allowance increase = £6,000 total expense (not £8,600!)",
+        "Reconciled final operating profit (£94,000) and net receivables (£86,400)"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFB-E1 (40 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Wrong** *(depreciation is book cost allocation, not cash)* · **1c. Right**.\n2. **Fleet Disposal & Depreciation:**\n   - Disposed NBV $= 50,000 - 28,000 = £22,000 \\implies \\text{Disposal result} = 17,000 - 22,000 = \\mathbf{-£5,000}$ (loss).\n   - Depreciable base $= (128,000 - 22,000) + 54,000 = £160,000 \\implies \\text{2026 Depreciation} = 0.25 \\times 160,000 = \\mathbf{£40,000}$.\n   - Closing fleet NBV $= 160,000 - 40,000 = \\mathbf{£120,000}$.\n3. **Receivables & Operating Profit:**\n   - Remaining gross receivables $= 95,000 - 5,000 = £90,000 \\implies \\text{Closing allowance} = 0.04 \\times 90,000 = \\mathbf{£3,600}$.\n   - Income statement charge $= £5,000\\text{ (write-off)} + (£3,600 - £2,600)\\text{ (Δallowance)} = \\mathbf{£6,000}$.\n   - Net SFP receivables $= 90,000 - 3,600 = \\mathbf{£86,400}$.\n   - Adjusted Operating Profit $= 145,000 - 5,000 - 40,000 - 6,000 = \\mathbf{£94,000}$.",
+      "pitfall": "Expensing the entire £3,600 closing allowance instead of the £1,000 movement above £2,600 opening allowance.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "3 Measuring and reporting financial performance",
+        "label": "Chapter 3 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 36.0,
+          "target": 50.0,
+          "max": 64.0
+        },
+        "exam": {
+          "min": 28.0,
+          "target": 40.0,
+          "max": 46.0
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "40-point WISEflow FLOWmulti exercise (40m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-b",
+        "ch2",
+        "ch3",
+        "reducing-balance",
+        "doubtful-debts"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-E2",
+      "localId": "WFB-E2",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "7",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFB-E2 · Stavanger Engineering · Relevant Costing & Minimum Contract Price (35 pts)",
+      "difficulty": 3,
+      "points": 35,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 2 (35 points)** for **Stavanger Engineering AS**, which has been offered **£23,500** for a one-off subsea valve contract.\n\n**Resource Requirements for the Contract:**\n1. **Material Alpha (500 kg needed):** Regularly used across main product lines. 300 kg are in stock (historic cost £12/kg; scrap value £8/kg); current market replacement price is **£16/kg**.\n2. **Material Beta (200 kg needed):** Obsolete stock bought two years ago at £25/kg (£5,000 book value). It has **no other internal use** and would otherwise be sold immediately to a recycler for **£7/kg**.\n3. **Unskilled assembly (300 hours):** Performed by permanent salaried staff (£18/hr salary rate) who currently have **400 hours of idle spare capacity** this month.\n4. **Skilled welding (150 hours):** Welders are paid **£28/hr** and are working at **100% capacity** on Component Z (no overtime/hiring possible). Each welder-hour diverted from Component Z sacrifices **£20/hr of contribution** (after already deducting the £28/hr welding wage).\n5. **Other items:** £3,500 feasibility study completed last month; **£2,400** incremental hire of an ultrasonic test rig exclusively for this contract; £4,000 absorbed general factory fixed overhead.\n\n**Statement 1a:** For a material in continuous regular use by the business, the relevant cost of drawing units from inventory is their current replacement cost.\n**Statement 1b:** Past R&D/feasibility costs become relevant if the contract successfully goes ahead and recovers them.\n**Statement 1c:** Relevant cost-based minimum pricing defines a short-run floor for one-off spare/constrained decisions, whereas long-run survival requires covering full costs.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. Regularly used inventory is costed at replacement cost",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Sunk feasibility costs become relevant if the project proceeds",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. Relevant pricing sets short-run floor; long-run requires full cost recovery",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "mat_a",
+          "group": "2. Component Relevant Costs (19 pts)",
+          "label": "Relevant Cost of Material Alpha (500 kg)",
+          "type": "number",
+          "expected": 8000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "mat_b",
+          "group": "2. Component Relevant Costs (19 pts)",
+          "label": "Relevant Cost of Material Beta (200 kg)",
+          "type": "number",
+          "expected": 1400.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "unsk",
+          "group": "2. Component Relevant Costs (19 pts)",
+          "label": "Relevant Cost of Unskilled Labour (300 hrs from idle salaried staff)",
+          "type": "number",
+          "expected": 0.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "skilled",
+          "group": "2. Component Relevant Costs (19 pts)",
+          "label": "Relevant Cost of Skilled Welding (150 hrs diverted from Z)",
+          "type": "number",
+          "expected": 7200.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "min_bid",
+          "group": "3. Minimum Floor Price & Decision Gain (10 pts)",
+          "label": "Minimum Relevant Price (Break-Even Cash Floor)",
+          "type": "number",
+          "expected": 19000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 6
+        },
+        {
+          "id": "net_gain",
+          "group": "3. Minimum Floor Price & Decision Gain (10 pts)",
+          "label": "Incremental Profit Gain from Accepting at £23,500",
+          "type": "number",
+          "expected": 4500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        }
+      ],
+      "hints": [
+        "Material Alpha is in regular use, so drawing 300 kg from stock triggers 300 kg of replenishment + 200 kg bought fresh = all 500 kg @ £16 replacement cost. Material Beta is obsolete, so only its £7/kg forgone scrap matters.",
+        "Idle salaried staff cost £0 extra. Diverted welders cost £28/hr wage + £20/hr lost contribution = £48/hr. Ignore the £3,500 sunk study and £4,000 general fixed overhead."
+      ],
+      "rubricChecks": [
+        "Valued Alpha at £16/kg replacement (£8,000) and Beta at £7/kg forgone NRV (£1,400)",
+        "Set idle salaried labour to £0 and scarce skilled labour to £48/hr (£7,200)",
+        "Excluded sunk feasibility (£3,500) and general overhead (£4,000) to find £19,000 floor & +£4,500 gain"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFB-E2 (35 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Wrong** *(sunk costs are past and irreversible regardless of project acceptance)* · **1c. Right**.\n2. **Relevant Cost Schedule:**\n   - **Material Alpha (regularly used):** $500\\text{ kg} \\times £16 = \\mathbf{£8,000}$.\n   - **Material Beta (no other use):** Forgone scrap $= 200\\text{ kg} \\times £7 = \\mathbf{£1,400}$ *(£25/kg historic cost is sunk)*.\n   - **Unskilled labour:** Paid fixed salary with 400 idle hours $\\implies \\mathbf{£0}$.\n   - **Skilled welding:** Direct wage $£28 +$ forgone Z contribution $£20 = £48/\\text{hr} \\times 150\\text{ hrs} = \\mathbf{£7,200}$.\n   - **Rig hire:** **£2,400** *(£3,500 feasibility is sunk; £4,000 general overhead is non-incremental)*.\n3. **Minimum Price & Gain:** $\\text{Floor} = 8,000 + 1,400 + 0 + 7,200 + 2,400 = \\mathbf{£19,000}$. Accepting £23,500 adds $23,500 - 19,000 = \\mathbf{+£4,500}$ to profit.",
+      "pitfall": "Pricing the 300 kg of Alpha in stock at £12 historic cost instead of £16 replacement cost, or omitting the £20/hr lost contribution on scarce welders.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "7 The relevance and behaviour of costs",
+        "label": "Chapter 7 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 31.5,
+          "target": 43.8,
+          "max": 56.0
+        },
+        "exam": {
+          "min": 24.5,
+          "target": 35.0,
+          "max": 40.2
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "35-point WISEflow FLOWmulti exercise (35m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-b",
+        "ch7",
+        "relevant-pricing",
+        "opportunity-cost"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-E3",
+      "localId": "WFB-E3",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "8",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFB-E3 · Scandia Precision · Traditional DLH Overhead vs ABC & Mark-Up Pricing (30 pts)",
+      "difficulty": 2,
+      "points": 30,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 3 (30 points)** for **Scandia Precision AS**, which manufactures **Standard** (`4,000 units`) and **Custom** (`500 units`).\n\n**Direct & Activity Data:**\n| Metric | Standard (`4,000 u`) | Custom (`500 u`) | Factory Total |\n|---|---:|---:|---:|\n| Direct materials + direct labour per unit | £30.00 | £80.00 | — |\n| Direct labour hours (DLH) per unit | 0.5 DLH | 2.0 DLH | **3,000 DLH** |\n| Batch machine set-ups (total) | 50 set-ups | 100 set-ups | **150 set-ups** |\n| Machine hours (MH, total) | 2,800 MH | 1,200 MH | **4,000 MH** |\n\n**Total Indirect Overheads = £150,000**, comprising:\n- **Machine Set-up Pool:** **£90,000** (driven by number of set-ups)\n- **Machining Pool:** **£60,000** (driven by machine hours, MH)\n\n**Statement 1a:** Activity-Based Costing is generally cheaper and simpler to administer than a single plant-wide DLH rate, so every small single-product business should adopt ABC.\n**Statement 1b:** Under a 25% mark-up on full cost (`Price = 1.25 × Full Cost`), under-costing Custom batches causes management to quote prices that fail to achieve the target profit margin.\n**Statement 1c:** Non-manufacturing period costs (e.g. corporate PR) are excluded from inventory valuation under IAS 2, though managers may consider all costs when setting long-run prices.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. ABC is always cheaper to run and optimal for single-product firms",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Under-costing complex batches erodes realized margin under cost-plus pricing",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. IAS 2 excludes non-production overheads from inventory valuation",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "trad_oar",
+          "group": "2. Traditional DLH Costing (8 pts)",
+          "label": "Plant-Wide Overhead Rate per DLH",
+          "type": "number",
+          "expected": 50.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/DLH",
+          "points": 4
+        },
+        {
+          "id": "trad_c",
+          "group": "2. Traditional DLH Costing (8 pts)",
+          "label": "Traditional Full Cost per Unit — Custom",
+          "type": "number",
+          "expected": 180.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/u",
+          "points": 4
+        },
+        {
+          "id": "setup_rate",
+          "group": "3. Activity-Based Costing & 25% Mark-Up (16 pts)",
+          "label": "ABC Cost Driver Rate per Set-Up",
+          "type": "number",
+          "expected": 600.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/set-up",
+          "points": 3
+        },
+        {
+          "id": "abc_s",
+          "group": "3. Activity-Based Costing & 25% Mark-Up (16 pts)",
+          "label": "ABC Full Cost per Unit — Standard",
+          "type": "number",
+          "expected": 48.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/u",
+          "points": 4
+        },
+        {
+          "id": "abc_c",
+          "group": "3. Activity-Based Costing & 25% Mark-Up (16 pts)",
+          "label": "ABC Full Cost per Unit — Custom",
+          "type": "number",
+          "expected": 236.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/u",
+          "points": 5
+        },
+        {
+          "id": "price_c",
+          "group": "3. Activity-Based Costing & 25% Mark-Up (16 pts)",
+          "label": "ABC Selling Price for Custom at 25% Cost-Plus Mark-Up",
+          "type": "number",
+          "expected": 295.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/u",
+          "points": 4
+        }
+      ],
+      "hints": [
+        "Traditional OAR = £150,000 / 3,000 DLH = £50/DLH; Custom uses 2.0 DLH/u so Traditional Full Cost = £80 + 2(£50) = £180.",
+        "ABC driver rates: £90,000 / 150 = £600/set-up and £60,000 / 4,000 = £15/MH. Allocate total pool pounds to Custom (500 units) first, divide by 500, add £80 direct cost, then multiply by 1.25!"
+      ],
+      "rubricChecks": [
+        "Computed Traditional OAR (£50/DLH) and Custom cost (£180/u)",
+        "Computed ABC full costs: Standard drops to £48/u while Custom rises to £236/u",
+        "Applied 25% mark-up on cost (236 × 1.25 = £295.00)"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFB-E3 (30 pts):**\n1. **Right or Wrong:** **1a. Wrong** *(ABC requires costly driver measurement and adds zero accuracy in a single-product firm)* · **1b. Right** · **1c. Right**.\n2. **Traditional Costing:** $\\text{OAR} = 150,000 / 3,000 = \\mathbf{£50/\\text{DLH}}$. Custom full cost $= 80 + 2.0(50) = \\mathbf{£180.00/\\text{u}}$ *(Standard $= 30 + 0.5(50) = £55.00/\\text{u}$)*.\n3. **ABC & Pricing:**\n   - Rates: Set-ups $= 90,000 / 150 = \\mathbf{£600/\\text{set-up}}$ · Machining $= 60,000 / 4,000 = \\mathbf{£15/\\text{MH}}$.\n   - **Standard (`4,000 u`):** Overhead $= 50(600) + 2,800(15) = 30,000 + 42,000 = £72,000$ (£18/u) $\\implies$ Full cost $= 30 + 18 = \\mathbf{£48.00/\\text{u}}$.\n   - **Custom (`500 u`):** Overhead $= 100(600) + 1,200(15) = 60,000 + 18,000 = £78,000$ (£156/u) $\\implies$ Full cost $= 80 + 156 = \\mathbf{£236.00/\\text{u}}$.\n   - **Custom 25% Mark-Up Price:** $236.00 \\times 1.25 = \\mathbf{£295.00/\\text{u}}$.",
+      "pitfall": "Confusing 25% mark-up on cost (× 1.25) with a 25% margin on sales (÷ 0.75), or forgetting to divide Custom's £78,000 overhead pool by 500 units.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "8 Full costing",
+        "label": "Chapter 8 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 27.0,
+          "target": 37.5,
+          "max": 48.0
+        },
+        "exam": {
+          "min": 21.0,
+          "target": 30.0,
+          "max": 34.5
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "30-point WISEflow FLOWmulti exercise (30m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-b",
+        "ch8",
+        "abc",
+        "cost-plus-pricing"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFB-E4",
+      "localId": "WFB-E4",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-B",
+      "topicId": "10",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFB-E4 · Lücke Analytics · Lagged Receivables NPV & Residual Income Equivalence (35 pts)",
+      "difficulty": 3,
+      "points": 35,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 4 (35 points)** for **Lücke Analytics Ltd** (Cost of capital $r = 10\\%$, modeled on BI's 2023 Exercise 4 & Session 6).\n\n**Project Specifications:**\n- **Machine outlay ($t = 0$):** **£90,000** · Expected salvage value in cash at $t = 3$: **£15,000** (3-year life, straight-line depreciation).\n- **Revenues & Receivables lag:** Invoiced sales revenue is **£60,000 per year** in $t = 1, 2, 3$. However, **£12,000** of Year 1 sales remain unpaid in Trade Receivables at $t = 1$; the Year 2 year-end receivable balance is also **£12,000**; all receivables are collected in full by $t = 3$ (closing AR at $t = 3$ is £0).\n- **Operating expenses:** Cash variable costs are **£20,000 per year** paid in $t = 1, 2, 3$ (no payables lag).\n\n**Statement 1a:** Under clean-surplus accounting, the present value of all future Residual Incomes discounted at $r$ equals the project's Net Present Value (NPV).\n**Statement 1b:** Even when total PV of Residual Income equals positive NPV, Year 1 Residual Income alone can be negative on back-loaded projects, tempting short-termist managers to reject positive-NPV investments.\n**Statement 1c:** Because NPV at 10% is positive here, the project's Internal Rate of Return (IRR) must be strictly lower than 10%.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. Preinreich–Lücke PV(RI) = NPV identity",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Single-period Year 1 RI can conflict with positive lifetime NPV",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. Positive NPV at 10% implies IRR < 10%",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "cf1",
+          "group": "2. Net Cash Flows & NPV at 10% (15 pts)",
+          "label": "Net Cash Flow in t = 1",
+          "type": "number",
+          "expected": 28000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "cf2",
+          "group": "2. Net Cash Flows & NPV at 10% (15 pts)",
+          "label": "Net Cash Flow in t = 2",
+          "type": "number",
+          "expected": 40000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "cf3",
+          "group": "2. Net Cash Flows & NPV at 10% (15 pts)",
+          "label": "Net Cash Flow in t = 3 (incl. AR collection & £15k salvage)",
+          "type": "number",
+          "expected": 67000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "npv",
+          "group": "2. Net Cash Flows & NPV at 10% (15 pts)",
+          "label": "Net Present Value (NPV at 10%)",
+          "type": "number",
+          "expected": 18850.49,
+          "altExpected": [
+            18809.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "ni1",
+          "group": "3. Accrual Profit & Residual Income (14 pts)",
+          "label": "Annual Accrual Net Income (identical in t = 1, 2, 3)",
+          "type": "number",
+          "expected": 15000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "ri1",
+          "group": "3. Accrual Profit & Residual Income (14 pts)",
+          "label": "Year 1 Residual Income (NI₁ − 10% × Opening Assets₁)",
+          "type": "number",
+          "expected": 6000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "pv_ri",
+          "group": "3. Accrual Profit & Residual Income (14 pts)",
+          "label": "Total Present Value of Residual Incomes at t = 0",
+          "type": "number",
+          "expected": 18850.49,
+          "altExpected": [
+            18809.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        }
+      ],
+      "hints": [
+        "In t=1 cash collected = 60,000 − 12,000 = 48,000 (net CF₁ = 48,000 − 20,000 = 28,000). In t=2 AR stays at 12,000 so cash collected = 60,000 (net CF₂ = 40,000). In t=3 cash collected = 60,000 + 12,000 = 72,000, minus 20,000 VC, plus 15,000 salvage = 67,000!",
+        "Straight-line depreciation = (90,000 − 15,000)/3 = 25,000 ⇒ Annual NI = 60,000 − 20,000 − 25,000 = 15,000. By Preinreich–Lücke, PV(RI) equals NPV!"
+      ],
+      "rubricChecks": [
+        "Tracked receivable build-up (−£12k in t=1) and final liquidation (+£12k in t=3)",
+        "Computed NPV = +£8,850.49 (or +£8,809 with 3-dec factors)",
+        "Computed NI = £15,000, RI₁ = £6,000, and verified PV(RI) = NPV = +£8,850.49"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFB-E4 (35 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Right** *(highlighted in Q&A 2026 & Session 6)* · **1c. Wrong** *(for conventional cash flows, $\\text{NPV}(10\\%) > 0 \\implies \\text{IRR} > 10\\%$)* .\n2. **Cash Flows & NPV:**\n   - $CF_0 = -90,000$ · $CF_1 = (60,000 - 12,000) - 20,000 = \\mathbf{28,000}$ · $CF_2 = (12,000 + 48,000) - 20,000 = \\mathbf{40,000}$ · $CF_3 = (12,000 + 60,000) - 20,000 + 15,000 = \\mathbf{67,000}$.\n   - $\\text{NPV}(10\\%) = -90,000 + 28,000/1.1 + 40,000/1.21 + 67,000/1.331 = \\mathbf{+£18,850.49}$ *(3-dec table factors: +£18,809.00)*.\n3. **Accrual Income & Residual Income:**\n   - Depreciation $= (90,000 - 15,000)/3 = £25,000/\\text{yr} \\implies \\text{NI}_{1,2,3} = 60,000 - 20,000 - 25,000 = \\mathbf{£15,000}$.\n   - Opening Operating Assets (Machine NBV + AR): $OA_1 = 90,000$, $OA_2 = 65,000 + 12,000 = 77,000$, $OA_3 = 40,000 + 12,000 = 52,000$.\n   - $RI_1 = 15,000 - 0.10(90,000) = \\mathbf{£6,000}$ · $RI_2 = 15,000 - 7,700 = £7,300$ · $RI_3 = 15,000 - 5,200 = £9,800$.\n   - $\\text{PV}(RI) = 6,000/1.1 + 7,300/1.21 + 9,800/1.331 = \\mathbf{+£18,850.49} = \\text{NPV}$.",
+      "pitfall": "Forgetting to include the £12,000 Trade Receivables balance inside Opening Operating Assets for Years 2 and 3 when checking Residual Income.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10 Making capital investment decisions",
+        "label": "Chapter 10 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 31.5,
+          "target": 43.8,
+          "max": 56.0
+        },
+        "exam": {
+          "min": 24.5,
+          "target": 35.0,
+          "max": 40.2
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "35-point WISEflow FLOWmulti exercise (35m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-b",
+        "ch10",
+        "residual-income",
+        "preinreich-lucke"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-M1",
+      "localId": "WFC-M1",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "1",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFC-M1 · Shareholder wealth maximisation vs short-term profit",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Why does modern corporate finance assume **shareholder wealth maximisation** rather than **short-term accounting profit maximisation** as the primary financial objective?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Short-term profit ignores risk, cash-flow timing, and long-run competitiveness (e.g. cutting R&D boosts current profit while destroying value)",
+        "Accounting profit is illegal to report in annual accounts",
+        "Shareholder wealth ignores future cash flows beyond 12 months",
+        "Short-term profit always equals net cash flow"
+      ],
+      "answerIndex": 0,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Consider how slashing R&D, maintenance, or training affects this year's profit vs future value.",
+        "Wealth (market value) discounts expected future cash flows at a risk-adjusted rate."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Short-term profit can be inflated by cutting value-creating R&D/maintenance and ignores **risk** and the **time value of money**; shareholder wealth incorporates risk-adjusted lifetime cash flows.",
+      "pitfall": "Equating accounting profit maximisation with market value maximisation.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "1 Introduction to accounting and finance",
+        "label": "Chapter 1 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-c",
+        "ch1",
+        "wealth-maximisation"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-M2",
+      "localId": "WFC-M2",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "2",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFC-M2 · Purchased vs internally generated goodwill",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Under IFRS, goodwill appears as an asset on the Statement of Financial Position **only** when:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Customer satisfaction surveys reach an all-time high",
+        "It arises as purchased goodwill in an arm's-length business acquisition where purchase consideration exceeds the fair value of net identifiable assets",
+        "Advertising expenditure exceeds 10% of annual revenue",
+        "The company's share price rises above book equity"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Can internally generated brand/reputation be reliably measured at cost?",
+        "Only an external acquisition transaction establishes an objective price for goodwill."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Internally generated goodwill cannot be reliably measured and is **never** capitalised; only **purchased goodwill** from acquiring another business is recognised on the SFP.",
+      "pitfall": "Recording internally generated brand reputation on the balance sheet.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "2 Measuring and reporting financial position",
+        "label": "Chapter 2 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-c",
+        "ch2",
+        "goodwill"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-M3",
+      "localId": "WFC-M3",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "DEB",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFC-M3 · Trial balance error detection",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Which of the following bookkeeping errors will cause the **Trial Balance** totals (debits vs credits) to **disagree**?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Posting a £3,000 equipment purchase to Repairs Expense (Dr Repairs £3,000, Cr Bank £3,000)",
+        "Completely omitting a £5,000 credit sale from both accounts",
+        "Debit Cash £4,500 and Credit Trade Receivables £5,400 for a customer collection",
+        "Recording both sides of an entry as £1,200 instead of £2,100"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Check which error records unequal debit and credit amounts.",
+        "Errors of principle, complete omission, and equal transposition keep total debits = total credits."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Posting **£4,500 Debit** and **£5,400 Credit** creates a £900 imbalance between total debits and total credits; the other three errors preserve equality.",
+      "pitfall": "Assuming a balanced trial balance proves zero errors of principle or omission.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "DEB Double-entry bookkeeping",
+        "label": "Chapter DEB Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-c",
+        "deb",
+        "trial-balance"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-M4",
+      "localId": "WFC-M4",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "3",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFC-M4 · AVCO vs FIFO cost of sales",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "On 1 May a store has 100 units @ £10 (£1,000). On 10 May it buys 100 units @ £16 (£1,600). On 20 May it sells 120 units. Under **periodic weighted-average cost (AVCO)**, Cost of Sales is:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "£1,320",
+        "£1,560",
+        "£1,800",
+        "£1,040"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Compute total pool cost (£1,000 + £1,600 = £2,600) divided by total units (200).",
+        "Multiply the £13/unit weighted average by 120 units sold."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Weighted average unit cost $= (1,000 + 1,600)/200 = £13.00/\\text{unit} \\implies \\text{COGS} = 120 \\times £13 = \\mathbf{£1,560}$ *(closing inventory $= 80 \\times £13 = £1,040$)*. Under FIFO, COGS would be $100(10)+20(16)=£1,320$.",
+      "pitfall": "Reporting closing inventory (£1,040) or FIFO COGS (£1,320) instead of AVCO COGS (£1,560).",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "3 Measuring and reporting financial performance",
+        "label": "Chapter 3 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-c",
+        "ch3",
+        "avco"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-M5",
+      "localId": "WFC-M5",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "5",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFC-M5 · Equipment purchase on credit vs cash outflow",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "During 2026, a company acquires a £90,000 CNC machine by paying a £30,000 cash deposit on delivery and financing the remaining £60,000 via a 3-year vendor loan (no repayments until 2027). What is the **2026 investing cash outflow**?",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "−£90,000",
+        "−£30,000",
+        "−£60,000",
+        "£0"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "The Statement of Cash Flows records actual cash paid during the period.",
+        "Only £30,000 cash left the bank in 2026."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Only the actual **−£30,000** cash paid in 2026 is an investing cash outflow; the non-cash £60,000 vendor-financed portion is disclosed separately until repaid.",
+      "pitfall": "Including unpaid vendor credit (£60,000) as a 2026 cash outflow.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "5 Measuring and reporting cash flows",
+        "label": "Chapter 5 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-c",
+        "ch5",
+        "investing-cash-flows"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-M6",
+      "localId": "WFC-M6",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "7",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFC-M6 · Semi-variable (mixed) cost high-low estimation",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Factory power cost is £19,000 at 3,000 machine hours and £25,000 at 5,000 machine hours. Assuming a linear semi-variable cost function, the **monthly fixed cost** component is:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "£9,000",
+        "£10,000",
+        "£6,000",
+        "£13,000"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Variable cost per MH = ΔCost / ΔActivity = (25,000 − 19,000) / (5,000 − 3,000).",
+        "Substitute £3/MH back into either point: Fixed = 19,000 − 3 × 3,000."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Variable rate $= (25,000 - 19,000)/(5,000 - 3,000) = £3/\\text{MH}$. Fixed cost $= 19,000 - 3(3,000) = \\mathbf{£10,000}$.",
+      "pitfall": "Dividing total cost by hours (19,000 / 3,000) as if all power costs were purely variable.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "7 The relevance and behaviour of costs",
+        "label": "Chapter 7 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-c",
+        "ch7",
+        "semi-variable"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-M7",
+      "localId": "WFC-M7",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "7",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFC-M7 · Make-or-buy outsourcing decision",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Component K costs £24/unit internally: Direct materials £9, Direct variable labour £7, Avoidable supervisor cost £3, and Apportioned general factory depreciation £5. An external supplier offers Component K for £20/unit (freed space has zero alternative use). Buying externally instead of making 10,000 units:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Saves £40,000 because £20 < £24 full cost",
+        "Costs the company an extra £10,000 because avoidable internal cost is only £19/unit",
+        "Saves £50,000 in depreciation",
+        "Leaves profit unchanged"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Sum only the avoidable internal costs saved by outsourcing: £9 + £7 + £3 = £19/unit.",
+        "The £5/unit general depreciation continues whether you make or buy!"
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Avoidable internal cost $= 9 + 7 + 3 = £19/\\text{unit}$. Paying an external supplier £20/unit loses £1/unit $\\times 10,000 = \\mathbf{-£10,000}$ (costs £10,000 extra).",
+      "pitfall": "Comparing the £20 buy quote to the £24 full cost that includes unavoidable £5 apportioned depreciation.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "7 The relevance and behaviour of costs",
+        "label": "Chapter 7 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-c",
+        "ch7",
+        "make-or-buy"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-M8",
+      "localId": "WFC-M8",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "8",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFC-M8 · Departmental vs plant-wide overhead rates",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "Job 77 spends **20 hours in Machining** (capital-intensive, OAR = £40/hr) and **2 hours in Hand-Finishing** (labour-intensive, OAR = £10/hr). If the firm mistakenly used a single plant-wide rate of £25/hr across all 22 hours, Job 77's overhead would be:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Under-costed by £270",
+        "Over-costed by £270",
+        "Accurately costed at £550",
+        "Under-costed by £150"
+      ],
+      "answerIndex": 0,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Departmental overhead = 20(£40) + 2(£10) = £820.",
+        "Plant-wide overhead = 22(£25) = £550."
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Departmental allocation $= 20(40) + 2(10) = £820$, whereas the plant-wide average assigns $22(25) = £550$ — **under-costing Job 77 by £270**.",
+      "pitfall": "Reversing under-costed vs over-costed when comparing plant-wide against departmental rates.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "8 Full costing",
+        "label": "Chapter 8 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-c",
+        "ch8",
+        "departmental-rates"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-M9",
+      "localId": "WFC-M9",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "10",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFC-M9 · Linear interpolation of IRR",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "A conventional project has $\\text{NPV} = +£12,000$ at $r_1 = 10\\%$ and $\\text{NPV} = -£4,000$ at $r_2 = 18\\%$. Using linear interpolation, its IRR is approximately:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "12.0%",
+        "14.0%",
+        "16.0%",
+        "17.5%"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Apply $\\text{IRR} \\approx r_1 + \\frac{\\text{NPV}_1}{\\text{NPV}_1 - \\text{NPV}_2}(r_2 - r_1)$.",
+        "Remember $- (-4,000) = +4,000$ in the denominator ($12,000 / 16,000 = 0.75$)!"
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "$\\text{IRR} \\approx 10\\% + \\frac{12,000}{12,000 - (-4,000)} \\times (18\\% - 10\\%) = 10\\% + 0.75 \\times 8\\% = \\mathbf{16.0\\%}$.",
+      "pitfall": "Using 12,000 − 4,000 = 8,000 in the denominator instead of 12,000 − (−4,000) = 16,000.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10 Making capital investment decisions",
+        "label": "Chapter 10 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-c",
+        "ch10",
+        "irr-interpolation"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-M10",
+      "localId": "WFC-M10",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "10",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "title": "WFC-M10 · Opportunity cost of existing company-owned premises in NPV",
+      "difficulty": 2,
+      "points": 4,
+      "available": true,
+      "promptMarkdown": "A new retail project will occupy a company-owned warehouse bought 10 years ago for £300,000 (fully depreciated to £0 book value). If the project does not proceed, the warehouse would be leased out for net cash rent of £45,000 at the end of each of Years 1–5. In the project's NPV analysis:",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [
+        "Include £0 for the warehouse because the company already owns it free of debt",
+        "Include −£300,000 at t=0 for historic purchase cost",
+        "Include −£45,000/year in Years 1–5 for the forgone net rental cash inflows",
+        "Deduct £60,000/year notional depreciation"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "wiseflowFields": [],
+      "hints": [
+        "Historic £300,000 is sunk; book value £0 is irrelevant.",
+        "What incremental cash stream does the firm give up in Years 1–5 by occupying the warehouse?"
+      ],
+      "rubricChecks": [
+        "Identified the governing accounting principle or formula",
+        "Eliminated common WISEflow distractor traps accurately"
+      ],
+      "solutionMarkdown": "Occupying the warehouse sacrifices **£45,000/year** of lease cash inflows in Years 1–5, which must be included as an **annual opportunity cost outflow**.",
+      "pitfall": "Treating owned property with zero book value as free when it has an active rental alternative.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10 Making capital investment decisions",
+        "label": "Chapter 10 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 2.5,
+          "target": 4.0,
+          "max": 6.0
+        },
+        "exam": {
+          "min": 1.5,
+          "target": 3.0,
+          "max": 4.5
+        },
+        "stuckMinutes": 2.5,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "4-point WISEflow MCQ (~3–4 min exam budget under 1 pt = 1 min rule)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "wf-mock-c",
+        "ch10",
+        "opportunity-cost"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-E1",
+      "localId": "WFC-E1",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "5",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFC-E1 · Trondheim BioLabs · Equity Roll-Forward & Full Cash-Flow Reconciliation (40 pts)",
+      "difficulty": 3,
+      "points": 40,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 1 (40 points)** for **Trondheim BioLabs AS** (all figures in **£000**; use minus sign for negatives).\n\n**1. Equity & Income Data (£000):**\n- Opening Total Equity (1 Jan 2026) = `400` · Closing Total Equity (31 Dec 2026) = `515`.\n- During 2026, Trondheim issued new shares for **`50` cash** and paid cash dividends of **`25`** (classified under **Financing activities**). No revaluations occurred.\n- Income statement includes Loan Interest Expense = `12` (paid in cash) and Tax Expense = `18` (actual cash tax paid in 2026 = **`20`**).\n\n**2. Operating, Investing & Financing Details (£000):**\n- Operating profit is stated after charging Depreciation of **`32`** and crediting a **Gain on disposal** of lab equipment of **`6`** (the equipment was sold for **`16` cash**).\n- Cash paid to purchase new lab equipment = **`85`** · Bank loan principal repaid = **`30`**.\n- Working capital (Opening → Closing): Inventories `50 → 44` · Trade receivables `60 → 75` · Trade payables `35 → 42`.\n- Opening Cash at Bank (1 Jan 2026) = **`14`**.\n\n**Statement 1a:** An accounting **gain** on disposal of equipment must be **deducted** from operating profit in the indirect cash-flow reconciliation so it is not double-counted alongside investing sale proceeds.\n**Statement 1b:** Repaying principal on a bank loan reduces Net Profit on the income statement.\n**Statement 1c:** If Opening Equity + New Shares + Net Profit − Dividends = Closing Equity, Net Profit can be deduced directly from SFP equity movements.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. Deduct disposal gain from operating profit in indirect cash flows",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Loan principal repayment is an income statement expense",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. Clean-surplus equity roll-forward deduces Net Profit",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "net_prof",
+          "group": "2. Profit Roll-Forward (£000, 10 pts)",
+          "label": "2026 Net Profit (after interest & tax)",
+          "type": "number",
+          "expected": 90.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£000",
+          "points": 5
+        },
+        {
+          "id": "ebit",
+          "group": "2. Profit Roll-Forward (£000, 10 pts)",
+          "label": "2026 Operating Profit (EBIT)",
+          "type": "number",
+          "expected": 120.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£000",
+          "points": 5
+        },
+        {
+          "id": "cash_gen",
+          "group": "3. Statement of Cash Flows (£000, 24 pts)",
+          "label": "Cash Generated from Operations (before interest & tax)",
+          "type": "number",
+          "expected": 144.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£000",
+          "points": 6
+        },
+        {
+          "id": "net_op",
+          "group": "3. Statement of Cash Flows (£000, 24 pts)",
+          "label": "Net Cash from Operating Activities (after interest 12 & tax paid 20)",
+          "type": "number",
+          "expected": 112.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£000",
+          "points": 5
+        },
+        {
+          "id": "net_inv",
+          "group": "3. Statement of Cash Flows (£000, 24 pts)",
+          "label": "Net Cash from Investing Activities (use minus sign)",
+          "type": "number",
+          "expected": -69.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£000",
+          "points": 4
+        },
+        {
+          "id": "net_fin",
+          "group": "3. Statement of Cash Flows (£000, 24 pts)",
+          "label": "Net Cash from Financing Activities (use minus sign)",
+          "type": "number",
+          "expected": -5.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£000",
+          "points": 4
+        },
+        {
+          "id": "clos_cash",
+          "group": "3. Statement of Cash Flows (£000, 24 pts)",
+          "label": "Closing Cash Balance at 31 Dec 2026",
+          "type": "number",
+          "expected": 52.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£000",
+          "points": 5
+        }
+      ],
+      "hints": [
+        "First solve Equity roll-forward: 400 + 50 + Net Profit − 25 = 515 ⇒ Net Profit = 90. Add back interest (12) and tax charge (18) to reach EBIT = 120.",
+        "Cash generated = 120 + 32 (depr) − 6 (disposal gain!) + 6 (inv decrease) − 15 (AR increase) + 7 (AP increase) = 144. Deduct cash interest (12) and cash tax paid (20), NOT tax expense (18)!"
+      ],
+      "rubricChecks": [
+        "Deduced Net Profit (90) and Operating Profit EBIT (120) from equity roll-forward",
+        "Subtracted non-cash disposal gain (−6) and adjusted WC to reach 144 cash generated & 112 net operating",
+        "Computed Investing (−69), Financing (−5), and Closing Cash (52)"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFC-E1 (40 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Wrong** *(only interest is an expense; principal repayment reduces Cash and Loan Liability)* · **1c. Right**.\n2. **Profit Deduction (£000):** $400 + 50 + \\text{NP} - 25 = 515 \\implies \\text{NP} = \\mathbf{90}$. $\\text{EBIT} = 90 + 12 + 18 = \\mathbf{120}$.\n3. **Cash Flows (£000):**\n   - $\\text{Cash generated} = 120 + 32 - 6 + (50 - 44) - (75 - 60) + (42 - 35) = 146 + 6 - 15 + 7 = \\mathbf{144}$.\n   - $\\text{Net operating cash} = 144 - 12 - 20 = \\mathbf{112}$.\n   - $\\text{Net investing cash} = -85 + 16 = \\mathbf{-69}$.\n   - $\\text{Net financing cash} = +50 - 30 - 25 = \\mathbf{-5}$.\n   - $\\text{Closing cash} = 14 + (112 - 69 - 5) = 14 + 38 = \\mathbf{52}$.",
+      "pitfall": "Adding the £6k disposal gain instead of subtracting it, or subtracting £18k tax expense instead of £20k cash tax paid.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "5 Measuring and reporting cash flows",
+        "label": "Chapter 5 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 36.0,
+          "target": 50.0,
+          "max": 64.0
+        },
+        "exam": {
+          "min": 28.0,
+          "target": 40.0,
+          "max": 46.0
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "40-point WISEflow FLOWmulti exercise (40m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-c",
+        "ch2",
+        "ch3",
+        "ch5",
+        "cash-flows"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-E2",
+      "localId": "WFC-E2",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "7",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFC-E2 · Aurora Ski Gear · Multi-Product Break-Even, Segment Continuation & Gearing (35 pts)",
+      "difficulty": 3,
+      "points": 35,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 2 (35 points)** for **Aurora Ski Gear AS**, which sells **Alpine** (60% of total units) and **Nordic** (40% of total units) at a Current Volume of **4,000 total units** (`2,400 Alpine` + `1,600 Nordic`).\n\n| Line | Current Units | Selling Price | Variable Cost/u | Avoidable Line Fixed Cost | Apportioned HQ Fixed Cost |\n|---|---:|---:|---:|---:|---:|\n| **Alpine (60%)** | 2,400 | £300 | £180 | £70,000 | £50,000 |\n| **Nordic (40%)** | 1,600 | £200 | £130 | £80,000 | £50,000 |\n| **Company Total** | **4,000** | — | — | **£150,000** | **£100,000** *(Total FC = £250,000)* |\n\nAt 1,600 units, Nordic shows an accounting loss of $£112,000 - £80,000 - £50,000 = -£18,000$. Management asks whether to **drop Nordic** (assuming **zero** HQ fixed cost savings and zero effect on Alpine demand).\n\n**Statement 1a:** Multi-product break-even analysis assumes a constant sales mix; shifting the mix toward the higher-contribution product lowers the total break-even unit volume.\n**Statement 1b:** Because Nordic reports a −£18,000 bottom-line loss after HQ apportionment, dropping Nordic will raise total company profit by +£18,000.\n**Statement 1c:** Degree of operating gearing (`Total Contribution / Operating Profit`) predicts the percentage change in operating profit from a 1% change in volume (at constant mix).",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. Shifting sales mix toward higher-CM product lowers break-even units",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Dropping Nordic increases company profit by +£18,000",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. Operating gearing ratio measures profit elasticity to volume",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "w_cm",
+          "group": "2. Multi-Product Break-Even at 60/40 Mix (15 pts)",
+          "label": "Weighted-Average Contribution per Unit (£)",
+          "type": "number",
+          "expected": 100.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/u",
+          "points": 5
+        },
+        {
+          "id": "bep_tot",
+          "group": "2. Multi-Product Break-Even at 60/40 Mix (15 pts)",
+          "label": "Company Break-Even Total Units (Alpine + Nordic combined)",
+          "type": "number",
+          "expected": 2500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "units",
+          "points": 5
+        },
+        {
+          "id": "bep_alp",
+          "group": "2. Multi-Product Break-Even at 60/40 Mix (15 pts)",
+          "label": "Alpine Units Included inside Company Break-Even Mix",
+          "type": "number",
+          "expected": 1500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "units",
+          "points": 5
+        },
+        {
+          "id": "cur_prof",
+          "group": "3. Keep-or-Drop & Operating Gearing (14 pts)",
+          "label": "Current Total Company Operating Profit (at 4,000 units)",
+          "type": "number",
+          "expected": 150000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "drop_chg",
+          "group": "3. Keep-or-Drop & Operating Gearing (14 pts)",
+          "label": "Change in Company Profit if Nordic is Dropped (use minus sign!)",
+          "type": "number",
+          "expected": -32000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 6
+        },
+        {
+          "id": "dog",
+          "group": "3. Keep-or-Drop & Operating Gearing (14 pts)",
+          "label": "Degree of Operating Gearing (Contribution / Profit, 2 decimals)",
+          "type": "number",
+          "expected": 2.67,
+          "altExpected": [
+            2.6667
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "×",
+          "points": 4
+        }
+      ],
+      "hints": [
+        "Unit CMs: Alpine = £120, Nordic = £70. Weighted CM = 0.60(120) + 0.40(70) = £100/u. Divide total £250,000 fixed costs by £100/u, then take 60% for Alpine.",
+        "Nordic earns £112,000 contribution and saves only £80,000 avoidable fixed cost if closed — losing +£32,000 net contribution toward HQ! Use a minus sign (−32000)."
+      ],
+      "rubricChecks": [
+        "Calculated weighted CM (£100/u), total BEP (2,500 units), and Alpine BEP share (1,500 units)",
+        "Identified −£32,000 profit drop from closing Nordic (ignoring unavoidable £50k HQ overhead)",
+        "Computed company profit (£150,000) and operating gearing (400,000 / 150,000 = 2.67)"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFC-E2 (35 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Wrong** *(company profit falls by £32,000)* · **1c. Right**.\n2. **Multi-Product Break-Even:**\n   - $\\text{Weighted CM} = 0.6(120) + 0.4(70) = \\mathbf{£100/\\text{unit}}$.\n   - $\\text{Total BEP} = 250,000 / 100 = \\mathbf{2,500\\text{ units}}$ (`60% × 2,500 =` **1,500 Alpine** + `1,000 Nordic`).\n3. **Keep-or-Drop & Operating Gearing:**\n   - Current Contribution $= 4,000 \\times 100 = £400,000 \\implies \\text{Operating Profit} = 400,000 - 250,000 = \\mathbf{£150,000}$.\n   - Dropping Nordic loses $£112,000$ contribution while saving only $£80,000$ avoidable fixed cost $\\implies \\Delta\\text{Profit} = \\mathbf{-£32,000}$ *(new profit $= £118,000$)*.\n   - $\\text{Operating Gearing} = 400,000 / 150,000 = \\mathbf{2.67}$.",
+      "pitfall": "Entering +32000 instead of -32000 for the profit impact of dropping Nordic, or dividing £150k avoidable FC instead of £250k total FC for company break-even.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "7 The relevance and behaviour of costs",
+        "label": "Chapter 7 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 31.5,
+          "target": 43.8,
+          "max": 56.0
+        },
+        "exam": {
+          "min": 24.5,
+          "target": 35.0,
+          "max": 40.2
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "35-point WISEflow FLOWmulti exercise (35m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-c",
+        "ch7",
+        "multi-product-cvp",
+        "keep-or-drop"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-E3",
+      "localId": "WFC-E3",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "8",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFC-E3 · Krono Manufacturing · Service Dept Re-Apportionment & Margin Pricing (25 pts)",
+      "difficulty": 2,
+      "points": 25,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 3 (25 points)** for **Krono Manufacturing AS**.\n\n**Factory Overhead Budget:**\n- **Machining Dept (production):** Direct departmental overhead = **£140,000** · Budgeted activity = **7,000 machine hours (MH)** (and 1,000 DLH).\n- **Assembly Dept (production):** Direct departmental overhead = **£82,000** · Budgeted activity = **5,000 direct labour hours (DLH)** (and 500 MH).\n- **Maintenance Dept (service):** Budgeted cost = **£60,000**, re-apportioned **70% to Machining** and **30% to Assembly** before calculating departmental absorption rates.\n\n**Job 405 Specifications:**\n- Direct materials = **£4,200** · Direct labour = **£2,800**.\n- Uses **80 MH in Machining** and **60 DLH in Assembly**.\n- Krono quotes customer prices to achieve a **20% profit margin on selling price** ($\\text{Profit} = 20\\% \\times \\text{Price}$, so $\\text{Price} = \\text{Full Cost} / 0.80$).\n\n**Statement 1a:** Service department costs (such as factory maintenance) are re-apportioned to production cost centres so product units passing through production absorb them.\n**Statement 1b:** Because Machining has 7,000 MH vs 1,000 DLH, direct labour hours is a better absorption basis than machine hours for Machining.\n**Statement 1c:** A 20% profit margin on selling price is mathematically equivalent to a 25% mark-up on full cost.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. Service centre overheads are re-apportioned to production centres",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. DLH is superior to MH in capital-intensive Machining",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. 20% margin on sales equals 25% mark-up on cost",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "mach_rate",
+          "group": "2. Departmental Rates & Job 405 Pricing (19 pts)",
+          "label": "Machining Overhead Rate per MH (after 70% Maintenance share)",
+          "type": "number",
+          "expected": 26.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/MH",
+          "points": 4
+        },
+        {
+          "id": "assm_rate",
+          "group": "2. Departmental Rates & Job 405 Pricing (19 pts)",
+          "label": "Assembly Overhead Rate per DLH (after 30% Maintenance share)",
+          "type": "number",
+          "expected": 20.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/DLH",
+          "points": 4
+        },
+        {
+          "id": "job_oh",
+          "group": "2. Departmental Rates & Job 405 Pricing (19 pts)",
+          "label": "Total Overhead Absorbed by Job 405",
+          "type": "number",
+          "expected": 3280.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "job_fc",
+          "group": "2. Departmental Rates & Job 405 Pricing (19 pts)",
+          "label": "Full Cost of Job 405",
+          "type": "number",
+          "expected": 10280.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "job_p",
+          "group": "2. Departmental Rates & Job 405 Pricing (19 pts)",
+          "label": "Quoted Selling Price for 20% Margin on Sales",
+          "type": "number",
+          "expected": 12850.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        }
+      ],
+      "hints": [
+        "Machining total overhead = £140,000 + 0.70(£60,000) = £182,000 ÷ 7,000 MH = £26/MH. Assembly total overhead = £82,000 + 0.30(£60,000) = £100,000 ÷ 5,000 DLH = £20/DLH.",
+        "Job 405 Full Cost = £4,200 + £2,800 + 80(£26) + 60(£20) = £10,280. For a 20% margin on selling price, divide £10,280 by 0.80!"
+      ],
+      "rubricChecks": [
+        "Re-apportioned £60,000 Maintenance (70/30) to obtain £26/MH and £20/DLH",
+        "Calculated Job 405 overhead (£3,280) and Full Cost (£10,280)",
+        "Divided Full Cost by 0.80 for 20% sales margin (£12,850.00)"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFC-E3 (25 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Wrong** *(Machining is machine-paced, so MH is the cause-and-effect driver)* · **1c. Right** ($0.20 / 0.80 = 0.25 = 25\\%$).\n2. **Departmental Rates & Job 405:**\n   - **Machining:** $(140,000 + 42,000) / 7,000\\text{ MH} = 182,000 / 7,000 = \\mathbf{£26.00/\\text{MH}}$.\n   - **Assembly:** $(82,000 + 18,000) / 5,000\\text{ DLH} = 100,000 / 5,000 = \\mathbf{£20.00/\\text{DLH}}$.\n   - **Job 405 Overhead:** $80(26) + 60(20) = 2,080 + 1,200 = \\mathbf{£3,280}$.\n   - **Job 405 Full Cost:** $4,200 + 2,800 + 3,280 = \\mathbf{£10,280}$.\n   - **Selling Price (20% margin on price):** $10,280 / (1 - 0.20) = \\mathbf{£12,850.00}$.",
+      "pitfall": "Multiplying £10,280 by 1.20 (£12,336) instead of dividing by 0.80 (£12,850) when pricing for a 20% margin on sales.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "8 Full costing",
+        "label": "Chapter 8 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 22.5,
+          "target": 31.2,
+          "max": 40.0
+        },
+        "exam": {
+          "min": 17.5,
+          "target": 25.0,
+          "max": 28.7
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "25-point WISEflow FLOWmulti exercise (25m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-c",
+        "ch8",
+        "service-apportionment",
+        "margin-pricing"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "acct-2527:WFC-E4",
+      "localId": "WFC-E4",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-C",
+      "topicId": "10",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "title": "WFC-E4 · Solberg Energy · Mutually Exclusive NPV, IRR Interpolation & Scale Conflict (40 pts)",
+      "difficulty": 3,
+      "points": 40,
+      "available": true,
+      "promptMarkdown": "Complete **Exercise 4 (40 points)** for **Solberg Energy AS**, choosing between two **mutually exclusive** 3-year projects at a **12% cost of capital** (no capital rationing):\n\n| Year | Project Alpha (£) | Project Beta (£) |\n|---|---:|---:|\n| $t = 0$ (Initial outlay) | `-100,000` | `-200,000` |\n| $t = 1$ | `+70,000` | `+100,000` |\n| $t = 2$ | `+60,000` | `+100,000` |\n| $t = 3$ | `+20,000` | `+100,000` |\n\n*(12% discount factors: $t=1: 0.8929$, $t=2: 0.7972$, $t=3: 0.7118$, 3-year annuity factor $= 2.4018$. At a 30% test rate, Project Alpha's exact NPV is **`-1,547.56`**.)*\n\n**Statement 1a:** A project with non-conventional cash flows (multiple sign changes) can exhibit more than one mathematical IRR or no real IRR.\n**Statement 1b:** Payback period penalises projects whose largest cash inflows arrive after the payback cut-off date.\n**Statement 1c:** When two mutually exclusive projects have positive NPVs, a wealth-maximising firm should always pick the project with the shorter payback period.",
+      "contextMarkdown": "",
+      "svgDiagram": "",
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1a. Non-conventional cash flows can yield multiple IRRs",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1b. Payback ignores cash inflows after the payback point",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or Wrong (6 pts)",
+          "label": "1c. Shortest payback always maximises shareholder wealth",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "pb_a",
+          "group": "2. Payback & Net Present Values at 12% (18 pts)",
+          "label": "Payback Period — Project Alpha (years, assuming even cash flow within year)",
+          "type": "number",
+          "expected": 1.5,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "yrs",
+          "points": 4
+        },
+        {
+          "id": "pb_b",
+          "group": "2. Payback & Net Present Values at 12% (18 pts)",
+          "label": "Payback Period — Project Beta (years)",
+          "type": "number",
+          "expected": 2.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "yrs",
+          "points": 4
+        },
+        {
+          "id": "npv_a",
+          "group": "2. Payback & Net Present Values at 12% (18 pts)",
+          "label": "NPV of Project Alpha at 12%",
+          "type": "number",
+          "expected": 24567.24,
+          "altExpected": [
+            24570.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "npv_b",
+          "group": "2. Payback & Net Present Values at 12% (18 pts)",
+          "label": "NPV of Project Beta at 12%",
+          "type": "number",
+          "expected": 40183.13,
+          "altExpected": [
+            40200.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "irr_a",
+          "group": "3. IRR Interpolation & Wealth Decision (16 pts)",
+          "label": "Interpolated IRR of Project Alpha between 12% and 30% (enter % e.g. 27.86)",
+          "type": "number",
+          "expected": 28.93,
+          "altExpected": [
+            28.93,
+            27.79
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 6
+        },
+        {
+          "id": "wealth_diff",
+          "group": "3. IRR Interpolation & Wealth Decision (16 pts)",
+          "label": "Extra NPV Wealth Created by Beta over Alpha (£)",
+          "type": "number",
+          "expected": 15615.89,
+          "altExpected": [
+            15630.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 5
+        },
+        {
+          "id": "winner",
+          "group": "3. IRR Interpolation & Wealth Decision (16 pts)",
+          "label": "Which mutually exclusive project should Solberg accept?",
+          "type": "choice",
+          "options": [
+            "Project Alpha (higher IRR & faster payback)",
+            "Project Beta (higher positive NPV at 12%)",
+            "Reject both projects"
+          ],
+          "answerIndex": 1,
+          "points": 5
+        }
+      ],
+      "hints": [
+        "Alpha recovers £70k in Year 1 and needs £30k out of £60k in Year 2 ⇒ 1.50 years. For Beta, multiply £100,000 by the 3-year 12% annuity factor (2.40183) and subtract £200,000.",
+        "Interpolate Alpha's IRR between 12% (+£24,565.87) and 30% (−£1,593.08): 12% + [24,565.87 / (24,565.87 + 1,593.08)] × 18%. Compare absolute NPVs at 12% for the mutually exclusive decision!"
+      ],
+      "rubricChecks": [
+        "Calculated Paybacks (Alpha 1.50 yrs, Beta 2.00 yrs) and NPVs at 12% (+£24,566 vs +£40,183)",
+        "Interpolated Alpha's IRR (~28.9% linear / 27.8% exact)",
+        "Selected Project Beta on higher NPV (+£15,617 extra shareholder wealth) despite Alpha's higher IRR"
+      ],
+      "solutionMarkdown": "**Worked Solution · WFC-E4 (40 pts):**\n1. **Right or Wrong:** **1a. Right** · **1b. Right** · **1c. Wrong** *(maximise NPV, not payback speed)*.\n2. **Payback & NPV (12%):**\n   - **Payback:** Alpha $= 1 + 30,000/60,000 = \\mathbf{1.50\\text{ yrs}}$ · Beta $= 200,000/100,000 = \\mathbf{2.00\\text{ yrs}}$.\n   - **NPV Alpha:** $-100,000 + 70,000/1.12 + 60,000/1.12^2 + 20,000/1.12^3 = \\mathbf{+£24,567.24}$ *(3-dec factors: +£24,570.00)*.\n   - **NPV Beta:** $-200,000 + 100,000 \\times 2.401831 = \\mathbf{+£40,183.13}$ *(3-dec annuity 2.402: +£40,200.00)*.\n3. **IRR Interpolation & Selection:**\n   - $\\text{IRR}_{\\text{Alpha}} \\approx 12\\% + \\frac{24,567.24}{24,567.24 - (-1,547.56)} \\times (30\\% - 12\\%) = \\mathbf{28.93\\%}$ *(exact IRR $= 27.79\\%$, within ±2%/alt tolerance)*.\n   - **Decision:** Accept **Project Beta** — although Alpha has faster payback (1.50 yrs) and higher IRR (~28% vs Beta's ~23.4%), Beta is twice the scale and creates **+£15,615.89** more net present value for shareholders.",
+      "pitfall": "Picking Alpha for its higher IRR/faster payback when Beta delivers £15,617 more NPV wealth.",
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10 Making capital investment decisions",
+        "label": "Chapter 10 Reference"
+      },
+      "pacing": {
+        "learning": {
+          "min": 36.0,
+          "target": 50.0,
+          "max": 64.0
+        },
+        "exam": {
+          "min": 28.0,
+          "target": 40.0,
+          "max": 46.0
+        },
+        "stuckMinutes": 5.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "40-point WISEflow FLOWmulti exercise (40m exam par at 1 pt = 1 min; ±2% rounding margin)."
+      },
+      "tags": [
+        "wiseflow-mock",
+        "flowmulti",
+        "wf-mock-c",
+        "ch10",
+        "mutually-exclusive",
+        "irr",
+        "npv"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+name: Study-OS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Python stdlib bytecode & warning check
+        run: |
+          python3 -Werror -m py_compile \
+            app/server.py \
+            app/analytics.py \
+            app/calendar_sync.py \
+            app/canvas_bridge.py \
+            app/timetable_planner.py \
+            app/obsidian_sync.py \
+            app/dlpfc.py \
+            tools/cli.py \
+            tools/build_public_site.py
+
+      - name: Frontend & Obsidian plugin JS syntax check
+        run: |
+          node --check app/public/js/render.js
+          node --check app/public/js/runner.js
+          node --check app/public/js/app.js
+          node --check obsidian-plugin/main.js
+
+      - name: Fresh-clone CLI & HTTP smoke test (zero data/)
+        run: |
+          python3 tools/cli.py status > /dev/null
+          python3 tools/cli.py rebuild-catalog
+          python3 app/server.py --port 18765 &
+          SERVER_PID=$!
+          trap "kill $SERVER_PID 2>/dev/null || true" EXIT
+          for i in $(seq 1 25); do
+            if curl -fsS http://127.0.0.1:18765/api/ping > /dev/null 2>&1; then
+              break
+            fi
+            sleep 0.2
+          done
+          curl -fsS http://127.0.0.1:18765/api/ping | grep -q '"ok": true'
+          curl -fsS http://127.0.0.1:18765/api/bootstrap | grep -q '"catalog"'

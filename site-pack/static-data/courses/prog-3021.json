@@ -1,0 +1,2400 @@
+{
+  "schemaVersion": 1,
+  "courseId": "prog-3021",
+  "canvasId": "3021",
+  "code": "EBA 3400",
+  "title": "Programming, Data Extraction and Visualisation",
+  "shortTitle": "Programming",
+  "semester": "Autumn 2026",
+  "color": "#1d5e8a",
+  "examInfo": {
+    "date": "2026-11-26",
+    "format": "3-hour WISEflow Home Exam (Jupyter Notebook .ipynb submission)",
+    "durationMinutes": 180,
+    "notes": "Home Exam 2 (40%, Part 1 & Part 2): Thu 2026-11-26 09:00–12:00 · Device Monitor mandatory · Submit anonymous .ipynb ONLY with executed outputs visible (code without output = 0 pts; upload >=10m early; withdraw old file before re-upload) · Strict 7-package whitelist: pandas, seaborn, matplotlib, random, math, datetime, numpy (other imports deduct points; AI tools = F; 85–100 = A)."
+  },
+  "obsidian": {
+    "vault": "Obsidian Vault",
+    "mainReference": "EBA3400 - Semester Reference.md",
+    "workedExamples": "EBA3400 - Study and Updates.md",
+    "practiceNote": "EBA3400 - Study and Updates.md"
+  },
+  "topics": [
+    {
+      "id": "1",
+      "number": 1,
+      "title": "Input, Strings & Conditionals",
+      "obsidianFile": "EBA3400 - Semester Reference.md",
+      "obsidianHeading": "02 Variables and Data Types",
+      "keywords": [
+        "input",
+        "float",
+        "int",
+        "string",
+        "slicing",
+        "isdigit",
+        "split",
+        "if",
+        "elif",
+        "else",
+        "f-string"
+      ]
+    },
+    {
+      "id": "2",
+      "number": 2,
+      "title": "Loops, Comprehensions & Simulations",
+      "obsidianFile": "EBA3400 - Semester Reference.md",
+      "obsidianHeading": "05 Loop Statements I",
+      "keywords": [
+        "for",
+        "while",
+        "range",
+        "enumerate",
+        "list comprehension",
+        "nested loop",
+        "simulation",
+        "inventory"
+      ]
+    },
+    {
+      "id": "3",
+      "number": 3,
+      "title": "Functions, Tuples & Dictionaries",
+      "obsidianFile": "EBA3400 - Semester Reference.md",
+      "obsidianHeading": "07 Functions",
+      "keywords": [
+        "def",
+        "return",
+        "tuple",
+        "unpacking",
+        "dictionary",
+        "items",
+        "set",
+        "distance"
+      ]
+    },
+    {
+      "id": "4",
+      "number": 4,
+      "title": "Scope, Modules & Debugging",
+      "obsidianFile": "EBA3400 - Semester Reference.md",
+      "obsidianHeading": "10 Part 1 Review and Debugging",
+      "keywords": [
+        "debugging",
+        "scope",
+        "math",
+        "random",
+        "precedence",
+        "indexerror",
+        "syntaxerror",
+        "typeerror"
+      ]
+    },
+    {
+      "id": "5",
+      "number": 5,
+      "title": "Pandas DataFrames, Cleaning & Aggregation",
+      "obsidianFile": "EBA3400 - Semester Reference.md",
+      "obsidianHeading": "12 Pandas2 - Preprocessing",
+      "keywords": [
+        "pandas",
+        "dataframe",
+        "series",
+        "loc",
+        "iloc",
+        "merge",
+        "isna",
+        "fillna",
+        "cut",
+        "groupby",
+        "crosstab"
+      ]
+    },
+    {
+      "id": "6",
+      "number": 6,
+      "title": "Time Series & Data Visualisation",
+      "obsidianFile": "EBA3400 - Semester Reference.md",
+      "obsidianHeading": "15 Matplotlib and Seaborn",
+      "keywords": [
+        "datetime",
+        "resample",
+        "matplotlib",
+        "seaborn",
+        "subplots",
+        "heatmap",
+        "scatter",
+        "histogram",
+        "line chart"
+      ]
+    }
+  ],
+  "collections": [
+    {
+      "id": "foundation-01",
+      "title": "Foundation 01: Input, Strings & Conditionals",
+      "kind": "drill"
+    },
+    {
+      "id": "foundation-02",
+      "title": "Foundation 02: Loops, Comprehensions & Simulations",
+      "kind": "drill"
+    },
+    {
+      "id": "foundation-03",
+      "title": "Foundation 03: Functions, Tuples & Dictionaries",
+      "kind": "drill"
+    },
+    {
+      "id": "mock-exam-a",
+      "title": "Midterm Mock Exam A (100 pts)",
+      "kind": "mock",
+      "durationMinutes": 120
+    },
+    {
+      "id": "mock-exam-b",
+      "title": "Midterm Mock Exam B (100 pts)",
+      "kind": "mock",
+      "durationMinutes": 120
+    },
+    {
+      "id": "concept-mcq",
+      "title": "Python & Pandas Trap Diagnostics (MCQ)",
+      "kind": "drill"
+    }
+  ],
+  "sources": {},
+  "questions": [
+    {
+      "id": "prog-3021:F1.1",
+      "localId": "F1.1",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "foundation-01",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "F1.1 · Currency Converter & Fee Calculation (Math & Type Casting)",
+      "promptMarkdown": "Write a program that prompts the user to enter an amount in EUR to convert to NOK.\n- Exchange rate: `1 EUR = 11.45 NOK`\n- A flat transaction fee of `25 NOK` is added to the total NOK cost.\n- Calculate total NOK cost, round to 2 decimal places, and print using an f-string.\n\n**Expected interaction:**\n```text\nEnter EUR amount: 100\nTotal cost: 1170.00 NOK\n```\n\n**Starter Code:**\n```python\n# Task 1.1\n# 1. Ask for EUR input and cast to float\n# 2. Compute total NOK = amount * 11.45 + 25\n# 3. Print result formatted to 2 decimal places\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Cast `input()` immediately with `float()`",
+        "Apply formula `eur * 11.45 + 25` accurately",
+        "Format output with `{total_nok:.2f} NOK` (preserving trailing zeros like `1170.00`)"
+      ],
+      "hints": [
+        "Wrap `input()` immediately in `float(...)` so Python performs numeric multiplication instead of string repetition.",
+        "Compute `eur * 11.45 + 25` and format to 2 fixed decimal places inside an f-string using `{total_nok:.2f}`."
+      ],
+      "solutionMarkdown": "```python\neur = float(input(\"Enter EUR amount: \"))\ntotal_nok = eur * 11.45 + 25\nprint(f\"Total cost: {total_nok:.2f} NOK\")\n```",
+      "solutionAssets": [],
+      "pitfall": "`round(1170.0, 2)` prints `1170.0`, whereas `f'{total_nok:.2f}'` guarantees two decimal digits (`1170.00`).",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "02.2 Input arithmetic and output"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-01",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F1.2",
+      "localId": "F1.2",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "foundation-01",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "F1.2 · Account Number Validation & Masking (String Methods & Slicing)",
+      "promptMarkdown": "Write a program that asks the user to enter an 11-digit Norwegian bank account number.\n- Check if the input contains **exactly 11 digits** and only numbers (`.isdigit()`).\n- If valid, display: `Account accepted: 1234.XX.XXXXX` (show first 4 digits, followed by `.XX.XXXXX`).\n- If invalid, display: `Invalid account number: Must be exactly 11 digits.`\n\n**Example 1:**\n```text\nEnter account number: 12345678901\nAccount accepted: 1234.XX.XXXXX\n```\n**Example 2:**\n```text\nEnter account number: 1234AB\nInvalid account number: Must be exactly 11 digits.\n```\n\n**Starter Code:**\n```python\n# Task 1.2\n# 1. Ask for input\n# 2. Check len() == 11 and .isdigit()\n# 3. Slice first 4 digits and mask the rest\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Keep input as `str` (do not cast to `int`)",
+        "Validate both `account.isdigit()` and `len(account) == 11`",
+        "Slice `account[:4]` and concatenate `'.XX.XXXXX'`, handling invalid inputs in `else`"
+      ],
+      "hints": [
+        "Keep the account number as a string (`str`)—converting with `int()` would strip leading zeros and break `len()`!",
+        "Check `account.isdigit() and len(account) == 11`, then slice the first 4 characters with `account[:4]`."
+      ],
+      "solutionMarkdown": "```python\naccount = input(\"Enter account number: \")\nif account.isdigit() and len(account) == 11:\n    masked = account[:4] + \".XX.XXXXX\"\n    print(f\"Account accepted: {masked}\")\nelse:\n    print(\"Invalid account number: Must be exactly 11 digits.\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Casting an account or phone number to `int()` drops leading zeros (`'0123...'` becomes `123...`).",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "02.5 Pattern: validate length and mask"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~12-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-01",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F1.3",
+      "localId": "F1.3",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "foundation-01",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "F1.3 · Email Username Masking (Slicing & Finding Substrings)",
+      "promptMarkdown": "Write a program that asks the user to enter an email address.\n- Assume the email always contains an `@` sign and the username before `@` is at least 4 characters.\n- Mask the username so only the first 2 characters and the last character before `@` are visible, with `***` in between.\n- Keep the `@domain.com` intact.\n\n**Example:**\n```text\nEnter email: student123@bi.no\nMasked email: st***3@bi.no\n```\n*Hint:* Use `email.split('@')` or `email.find('@')`.\n\n**Starter Code:**\n```python\n# Task 1.3\n# 1. Ask for email input\n# 2. Split username and domain\n# 3. Construct masked username and recombine\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Split username and domain cleanly via `email.split('@')`",
+        "Slice `user[:2]` and `user[-1]` with `'***'` in between",
+        "Reconstruct and print `Masked email: <masked>@<domain>`"
+      ],
+      "hints": [
+        "Split the email at `'@'` into two variables: `user, domain = email.split('@')`.",
+        "Combine the first 2 chars `user[:2]`, `'***'`, and the last char `user[-1]`, then reattach `'@' + domain`."
+      ],
+      "solutionMarkdown": "```python\nemail = input(\"Enter email: \")\nuser, domain = email.split(\"@\")\nmasked_user = user[:2] + \"***\" + user[-1]\nprint(f\"Masked email: {masked_user}@{domain}\")\n```",
+      "solutionAssets": [],
+      "pitfall": "`user[:2]` stops before index 2 (giving 2 characters), whereas `user[-1]` selects the final character before `@`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "02.6 Pattern: split an email and mask its username"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~12-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-01",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F1.4",
+      "localId": "F1.4",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "foundation-01",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "F1.4 · Social Media Tag Cleaner & Counter (String Manipulation)",
+      "promptMarkdown": "The following string contains user posts separated by semicolons. Count how many times the tag `'#python'` appears (case-insensitive).\n\n```python\nposts = '#Python#DataScience#analytics;#PYTHON#MachineLearning;#coding#python#pandas;#AI#Tech#PyThOn'\n```\n**Expected output:** `4`\n\n**Starter Code:**\n```python\nposts = '#Python#DataScience#analytics;#PYTHON#MachineLearning;#coding#python#pandas;#AI#Tech#PyThOn'\n# Task 1.4\n# Lowercase, replace ';' with '#', split by '#', and count 'python'\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Convert string to lowercase with `.lower()` for case-insensitive matching",
+        "Replace `';'` with `'#'` and `.split('#')` into clean tag tokens",
+        "Use `.count('python')` on the token list to print `4`"
+      ],
+      "hints": [
+        "Normalize casing first with `.lower()`, and unify delimiters by replacing `';'` with `'#'` before splitting.",
+        "After `tags = posts.lower().replace(';', '#').split('#')`, count exact token matches with `tags.count('python')`."
+      ],
+      "solutionMarkdown": "```python\nposts = '#Python#DataScience#analytics;#PYTHON#MachineLearning;#coding#python#pandas;#AI#Tech#PyThOn'\ntags = posts.lower().replace(\";\", \"#\").split(\"#\")\ncount = tags.count(\"python\")\nprint(count)  # Output: 4\n```",
+      "solutionAssets": [],
+      "pitfall": "Substring `.count('python')` on raw text would falsely match `'#pythonista'`; splitting into tokens counts exact tags.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "02.7 Pattern: count exact tags, ignoring case"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~12-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-01",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F1.5",
+      "localId": "F1.5",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "foundation-01",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "F1.5 · Streaming Subscription Recommendation (Chained Conditionals)",
+      "promptMarkdown": "A streaming service recommends plans based on two questions:\n1. 'Do you want 4K Ultra HD streaming? (yes/no): '\n2. 'Do you need multiple simultaneous screens? (yes/no): '\n\n| Plan | 4K Ultra HD | Multiple Screens |\n| :--- | :---: | :---: |\n| **Basic** | no | no |\n| **Standard** | no | yes |\n| **Premium** | yes | yes or no |\n\nWrite a program that asks both questions and prints `Recommended plan: <Plan>`. Handle casing using `.lower().strip()`.\n\n**Starter Code:**\n```python\n# Task 1.5\n# Ask 2 questions and use chained if/elif/else\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Clean both `input()` strings using `.lower().strip()`",
+        "Check `ultra_hd == 'yes'` first (overrides screen choice -> `Premium`)",
+        "Handle `elif screens == 'yes'` (`Standard`) and `else` (`Basic`) with exact label"
+      ],
+      "hints": [
+        "Normalize both inputs with `.lower().strip()` so `'Yes '` or `'YES'` still matches `'yes'`.",
+        "Notice from the table that `4K Ultra HD == 'yes'` always gives `'Premium'` regardless of screens—test `ultra_hd == 'yes'` first!"
+      ],
+      "solutionMarkdown": "```python\nultra_hd = input(\"Do you want 4K Ultra HD streaming? (yes/no): \").lower().strip()\nscreens = input(\"Do you need multiple simultaneous screens? (yes/no): \").lower().strip()\n\nif ultra_hd == \"yes\":\n    plan = \"Premium\"\nelif screens == \"yes\":\n    plan = \"Standard\"\nelse:\n    plan = \"Basic\"\n\nprint(f\"Recommended plan: {plan}\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Testing `screens == 'yes'` first would wrongly assign `'Standard'` to users who answered `yes` to both questions!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "04.2 Pattern: two yes/no answers"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~12-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-01",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F1.6",
+      "localId": "F1.6",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "foundation-01",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "F1.6 · Shipping Rate Calculation (Tiered Thresholds)",
+      "promptMarkdown": "A delivery company charges based on parcel weight (kg):\n- Weight < 2 kg: 49 NOK\n- 2 kg <= Weight < 5 kg: 79 NOK\n- 5 kg <= Weight < 10 kg: 129 NOK\n- Weight >= 10 kg: 199 NOK plus 15 NOK per extra kg above 10 kg.\n\nWrite a program that asks for parcel weight and prints the final shipping cost.\n**Example:** Weight = `12.5` -> Cost = `199 + (12.5 - 10) * 15 = 236.5 NOK`.\n\n**Starter Code:**\n```python\n# Task 1.6\n# Ask for weight, apply tiered pricing, print result\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Cast weight input with `float()`",
+        "Use clean cascading `if / elif / elif / else` thresholds (`< 2`, `< 5`, `< 10`)",
+        "Compute surcharge `(weight - 10) * 15` only on excess weight above 10 kg"
+      ],
+      "hints": [
+        "Cast parcel weight with `float(input(...))` since weights like `12.5` have decimals.",
+        "Cascade upward: `< 2`, `elif < 5`, `elif < 10`, `else: 199 + (weight - 10) * 15`."
+      ],
+      "solutionMarkdown": "```python\nweight = float(input(\"Enter parcel weight (kg): \"))\nif weight < 2:\n    cost = 49\nelif weight < 5:\n    cost = 79\nelif weight < 10:\n    cost = 129\nelse:\n    cost = 199 + (weight - 10) * 15\n\nprint(f\"Shipping cost: {cost:.1f} NOK\")\n```\n\n---",
+      "solutionAssets": [],
+      "pitfall": "Multiplying total `weight * 15` instead of `(weight - 10) * 15` overcharges for the first 10 kg.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "04.1 Pattern: one choice from several ranges"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~12-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-01",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F2.1",
+      "localId": "F2.1",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "foundation-02",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "F2.1 · Filtering and One-Line Printing",
+      "promptMarkdown": "Given the list `scores = [78, 45, 92, 63, 88, 34, 51, 95, 82, 40]`, write a `for` loop to print all scores that are **both >= 50 and even**, on a single line separated by a space.\n\n**Expected output:** `78 92 88 82 `\n\n**Starter Code:**\n```python\nscores = [78, 45, 92, 63, 88, 34, 51, 95, 82, 40]\n# Task 2.1\n# Write for loop with if condition and print(..., end=' ')\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Test both `s >= 50` and evenness `s % 2 == 0`",
+        "Use `print(s, end=' ')` inside the loop for single-line output",
+        "Call `print()` after the loop to finish the line cleanly"
+      ],
+      "hints": [
+        "Combine both conditions inside the loop with `if s >= 50 and s % 2 == 0:`.",
+        "Pass `end=' '` inside `print(s, end=' ')` so matches stay on a single space-separated line."
+      ],
+      "solutionMarkdown": "```python\nscores = [78, 45, 92, 63, 88, 34, 51, 95, 82, 40]\nfor s in scores:\n    if s >= 50 and s % 2 == 0:\n        print(s, end=\" \")\nprint()\n```",
+      "solutionAssets": [],
+      "pitfall": "Using `s > 50` instead of `s >= 50` misses boundary score `50`; forgetting `end=' '` prints one number per line.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "05.3 `for`: visit each item"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-02",
+        "coding",
+        "topic-2"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F2.2",
+      "localId": "F2.2",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "foundation-02",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "F2.2 · List Comprehensions (Discount & VAT)",
+      "promptMarkdown": "The list `prices = [120, 450, 89, 1200, 310, 65, 890, 45]` stores retail prices in NOK.\n1. Use a list comprehension to calculate prices with a 15% discount applied (`price * 0.85`), rounded to whole numbers. Print the new list.\n2. Use a list comprehension to extract only items whose original price was over 300 NOK, with 25% VAT added (`price * 1.25`). Print the new list.\n\n**Starter Code:**\n```python\nprices = [120, 450, 89, 1200, 310, 65, 890, 45]\n# Task 2.2\n# 1. Discounted list comprehension\n# 2. Filtered + VAT list comprehension\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Write first list comprehension `[round(p * 0.85) for p in prices]` without `print()` inside",
+        "Filter on original `if p > 300` in second comprehension `[round(p * 1.25) for p in prices if p > 300]`",
+        "Print both resulting lists"
+      ],
+      "hints": [
+        "Part 1 maps every element without an `if`: `[round(p * 0.85) for p in prices]`.",
+        "Part 2 filters on the *original* price (`if p > 300`) while transforming with `round(p * 1.25)`."
+      ],
+      "solutionMarkdown": "```python\nprices = [120, 450, 89, 1200, 310, 65, 890, 45]\n\n# 1. Discounted prices (15% off)\ndiscounted = [round(p * 0.85) for p in prices]\nprint(discounted)\n\n# 2. Over 300 with 25% VAT\nvat_added = [round(p * 1.25) for p in prices if p > 300]\nprint(vat_added)\n```",
+      "solutionAssets": [],
+      "pitfall": "Filtering on `p * 1.25 > 300` instead of `p > 300` tests the post-VAT price rather than the original retail price.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "06.3 List comprehensions"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~12-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-02",
+        "coding",
+        "topic-2"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F2.3",
+      "localId": "F2.3",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "foundation-02",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "F2.3 · 2D Grid / Multiplication Table (Nested Loops)",
+      "promptMarkdown": "Write a nested loop to generate and print a multiplication grid for numbers 1 to 5 as shown below:\n\n```text\n1*1=1  1*2=2  1*3=3  1*4=4  1*5=5  \n2*1=2  2*2=4  2*3=6  2*4=8  2*5=10 \n3*1=3  3*2=6  3*3=9  3*4=12 3*5=15 \n4*1=4  4*2=8  4*3=12 4*4=16 4*5=20 \n5*1=5  5*2=10 5*3=15 5*4=20 5*5=25 \n```\n*Hint:* Inner loop uses `end='  '`, outer loop ends with `print()` for a newline.\n\n**Starter Code:**\n```python\n# Task 2.3\n# Nested for loops using range(1, 6)\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Use `range(1, 6)` in both outer and inner loops",
+        "Format each cell as `f'{i}*{j}={i*j}'` with `end='  '`",
+        "Place `print()` at the outer-loop indentation level to break rows"
+      ],
+      "hints": [
+        "Remember `range(1, 6)` produces `1, 2, 3, 4, 5` because the stop value `6` is exclusive.",
+        "Print `{i}*{j}={i*j}` with `end='  '` in the inner loop, and call an empty `print()` at the end of each outer-loop row."
+      ],
+      "solutionMarkdown": "```python\nfor i in range(1, 6):\n    for j in range(1, 6):\n        print(f\"{i}*{j}={i*j}\", end=\"  \")\n    print()\n```",
+      "solutionAssets": [],
+      "pitfall": "Indenting the empty `print()` inside the inner loop prints all 25 entries vertically instead of a 5×5 grid.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "06.1 Nested loops: every combination"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~12-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-02",
+        "coding",
+        "topic-2"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F2.4",
+      "localId": "F2.4",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "foundation-02",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "F2.4 · Running Balance Simulation",
+      "promptMarkdown": "A bank account starts with an initial balance of `5000 NOK`.\nThe list `transactions = [-350, -1200, 4500, -800, -2200, -6000, 1500]` represents consecutive debits and credits.\nWrite a loop to process transactions:\n- Track the running balance.\n- For each transaction, print `Transaction {i}: Amount {amt} NOK | Balance: {balance} NOK`.\n- If balance drops below 0, also print `--> WARNING: Overdraft!`.\n- Use `enumerate(transactions, start=1)`.\n\n**Starter Code:**\n```python\ntransactions = [-350, -1200, 4500, -800, -2200, -6000, 1500]\nbalance = 5000\n# Task 2.4\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Initialize `balance = 5000` before the loop and update `balance += amt` each step",
+        "Use `enumerate(transactions, start=1)` for 1-based transaction numbering",
+        "Append overdraft warning whenever post-transaction `balance < 0`"
+      ],
+      "hints": [
+        "Keep `balance = 5000` outside the loop so updates persist across transactions, and iterate with `enumerate(transactions, start=1)`.",
+        "Update `balance += amt` first, then check `if balance < 0:` to append `' --> WARNING: Overdraft!'`."
+      ],
+      "solutionMarkdown": "```python\ntransactions = [-350, -1200, 4500, -800, -2200, -6000, 1500]\nbalance = 5000\n\nfor i, amt in enumerate(transactions, start=1):\n    balance += amt\n    msg = f\"Transaction {i}: Amount {amt} NOK | Balance: {balance} NOK\"\n    if balance < 0:\n        msg += \" --> WARNING: Overdraft!\"\n    print(msg)\n```",
+      "solutionAssets": [],
+      "pitfall": "Resetting `balance = 5000` inside the loop treats every transaction independently instead of tracking a running balance.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "06.2 `enumerate`: counter and value"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-02",
+        "coding",
+        "topic-2"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F2.5",
+      "localId": "F2.5",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "foundation-02",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 3,
+      "title": "F2.5 · Coffee Shop Milk Inventory Simulation (Classic Exam Restock Pattern)",
+      "promptMarkdown": "A coffee shop uses oat milk carton packs.\n- Initial inventory on Day 1: **180 packs**.\n- Safety minimum threshold: **100 packs**.\n- If inventory drops below 100 packs at the end of the day, an automatic restock order of **200 packs** arrives immediately that same evening, costing **2400 NOK**.\n- Daily storage cost: **1.5 NOK** per pack stored in inventory at day end.\n\nGiven the daily consumption over 10 days:\n`daily_usage = [45, 60, 50, 70, 55, 65, 40, 80, 50, 60]`\n\nWrite a loop that updates inventory and calculates total operational cost each day.\n\n**Output format:**\n```text\nDay-1: 135 packs (Cost: 202.5 NOK)\nDay-2: 275 packs (Cost: 2812.5 NOK)   <-- restock occurred!\n...\n```\n\n**Starter Code:**\n```python\ndaily_usage = [45, 60, 50, 70, 55, 65, 40, 80, 50, 60]\ninventory = 180\n# Task 2.5\n# Loop using enumerate(daily_usage, start=1)\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Keep `inventory` outside the loop and reset `daily_cost = 0` inside the loop",
+        "Subtract `usage` before testing `if inventory < 100:` restock trigger",
+        "Compute storage cost `inventory * 1.5` after restocking and print `Day-{day}: ...`"
+      ],
+      "hints": [
+        "`inventory = 180` persists outside the loop, whereas `daily_cost = 0` MUST reset to `0` at the start of each day inside the loop!",
+        "Follow the exact daily timeline: subtract `usage` -> if `inventory < 100`, add `200` packs and `2400` NOK -> add `inventory * 1.5` storage cost on end-of-day stock."
+      ],
+      "solutionMarkdown": "```python\ndaily_usage = [45, 60, 50, 70, 55, 65, 40, 80, 50, 60]\ninventory = 180\n\nfor day, usage in enumerate(daily_usage, start=1):\n    inventory -= usage\n    daily_cost = 0\n    if inventory < 100:\n        inventory += 200\n        daily_cost += 2400\n    daily_cost += inventory * 1.5\n    print(f\"Day-{day}: {inventory} packs (Cost: {daily_cost:.1f} NOK)\")\n```\n\n---",
+      "solutionAssets": [],
+      "pitfall": "Calculating storage cost before adding the 200 restocked packs (or forgetting to reset `daily_cost = 0`) corrupts every subsequent day.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "10.3 Pattern: daily inventory and costs"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~20-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-02",
+        "coding",
+        "topic-2"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F3.1",
+      "localId": "F3.1",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "foundation-03",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "F3.1 · Distance Function with Tuple Unpacking",
+      "promptMarkdown": "Write a function `manhattan_distance(p1, p2)` where `p1` and `p2` are tuples representing coordinates `(x, y)`.\n- Formula: $|x_2 - x_1| + |y_2 - y_1|$\n- In Python, absolute value is `abs(val)`.\n- The function must **return** the calculated integer/float.\n- Test your function with `p1 = (3, 7)` and `p2 = (8, 2)` (Expected: `10`).\n\n**Starter Code:**\n```python\n# Task 3.1\ndef manhattan_distance(p1, p2):\n    # Unpack tuples and return distance\n    pass\n\n# Test call\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Unpack tuples `(x1, y1)` and `(x2, y2)` cleanly",
+        "Compute `abs(x2 - x1) + abs(y2 - y1)`",
+        "Use `return` inside `manhattan_distance` and verify test call returns `10`"
+      ],
+      "hints": [
+        "Unpack both coordinate tuples cleanly inside the function: `x1, y1 = p1` and `x2, y2 = p2`.",
+        "Use `abs(x2 - x1) + abs(y2 - y1)` and make sure the function ends with `return`, not `print`."
+      ],
+      "solutionMarkdown": "```python\ndef manhattan_distance(p1, p2):\n    x1, y1 = p1\n    x2, y2 = p2\n    return abs(x2 - x1) + abs(y2 - y1)\n\nprint(manhattan_distance((3, 7), (8, 2)))  # 10\n```",
+      "solutionAssets": [],
+      "pitfall": "Using `print()` instead of `return` inside the function makes `manhattan_distance(...)` evaluate to `None`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "08.1 Tuples: unpack fixed items"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-03",
+        "coding",
+        "topic-3"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F3.2",
+      "localId": "F3.2",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "foundation-03",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "F3.2 · Tiered Function (Taxi Fare)",
+      "promptMarkdown": "Define a function `calculate_taxi_fare(distance_km)`:\n- Base fee: 60 NOK\n- Distance < 5 km: 18 NOK/km\n- 5 km <= Distance < 15 km: 15 NOK/km\n- Distance >= 15 km: 12 NOK/km\n- Total fare = Base fee + (distance * rate)\n- Return total fare rounded to nearest whole number.\n\nTest with:\n1. `calculate_taxi_fare(3)` (Expected: `114`)\n2. `calculate_taxi_fare(12)` (Expected: `240`)\n3. `calculate_taxi_fare(20)` (Expected: `300`)\n\n**Starter Code:**\n```python\n# Task 3.2\ndef calculate_taxi_fare(distance_km):\n    pass\n\n# Test calls\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Implement cascading rate tiers (`< 5` -> 18, `< 15` -> 15, `>= 15` -> 12)",
+        "Add base fee `60 + distance_km * rate` and `round()` to nearest whole integer",
+        "Use `return` and verify test calls (`114`, `240`, `300`)"
+      ],
+      "hints": [
+        "Select `rate` via cascading `if distance_km < 5: ... elif distance_km < 15: ... else: ...`.",
+        "Return `round(60 + distance_km * rate)` and test all three distances (`3`, `12`, `20`)."
+      ],
+      "solutionMarkdown": "```python\ndef calculate_taxi_fare(distance_km):\n    if distance_km < 5:\n        rate = 18\n    elif distance_km < 15:\n        rate = 15\n    else:\n        rate = 12\n    return round(60 + distance_km * rate)\n\nprint(calculate_taxi_fare(3))   # 114\nprint(calculate_taxi_fare(12))  # 240\nprint(calculate_taxi_fare(20))  # 300\n```",
+      "solutionAssets": [],
+      "pitfall": "Note that here the per-km rate applies to total `distance_km` (plus 60 base fee), unlike marginal bracket taxes—read each problem's formula carefully!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "07.2 Pattern: function with ranges, reused in a loop"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~12-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-03",
+        "coding",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F3.3",
+      "localId": "F3.3",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "foundation-03",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "F3.3 · Batch Evaluation over Dictionary of Coordinates",
+      "promptMarkdown": "Assume a logistics warehouse is located at `hub = (0, 0)`.\nThe dictionary below stores coordinates of retail stores:\n\n```python\nstores = {\n    'Store A': (3, 4),\n    'Store B': (6, 8),\n    'Store C': (5, 12),\n    'Store D': (9, 12)\n}\n```\nWrite a function `euclidean_dist(p1, p2)` that returns $\\sqrt{(x_2-x_1)^2 + (y_2-y_1)^2}$ rounded to 2 decimal places.\nThen, loop through `stores.items()` and print the distance from the hub to each store.\n\n**Output format:**\n```text\nHub to Store A: 5.00\nHub to Store B: 10.00\n...\n```\n\n**Starter Code:**\n```python\nimport math\n\nstores = {\n    'Store A': (3, 4),\n    'Store B': (6, 8),\n    'Store C': (5, 12),\n    'Store D': (9, 12)\n}\nhub = (0, 0)\n\n# Task 3.3\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Define `euclidean_dist` with tuple unpacking and `return`",
+        "Iterate over `stores.items()` to access both store name and coordinate tuple",
+        "Format output as `Hub to {name}: {d:.2f}`"
+      ],
+      "hints": [
+        "Define `euclidean_dist(p1, p2)` returning `round(((x2 - x1)**2 + (y2 - y1)**2)**0.5, 2)` (or `math.sqrt(...)`).",
+        "Loop over key-value pairs using `for name, coords in stores.items():` and call `euclidean_dist(hub, coords)`."
+      ],
+      "solutionMarkdown": "```python\nstores = {\n    'Store A': (3, 4),\n    'Store B': (6, 8),\n    'Store C': (5, 12),\n    'Store D': (9, 12)\n}\nhub = (0, 0)\n\ndef euclidean_dist(p1, p2):\n    x1, y1 = p1\n    x2, y2 = p2\n    return round(((x2 - x1)**2 + (y2 - y1)**2)**0.5, 2)\n\nfor name, coords in stores.items():\n    d = euclidean_dist(hub, coords)\n    print(f\"Hub to {name}: {d:.2f}\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Iterating `for x in stores:` only yields dictionary keys (`'Store A'`), not `(name, coords)` pairs—use `.items()`!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "08.4 Pattern: dictionary of coordinates and a function"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~16-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-03",
+        "coding",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F3.4",
+      "localId": "F3.4",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "foundation-03",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "F3.4 · Student Grade Classifier & Nested Data Processing",
+      "promptMarkdown": "The dictionary `students` contains student IDs as keys and tuples `(midterm_score, final_score)` as values.\n\n```python\nstudents = {\n    'S101': (78, 85),\n    'S102': (45, 52),\n    'S103': (92, 94),\n    'S104': (62, 68),\n    'S105': (38, 41)\n}\n```\n1. Define a function `grade_letter(avg)` that takes an average score and returns:\n   - `'A'` if avg >= 85\n   - `'B'` if 75 <= avg < 85\n   - `'C'` if 65 <= avg < 75\n   - `'D'` if 50 <= avg < 65\n   - `'F'` if avg < 50\n2. Loop through the dictionary, calculate the average for each student `(midterm + final) / 2`, call `grade_letter()`, and print:\n`S101: Average 81.5 -> Grade B`\n\n**Starter Code:**\n```python\nstudents = {\n    'S101': (78, 85),\n    'S102': (45, 52),\n    'S103': (92, 94),\n    'S104': (62, 68),\n    'S105': (38, 41)\n}\n# Task 3.4\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Define `grade_letter(avg)` returning `'A'`..`'F'` with accurate boundary `>=` signs",
+        "Unpack `(midterm, final)` tuple and compute `(m + f) / 2` with parentheses",
+        "Print `S101: Average 81.5 -> Grade B` format for all 5 students"
+      ],
+      "hints": [
+        "Write `grade_letter(avg)` with descending thresholds (`>= 85`, `>= 75`, `>= 65`, `>= 50`, `else 'F'`) returning the letter string.",
+        "In `for sid, scores in students.items():`, unpack `m, f = scores`, compute `avg = (m + f) / 2`, and call `grade_letter(avg)`."
+      ],
+      "solutionMarkdown": "```python\nstudents = {\n    'S101': (78, 85),\n    'S102': (45, 52),\n    'S103': (92, 94),\n    'S104': (62, 68),\n    'S105': (38, 41)\n}\n\ndef grade_letter(avg):\n    if avg >= 85:\n        return 'A'\n    elif avg >= 75:\n        return 'B'\n    elif avg >= 65:\n        return 'C'\n    elif avg >= 50:\n        return 'D'\n    else:\n        return 'F'\n\nfor sid, scores in students.items():\n    m, f = scores\n    avg = (m + f) / 2\n    grade = grade_letter(avg)\n    print(f\"{sid}: Average {avg:.1f} -> Grade {grade}\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Writing `m + f / 2` without parentheses divides only `f` by 2 due to operator precedence!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "08.3 Dictionaries: keys identify values"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~16-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-03",
+        "coding",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:F3.5",
+      "localId": "F3.5",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "foundation-03",
+      "origin": "synthetic_drill",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "F3.5 · Accuracy Function on List of Lists (Exam Machine Learning Pattern)",
+      "promptMarkdown": "You are given a list of evaluation predictions, where each sublist is `[predicted_class, actual_class]`:\n```python\npredictions = [[1, 1], [0, 0], [1, 0], [1, 1], [0, 1], [0, 0], [1, 1], [0, 0], [1, 1], [0, 0]]\n```\nWrite a function `compute_accuracy(pairs)` that takes this list, counts how many pairs have `predicted == actual`, divides by total number of pairs, rounds to 2 decimal places, and **returns** the accuracy.\nTest your function with `predictions` (Expected: `0.80`).\n\n**Starter Code:**\n```python\npredictions = [[1, 1], [0, 0], [1, 0], [1, 1], [0, 1], [0, 0], [1, 1], [0, 0], [1, 1], [0, 0]]\n# Task 3.5\ndef compute_accuracy(pairs):\n    pass\n\ncompute_accuracy(predictions)\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Unpack or index `[predicted, actual]` pairs and count matches where `pred == actual`",
+        "Divide by `len(pairs)` (not a hardcoded `10`) and round to 2 decimal places",
+        "Place `return` outside/after the loop so all pairs are evaluated (`0.8`)"
+      ],
+      "hints": [
+        "Loop over `for pred, actual in pairs:` and increment a `correct` counter whenever `pred == actual`.",
+        "Divide `correct / len(pairs)`, round to 2 decimals, and `return` the float AFTER the loop finishes."
+      ],
+      "solutionMarkdown": "```python\npredictions = [[1, 1], [0, 0], [1, 0], [1, 1], [0, 1], [0, 0], [1, 1], [0, 0], [1, 1], [0, 0]]\n\ndef compute_accuracy(pairs):\n    correct = sum(1 for p, a in pairs if p == a)\n    return round(correct / len(pairs), 2)\n\nprint(compute_accuracy(predictions))  # 0.8\n```\n\n---",
+      "solutionAssets": [],
+      "pitfall": "Indenting `return` inside the `for` loop exits on the very first element instead of checking the whole dataset!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "07.1 `return` versus `print`"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "foundation-03",
+        "coding",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MA-1",
+      "localId": "MA-1",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "mock-exam-a",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "MA-1 · Wind Chill Temperature (10 Points)",
+      "promptMarkdown": "Write a program that asks the user to enter two values:\n1. Air temperature in Celsius ($T$)\n2. Wind speed in km/h ($V$)\n\nCalculate the wind chill equivalent temperature using the formula:\n$$W = 13.12 + 0.6215 \\times T - 11.37 \\times V^{0.16} + 0.3965 \\times T \\times V^{0.16}$$\n\nRound the result to 1 decimal place and print the result.\n\n**Expected format:**\n```text\nEnter temperature (C): 5\nEnter wind speed (km/h): 20\nWind Chill Temperature: 1.4 C\n```\n\n**Starter Code:**\n```python\n# Task 1\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Prompt and cast both `T` and `V` using `float(input(...))`",
+        "Use `** 0.16` for exponentiation and exact formula coefficients",
+        "Round result to 1 decimal place (`1.4 C` for `T=5, V=20`)"
+      ],
+      "hints": [
+        "Cast both temperature `T` and wind speed `V` to `float()` before computing $V^{0.16}$ (`v ** 0.16`).",
+        "Check signs carefully in `13.12 + 0.6215 * t - 11.37 * (v ** 0.16) + 0.3965 * t * (v ** 0.16)` and round to 1 decimal place."
+      ],
+      "solutionMarkdown": "```python\nt = float(input(\"Enter temperature (C): \"))\nv = float(input(\"Enter wind speed (km/h): \"))\nw = 13.12 + 0.6215 * t - 11.37 * (v**0.16) + 0.3965 * t * (v**0.16)\nprint(f\"Wind Chill Temperature: {round(w, 1)} C\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Using `^` instead of `**` in Python performs bitwise XOR (raising a `TypeError` on floats) instead of exponentiation!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "02.2 Input arithmetic and output"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-a",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MA-2",
+      "localId": "MA-2",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "mock-exam-a",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "MA-2 · Credit Card Validation & Masking (15 Points)",
+      "promptMarkdown": "Write a program that asks the user to enter a 16-digit payment card number.\n- Check if the input contains **exactly 16 digits** and only numbers.\n- If valid, print confirmation with masked digits showing only the **first 4** and **last 4** digits: `Card 4111-XXXX-XXXX-1111 has been verified.`\n- If invalid, print: `Invalid card number: Please enter exactly 16 digits.`\n\n**Example 1:**\n```text\nEnter card number: 4111222233331111\nCard 4111-XXXX-XXXX-1111 has been verified.\n```\n\n**Starter Code:**\n```python\n# Task 2\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Check both `card.isdigit()` and `len(card) == 16`",
+        "Slice first 4 (`card[:4]`) and last 4 (`card[-4:]`) digits accurately",
+        "Match exact verification and error messages"
+      ],
+      "hints": [
+        "Validate with `card.isdigit() and len(card) == 16` on the raw string.",
+        "Use `card[:4]` for the first 4 digits and `card[-4:]` for the last 4 digits: `f'Card {card[:4]}-XXXX-XXXX-{card[-4:]} has been verified.'`."
+      ],
+      "solutionMarkdown": "```python\ncard = input(\"Enter card number: \")\nif card.isdigit() and len(card) == 16:\n    masked = f\"Card {card[:4]}-XXXX-XXXX-{card[-4:]} has been verified.\"\n    print(masked)\nelse:\n    print(\"Invalid card number: Please enter exactly 16 digits.\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Writing `card[-4]` gives only a single character; use slice `card[-4:]` to get all last 4 digits.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "02.5 Pattern: validate length and mask"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-a",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MA-3",
+      "localId": "MA-3",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "mock-exam-a",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "MA-3 · Ski Pass Recommendation System (15 Points)",
+      "promptMarkdown": "A ski resort recommends passes based on two user inputs:\n1. 'Are you a student or youth? (yes/no): '\n2. 'Do you want night skiing included? (yes/no): '\n\n| Recommended Pass | Student/Youth | Night Skiing |\n| :--- | :---: | :---: |\n| **Standard Day Pass** | no | no |\n| **Youth Saver Pass** | yes | no |\n| **All-Access Pass** | yes or no | yes |\n\nWrite a program that prompts for both answers and outputs `Recommended Pass: <Pass Name>`. (Assume input is always 'yes' or 'no').\n\n**Starter Code:**\n```python\n# Task 3\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Read both `yes/no` inputs and normalize with `.lower().strip()`",
+        "Prioritize `if night == 'yes':` -> `'All-Access Pass'`",
+        "Branch `elif youth == 'yes':` -> `'Youth Saver Pass'` and `else` -> `'Standard Day Pass'`"
+      ],
+      "hints": [
+        "Look at the `'All-Access Pass'` row: whenever `night == 'yes'`, the pass is `'All-Access Pass'` whether `youth` is yes or no!",
+        "Test `if night == 'yes':` first, then `elif youth == 'yes':`, else `'Standard Day Pass'`."
+      ],
+      "solutionMarkdown": "```python\nyouth = input(\"Are you a student or youth? (yes/no): \").lower().strip()\nnight = input(\"Do you want night skiing included? (yes/no): \").lower().strip()\n\nif night == \"yes\":\n    plan = \"All-Access Pass\"\nelif youth == \"yes\":\n    plan = \"Youth Saver Pass\"\nelse:\n    plan = \"Standard Day Pass\"\n\nprint(f\"Recommended Pass: {plan}\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Checking `if youth == 'yes':` first without checking `night` misclassifies a youth night-skier into `'Youth Saver Pass'`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "04.2 Pattern: two yes/no answers"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-a",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MA-4",
+      "localId": "MA-4",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "mock-exam-a",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "MA-4 · Numbers (10 Points)",
+      "promptMarkdown": "The list `stock_returns` contains daily portfolio returns (%):\n```python\nstock_returns = [2.4, -1.8, 0.5, -3.2, 4.1, -0.9, 1.2, -2.5, 3.8, -1.1, 0.0, 2.7, -4.0, 1.9, -0.6]\n```\n\n#### (4.1) Negative Returns (5 points)\nWrite a `for` loop to print all negative returns from the list on **one single line**, separated by spaces.\n\n#### (4.2) Outperforming Returns (5 points)\nUse a **list comprehension** to store all returns that are strictly greater than `1.0%` in a new list named `high_returns`. Print `high_returns`.\n\n**Starter Code:**\n```python\nstock_returns = [2.4, -1.8, 0.5, -3.2, 4.1, -0.9, 1.2, -2.5, 3.8, -1.1, 0.0, 2.7, -4.0, 1.9, -0.6]\n# Task 4.1\n\n# Task 4.2\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "(4.1) Print strictly negative returns (`r < 0`) on a single line using `end=' '`",
+        "(4.2) Store strictly `r > 1.0` values in `high_returns` via a list comprehension",
+        "Print `high_returns` cleanly on a new line"
+      ],
+      "hints": [
+        "In (4.1), loop over `stock_returns` and `print(r, end=' ')` whenever `r < 0`, followed by `print()` after the loop.",
+        "In (4.2), build `high_returns = [r for r in stock_returns if r > 1.0]` and print the list."
+      ],
+      "solutionMarkdown": "```python\nstock_returns = [2.4, -1.8, 0.5, -3.2, 4.1, -0.9, 1.2, -2.5, 3.8, -1.1, 0.0, 2.7, -4.0, 1.9, -0.6]\n\n# 4.1 Negative returns\nfor r in stock_returns:\n    if r < 0:\n        print(r, end=\" \")\nprint()\n\n# 4.2 Outperforming returns\nhigh_returns = [r for r in stock_returns if r > 1.0]\nprint(high_returns)\n```",
+      "solutionAssets": [],
+      "pitfall": "Forgetting `print()` between (4.1) and (4.2) glues the printed `high_returns` list onto the end of line (4.1)!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "06.3 List comprehensions"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-a",
+        "coding",
+        "topic-2"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MA-5",
+      "localId": "MA-5",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "mock-exam-a",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "MA-5 · Addition Matrix Table (10 Points)",
+      "promptMarkdown": "Write a program using nested loops to print the following addition table:\n\n```text\n10+10=20 10+11=21 10+12=22 10+13=23 10+14=24 \n11+10=21 11+11=22 11+12=23 11+13=24 11+14=25 \n12+10=22 12+11=23 12+12=24 12+13=25 12+14=26 \n13+10=23 13+11=24 13+12=25 13+13=26 13+14=27 \n14+10=24 14+11=25 14+12=26 14+13=27 14+14=28 \n```\n\n**Starter Code:**\n```python\n# Task 5\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Use `range(10, 15)` (stop=15 exclusive) for both rows and columns",
+        "Format each entry as `{i}+{j}={i+j}` with `end=' '`",
+        "Break each row with `print()` at the outer-loop level"
+      ],
+      "hints": [
+        "To include both `10` and `14`, iterate `for i in range(10, 15):` and `for j in range(10, 15):`.",
+        "Use `print(f'{i}+{j}={i+j}', end=' ')` inside the inner loop and `print()` after each inner loop finishes."
+      ],
+      "solutionMarkdown": "```python\nfor i in range(10, 15):\n    for j in range(10, 15):\n        print(f\"{i}+{j}={i+j}\", end=\" \")\n    print()\n```",
+      "solutionAssets": [],
+      "pitfall": "`range(10, 14)` stops at `13` and misses the final row and column (`14+...`).",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "06.1 Nested loops: every combination"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-a",
+        "coding",
+        "topic-2"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MA-6",
+      "localId": "MA-6",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "mock-exam-a",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "MA-6 · Water Utility Billing (20 Points)",
+      "promptMarkdown": "A municipality charges residential water bills based on monthly consumption in cubic meters ($m^3$):\n\n| Consumption ($m^3$) | Rate per $m^3$ (NOK) |\n| :---: | :---: |\n| usage < 15 | 18.5 |\n| 15 <= usage < 35 | 24.0 |\n| usage >= 35 | 31.0 |\n\nIn addition, every customer pays a flat monthly sewer fee of **150 NOK**.\n\n#### (6.1) Bill Function (10 points)\nDefine a function `calculate_water_bill(usage)` that calculates the total cost ($usage \\times rate + 150$), rounds to the nearest whole integer, and **returns** the result.\nTest your function with (1) `usage = 10` and (2) `usage = 28`.\n\n#### (6.2) 12-Month Batch Processing (10 points)\nGiven the list below of monthly water usage over a year:\n```python\nyearly_water = [14, 18, 22, 12, 16, 38, 42, 29, 21, 15, 19, 31]\n```\nUse a loop to calculate and print the bill for each month in the format:\n```text\nMonth 1: 409 NOK\nMonth 2: 582 NOK\n...\nMonth 12: 894 NOK\n```\n*Hint:* Use `enumerate(yearly_water, start=1)`.\n\n**Starter Code:**\n```python\n# Task 6.1\n\n# Task 6.2\nyearly_water = [14, 18, 22, 12, 16, 38, 42, 29, 21, 15, 19, 31]\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "(6.1) Define `calculate_water_bill(usage)` with cascading tiers, `+ 150` sewer fee, `round()`, and `return`",
+        "Test function with `10` (`335`) and `28` (`822`)",
+        "(6.2) Loop with `enumerate(yearly_water, start=1)` calling `calculate_water_bill` and printing `Month {month}: {bill} NOK`"
+      ],
+      "hints": [
+        "In (6.1), `calculate_water_bill(usage)` sets `rate` (`< 15` -> `18.5`, `< 35` -> `24.0`, `else` -> `31.0`) and **returns** `round(usage * rate + 150)`.",
+        "In (6.2), reuse `calculate_water_bill(usage)` inside `for month, usage in enumerate(yearly_water, start=1):` without redefining the function."
+      ],
+      "solutionMarkdown": "```python\n# 6.1 Function\ndef calculate_water_bill(usage):\n    if usage < 15:\n        rate = 18.5\n    elif usage < 35:\n        rate = 24.0\n    else:\n        rate = 31.0\n    return round(usage * rate + 150)\n\nprint(calculate_water_bill(10))  # 335\nprint(calculate_water_bill(28))  # 822\n\n# 6.2 Monthly Batch\nyearly_water = [14, 18, 22, 12, 16, 38, 42, 29, 21, 15, 19, 31]\nfor month, usage in enumerate(yearly_water, start=1):\n    bill = calculate_water_bill(usage)\n    print(f\"Month {month}: {bill} NOK\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Printing inside `calculate_water_bill` instead of returning causes `Month 1: None NOK` in part (6.2)!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "07.2 Pattern: function with ranges, reused in a loop"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~20-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-a",
+        "coding",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MA-7",
+      "localId": "MA-7",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "mock-exam-a",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "MA-7 · Store Delivery Distances (20 Points)",
+      "promptMarkdown": "#### (7.1) Euclidean Distance Function (10 points)\nWrite a function `calculate_distance(start, destination)` where each parameter is a tuple `(x, y)` representing 2D map coordinates.\nThe function should calculate Euclidean distance: $\\sqrt{(x_2-x_1)^2 + (y_2-y_1)^2}$, round to 2 decimal places, and **return** it.\nTest your function with `start = (2, 3)` and `destination = (7, 15)`.\n\n#### (7.2) Central Hub to Retail Outlets (10 points)\nAssume your distribution center is located at `hub = (2, 3)`.\nThe dictionary below stores coordinates of retail outlets:\n```python\noutlets = {\n    'Karl Johan': (5, 9),\n    'Majorstuen': (1, 8),\n    'Nydalen': (6, 14),\n    'Grunerlokka': (7, 6),\n    'Lysaker': (-4, 1)\n}\n```\nUse the function from (7.1) and a loop through the dictionary to calculate and print the distance from the hub to each outlet using an f-string.\n\n**Output format:**\n```text\nhub to Karl Johan: 6.71\nhub to Majorstuen: ...\n...\n```\n\n**Starter Code:**\n```python\n# Task 7.1\n\n# Task 7.2\noutlets = {\n    'Karl Johan': (5, 9),\n    'Majorstuen': (1, 8),\n    'Nydalen': (6, 14),\n    'Grunerlokka': (7, 6),\n    'Lysaker': (-4, 1)\n}\nhub = (2, 3)\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "(7.1) Unpack coordinate tuples and `return` Euclidean distance rounded to 2 decimals (`13.0` for test)",
+        "(7.2) Loop over `outlets.items()` calling `calculate_distance(hub, coords)`",
+        "Match exact lowercase prefix `hub to {name}: {dist}`"
+      ],
+      "hints": [
+        "In (7.1), unpack `x1, y1 = start` and `x2, y2 = destination`, compute `((x2 - x1)**2 + (y2 - y1)**2)**0.5`, and `return round(dist, 2)`.",
+        "In (7.2), iterate `for name, coords in outlets.items():` and print `f'hub to {name}: {dist}'`."
+      ],
+      "solutionMarkdown": "```python\n# 7.1 Distance function\ndef calculate_distance(start, destination):\n    x1, y1 = start\n    x2, y2 = destination\n    return round(((x2 - x1)**2 + (y2 - y1)**2)**0.5, 2)\n\nprint(calculate_distance((2, 3), (7, 15)))  # 13.0\n\n# 7.2 Central hub loop\noutlets = {\n    'Karl Johan': (5, 9),\n    'Majorstuen': (1, 8),\n    'Nydalen': (6, 14),\n    'Grunerlokka': (7, 6),\n    'Lysaker': (-4, 1)\n}\nhub = (2, 3)\n\nfor name, coords in outlets.items():\n    dist = calculate_distance(hub, coords)\n    print(f\"hub to {name}: {dist}\")\n```\n\n---",
+      "solutionAssets": [],
+      "pitfall": "Handle negative coordinates like `'Lysaker': (-4, 1)` automatically via `(x2 - x1) ** 2` (parentheses around subtraction before squaring!).",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "08.4 Pattern: dictionary of coordinates and a function"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~20-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-a",
+        "coding",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MB-1",
+      "localId": "MB-1",
+      "courseId": "prog-3021",
+      "topicId": "4",
+      "collectionId": "mock-exam-b",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "MB-1 · Cylinder Geometry (15 Points)",
+      "promptMarkdown": "Write a function `cylinder_volume(radius, height)` that takes radius $r$ and height $h$ of a cylinder as parameters.\n- Volume formula: $V = \\pi \\times r^2 \\times h$\n- Use `math.pi` from the `math` module (or $3.14159$).\n- Round result to 2 decimal places and **return** it.\n- Test your function with `radius = 3.5` and `height = 10.0`.\n\n**Starter Code:**\n```python\nimport math\n# Task 1\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Import `math` and use `math.pi` with `radius ** 2`",
+        "Round volume to 2 decimal places and `return` it from `cylinder_volume`",
+        "Verify test call `cylinder_volume(3.5, 10.0)` outputs `384.85`"
+      ],
+      "hints": [
+        "Import `math` and use `math.pi * (radius ** 2) * height`.",
+        "Return `round(vol, 2)` and verify `cylinder_volume(3.5, 10.0)` gives `384.85`."
+      ],
+      "solutionMarkdown": "```python\nimport math\n\ndef cylinder_volume(radius, height):\n    vol = math.pi * (radius**2) * height\n    return round(vol, 2)\n\nprint(cylinder_volume(3.5, 10.0))  # 384.85\n```",
+      "solutionAssets": [],
+      "pitfall": "Hardcoding `3.14` instead of `math.pi` gives `384.65` instead of `384.85` due to premature rounding.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "09.3 Standard library: math and random"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-b",
+        "coding",
+        "topic-4"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MB-2",
+      "localId": "MB-2",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "mock-exam-b",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "MB-2 · Online Supermarket Voucher (15 Points)",
+      "promptMarkdown": "A grocery webstore gives cashback vouchers based on customer order totals:\n\n| Order Total (NOK) | Voucher % |\n| :---: | :---: |\n| Total < 400 | 0% |\n| 400 <= Total < 800 | 6% |\n| 800 <= Total < 1500 | 10% |\n| Total >= 1500 | 14% |\n\nWrite a program that asks the user to enter their purchase amount, calculates the voucher value rounded to whole NOK, and prints:\n`You earned a voucher worth 95 NOK.`\n\n**Starter Code:**\n```python\n# Task 2\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Cast input with `float()`",
+        "Implement all 4 cashback tiers (`< 400`, `< 800`, `< 1500`, `>= 1500`) accurately",
+        "Round voucher to whole NOK and match exact sentence"
+      ],
+      "hints": [
+        "Cast purchase total with `float(input(...))` and cascade `< 400` (`0.0`), `< 800` (`0.06`), `< 1500` (`0.10`), `else` (`0.14`).",
+        "Compute `voucher = round(total * pct)` and print `f'You earned a voucher worth {voucher} NOK.'`."
+      ],
+      "solutionMarkdown": "```python\ntotal = float(input(\"Enter purchase amount: \"))\nif total < 400:\n    pct = 0.0\nelif total < 800:\n    pct = 0.06\nelif total < 1500:\n    pct = 0.10\nelse:\n    pct = 0.14\n\nvoucher = round(total * pct)\nprint(f\"You earned a voucher worth {voucher} NOK.\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Using `<= 800` instead of `< 800` misprices an exact `800 NOK` order at 6% instead of 10%.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "04.1 Pattern: one choice from several ranges"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-b",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MB-3",
+      "localId": "MB-3",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "mock-exam-b",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "MB-3 · Customer Review Tag Extraction (15 Points)",
+      "promptMarkdown": "The strings below contain hashtag feedback from five customers:\n```python\nrev1 = '#FastDelivery#GoodQuality#HappyCustomer#Organic'\nrev2 = '#LateDelivery#PoorPackage#fastdelivery#SupportHelp'\nrev3 = '#happycustomer#FastDelivery#GreatTaste#Recommended'\nrev4 = '#FreshProduce#goodquality#fastdelivery#FiveStars'\nrev5 = '#supporthelp#HappyCustomer#organic#FASTDELIVERY'\n```\nCount how many times `#fastdelivery` appears across all 5 reviews (case-insensitive). Print the final count.\n\n**Starter Code:**\n```python\nrev1 = '#FastDelivery#GoodQuality#HappyCustomer#Organic'\nrev2 = '#LateDelivery#PoorPackage#fastdelivery#SupportHelp'\nrev3 = '#happycustomer#FastDelivery#GreatTaste#Recommended'\nrev4 = '#FreshProduce#goodquality#fastdelivery#FiveStars'\nrev5 = '#supporthelp#HappyCustomer#organic#FASTDELIVERY'\n# Task 3\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Combine all 5 review strings without merging adjacent words (each starts with `'#'`)",
+        "Normalize to lowercase and `.split('#')` into exact tag tokens",
+        "Count `'fastdelivery'` and print `5`"
+      ],
+      "hints": [
+        "Since each review starts with `'#'`, concatenating `rev1 + rev2 + rev3 + rev4 + rev5` keeps every tag separated by `'#'`!",
+        "Apply `.lower().split('#')` to the combined string and call `.count('fastdelivery')`."
+      ],
+      "solutionMarkdown": "```python\nrev1 = '#FastDelivery#GoodQuality#HappyCustomer#Organic'\nrev2 = '#LateDelivery#PoorPackage#fastdelivery#SupportHelp'\nrev3 = '#happycustomer#FastDelivery#GreatTaste#Recommended'\nrev4 = '#FreshProduce#goodquality#fastdelivery#FiveStars'\nrev5 = '#supporthelp#HappyCustomer#organic#FASTDELIVERY'\n\ncombined = (rev1 + rev2 + rev3 + rev4 + rev5).lower().split(\"#\")\ncount = combined.count(\"fastdelivery\")\nprint(count)  # Output: 5\n```",
+      "solutionAssets": [],
+      "pitfall": "If a review did NOT start with `'#'`, `'...Organic' + 'Late...'` would glue words together—joining with `'#'` is always safe.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "02.7 Pattern: count exact tags, ignoring case"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-b",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MB-4",
+      "localId": "MB-4",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "mock-exam-b",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "MB-4 · Electronics Cart Discount (15 Points)",
+      "promptMarkdown": "The list `gadgets` contains prices of 16 store items:\n```python\ngadgets = [120, 45, 890, 250, 60, 1400, 310, 85, 95, 450, 1100, 35, 780, 55, 620, 180]\n```\n#### (4.1) Filter Budget Items (7 points)\nWrite a loop to print all gadget prices strictly below 100 NOK on one line separated by spaces.\n\n#### (4.2) Black Friday Sale (8 points)\nAll items over 200 NOK get a 20% discount (`price * 0.80`). Use a **list comprehension** to generate a new list containing these discounted prices (rounded to nearest whole NOK). Print the new list.\n\n**Starter Code:**\n```python\ngadgets = [120, 45, 890, 250, 60, 1400, 310, 85, 95, 450, 1100, 35, 780, 55, 620, 180]\n# Task 4.1\n\n# Task 4.2\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "(4.1) Loop over `gadgets` printing items strictly `< 100` on one space-separated line",
+        "(4.2) Build discounted list comprehension filtering `if g > 200` and rounding `g * 0.80`",
+        "Print the new discounted list on its own line"
+      ],
+      "hints": [
+        "In (4.1), print prices strictly `< 100` with `end=' '`, then call `print()` to end the line.",
+        "In (4.2), filter `if g > 200` and transform `round(g * 0.80)` inside `[round(g * 0.80) for g in gadgets if g > 200]`."
+      ],
+      "solutionMarkdown": "```python\ngadgets = [120, 45, 890, 250, 60, 1400, 310, 85, 95, 450, 1100, 35, 780, 55, 620, 180]\n\n# 4.1 Filter below 100\nfor g in gadgets:\n    if g < 100:\n        print(g, end=\" \")\nprint()\n\n# 4.2 List comprehension over 200 with 20% discount\ndiscounted_gadgets = [round(g * 0.80) for g in gadgets if g > 200]\nprint(discounted_gadgets)\n```",
+      "solutionAssets": [],
+      "pitfall": "Check strict inequalities: `'strictly below 100'` means `< 100`, and `'over 200'` means `> 200`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "06.3 List comprehensions"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-b",
+        "coding",
+        "topic-2"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MB-5",
+      "localId": "MB-5",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "mock-exam-b",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "MB-5 · Cardiovascular Risk Classifier (20 Points)",
+      "promptMarkdown": "#### (5.1) Patient Records (5 points)\nStore the health metrics of 5 patients in a dictionary named `patients`, where keys are IDs (`'P01'`, etc.) and values are tuples `(systolic_bp, cholesterol_mmol)`:\n- P01: (118, 4.2)\n- P02: (145, 6.1)\n- P03: (128, 5.0)\n- P04: (160, 7.2)\n- P05: (135, 5.8)\n\nPrint the tuple for patient `'P03'`.\n\n#### (5.2) Risk Function (8 points)\nWrite a function `risk_level(bp, chol)`:\n- If bp < 120 and chol < 5.0: return `'Low Risk'`\n- Else if bp < 140 and chol < 6.0: return `'Moderate Risk'`\n- Else: return `'High Risk'`\n\nTest with `risk_level(118, 4.2)` and `risk_level(145, 6.1)`.\n\n#### (5.3) Full Patient Report (7 points)\nLoop through `patients.items()`, call `risk_level()`, and print:\n```text\nP01: Low Risk\nP02: High Risk\n...\n```\n\n**Starter Code:**\n```python\n# Task 5.1\n\n# Task 5.2\n\n# Task 5.3\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "(5.1) Build `patients` dict mapping `'P01'`..`'P05'` to `(bp, chol)` tuples and print `patients['P03']`",
+        "(5.2) Define `risk_level(bp, chol)` with compound `and` conditions and `return`",
+        "(5.3) Loop over `patients.items()` and print `{pid}: {risk}` for all 5 patients"
+      ],
+      "hints": [
+        "In (5.2), notice BOTH conditions use `and`: `if bp < 120 and chol < 5.0:` -> `'Low Risk'`, `elif bp < 140 and chol < 6.0:` -> `'Moderate Risk'`, `else:` -> `'High Risk'`.",
+        "In (5.3), unpack `bp, chol = metrics` inside `for pid, metrics in patients.items():` and call `risk_level(bp, chol)`."
+      ],
+      "solutionMarkdown": "```python\n# 5.1 Patient records\npatients = {\n    'P01': (118, 4.2),\n    'P02': (145, 6.1),\n    'P03': (128, 5.0),\n    'P04': (160, 7.2),\n    'P05': (135, 5.8)\n}\nprint(patients['P03'])\n\n# 5.2 Risk function\ndef risk_level(bp, chol):\n    if bp < 120 and chol < 5.0:\n        return 'Low Risk'\n    elif bp < 140 and chol < 6.0:\n        return 'Moderate Risk'\n    else:\n        return 'High Risk'\n\nprint(risk_level(118, 4.2))\nprint(risk_level(145, 6.1))\n\n# 5.3 Full report\nfor pid, metrics in patients.items():\n    bp, chol = metrics\n    risk = risk_level(bp, chol)\n    print(f\"{pid}: {risk}\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Using `or` instead of `and` in `risk_level` would classify `(160, 4.2)` as `'Low Risk'` despite dangerous blood pressure!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "08.3 Dictionaries: keys identify values"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~20-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-b",
+        "coding",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MB-6",
+      "localId": "MB-6",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "mock-exam-b",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 3,
+      "title": "MB-6 · Electric Van Battery Fleet Simulation (20 Points)",
+      "promptMarkdown": "A delivery company operates an electric van with a 75 kWh battery.\n- Starting battery level on Day 1: **75.0 kWh**.\n- Safety minimum threshold: **20.0 kWh**.\n- If battery drops below 20.0 kWh after the day's route, the van is recharged by **45.0 kWh** that evening at a cost of **90 NOK**.\n- Daily maintenance & parking cost: **1.2 NOK per remaining kWh** in the battery at end of day.\n\nDaily energy consumptions over 10 days:\n```python\ndaily_kwh = [18.5, 25.0, 22.0, 28.0, 15.0, 24.5, 30.0, 16.0, 26.5, 19.0]\n```\nWrite a loop to track the battery level and total daily operational cost.\n\n**Output format:**\n```text\nDay-1: 56.5 kWh (Cost: 67.8 NOK)\nDay-2: 31.5 kWh (Cost: 37.8 NOK)\n...\n```\n\n**Starter Code:**\n```python\ndaily_kwh = [18.5, 25.0, 22.0, 28.0, 15.0, 24.5, 30.0, 16.0, 26.5, 19.0]\nbattery = 75.0\n# Task 6\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Keep `battery = 75.0` persistent across days and reset `daily_cost = 0.0` each day",
+        "Trigger `+45.0` kWh recharge and `+90.0` NOK cost when post-route `battery < 20.0`",
+        "Add `battery * 1.2` end-of-day cost and format `Day-{day}: {battery:.1f} kWh (Cost: {daily_cost:.1f} NOK)`"
+      ],
+      "hints": [
+        "Initialize `battery = 75.0` outside the loop and reset `daily_cost = 0.0` inside `for day, usage in enumerate(daily_kwh, start=1):`.",
+        "Subtract `usage` first; if `battery < 20.0`, add `45.0` kWh and `90.0` NOK; then add `battery * 1.2` maintenance cost."
+      ],
+      "solutionMarkdown": "```python\ndaily_kwh = [18.5, 25.0, 22.0, 28.0, 15.0, 24.5, 30.0, 16.0, 26.5, 19.0]\nbattery = 75.0\n\nfor day, usage in enumerate(daily_kwh, start=1):\n    battery -= usage\n    daily_cost = 0.0\n    if battery < 20.0:\n        battery += 45.0\n        daily_cost += 90.0\n    daily_cost += battery * 1.2\n    print(f\"Day-{day}: {battery:.1f} kWh (Cost: {daily_cost:.1f} NOK)\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Adding `battery * 1.2` before checking the `< 20.0` recharge understates end-of-day kWh on recharge days.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "10.3 Pattern: daily inventory and costs"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~20-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "mock-exam-b",
+        "coding",
+        "topic-2"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MCQ-1",
+      "localId": "MCQ-1",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "concept-mcq",
+      "origin": "synthetic_drill",
+      "kind": "mcq",
+      "difficulty": 2,
+      "title": "MCQ-1 · Types vs Display Formatting (`round` vs `f-string`)",
+      "promptMarkdown": "What are the exact Python types and values of `round(8.0, 2)` and `f'{8:.2f}'`?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Both return the string `'8.00'`",
+        "`round(8.0, 2)` is the float `8.0`, whereas `f'{8:.2f}'` is the string `'8.00'`",
+        "`round(8.0, 2)` is the float `8.00`, whereas `f'{8:.2f}'` is the integer `8`",
+        "`round(8.0, 2)` raises a `TypeError` because `8.0` has only one decimal"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Separate a numeric `float` value in memory from a fixed-width formatted text string.",
+        "`round()` returns a number (`8.0` prints without trailing zero), while `f'{...:.2f}'` always returns a `str` with 2 decimals."
+      ],
+      "solutionMarkdown": "**Correct Answer:** `round(8.0, 2)` is the float `8.0`, whereas `f'{8:.2f}'` is the string `'8.00'`. Numeric rounding does not store trailing display zeros; use f-string format specifiers (`:.2f`) for fixed decimal display.",
+      "solutionAssets": [],
+      "pitfall": "Using `round(val, 2)` when the exam requires `1170.00 NOK` prints `1170.0 NOK`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "02.3 Control the printed output"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 1.5,
+          "min": 0.8,
+          "max": 2.5
+        },
+        "stuckMinutes": 1.8,
+        "reviewMinutes": 0.8,
+        "hintHandicapSeconds": 30,
+        "rationale": "Conceptual Python/Pandas trap check: 3.5m trace & verification, 1.5m quick recall."
+      },
+      "available": true,
+      "tags": [
+        "concept-mcq",
+        "mcq",
+        "topic-1"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MCQ-2",
+      "localId": "MCQ-2",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "concept-mcq",
+      "origin": "synthetic_drill",
+      "kind": "mcq",
+      "difficulty": 2,
+      "title": "MCQ-2 · List Aliasing, `.copy()`, and In-Place `.sort()`",
+      "promptMarkdown": "After running `a = [3, 1]`, `b = a`, `c = a.copy()`, `b.sort()`, and finally `b = b.sort()`, what are `a`, `b`, and `c`?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "`a = [3, 1]`, `b = [1, 3]`, `c = [3, 1]`",
+        "`a = [1, 3]`, `b = [1, 3]`, `c = [1, 3]`",
+        "`a = [1, 3]`, `b = None`, `c = [3, 1]`",
+        "`a = None`, `b = None`, `c = [3, 1]`"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "`b = a` points both names at the same list object, whereas `c = a.copy()` creates an independent shallow copy.",
+        "In-place list methods like `.sort()` and `.append()` mutate the list and return `None`!"
+      ],
+      "solutionMarkdown": "**Correct Answer:** `a = [1, 3]`, `b = None`, `c = [3, 1]`. First `b.sort()` sorts the shared list `[3, 1]` in place (mutating `a`), leaving `c` untouched. Assigning `b = b.sort()` rebinds `b` to `.sort()`'s return value (`None`), while `a` still references `[1, 3]`.",
+      "solutionAssets": [],
+      "pitfall": "Never write `values = values.sort()`—use `values.sort()` in place or `values = sorted(values)`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "03.2 Keep the list when changing it"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 1.5,
+          "min": 0.8,
+          "max": 2.5
+        },
+        "stuckMinutes": 1.8,
+        "reviewMinutes": 0.8,
+        "hintHandicapSeconds": 30,
+        "rationale": "Conceptual Python/Pandas trap check: 3.5m trace & verification, 1.5m quick recall."
+      },
+      "available": true,
+      "tags": [
+        "concept-mcq",
+        "mcq",
+        "topic-2"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MCQ-3",
+      "localId": "MCQ-3",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "concept-mcq",
+      "origin": "synthetic_drill",
+      "kind": "mcq",
+      "difficulty": 2,
+      "title": "MCQ-3 · List Comprehension Filtering vs Post-Filtering",
+      "promptMarkdown": "Given `nums = [-2, 0, 3, 5]`, compare `x = [n**2 for n in nums if n > 0]` with `y = [sq for sq in [n**2 for n in nums] if sq > 0]`.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Both produce `[9, 25]`",
+        "`x` is `[9, 25]`, whereas `y` is `[4, 9, 25]` because `(-2)**2 = 4 > 0`",
+        "`x` is `[0, 9, 25]`, whereas `y` is `[9, 25]`",
+        "Both produce `[4, 9, 25]`"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Trace `-2` in both expressions: when is the `> 0` check evaluated?",
+        "In `x`, `if n > 0` filters out `-2` before squaring; in `y`, `-2` is squared to `+4` first, which then passes `sq > 0`!"
+      ],
+      "solutionMarkdown": "**Correct Answer:** `x` is `[9, 25]`, whereas `y` is `[4, 9, 25]`. Filtering on the original input (`if n > 0`) vs. filtering on the transformed result answers two different questions.",
+      "solutionAssets": [],
+      "pitfall": "Always check whether the exam problem filters on the original value (e.g., pre-VAT price) or the transformed value.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "06.3 List comprehensions"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 1.5,
+          "min": 0.8,
+          "max": 2.5
+        },
+        "stuckMinutes": 1.8,
+        "reviewMinutes": 0.8,
+        "hintHandicapSeconds": 30,
+        "rationale": "Conceptual Python/Pandas trap check: 3.5m trace & verification, 1.5m quick recall."
+      },
+      "available": true,
+      "tags": [
+        "concept-mcq",
+        "mcq",
+        "topic-2"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MCQ-4",
+      "localId": "MCQ-4",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "concept-mcq",
+      "origin": "synthetic_drill",
+      "kind": "mcq",
+      "difficulty": 2,
+      "title": "MCQ-4 · `print()` Return Value & Loop Early-Return Trap",
+      "promptMarkdown": "What happens if you run `res = print(5)` and what happens if `return out_list` is indented *inside* a `for` loop in a function?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "`res` stores `5`, and indenting `return` inside the loop returns the full list faster",
+        "`res` stores `'5'`, and indenting `return` inside the loop raises `IndentationError`",
+        "`res` stores `None` (after displaying `5`), and indenting `return` inside the loop exits on the first iteration",
+        "`res` stores `True`, and `return` is ignored until the `for` loop completes"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "`print()` is a display side-effect function that returns nothing (`None`).",
+        "Executing `return` immediately terminates the enclosing function call."
+      ],
+      "solutionMarkdown": "**Correct Answer:** `res` stores `None`, and an indented `return out_list` inside a loop exits after processing only the very first item. Always place `return out_list` at the function body indentation level *after* the loop.",
+      "solutionAssets": [],
+      "pitfall": "Over-indenting `return` by 4 spaces inside a `for` loop is one of the top WISEflow point-losers.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "07.1 `return` versus `print`"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 1.5,
+          "min": 0.8,
+          "max": 2.5
+        },
+        "stuckMinutes": 1.8,
+        "reviewMinutes": 0.8,
+        "hintHandicapSeconds": 30,
+        "rationale": "Conceptual Python/Pandas trap check: 3.5m trace & verification, 1.5m quick recall."
+      },
+      "available": true,
+      "tags": [
+        "concept-mcq",
+        "mcq",
+        "topic-3"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MCQ-5",
+      "localId": "MCQ-5",
+      "courseId": "prog-3021",
+      "topicId": "5",
+      "collectionId": "concept-mcq",
+      "origin": "synthetic_drill",
+      "kind": "mcq",
+      "difficulty": 2,
+      "title": "MCQ-5 · Pandas `.groupby().size()` vs `.count()` with Missing Values",
+      "promptMarkdown": "In a `orders` DataFrame, `'Bergen'` has 3 order rows, one of which has `price = NaN`. What do `orders.groupby('city').size()['Bergen']` and `orders.groupby('city')['price'].count()['Bergen']` return?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Both return `3`",
+        "Both return `2`",
+        "`.size()` returns `3` (total rows), whereas `['price'].count()` returns `2` (non-missing prices)",
+        "`.size()` returns `18` (rows × columns), whereas `['price'].count()` returns `3`"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Recall how Pandas `.count()` handles `NaN` values compared with group row counting.",
+        "On a `GroupBy` object, `.size()` counts all records in each group regardless of `NaN`s, whereas `col.count()` counts only non-null values."
+      ],
+      "solutionMarkdown": "**Correct Answer:** `.size()` returns `3` (total rows for Bergen), whereas `['price'].count()` returns `2` (non-missing recorded prices). Use `.size()` when counting observations/trips/orders!",
+      "solutionAssets": [],
+      "pitfall": "Note: on an *ungrouped* DataFrame `df.size` is `rows * cols`, but `df.groupby(...).size()` counts rows per group!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "13.5 GroupBy and aggregation"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 1.5,
+          "min": 0.8,
+          "max": 2.5
+        },
+        "stuckMinutes": 1.8,
+        "reviewMinutes": 0.8,
+        "hintHandicapSeconds": 30,
+        "rationale": "Conceptual Python/Pandas trap check: 3.5m trace & verification, 1.5m quick recall."
+      },
+      "available": true,
+      "tags": [
+        "concept-mcq",
+        "mcq",
+        "topic-5"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MCQ-6",
+      "localId": "MCQ-6",
+      "courseId": "prog-3021",
+      "topicId": "6",
+      "collectionId": "concept-mcq",
+      "origin": "synthetic_drill",
+      "kind": "mcq",
+      "difficulty": 2,
+      "title": "MCQ-6 · Choosing the Right Chart (`countplot` vs `barplot` vs `histplot` vs `heatmap`)",
+      "promptMarkdown": "Which Seaborn/Pandas chart pairing correctly matches: (i) raw row count per city, (ii) mean price per city, (iii) continuous price distribution, and (iv) 2D city × product frequency table?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Use `sns.countplot` for all four by changing the `y` parameter",
+        "(i) `countplot`, (ii) grouped mean bar chart / `barplot`, (iii) `histplot`, (iv) `crosstab` + `heatmap`",
+        "(i) `histplot`, (ii) `pie` chart, (iii) `countplot`, (iv) `scatterplot`",
+        "(i) `lineplot`, (ii) `countplot`, (iii) `boxplot`, (iv) `histplot`"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "`countplot` only counts raw rows of a categorical column—it never computes means or continuous bins.",
+        "Match categorical counts -> `countplot`, group means -> `barplot`, numeric distribution -> `histplot`, 2D contingency counts -> `crosstab` + `heatmap`."
+      ],
+      "solutionMarkdown": "**Correct Answer:** (i) `countplot` (or `value_counts().plot.bar()`), (ii) grouped mean bar chart / `sns.barplot`, (iii) `histplot`, and (iv) `pd.crosstab` + `sns.heatmap(annot=True)`.",
+      "solutionAssets": [],
+      "pitfall": "Using `countplot` on a continuous float column creates hundreds of unreadable 1-unit bars instead of binned histogram intervals.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "14.2 Choose the plot"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 1.5,
+          "min": 0.8,
+          "max": 2.5
+        },
+        "stuckMinutes": 1.8,
+        "reviewMinutes": 0.8,
+        "hintHandicapSeconds": 30,
+        "rationale": "Conceptual Python/Pandas trap check: 3.5m trace & verification, 1.5m quick recall."
+      },
+      "available": true,
+      "tags": [
+        "concept-mcq",
+        "mcq",
+        "topic-6"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MCQ-7",
+      "localId": "MCQ-7",
+      "courseId": "prog-3021",
+      "topicId": "4",
+      "collectionId": "concept-mcq",
+      "origin": "synthetic_drill",
+      "kind": "mcq",
+      "difficulty": 2,
+      "title": "MCQ-7 · Home Exam 2 Strict Package Whitelist & Output Cell Rule",
+      "promptMarkdown": "Under EBA 3400's official Home Exam 2 instructions (`2024H` & `2025H`), what happens if **(i)** you import `scipy` or `sklearn` to compute a simple summary, or **(ii)** you submit correct Python code in a cell without running it so no output is displayed?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Both receive full points as long as the Python syntax is valid.",
+        "(i) Importing packages outside `{pandas, seaborn, matplotlib, random, math, datetime, numpy}` incurs a **point deduction**, and (ii) code without visible output (or mismatched output on re-run) receives **0 points**.",
+        "(i) External packages are encouraged, and (ii) examiners run cells to award full credit even when outputs are blank.",
+        "Only `.py` scripts are accepted on WISEflow, so cell outputs do not exist."
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Check Instruction 2 & 3 on page 1 of `2025H_EBA3400_Exam2.pdf`.",
+        "Only the 7 listed libraries are allowed without penalty, and every answer cell must show both code AND executed output."
+      ],
+      "solutionMarkdown": "**Correct Answer:** Importing any module outside `{pandas, seaborn, matplotlib, random, math, datetime, numpy}` triggers a **point deduction**, and answers containing code without visible executed output (or output that differs upon `Restart & Run All`) receive **0 points**.",
+      "solutionAssets": [],
+      "pitfall": "Editing a code cell right before the 12:00 deadline without pressing `Restart & Run All` and saving `.ipynb`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "Final checks"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 1.5,
+          "min": 0.8,
+          "max": 2.5
+        },
+        "stuckMinutes": 1.8,
+        "reviewMinutes": 0.8,
+        "hintHandicapSeconds": 30,
+        "rationale": "Home Exam 2 rules & syntax trap diagnostic."
+      },
+      "available": true,
+      "tags": [
+        "concept-mcq",
+        "mcq",
+        "exam-rules",
+        "topic-4"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {}
+    },
+    {
+      "id": "prog-3021:MCQ-8",
+      "localId": "MCQ-8",
+      "courseId": "prog-3021",
+      "topicId": "6",
+      "collectionId": "concept-mcq",
+      "origin": "synthetic_drill",
+      "kind": "mcq",
+      "difficulty": 2,
+      "title": "MCQ-8 · `DatetimeIndex` Accessor vs `.dt` & `pd.cut(include_lowest=True)` Trap",
+      "promptMarkdown": "Suppose `df` has a `DatetimeIndex` and a numeric column `minutes` containing `0.0`. Which pair of expressions extracts weekday names **without** `AttributeError` and bins `0 <= minutes <= 10` **without** turning `0.0` into `NaN`?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "`df.index.dt.day_name()` and `pd.cut(df['minutes'], bins=[0, 10, 20])`",
+        "`df.index.day_name()` and `pd.cut(df['minutes'], bins=[0, 10, 20], include_lowest=True)`",
+        "`df['index'].dt.weekday_name` and `pd.cut(df['minutes'], bins=[0, 10, 20], right=False)`",
+        "`df.dt.day_name()` and `df['minutes'].resample('10min')`"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "`.dt` is only for a datetime *Series/column*; a `DatetimeIndex` exposes `.day_name()`, `.month`, `.year` directly!",
+        "By default `pd.cut` creates half-open intervals `(0, 10]`, turning exact `0.0` into `NaN` unless `include_lowest=True` is passed."
+      ],
+      "solutionMarkdown": "**Correct Answer:** `df.index.day_name()` and `pd.cut(df['minutes'], bins=[0, 10, 20], include_lowest=True)`. Both appeared directly in `2024H Task 4.f` and `2025H Task 4.e`!",
+      "solutionAssets": [],
+      "pitfall": "Writing `df.index.dt.day_name()` raises `AttributeError: 'DatetimeIndex' object has no attribute 'dt'`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "A.2 Datetime columns and indices"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 1.5,
+          "min": 0.8,
+          "max": 2.5
+        },
+        "stuckMinutes": 1.8,
+        "reviewMinutes": 0.8,
+        "hintHandicapSeconds": 30,
+        "rationale": "Home Exam 2 rules & syntax trap diagnostic."
+      },
+      "available": true,
+      "tags": [
+        "concept-mcq",
+        "mcq",
+        "time-series",
+        "topic-6"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {}
+    }
+  ]
+}

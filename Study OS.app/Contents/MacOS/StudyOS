@@ -1,0 +1,37 @@
+#!/bin/zsh
+# Study OS Silent macOS Finder App Bundle Launcher
+set -u
+
+STUDY_ROOT="${0:A:h:h:h:h}"
+SERVER_URL="http://127.0.0.1:8765"
+LOG_DIR="$HOME/Library/Logs/StudyOS"
+/bin/mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/server.log"
+
+if /usr/bin/curl -fsS --max-time 1 "$SERVER_URL/api/ping" >/dev/null 2>&1; then
+  /usr/bin/open "$SERVER_URL"
+  exit 0
+fi
+
+PYTHON_BIN=""
+for candidate in \
+  "/opt/anaconda3/bin/python3" \
+  "/opt/homebrew/bin/python3" \
+  "/usr/local/bin/python3" \
+  "/usr/bin/python3"; do
+  if [[ -x "$candidate" ]]; then
+    if "$candidate" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)' >/dev/null 2>&1; then
+      PYTHON_BIN="$candidate"
+      break
+    fi
+  fi
+done
+
+if [[ -z "$PYTHON_BIN" ]]; then
+  /usr/bin/osascript -e 'display alert "Study OS requires Python 3.9+" message "Install Python 3 or run OPEN_STUDY_OS.command in Terminal."' >/dev/null 2>&1
+  exit 1
+fi
+
+cd "$STUDY_ROOT" || exit 1
+/usr/bin/nohup "$PYTHON_BIN" "$STUDY_ROOT/app/server.py" --open >> "$LOG_FILE" 2>&1 </dev/null &
+exit 0

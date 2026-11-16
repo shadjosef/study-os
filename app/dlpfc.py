@@ -1,0 +1,130 @@
+"""Neuroscience-grounded dlPFC Cognitive Control Load Classifier & Circadian Router.
+
+Models prefrontal glutamate accumulation (Wiehler et al., 2022; Xia & Soutschek et al., 2026)
+and basal-ganglia / parietal procedural chunking across 3 cognitive tiers:
+  - Tier 3 (`high` / `synthesis`): Unseen multi-variable derivations, proofs, multi-part FLOWmulti
+    statements, architectural coding, and complex multi-theory case synthesis (08:00–15:00, <=4.5h/day cap).
+  - Tier 2 (`med` / `procedural`): Standard single-method calculation drills, quantitative MCQs,
+    debugging/foundational coding, and *previously mastered* Tier-3 problems shifting into speed/automaticity
+    drills (15:00–18:00).
+  - Tier 1 (`low` / `recall`): Fast conceptual recognition MCQs, short reading/definition checks,
+    and consolidated FSRS spaced-repetition reviews (18:00+ evening wind-down).
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+HIGH_DLPFC_DAILY_CAP_MIN = 270.0  # 4.5 hours/day max-intensity novel dlPFC budget
+
+_QUANT_RE = re.compile(
+    r"\$[^$]+\$|\b\d+(?:\.\d+)?%|\bcalculate\b|\bcompute\b|\bprofit\b|\bequilibrium\b|\bderivative\b|\bnpv\b|\belasticity\b",
+    re.I,
+)
+
+
+def classify_intrinsic_dlpfc(q: dict[str, Any]) -> tuple[int, str]:
+    """Determines intrinsic `(dlpfcBase, cognitiveType)` for an unchunked question."""
+    cid = str(q.get("courseId") or "")
+    kind = str(q.get("kind") or "mcq")
+    diff = int(q.get("difficulty") or 2)
+    target = float(
+        ((q.get("pacing") or {}).get("learning") or {}).get("target")
+        or (4.0 if kind == "mcq" else 12.0)
+    )
+    wf = len(q.get("wiseflowFields") or [])
+    pts = float(q.get("points") or 0)
+    prompt = f"{q.get('promptMarkdown') or ''} {q.get('contextMarkdown') or ''}"
+    col = str(q.get("collectionId") or "")
+
+    if kind == "mcq":
+        has_math = bool(_QUANT_RE.search(prompt))
+        if cid == "ob-2537":
+            if len(prompt) >= 430 and diff >= 3:
+                return 3, "synthesis"
+            if diff >= 2 and len(prompt) >= 190:
+                return 2, "procedural"
+            return 1, "recall"
+        if target >= 6.5 or (has_math and diff >= 2):
+            return 2, "procedural"
+        return 1, "recall"
+
+    if cid == "acct-2527":
+        if wf >= 4 or pts >= 20 or diff >= 3 or target >= 25.0:
+            return 3, "synthesis"
+        if kind == "calculation" or target >= 10.0:
+            return 2, "procedural"
+        return 1, "recall"
+
+    if cid == "econ-2522":
+        if col == "SYN-CASE" or diff >= 3 or target >= 18.0:
+            return 3, "synthesis"
+        if target >= 8.0 or kind == "calculation":
+            return 2, "procedural"
+        return 1, "recall"
+
+    if cid == "math-2588":
+        if diff >= 3 or target >= 20.0:
+            return 3, "synthesis"
+        return 2, "procedural"
+
+    if cid == "ob-2537":
+        return 3, "synthesis"
+
+    if cid == "prog-3021":
+        if diff >= 3 or target >= 16.0:
+            return 3, "synthesis"
+        return 2, "procedural"
+
+    if diff >= 3 or target >= 18.0 or wf >= 4:
+        return 3, "synthesis"
+    if kind != "mcq" and target >= 8.0:
+        return 2, "procedural"
+    return 1, "recall"
+
+
+def effective_dlpfc_tier(q: dict[str, Any], rec: dict[str, Any] | None = None) -> tuple[int, bool]:
+    """Computes live student-specific `(effectiveTier, isChunkedStepdown)`.
+
+    - Struggle / revisit / FSRS lapse escalates load because schema repair recruits executive control.
+    - Clean mastery (`done`, `lastGrade >= 3`) steps a `High-dlPFC` item down into `Med-dlPFC`
+      procedural speed-drilling, and multi-rep consolidated items (`reps >= 2`, `stability >= 5d`)
+      down into `Low-dlPFC` spaced recall.
+    """
+    raw_base = q.get("dlpfcBase")
+    base = int(raw_base) if raw_base in (1, 2, 3) else classify_intrinsic_dlpfc(q)[0]
+    if not rec:
+        return base, False
+
+    status = str(rec.get("status") or "not_started")
+    p_diff = rec.get("personalDifficulty")
+    fsrs = rec.get("fsrs") or {}
+    last_g = fsrs.get("lastGrade")
+    reps = int(fsrs.get("reps") or 0)
+    stab = float(fsrs.get("stability") or 0.0)
+
+    if p_diff == 3 or status == "revisit" or last_g == 1:
+        escalated = min(3, max(base, 2 if q.get("kind") == "mcq" else 3))
+        return escalated, False
+
+    if status == "done" and (last_g is None or int(last_g) >= 3):
+        if p_diff == 1 or (reps >= 2 and stab >= 5.0):
+            return 1, base > 1
+        if base == 3 and reps >= 1:
+            return 2, True
+
+    return base, False
+
+
+def circadian_dlpfc_target(hour: int, today_high_dlpfc_min: float = 0.0) -> tuple[str, str]:
+    """Returns `(modeKey, shortRationale)` for a given local hour (`0..23`) and daily High-dlPFC usage."""
+    if 6 <= hour < 15:
+        if today_high_dlpfc_min >= HIGH_DLPFC_DAILY_CAP_MIN:
+            return (
+                "med_dlpfc",
+                f"4.5h High-dlPFC cap reached ({today_high_dlpfc_min / 60.0:.1f}h) · Procedural Downshift",
+            )
+        return ("high_dlpfc", "08:00–15:00 Peak Capacity · High-dlPFC Novel Synthesis")
+    if 15 <= hour < 18:
+        return ("med_dlpfc", "15:00–18:00 Afternoon Downshift · Med-dlPFC Procedural Drills")
+    return ("low_dlpfc", "Evening Wind-Down · Low-dlPFC Recall & Spaced Review")

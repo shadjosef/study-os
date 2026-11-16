@@ -1,0 +1,16 @@
+# Cross-platform Mac (zsh) <-> Windows (cmd.exe) line-ending safety
+* text=auto eol=lf
+
+# Windows batch launchers MUST keep CRLF for cmd.exe label parsing
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# macOS / POSIX shell launchers & scripts MUST keep LF
+*.command text eol=lf
+*.sh text eol=lf
+"Study OS.app/Contents/MacOS/StudyOS" text eol=lf
+
+# Binary assets
+*.woff2 binary
+*.png binary
+*.pdf binary

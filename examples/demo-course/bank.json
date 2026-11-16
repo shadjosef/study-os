@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 1,
+  "courseId": "demo-101",
+  "canvasId": "demo",
+  "code": "DEMO 101",
+  "title": "Study-OS Interactive Showcase (FLOWmulti, KaTeX, Code & FSRS-5)",
+  "shortTitle": "Demo Showcase",
+  "semester": "Starter Pack",
+  "color": "#1d5e8a",
+  "examInfo": {
+    "date": "2026-12-15",
+    "format": "WISEflow Digital Exam Simulation (MCQ + FLOWmulti ±2% + Written/Code)",
+    "durationMinutes": 90,
+    "notes": "Sample starter pack demonstrating WISEflow ±2% dot-decimal boxes, KaTeX math, coding rubrics, dlPFC load routing, and FSRS-5 spaced repetition."
+  },
+  "obsidian": {
+    "vault": "Obsidian Vault",
+    "mainReference": "",
+    "workedExamples": "",
+    "practiceNote": ""
+  },
+  "topics": [
+    {
+      "id": "1",
+      "number": 1,
+      "title": "Quantitative Finance & FLOWmulti Worksheets",
+      "obsidianFile": "",
+      "obsidianHeading": "",
+      "keywords": ["npv", "cash flow", "discount", "payback", "flowmulti"]
+    },
+    {
+      "id": "2",
+      "number": 2,
+      "title": "Microeconomics & Optimization",
+      "obsidianFile": "",
+      "obsidianHeading": "",
+      "keywords": ["marginal cost", "elasticity", "derivative", "profit"]
+    },
+    {
+      "id": "3",
+      "number": 3,
+      "title": "Python & Pandas Time Series",
+      "obsidianFile": "",
+      "obsidianHeading": "",
+      "keywords": ["pandas", "datetime", "resample", "dataframe"]
+    }
+  ],
+  "collections": [
+    {
+      "id": "demo-exam",
+      "title": "Sample 90-Minute Mixed WISEflow Paper",
+      "kind": "mock_exam",
+      "durationMinutes": 90
+    }
+  ],
+  "sources": {},
+  "questions": [
+    {
+      "id": "demo-101:DEMO-1",
+      "localId": "DEMO-1",
+      "courseId": "demo-101",
+      "topicId": "2",
+      "collectionId": "demo-exam",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 1,
+      "dlpfcBase": 1,
+      "cognitiveType": "concept_recall",
+      "points": 10,
+      "title": "Demo 1 · Price-Taking Equilibrium & Tariff Incidence (MCQ)",
+      "promptMarkdown": "In a competitive market with upward-sloping supply ($MC$) and downward-sloping demand ($WTP$), a unit input tax raises every producer's marginal cost by **$15\\%$**. Why does the equilibrium market price increase by **less than $15\\%$**?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Producers are legally barred from raising prices in competitive markets.",
+        "Higher prices reduce quantity demanded along the demand curve, moving producers down their upward-sloping marginal cost curve and sharing the tax burden.",
+        "Demand shifts rightward by an equal 15% to offset the supply shock.",
+        "Total consumer and producer surplus increases when output falls."
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Ask what would happen to quantity demanded vs. quantity supplied if price rose the full 15%.",
+        "At a lower equilibrium quantity $Q_1 < Q_0$, marginal cost along an upward-sloping supply curve is lower than at $Q_0$."
+      ],
+      "solutionMarkdown": "**Correct Answer: B** — If price rose the full $15\\%$, quantity demanded would fall below $Q_0$, creating excess supply. As output contracts to $Q_1 < Q_0$, marginal cost declines along the upward-sloping supply schedule, so consumers and producers share the incidence according to relative price elasticities.",
+      "solutionAssets": [],
+      "pitfall": "Assuming 100% pass-through when both supply and demand are price-sensitive.",
+      "obsidianLink": { "file": "", "heading": "" },
+      "pacing": {
+        "learning": { "target": 3.5, "min": 2.0, "max": 5.5 },
+        "exam": { "target": 1.5, "min": 0.8, "max": 2.5 },
+        "stuckMinutes": 1.8,
+        "reviewMinutes": 0.8,
+        "hintHandicapSeconds": 30,
+        "rationale": "Standard exam MCQ: 3.5m learning par, 1.5m timed pace."
+      },
+      "available": true,
+      "tags": ["demo", "mcq", "economics"]
+    },
+    {
+      "id": "demo-101:DEMO-2",
+      "localId": "DEMO-2",
+      "courseId": "demo-101",
+      "topicId": "1",
+      "collectionId": "demo-exam",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 3,
+      "dlpfcBase": 3,
+      "cognitiveType": "multi_step_synthesis",
+      "points": 35,
+      "title": "Demo 2 · WISEflow FLOWmulti Capital Investment Worksheet (±2% Auto-Graded)",
+      "promptMarkdown": "Nordic Solar AS evaluates a machine requiring an initial Year-0 cash outlay of **`200,000` EUR** (no residual value) that generates net operating cash inflows of **`90,000` EUR** at the end of Year 1, **`80,000` EUR** at the end of Year 2, and **`80,000` EUR** at the end of Year 3. The cost of capital is **`10%`** per annum.\n\nComplete the WISEflow numeric & decision boxes below *(use a leading `-` for Year-0 outflow, dot `.` for decimals, `±2%` rounding tolerance)*:",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "wiseflowFields": [
+        {
+          "id": "cf0",
+          "group": "Part A — Cash Flows & Payback",
+          "label": "(a) Year 0 initial investment cash flow (enter outflow with leading minus -)",
+          "type": "number",
+          "expected": -200000,
+          "relTol": 0.02,
+          "absTol": 1.0,
+          "unit": "EUR",
+          "points": 5
+        },
+        {
+          "id": "payback",
+          "group": "Part A — Cash Flows & Payback",
+          "label": "(b) Undiscounted payback period (in years, using dot decimal)",
+          "type": "number",
+          "expected": 2.375,
+          "altExpected": [2.38, 2.4],
+          "relTol": 0.02,
+          "absTol": 0.03,
+          "unit": "years",
+          "points": 10
+        },
+        {
+          "id": "npv",
+          "group": "Part B — Net Present Value at 10%",
+          "label": "(c) Net Present Value (NPV) at r = 10%",
+          "type": "number",
+          "expected": 8039.07,
+          "altExpected": [8040, 8010],
+          "relTol": 0.02,
+          "absTol": 5.0,
+          "unit": "EUR",
+          "points": 15
+        },
+        {
+          "id": "decision",
+          "group": "Part B — Net Present Value at 10%",
+          "label": "(d) Should Nordic Solar AS accept the project?",
+          "type": "choice",
+          "options": ["Accept — NPV > 0 increases shareholder value", "Reject — NPV < 0 destroys shareholder value"],
+          "answerIndex": 0,
+          "points": 5
+        }
+      ],
+      "rubricChecks": [
+        "Record Year 0 outflow with leading minus (-200000)",
+        "Compute Payback = 2 + (30,000 / 80,000) = 2.375 years",
+        "Discount cash flows at 10%: 90k/1.1 + 80k/1.21 + 80k/1.331 - 200k = +8,039 EUR -> Accept"
+      ],
+      "hints": [
+        "After Year 1 (90k) and Year 2 (80k), 170,000 EUR is recovered, leaving 30,000 EUR out of Year 3's 80,000 EUR.",
+        "Compute PV = 90,000 / 1.10 + 80,000 / 1.10^2 + 80,000 / 1.10^3 and subtract 200,000."
+      ],
+      "solutionMarkdown": "**Worked Solution:**\n- **(a) Year 0 Outflow:** `-200000` EUR.\n- **(b) Payback:** Cumulative inflow after 2 years $= 90,000 + 80,000 = 170,000$. Remaining $30,000 / 80,000 = 0.375 \\implies \\mathbf{2.375\\text{ years}}$.\n- **(c) NPV at 10%:**\n$$\\text{NPV} = -200,000 + \\frac{90,000}{1.10} + \\frac{80,000}{1.10^2} + \\frac{80,000}{1.10^3} = -200,000 + 81,818.18 + 66,115.70 + 60,105.18 = \\mathbf{+8,039.07\\text{ EUR}}$$\n- **(d) Decision:** **Accept** because $\\text{NPV} > 0$.",
+      "solutionAssets": [],
+      "pitfall": "Wrapping `-200000` in parentheses `(200000)` or typing a decimal comma `2,38` instead of `2.38`.",
+      "obsidianLink": { "file": "", "heading": "" },
+      "pacing": {
+        "learning": { "target": 12.0, "min": 8.0, "max": 16.0 },
+        "exam": { "target": 8.0, "min": 5.0, "max": 11.0 },
+        "stuckMinutes": 4.0,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Multi-box WISEflow capital budgeting worksheet."
+      },
+      "available": true,
+      "tags": ["demo", "flowmulti", "finance"]
+    },
+    {
+      "id": "demo-101:DEMO-3",
+      "localId": "DEMO-3",
+      "courseId": "demo-101",
+      "topicId": "2",
+      "collectionId": "demo-exam",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural_application",
+      "points": 25,
+      "title": "Demo 3 · Profit Maximization & Second-Order Verification",
+      "promptMarkdown": "A firm faces inverse demand $P(q) = 140 - 2q$ and total cost $C(q) = 200 + 20q + q^2$ for $q \\ge 0$.\n\n1. Derive the profit function $\\pi(q) = R(q) - C(q)$.\n2. Find the profit-maximizing quantity $q^*$, verify that it is a global maximum using $\\pi''(q)$, and compute maximum profit $\\pi(q^*)$.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": { "expected": 1000, "tolerance": 0.02, "unit": "maximum profit" },
+      "rubricChecks": [
+        "Form R(q) = 140q - 2q^2 and simplify pi(q) = -3q^2 + 120q - 200",
+        "Solve FOC pi'(q) = -6q + 120 = 0 -> q* = 20",
+        "Verify SOC pi''(q) = -6 < 0 (strictly concave -> global maximum) and evaluate pi(20) = 1,000"
+      ],
+      "hints": [
+        "Revenue is $R(q) = P(q)\\cdot q = 140q - 2q^2$; remember to distribute the minus sign across all three terms of $C(q)$!",
+        "Differentiate $\\pi(q) = -3q^2 + 120q - 200$ and check the sign of $\\pi''(q)$."
+      ],
+      "solutionMarkdown": "**Step-by-Step Solution:**\n1. **Profit Function:**\n$$\\pi(q) = (140q - 2q^2) - (200 + 20q + q^2) = -3q^2 + 120q - 200$$\n2. **First- & Second-Order Conditions:**\n$$\\pi'(q) = -6q + 120 = 0 \\implies q^* = \\mathbf{20}$$\nSince $\\pi''(q) = -6 < 0$ for all $q$, $\\pi(q)$ is strictly concave and $q^* = 20$ is the unique global maximum:\n$$\\pi(20) = -3(400) + 120(20) - 200 = \\mathbf{1,000}$$",
+      "solutionAssets": [],
+      "pitfall": "Forgetting to subtract $+q^2$ inside $C(q)$ (getting $-q^2$ instead of $-3q^2$) or omitting the $\\pi''(q) < 0$ concavity check.",
+      "obsidianLink": { "file": "", "heading": "" },
+      "pacing": {
+        "learning": { "target": 9.0, "min": 6.0, "max": 13.0 },
+        "exam": { "target": 6.0, "min": 4.0, "max": 8.5 },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 1.5,
+        "hintHandicapSeconds": 60,
+        "rationale": "Written calculus derivation with SOC justification."
+      },
+      "available": true,
+      "tags": ["demo", "calculus", "optimization"]
+    },
+    {
+      "id": "demo-101:DEMO-4",
+      "localId": "DEMO-4",
+      "courseId": "demo-101",
+      "topicId": "3",
+      "collectionId": "demo-exam",
+      "origin": "mock_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural_application",
+      "points": 30,
+      "title": "Demo 4 · Pandas DatetimeIndex Sorting & Daily Resampling",
+      "promptMarkdown": "Given an unsorted DataFrame `orders` with columns `'ordered_at'` (ISO timestamp strings) and `'amount'`:\n\n1. Parse `'ordered_at'` as `datetime`, set it as a sorted `DatetimeIndex`.\n2. Compute both **daily order counts** and **daily total revenue** using `.resample('D')`.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Convert via pd.to_datetime(orders['ordered_at']) and chain .set_index('ordered_at').sort_index()",
+        "Use orders.resample('D').size() for daily order counts",
+        "Use orders['amount'].resample('D').sum() for daily revenue"
+      ],
+      "hints": [
+        "Always chain `.sort_index()` right after `.set_index('ordered_at')` so time-range slicing is monotonic.",
+        "Distinguish `.resample('D').size()` (row count) from `.resample('D')['amount'].sum()` (revenue total)."
+      ],
+      "solutionMarkdown": "```python\nimport pandas as pd\n\norders[\"ordered_at\"] = pd.to_datetime(orders[\"ordered_at\"])\norders = orders.set_index(\"ordered_at\").sort_index()\n\ndaily_counts = orders.resample(\"D\").size()\ndaily_revenue = orders[\"amount\"].resample(\"D\").sum()\nprint(daily_counts)\nprint(daily_revenue)\n```",
+      "solutionAssets": [],
+      "pitfall": "Calling `.sum()` when counting rows, or forgetting `.sort_index()` on unsorted timestamps.",
+      "obsidianLink": { "file": "", "heading": "" },
+      "pacing": {
+        "learning": { "target": 10.0, "min": 6.5, "max": 14.0 },
+        "exam": { "target": 6.5, "min": 4.0, "max": 9.0 },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 1.5,
+        "hintHandicapSeconds": 60,
+        "rationale": "Pandas time-series coding pattern."
+      },
+      "available": true,
+      "tags": ["demo", "coding", "pandas"]
+    }
+  ]
+}

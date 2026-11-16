@@ -1,0 +1,446 @@
+{
+  "file": "EBA3400 - Semester Reference.md",
+  "toc": [
+    {
+      "level": 1,
+      "title": "EBA3400 - Semester Reference",
+      "line": 1
+    },
+    {
+      "level": 2,
+      "title": "Course index",
+      "line": 10
+    },
+    {
+      "level": 2,
+      "title": "01 Introduction",
+      "line": 34
+    },
+    {
+      "level": 2,
+      "title": "02 Variables and Data Types",
+      "line": 56
+    },
+    {
+      "level": 3,
+      "title": "02.1 Variables and types",
+      "line": 60
+    },
+    {
+      "level": 3,
+      "title": "02.2 Input arithmetic and output",
+      "line": 95
+    },
+    {
+      "level": 3,
+      "title": "02.3 Control the printed output",
+      "line": 126
+    },
+    {
+      "level": 3,
+      "title": "02.4 Strings indexing and slicing",
+      "line": 149
+    },
+    {
+      "level": 3,
+      "title": "02.5 Pattern: validate length and mask",
+      "line": 195
+    },
+    {
+      "level": 3,
+      "title": "02.6 Pattern: split an email and mask its username",
+      "line": 207
+    },
+    {
+      "level": 3,
+      "title": "02.7 Pattern: count exact tags, ignoring case",
+      "line": 218
+    },
+    {
+      "level": 2,
+      "title": "03 Lists",
+      "line": 228
+    },
+    {
+      "level": 3,
+      "title": "03.1 `append` versus `extend`",
+      "line": 272
+    },
+    {
+      "level": 3,
+      "title": "03.2 Keep the list when changing it",
+      "line": 284
+    },
+    {
+      "level": 3,
+      "title": "03.3 Sharing versus copying",
+      "line": 295
+    },
+    {
+      "level": 2,
+      "title": "04 Conditional Statements",
+      "line": 320
+    },
+    {
+      "level": 3,
+      "title": "04.1 Pattern: one choice from several ranges",
+      "line": 343
+    },
+    {
+      "level": 3,
+      "title": "04.2 Pattern: two yes/no answers",
+      "line": 359
+    },
+    {
+      "level": 3,
+      "title": "04.3 Nested decisions and overlapping cases",
+      "line": 385
+    },
+    {
+      "level": 2,
+      "title": "05 Loop Statements I",
+      "line": 407
+    },
+    {
+      "level": 3,
+      "title": "05.1 Update a value",
+      "line": 415
+    },
+    {
+      "level": 3,
+      "title": "05.2 `while`: repeat while the condition holds",
+      "line": 423
+    },
+    {
+      "level": 3,
+      "title": "05.3 `for`: visit each item",
+      "line": 439
+    },
+    {
+      "level": 3,
+      "title": "05.4 `break`, `continue` and loop `else`",
+      "line": 459
+    },
+    {
+      "level": 3,
+      "title": "05.5 Common patterns",
+      "line": 482
+    },
+    {
+      "level": 2,
+      "title": "06 Loop Statements II",
+      "line": 508
+    },
+    {
+      "level": 3,
+      "title": "06.1 Nested loops: every combination",
+      "line": 512
+    },
+    {
+      "level": 3,
+      "title": "06.2 `enumerate`: counter and value",
+      "line": 530
+    },
+    {
+      "level": 3,
+      "title": "06.3 List comprehensions",
+      "line": 544
+    },
+    {
+      "level": 2,
+      "title": "07 Functions",
+      "line": 584
+    },
+    {
+      "level": 3,
+      "title": "07.1 `return` versus `print`",
+      "line": 601
+    },
+    {
+      "level": 3,
+      "title": "07.2 Pattern: function with ranges, reused in a loop",
+      "line": 618
+    },
+    {
+      "level": 3,
+      "title": "07.3 Return a completed list after its loop",
+      "line": 639
+    },
+    {
+      "level": 3,
+      "title": "07.4 Default values and keyword arguments",
+      "line": 651
+    },
+    {
+      "level": 2,
+      "title": "08 Dictionary Tuple and Set",
+      "line": 664
+    },
+    {
+      "level": 3,
+      "title": "08.1 Tuples: unpack fixed items",
+      "line": 675
+    },
+    {
+      "level": 3,
+      "title": "08.2 Sets: unique members",
+      "line": 689
+    },
+    {
+      "level": 3,
+      "title": "08.3 Dictionaries: keys identify values",
+      "line": 708
+    },
+    {
+      "level": 3,
+      "title": "08.4 Pattern: dictionary of coordinates and a function",
+      "line": 737
+    },
+    {
+      "level": 3,
+      "title": "08.5 Pattern: count each distinct item",
+      "line": 755
+    },
+    {
+      "level": 3,
+      "title": "08.6 `zip`: corresponding positions",
+      "line": 768
+    },
+    {
+      "level": 2,
+      "title": "09 Scope Scripts and Modules",
+      "line": 784
+    },
+    {
+      "level": 3,
+      "title": "09.1 Local and global names",
+      "line": 790
+    },
+    {
+      "level": 3,
+      "title": "09.2 Scripts and custom modules",
+      "line": 818
+    },
+    {
+      "level": 3,
+      "title": "09.3 Standard library: math and random",
+      "line": 838
+    },
+    {
+      "level": 2,
+      "title": "10 Part 1 Review and Debugging",
+      "line": 877
+    },
+    {
+      "level": 3,
+      "title": "10.1 Handle an invalid conversion",
+      "line": 898
+    },
+    {
+      "level": 3,
+      "title": "10.2 Repeat until conversion succeeds",
+      "line": 911
+    },
+    {
+      "level": 3,
+      "title": "10.3 Pattern: daily inventory and costs",
+      "line": 928
+    },
+    {
+      "level": 2,
+      "title": "11 Pandas1 - Objects",
+      "line": 962
+    },
+    {
+      "level": 3,
+      "title": "11.1 Import and Series",
+      "line": 968
+    },
+    {
+      "level": 3,
+      "title": "11.2 Construct a DataFrame",
+      "line": 989
+    },
+    {
+      "level": 3,
+      "title": "11.3 Read a file",
+      "line": 1020
+    },
+    {
+      "level": 3,
+      "title": "11.4 Inspect and describe",
+      "line": 1045
+    },
+    {
+      "level": 3,
+      "title": "11.5 Sorting and top N",
+      "line": 1062
+    },
+    {
+      "level": 2,
+      "title": "12 Pandas2 - Preprocessing",
+      "line": 1078
+    },
+    {
+      "level": 3,
+      "title": "12.1 Labels, positions and columns",
+      "line": 1084
+    },
+    {
+      "level": 3,
+      "title": "12.2 Boolean filters",
+      "line": 1107
+    },
+    {
+      "level": 3,
+      "title": "12.3 Concatenate: stack tables",
+      "line": 1126
+    },
+    {
+      "level": 3,
+      "title": "12.4 Merge: match a key",
+      "line": 1143
+    },
+    {
+      "level": 3,
+      "title": "12.5 Copy a subset or update the original",
+      "line": 1175
+    },
+    {
+      "level": 2,
+      "title": "13 Pandas3 - Calculations",
+      "line": 1192
+    },
+    {
+      "level": 3,
+      "title": "13.1 Detect missing values",
+      "line": 1219
+    },
+    {
+      "level": 3,
+      "title": "13.2 Drop or fill",
+      "line": 1232
+    },
+    {
+      "level": 3,
+      "title": "13.3 Calculate derived columns",
+      "line": 1250
+    },
+    {
+      "level": 3,
+      "title": "13.4 Convert numbers into categories",
+      "line": 1267
+    },
+    {
+      "level": 3,
+      "title": "13.5 GroupBy and aggregation",
+      "line": 1289
+    },
+    {
+      "level": 3,
+      "title": "13.6 Pivot table: choose rows, columns and statistic",
+      "line": 1309
+    },
+    {
+      "level": 3,
+      "title": "13.7 Crosstab: count combinations",
+      "line": 1334
+    },
+    {
+      "level": 2,
+      "title": "14 Pandas4 - Visualisations",
+      "line": 1351
+    },
+    {
+      "level": 3,
+      "title": "14.1 Long and wide data",
+      "line": 1357
+    },
+    {
+      "level": 3,
+      "title": "14.2 Choose the plot",
+      "line": 1388
+    },
+    {
+      "level": 3,
+      "title": "14.3 Line charts",
+      "line": 1401
+    },
+    {
+      "level": 3,
+      "title": "14.4 Bar, stacked bar and pie",
+      "line": 1421
+    },
+    {
+      "level": 3,
+      "title": "14.5 Histogram, scatter and hexbin",
+      "line": 1441
+    },
+    {
+      "level": 2,
+      "title": "15 Matplotlib and Seaborn",
+      "line": 1467
+    },
+    {
+      "level": 3,
+      "title": "15.1 Figure and Axes",
+      "line": 1473
+    },
+    {
+      "level": 3,
+      "title": "15.2 Side-by-side subplots",
+      "line": 1503
+    },
+    {
+      "level": 3,
+      "title": "15.3 Secondary y-axis",
+      "line": 1523
+    },
+    {
+      "level": 3,
+      "title": "15.4 Seaborn data and chart lookup",
+      "line": 1541
+    },
+    {
+      "level": 3,
+      "title": "15.5 Heatmap from counts or means",
+      "line": 1568
+    },
+    {
+      "level": 3,
+      "title": "15.6 Jointplot, pairplot and FacetGrid",
+      "line": 1581
+    },
+    {
+      "level": 3,
+      "title": "15.7 Make the comparison readable",
+      "line": 1603
+    },
+    {
+      "level": 2,
+      "title": "Appendix - Dates and Time Series",
+      "line": 1607
+    },
+    {
+      "level": 3,
+      "title": "A.1 Date differences in ordinary Python (`datetime` & `timedelta`)",
+      "line": 1611
+    },
+    {
+      "level": 3,
+      "title": "A.2 Datetime columns and indices",
+      "line": 1631
+    },
+    {
+      "level": 3,
+      "title": "A.3 Bike task: count trips or sum usage?",
+      "line": 1654
+    },
+    {
+      "level": 2,
+      "title": "Final checks",
+      "line": 1670
+    }
+  ],
+  "markdown": "\n# EBA3400 - Semester Reference\n\n**Programming, Data Extraction and Visualisation**\n\nFollow the same order as your course files. Each topic gives a short explanation, an operation table with concrete results, then a small pattern you can adapt.\n\n> [!tip] Use while doing a task\n> Open the matching chapter below. Read the example result, adapt the operation, then check your own output. Python code blocks have syntax highlighting in Obsidian Reading view / Live Preview. The optional `eba3400-reference.css` adds coloured inline code and clearer tables like your previous sheet.\n\n## Course index\n\n| Course file / chapter | What to find here |\n| --- | --- |\n| [01 Introduction](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2301%20Introduction) | Syntax, cells and execution order |\n| [02 Variables and Data Types](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2302%20Variables%20and%20Data%20Types) | Variables → types → input → arithmetic/output → strings |\n| [03 Lists](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2303%20Lists) | Indexing → methods → sorting → copying → nested items |\n| [04 Conditional Statements](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2304%20Conditional%20Statements) | Comparisons → branches → decisions → boundaries |\n| [05 Loop Statements I](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2305%20Loop%20Statements%20I) | Updates → while → for → break/continue → counters/totals |\n| [06 Loop Statements II](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2306%20Loop%20Statements%20II) | Nested loops → enumerate → comprehensions |\n| [07 Functions](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2307%20Functions) | Define/call → parameters → return → defaults/reuse |\n| [08 Dictionary, Tuple and Set](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2308%20Dictionary%20Tuple%20and%20Set) | Tuples → sets → dictionaries → zip |\n| [09 Scope, Scripts and Modules](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2309%20Scope%20Scripts%20and%20Modules) | Scope → mutable arguments → scripts/imports → math/random |\n| [10 Part 1 Review and Debugging](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2310%20Part%201%20Review%20and%20Debugging) | Error lookup, exceptions and a combined state example |\n| [11 Pandas1 - Objects](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2311%20Pandas1%20-%20Objects) | Import → Series → DataFrame → read files → inspect → sort |\n| [12 Pandas2 - Preprocessing](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2312%20Pandas2%20-%20Preprocessing) | Select/filter → concat → merge → safe updates/copies |\n| [13 Pandas3 - Calculations](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2313%20Pandas3%20-%20Calculations) | Missing values → derived columns → cut → groupby → pivot/crosstab |\n| [14 Pandas4 - Visualisations](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2314%20Pandas4%20-%20Visualisations) | Reshape → line → bar/pie → histogram/scatter/hexbin |\n| [15 Matplotlib and Seaborn](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%2315%20Matplotlib%20and%20Seaborn) | Figure/Axes → subplots → secondary axis → Seaborn charts/grids |\n| [Dates and time series](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%23Appendix%20-%20Dates%20and%20Time%20Series) | Date parsing, date selection and resampling from past Exam 2 papers |\n| [Final checks](obsidian://open?vault=Obsidian%20Vault&file=EBA3400%20-%20Semester%20Reference%23Final%20checks) | Check the task, output and saved notebook |\n\n**Scope:** confirmed topic files 01–15 from the supplied archive, plus a separately labelled time-series appendix. Session 16 was listed as “tbd”; add new material when confirmed. The optional **EBA3400 - Study and Updates** note holds practice, sources and next-semester maintenance.\n\n## 01 Introduction\n\n**Course file:** `01_Introduction`\n\nPython executes statements in order. A notebook contains code cells for Python and Markdown cells for explanations.\n\n| Form | Meaning | Example / result |\n| --- | --- | --- |\n| `print(...)` | Display something | `print(\"Hello\")` → Hello |\n| `# ...` | Comment | `# Explain the calculation` |\n| `function(...)` | Call a function | `len(\"ABC\")` → `3` |\n| `object.method(...)` | Call an object's operation | `\"ABC\".lower()` → `\"abc\"` |\n| `sequence[i]` | Select one item | `\"ABC\"[0]` → `\"A\"` |\n| `:` + indentation | Begin a block | Used after `if`, `for`, `while`, `def` |\n\nUse four spaces for a block. A comment alone is not a block body. A notebook can display its cell's final expression; use `print()` when asked to print.\n\n> [!warning] Notebook state\n> Cells share the running kernel's names. A definition must have executed before another cell uses it. After editing a cell, run it again. Finish with **restart kernel → run all → inspect output → save**.\n\n`help(len)` explains a function. Notebook commands such as `%whos` and `%pwd` are not ordinary `.py` syntax.\n\n## 02 Variables and Data Types\n\n**Course file:** `02_Variables and Data Types` + its exercise notebook\n\n### 02.1 Variables and types\n\nA variable is a name referring to a value. Assignment stores or updates that reference.\n\n| Form | Meaning | Example |\n| --- | --- | --- |\n| `=` | Assign a value | `age = 20` |\n| `==` | Check equality | `age == 20` → `True` |\n| `function(...)` | Call a function | `len(\"ABC\")` → `3` |\n| `object.method(...)` | Call an operation belonging to an object | `\"ABC\".lower()` → `\"abc\"` |\n| `[i]` | Get an item by its index (position) | `\"ABC\"[0]` → `\"A\"` |\n| `[start:stop]` | Get a slice; stop excluded | `\"ABCDE\"[1:4]` → `\"BCD\"` |\n| `#` | Start a comment | `# Explain the next step` |\n| `:` and indentation | Start a block | After `if`, `for`, `while`, `def`, etc. |\n\nUse four spaces for each indentation level. Names are case sensitive: `score` and `Score` differ. Use names such as `total_cost`: no spaces, no starting digit, and no keywords such as `if` or `class`. Avoid using built-in names such as `sum`, `list`, `str`, `input` and `round` as your own variable names.\n\n| Type | Meaning | Example | Conversion |\n| --- | --- | --- | --- |\n| `int` | Whole number | `25` | `int(\"25\")` |\n| `float` | Number that can have a fractional part | `25.5` | `float(\"25.5\")` |\n| `str` | Text | `\"25\"` | `str(25)` |\n| `bool` | True or false | `True`, `False` | `bool(0)` → `False` |\n\n```python\nprint(type(\"25\"))       # <class 'str'>\nprint(\"2\" + \"3\")        # 23 (joined text)\nprint(2 + 3)            # 5 (addition)\nprint(int(\"2\") + 3)     # 5\n```\n\n`None` means no value/result here; it differs from `0`, `False` and `\"\"`.\n\n**Conditions:** zero, empty strings and empty collections are false; nonempty strings are true. `bool(\"no\")` and `bool(\"False\")` are both `True`. For a yes/no answer, compare its text with `\"yes\"`.\n\n### 02.2 Input arithmetic and output\n\n`input()` always returns a string. Convert it when you need a number. Keep phone numbers, identifiers and postcodes as strings when leading zeros matter.\n\n```python\nprice = float(input(\"Price: \"))\ndiscount_percent = float(input(\"Discount (%): \"))\nfinal_price = price * (1 - discount_percent / 100)\nprint(f\"Final price: {final_price:.2f} NOK\")\n# Inputs 200 and 15 → Final price: 170.00 NOK\n```\n\n| Operation | Example/result |\n| --- | --- |\n| Add, subtract, multiply | `5 + 2` → `7`; `5 - 2` → `3`; `5 * 2` → `10` |\n| Divide | `7 / 2` → `3.5` |\n| Floor division: round quotient down | `7 // 2` → `3`; `-7 // 2` → `-4` |\n| Remainder | `7 % 2` → `1` |\n| Power | `3 ** 2` → `9` |\n| Square root, nonnegative input | `9 ** 0.5` → `3.0` |\n| Absolute value | `abs(-3)` → `3` |\n| Round to whole number | `round(3.7)` → `4` |\n| Round to two decimal places | `round(3.14159, 2)` → `3.14` |\n| Display exactly two decimal places | `f\"{3.5:.2f}\"` → `\"3.50\"` |\n\n**Formula translation:** `p%` means `p / 100`; discounted price is `price * (1 - rate)`; growth is `start * (1 + rate) ** periods`; average of two values is `(a + b) / 2`; distance from two side lengths is `(a ** 2 + b ** 2) ** 0.5`.\n\nMultiplication/division happen before addition/subtraction. Use parentheses around the parts of a formula that belong together. `/` produces a float for ordinary integer/float inputs. `^` is not the power operator. `int(3.9)` gives `3`: it removes the fractional part rather than rounding. `int(\"3.9\")` raises `ValueError`.\n\nFor exact halfway values, `round()` chooses the nearest even result: `round(2.5)` → `2`, `round(3.5)` → `4`. Floating point representation can affect apparent decimal ties. Follow the question's rounding instructions.\n\n### 02.3 Control the printed output\n\n```python\nprint(\"A\", \"B\")                 # A B\nprint(\"A\", \"B\", sep=\"-\")        # A-B\nprint(\"A\", end=\" \")             # No newline yet\nprint(\"B\")                      # Together: A B\nprint(\"A\\nB\")                   # A and B on separate lines\n```\n\n`sep` goes **between items in one print call**. `end` goes **after that call**. `print()` by itself writes a newline.\n\n```python\namount = 3.5\nprint(f\"Amount: {amount:.2f}\")          # Amount: 3.50\nprint(\"Amount: {:.2f}\".format(amount)) # Same output\nprint(\"Amount: %.2f\" % amount)         # Same output; older style\n```\n\nUse an `f` before the quote when using `{expressions}`. For older `%` formatting, `%d` is an integer, `%f` a float and `%s` a string. Prefer f-strings unless another format is requested.\n\nA notebook may display the value of its cell's final expression. Use `print()` when the question asks you to print.\n\n### 02.4 Strings indexing and slicing\n\nA string is text. Indexing starts at `0`; negative indices count from the end.\n\nFor `s = \"PYTHON\"`:\n\n| Expression | Result | Meaning |\n| --- | --- | --- |\n| `len(s)` | `6` | Number of characters |\n| `s[0]` | `\"P\"` | First character |\n| `s[-1]` | `\"N\"` | Last character |\n| `s[-2]` | `\"O\"` | Second from last |\n| `s[:4]` | `\"PYTH\"` | First four characters |\n| `s[-4:]` | `\"THON\"` | Last four characters |\n| `s[2:5]` | `\"THO\"` | Indices 2, 3 and 4 |\n| `s[::2]` | `\"PTO\"` | Every second character |\n| `s[::-1]` | `\"NOHTYP\"` | Reverse |\n\nGeneral form: `s[start:stop:step]`. The stop is excluded. With a positive step, omitted start/stop mean beginning/end. `[::-1]` uses a negative step to reverse. Slices can extend beyond the string without failing; a single invalid index raises `IndexError`.\n\n| Operation | Example/result |\n| --- | --- |\n| Lowercase | `\"Hello\".lower()` → `\"hello\"` |\n| Uppercase | `\"Hello\".upper()` → `\"HELLO\"` |\n| Title case | `\"hello world\".title()` → `\"Hello World\"` |\n| Remove whitespace from both ends | `\"  yes\\n\".strip()` → `\"yes\"` |\n| Find first occurrence | `\"hello\".find(\"l\")` → `2`; missing text → `-1` |\n| Replace text | `\"hello\".replace(\"l\", \"x\")` → `\"hexxo\"` |\n| Split on whitespace | `\"a  b\".split()` → `[\"a\", \"b\"]` |\n| Split on a separator | `\"a@b\".split(\"@\")` → `[\"a\", \"b\"]` |\n| Join strings with a separator | `\"-\".join([\"a\", \"b\"])` → `\"a-b\"` |\n| Count substring matches | `\"banana\".count(\"a\")` → `3` |\n| Check digits | `\"0123\".isdigit()` → `True` |\n| Check substring membership | `\"cat\" in \"catalogue\"` → `True` |\n| Join text / repeat text | `\"A\" + \"B\"` → `\"AB\"`; `\"*\" * 4` → `\"****\"` |\n\n**Immutable** means the existing string cannot be changed in place. A method such as `.lower()` returns a string result: save it when you need it.\n\n```python\nanswer = \"  YES  \"\nanswer = answer.strip().lower()\nprint(answer)  # yes\n```\n\n`.strip()` keeps spaces inside the text. `.isdigit()` requires nonempty digit characters; `\"-3\"` and `\"3.5\"` fail. It accepts some non-ASCII digit characters, so it is not a general numeric-conversion guarantee. Use `try`/`except` around `int()` or `float()` when conversion is what matters.\n\n### 02.5 Pattern: validate length and mask\n\n```python\nphone = input(\"Phone: \")\nif len(phone) == 8 and phone.isdigit():\n    masked = phone[:4] + \"****\"\n    print(f\"Registered: {masked}\")\nelse:\n    print(\"This is not a valid phone number.\")\n# Input 01234567 → Registered: 0123****\n```\n\n### 02.6 Pattern: split an email and mask its username\n\nAssume a valid address with exactly one `@` and a username of at least four characters. This example keeps its first two and last two characters; adapt the masking rule to the question.\n\n```python\nemail = \"student@bi.no\"\nusername, domain = email.split(\"@\")\nmasked = username[:2] + \"*\" * (len(username) - 4) + username[-2:]\nprint(f\"{masked}@{domain}\")  # st***nt@bi.no\n```\n\n### 02.7 Pattern: count exact tags, ignoring case\n\n```python\npost = \"#WorldCup#WorldCup2026#WORLDCUP\"\ntokens = post.lower().split(\"#\")\nprint(tokens.count(\"worldcup\"))  # 2\n```\n\nCounting the list's exact tokens excludes `worldcup2026`. Counting the substring in the original text would also match that longer tag. Choose the counting rule requested.\n\n## 03 Lists\n\n**Course file:** `03_Lists` + its exercise notebook\n\nA list stores items in order. **Mutable** means you can change its items or length. List indexing and slicing follow the same rules as strings.\n\n```python\nvalues = [10, 20, 30]\nprint(values[0])     # 10\nprint(values[-1])    # 30\nprint(values[1:])    # [20, 30]\nprint(len(values))  # 3\nprint(sum(values))  # 60\nprint(min(values))  # 10\nprint(max(values))  # 30\nprint(sum(values) / len(values))  # 20.0; list must be nonempty\n```\n\n**Each row below starts again with `values = [10, 20, 30]`.** Changes do not carry between rows.\n\n| Operation | Effect/result |\n| --- | --- |\n| `values[1] = 99` | Changes list to `[10, 99, 30]` |\n| `values[1:3] = [99]` | Replaces a slice: `[10, 99]` |\n| `values.append(40)` | Adds one item: `[10, 20, 30, 40]` |\n| `values.extend([40, 50])` | Adds each item: `[10, 20, 30, 40, 50]` |\n| `values.insert(1, 15)` | Inserts before index 1: `[10, 15, 20, 30]` |\n| `saved = values.pop()` | `saved` is `30`; list becomes `[10, 20]` |\n| `saved = values.pop(1)` | `saved` is `20`; list becomes `[10, 30]` |\n| `values.remove(20)` | Removes the first matching value: `[10, 30]` |\n| `del values[1]` | Deletes by index: `[10, 30]` |\n| `del values[1:3]` | Deletes a slice: `[10]` |\n| `values.count(20)` | Returns `1` |\n| `values.index(20)` | Returns index `1` |\n| `values.sort(reverse=True)` | Changes list to `[30, 20, 10]`; returns `None` |\n| `sorted(values, reverse=True)` | Returns `[30, 20, 10]`; leaves `values` as it was |\n| `values.reverse()` | Changes list to `[30, 20, 10]`; returns `None` |\n| `values[::-1]` | Returns a new `[30, 20, 10]` |\n| `values.copy()` or `values[:]` | Returns a new outer list |\n| `values + [40, 50]` | Returns a new `[10, 20, 30, 40, 50]` |\n| `20 in values` | Returns `True` |\n\n`values.sort()` sorts ascending by default. **In place** means it changes the existing list. `remove` and `index` raise `ValueError` when the value is absent; `pop` raises `IndexError` for an invalid index or an empty list.\n\n### 03.1 `append` versus `extend`\n\n```python\na = [10, 20, 30]\na.append([40, 50])\nprint(a)  # [10, 20, 30, [40, 50]]: one new item, itself a list\n\nb = [10, 20, 30]\nb.extend([40, 50])\nprint(b)  # [10, 20, 30, 40, 50]: two new items\n```\n\n### 03.2 Keep the list when changing it\n\n```python\nvalues = [30, 10, 20]\nvalues.sort()\nprint(values)  # [10, 20, 30]\n# values = values.sort() would replace values with None.\n```\n\n`append`, `extend`, `insert`, `remove`, `sort` and `reverse` return `None`. Call them without assigning their result back to the list. `pop` returns the removed item, so assigning its result can be useful.\n\n### 03.3 Sharing versus copying\n\n```python\noriginal = [10, 20]\nshared = original          # Another name for the SAME list\ncopied = original.copy()  # A NEW outer list\nshared.append(30)\nprint(original)  # [10, 20, 30]\nprint(copied)    # [10, 20]\n```\n\nA **shallow copy** copies the outer list but keeps references to any inner lists:\n\n```python\nrows = [[1, 2], [3, 4]]\ncopied_rows = rows.copy()\ncopied_rows[0].append(9)\nprint(rows)  # [[1, 2, 9], [3, 4]]: the inner list is shared\n```\n\nNested access: for `records = [[\"Ada\", 20], [\"Bo\", 25]]`, `records[1][0]` gives `\"Bo\"`. Read the first index as the row, then the second as the item within that row.\n\n> [!warning] Keep the original positions predictable\n> When removing several matching items, build a separate result rather than removing from the list you are currently traversing. Loops and comprehensions appear in 05–06.\n\n## 04 Conditional Statements\n\n**Course file:** `04_Conditional Statements` + its exercise notebook\n\nComparisons produce `True` or `False`.\n\n| Operator | Meaning |\n| --- | --- |\n| `==`, `!=` | Equal, not equal |\n| `<`, `>`, `<=`, `>=` | Less, greater, less/equal, greater/equal |\n| `in`, `not in` | Present, absent |\n| `and` | Both conditions must hold |\n| `or` | At least one condition must hold |\n| `not` | Reverse true/false |\n\n```python\nage = 23\nprint(20 <= age <= 25)         # True: inclusive range\nprint(age >= 18 and age < 30)  # True\nprint(7 % 2 == 0)             # False: even-number test\nprint(7 % 2 != 0)             # True: odd-number test\n```\n\n### 04.1 Pattern: one choice from several ranges\n\n```python\nusage = 263\nif usage < 200:\n    rate = 1.2\nelif usage < 500:\n    rate = 1.5\nelse:\n    rate = 1.8\nbill = round(usage * rate)\nprint(bill)  # 394\n```\n\nThe **first matching branch wins**. The second branch implicitly covers `200 <= usage < 500`. Separate `if` statements can all run. This example charges one rate for all usage. If a question charges different portions at different rates, calculate those portions separately.\n\n### 04.2 Pattern: two yes/no answers\n\nFor a plan that includes online classes only in Premium:\n\n| Multiple centres? | Online classes? | Plan |\n| --- | --- | --- |\n| no | no | Basic |\n| yes | no | Flexible |\n| no | yes | Premium |\n| yes | yes | Premium |\n\n```python\nmultiple = input(\"Multiple centres? (yes/no): \").strip().lower()\nonline = input(\"Online classes? (yes/no): \").strip().lower()\n\nif online == \"yes\":\n    plan = \"Premium\"\nelif multiple == \"yes\":\n    plan = \"Flexible\"\nelse:\n    plan = \"Basic\"\nprint(f\"Recommended plan: {plan}\")\n```\n\nThis assumes valid yes/no answers. For a different task, derive the branches from its own table.\n\n### 04.3 Nested decisions and overlapping cases\n\nA nested `if` sits inside another block. For overlapping conditions, check the most specific case first:\n\n```python\nn = 15\nif n % 3 == 0 and n % 5 == 0:\n    print(\"FizzBuzz\")\nelif n % 3 == 0:\n    print(\"Fizz\")\nelif n % 5 == 0:\n    print(\"Buzz\")\nelse:\n    print(n)\n```\n\n**Common mistake:** `answer == \"yes\" or \"YES\"` is always true because `\"YES\"` is a nonempty string. Use `answer.lower() == \"yes\"` or compare both sides explicitly.\n\n`and` and `or` stop as soon as the result is determined. Example: `len(name) > 0 and name[0] == \"A\"` avoids indexing an empty string. With general values, they return one of the operands; use comparisons when you want boolean conditions.\n\n**Boundary check:** for thresholds 200 and 500, try 199, 200, 499 and 500. Use decimals around a threshold if the input can be fractional.\n\n## 05 Loop Statements I\n\n**Course file:** `05_Loop Statements` + its exercise notebook\n\nA loop repeats code. **State** means values that can change between repetitions, such as stock, money or a running total.\n\n\n\n### 05.1 Update a value\n\n| Update | Same as | Start at `n = 10` |\n| --- | --- | --- |\n| `n += 1` | `n = n + 1` | `11` |\n| `n -= 2` | `n = n - 2` | `8` |\n| `n *= 1.05` | `n = n * 1.05` | `10.5` |\n\n### 05.2 `while`: repeat while the condition holds\n\n```python\nbalance = 10000\nyears = 0\nwhile balance < 15000:\n    balance *= 1.05\n    years += 1\nprint(years)              # 9\nprint(f\"{balance:.2f}\")   # 15513.28\n```\n\nInitialise values before the loop. Update the values needed to make the condition eventually false.\n\n\n\n### 05.3 `for`: visit each item\n\n```python\nscores = [8, 6, 9]\nfor score in scores:\n    print(score)\n# Prints 8, 6 and 9 on separate lines.\n```\n\n| Range | Values |\n| --- | --- |\n| `range(5)` | 0, 1, 2, 3, 4 |\n| `range(1, 6)` | 1, 2, 3, 4, 5 |\n| `range(0, 10, 2)` | 0, 2, 4, 6, 8 |\n| `range(5, 0, -1)` | 5, 4, 3, 2, 1 |\n\n`range(start, stop, step)` excludes the stop; the step cannot be zero. To include a positive integer upper bound, use `upper_bound + 1` with an ascending step of 1.\n\n\n\n### 05.4 `break`, `continue` and loop `else`\n\n`break` exits the innermost loop. `continue` skips the rest of the current iteration. A loop's `else` runs if the loop finishes without `break`, including when no iterations occur.\n\n```python\nnumbers = [2, 4, 6]\nfor n in numbers:\n    if n % 2 != 0:\n        print(\"Found an odd number\")\n        break\nelse:\n    print(\"No odd number found\")\n```\n\n```python\nfor n in [-1, 0, 2]:\n    if n <= 0:\n        continue\n    print(n)  # Only 2\n```\n\nIn a `while` loop, make sure `continue` cannot repeatedly skip the update needed to reach the stopping condition.\n\n### 05.5 Common patterns\n\n| Task | Before the loop | Inside the loop |\n| --- | --- | --- |\n| Count matching items | `count = 0` | `count += 1` when a match is found |\n| Sum items | `total = 0` | `total += value` |\n| Multiply items/factorial | `product = 1` | `product *= value` |\n| Build a list | `result = []` | `result.append(value)` |\n| Track money or inventory | `balance = initial` | Update the previous balance |\n\n```python\nnumbers = [-2, 0, 3, 5]\ncount = 0\ntotal = 0\nfor n in numbers:\n    if n > 0:\n        count += 1\n        total += n\nprint(count, total)  # 2 8\n```\n\n\n\n> [!warning] Initialise correctly\n> A maximum search on a nonempty list starts with its first value, not zero; zero would give a wrong result for all-negative data. A running total starts before the loop so it does not reset each iteration.\n\n## 06 Loop Statements II\n\n**Course file:** `06_Loop Statements` + its exercise notebook\n\n### 06.1 Nested loops: every combination\n\n```python\nfor row in range(1, 3):\n    for column in range(1, 4):\n        print(f\"{row}+{column}={row + column}\", end=\" \")\n    print()\n```\n\nOutput, with a space after each entry:\n\n```\n1+1=2 1+2=3 1+3=4\n2+1=3 2+2=4 2+3=5\n```\n\nThe inner loop runs fully for each outer item: 2 rows × 3 columns = 6 entries. The final `print()` belongs inside the outer loop but outside the inner loop so it ends each row.\n\n### 06.2 `enumerate`: counter and value\n\n```python\nusage_list = [150, 263]\nfor month, usage in enumerate(usage_list, start=1):\n    print(f\"Month {month}: {usage}\")\n# Month 1: 150\n# Month 2: 263\n```\n\nDefault counting starts at 0. `start=1` changes the counter; it does not change list indexing. `usage` is already the item, so there is no need to use `usage_list[month]`.\n\n\n\n### 06.3 List comprehensions\n\nA comprehension builds a new list. Decide what to keep and what each kept item should become.\n\nForm: `[expression for item in source if condition]`. The filter is optional.\n\n```python\nnumbers = [-2, 0, 3, 5]\n\npositives = [n for n in numbers if n > 0]         # [3, 5]\nsquares = [n ** 2 for n in numbers]              # [4, 0, 9, 25]\npositive_squares = [n ** 2 for n in numbers if n > 0]  # [9, 25]\n\nprices = [100, 200, 50]\ndiscounted = [round(price * 0.95) for price in prices]  # [95, 190, 48]\n```\n\nThe expression before `for` determines what is stored. The condition after `if` determines which source items are included.\n\n**Equivalent loop:**\n\n```python\nnumbers = [-2, 0, 3, 5]\npositive_squares = []\nfor n in numbers:\n    if n > 0:\n        positive_squares.append(n ** 2)\nprint(positive_squares)  # [9, 25]\n```\n\nIf the question explicitly requests a list comprehension, use one. Keep calculations inside the expression when every included item needs that calculation.\n\n| Need | Example | Result |\n| --- | --- | --- |\n| Keep some items | `[n for n in [1, 4, 7] if n > 3]` | `[4, 7]` |\n| Change every item | `[n * 2 for n in [1, 4, 7]]` | `[2, 8, 14]` |\n| Choose a label for every item | `[\"pass\" if n >= 5 else \"fail\" for n in [4, 7]]` | `[\"fail\", \"pass\"]` |\n\nA filter after `for` decides whether an item appears. An `if ... else ...` before `for` chooses what to store for every item.\n\n## 07 Functions\n\n**Course file:** `07_Functions` + its exercise notebook\n\nA function packages code that can be called again. Define it with `def`, then call it using parentheses.\n\n```python\ndef rectangle_area(length, width):\n    \"\"\"Return the area of a rectangle.\"\"\"\n    return length * width\n\narea = rectangle_area(8, 2.5)\nprint(area)  # 20.0\n```\n\n`length` and `width` are **parameters**: names in the definition. `8` and `2.5` are **arguments**: values supplied when calling. The triple-quoted first string is a **docstring**, a short explanation available through `help(rectangle_area)`.\n\n### 07.1 `return` versus `print`\n\n```python\ndef double_value(x):\n    return x * 2\n\ndef show_double(x):\n    print(x * 2)\n\na = double_value(5)   # a is 10\nb = show_double(5)    # Prints 10; b is None\n```\n\n`return` sends a value back to the caller and immediately ends the function. `print` displays text; its own return value is `None`. A function that reaches its end without returning a value returns `None`.\n\nIf asked to **return** a value, use `return`. If asked to **print inside the function**, use `print`. A function can do both when requested. Code after an executed `return` in that call is not reached.\n\n### 07.2 Pattern: function with ranges, reused in a loop\n\n```python\ndef get_bill(usage):\n    if usage < 200:\n        rate = 1.2\n    elif usage < 500:\n        rate = 1.5\n    else:\n        rate = 1.8\n    return round(usage * rate)\n\nmonthly_usage = [150, 263]\nfor month, usage in enumerate(monthly_usage, start=1):\n    print(f\"{month}: {get_bill(usage)} NOK\")\n# 1: 180 NOK\n# 2: 394 NOK\n```\n\nReuse an earlier function when instructed. Make sure every relevant branch returns the requested type. Returning a category string differs from returning its underlying number.\n\n### 07.3 Return a completed list after its loop\n\n```python\ndef double_all(values):\n    result = []\n    for value in values:\n        result.append(value * 2)\n    return result  # Outside the loop: all items have been processed\n\nprint(double_all([2, 3, 4]))  # [4, 6, 8]\n```\n\n### 07.4 Default values and keyword arguments\n\n```python\ndef total_with_tax(amount, rate=0.15):\n    return amount * (1 + rate)\n\ntotal_with_tax(100)                       # Uses default rate 0.15\ntotal_with_tax(100, 0.10)                 # Uses rate 0.10\ntotal_with_tax(rate=0.10, amount=100)     # Same; names identify values\n```\n\nPositional arguments follow parameter order. Keyword names must match exactly. Required parameters normally go before those with defaults; positional arguments normally go before keyword arguments in a call.\n\n## 08 Dictionary Tuple and Set\n\n**Course file:** `08_Dictionary, Tuple and Set` + its exercise notebook\n\n| Collection | Main use | Ordered? | Can change its contents? |\n| --- | --- | --- | --- |\n| List `[...]` | Sequence of items | Yes | Yes |\n| Tuple `(...)` | Fixed sequence, such as coordinates | Yes | Cannot replace its items |\n| Dictionary `{key: value}` | Look up a value by its key | Keeps insertion order | Yes |\n| Set `{item, ...}` | Unique members and set comparisons | No defined positional order | Yes |\n\n### 08.1 Tuples: unpack fixed items\n\n```python\npoint = (4, 3)\nx, y = point\nprint(x, y)       # 4 3\nprint(point[-1])  # 3\none_item = (4,)   # Comma makes this a tuple\n```\n\nUnpacking needs the right number of values. Tuples can contain duplicates. You cannot assign `point[0] = 9`. A list inside a tuple can still be changed: the tuple fixes which objects it holds, not the contents of those objects.\n\n\n\n### 08.2 Sets: unique members\n\nFor `a = {1, 2, 3}` and `b = {3, 4}`:\n\n| Operation | Meaning/result |\n| --- | --- |\n| `set([1, 1, 2])` | Unique members: `{1, 2}` |\n| `a.union(b)` or `a \\| b` | In either set: `{1, 2, 3, 4}` |\n| `a.intersection(b)` or `a & b` | In both: `{3}` |\n| `a.difference(b)` or `a - b` | In a but not b: `{1, 2}` |\n| `b.difference(a)` or `b - a` | In b but not a: `{4}` |\n| `a.add(5)` | Add member 5 |\n| `a.discard(9)` | Remove 9 if present; absent is fine |\n| `a.remove(9)` | Remove 9; raises `KeyError` if absent |\n\nThe displayed order of set members can vary. Sets have no positional indexing. Members must be hashable. Empty set: `set()`. Empty dictionary: `{}`.\n\n\n\n### 08.3 Dictionaries: keys identify values\n\n```python\nscores = {\"Ada\": 8, \"Bo\": 6}\nprint(scores[\"Ada\"])              # 8\nscores[\"Ada\"] = 9                 # Update\nscores[\"Cy\"] = 7                  # Add\nprint(scores.get(\"Di\", 0))        # 0: default for missing key\nprint(\"Ada\" in scores)            # True: membership checks keys\ndel scores[\"Bo\"]                  # Delete\n```\n\nEach key is unique; assigning an existing key replaces its value. `scores[\"missing\"]` raises `KeyError`. Keys must be **hashable**, meaning usable as stable lookup keys: strings and numbers work; lists, dictionaries and sets do not. A tuple works as a key if all its items are hashable.\n\n| Loop | Gives you |\n| --- | --- |\n| `for key in data:` or `data.keys()` | Keys |\n| `for value in data.values():` | Values |\n| `for key, value in data.items():` | Key/value pairs |\n\n```python\nsales = {\"A\": [100, 150], \"B\": [80, 120]}\nsales[\"A\"].append(200)\nfor shop, amounts in sales.items():\n    print(f\"{shop}: {sum(amounts)}\")\n# A: 450\n# B: 200\n```\n\n### 08.4 Pattern: dictionary of coordinates and a function\n\n```python\ndef distance(start, destination):\n    x1, y1 = start\n    x2, y2 = destination\n    return round(((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5, 2)\n\nlocations = {\"school\": (4, 3), \"gym\": (2, 8)}\nhome = (1, 2)\nfor place, point in locations.items():\n    print(f\"home to {place}: {distance(home, point)}\")\n# home to school: 3.16\n# home to gym: 6.08\n```\n\n\n\n### 08.5 Pattern: count each distinct item\n\n```python\ngrades = [\"A\", \"B\", \"A\", \"C\", \"B\", \"A\"]\nfor grade in sorted(set(grades)):\n    print(f\"{grade}: {grades.count(grade)}\")\n# A: 3\n# B: 2\n# C: 1\n```\n\nKeep the original list for counting duplicates. `set(grades)` gives the unique categories; `sorted(...)` makes the displayed order predictable here.\n\n### 08.6 `zip`: corresponding positions\n\n```python\nnames = [\"Ada\", \"Bo\"]\nscores = [8, 6]\nfor name, score in zip(names, scores):\n    print(f\"{name}: {score}\")\n# Ada: 8\n# Bo: 6\n\nprint(list(zip(names, scores)))  # [('Ada', 8), ('Bo', 6)]\nprint(dict(zip(names, scores)))  # {'Ada': 8, 'Bo': 6}\n```\n\n`zip` stops at the shortest input by default. A stored zip object is consumed as you traverse it; make a new one if you need to traverse again. Nested loops produce all combinations; `zip` pairs matching positions.\n\n## 09 Scope Scripts and Modules\n\n**Course file:** `09_Scope, Scripts and Modules` + slides/exercises\n\n**Scope** means where a name can be used.\n\n### 09.1 Local and global names\n\n```python\nx = 20\ndef add_five(x):\n    return x + 5\n\nprint(add_five(10))  # 15: parameter x belongs to this call\nprint(x)            # 20: top-level x was not reassigned\n```\n\nName lookup goes **Local → Enclosing → Global → Built-in**. Local names belong to a function call; enclosing names belong to a surrounding function; global names belong to the module or notebook; built-ins include `len` and `print`.\n\nTop-level `if` and `for` blocks do not create a separate local scope. Notebook cells share names in the same running kernel. Execution order matters: a definition must have run before another cell can use it.\n\nAssignment inside a function normally creates a local name. Reading that same local name before assigning it can raise `UnboundLocalError`. Use parameters and returned values to make data flow clear. `global name` permits rebinding a top-level name when specifically needed.\n\nPassing a list does not automatically copy it:\n\n```python\ndef add_item(items):\n    items.append(3)\n\nvalues = [1, 2]\nadd_item(values)\nprint(values)  # [1, 2, 3]: the same list was changed\n```\n\n### 09.2 Scripts and custom modules\n\n`.py` is a Python source file; `.ipynb` is a notebook. A `.py` file can run as a script or be imported as a module.\n\nSave this as **grading.py** for the basic same-folder exercise:\n\n```python\ndef pass_fail(score):\n    return \"Pass\" if score >= 6 else \"Fail\"\n```\n\nIn the notebook in that folder:\n\n```python\nimport grading\nprint(grading.pass_fail(7))  # Pass\n```\n\nAfter changing an imported module, restart the kernel and run the import again, or explicitly reload it. Repeating `import grading` in the same kernel can keep the cached module.\n\n### 09.3 Standard library: math and random\n\nThese modules come with Python; import them without installing packages.\n\n```python\nimport math\nprint(math.sqrt(100))      # 10.0\nprint(math.pow(2, 3))      # 8.0\nprint(math.factorial(5))   # 120; nonnegative integer input\nprint(math.pi)            # Constant: no call parentheses\n```\n\n```python\nimport random\ndraw = random.random()          # 0 <= draw < 1\ndie = random.randint(1, 6)      # Both endpoints included\nlunch = random.choice([\"Pizza\", \"Salad\", \"Sushi\"])\nnumbers = [random.randint(-50, 50) for i in range(20)]\n```\n\n`random.choice` needs a nonempty sequence. Random output can change on each run. For repeatable practice, `random.seed(123)` resets the generator to a repeatable starting state; subsequent draws advance it. Set a seed only when needed or requested.\n\nFor a requirement to **use a loop**, this is an explicit alternative:\n\n```python\nimport random\nnumbers = []\nfor i in range(20):\n    numbers.append(random.randint(-50, 50))\nprint(numbers)\n```\n\n`from math import sqrt` lets you call `sqrt(100)` directly. With `import math`, use `math.sqrt(100)`.\n\n**Find help:** `help(function)` describes it; `dir(module)` lists names. In Jupyter, `function?` shows help and `%whos` lists current variables/functions. Those are notebook features, not ordinary `.py` syntax.\n\n> [!tip] Preserve random leading zeroes\n> `f\"{random.randint(0, 999):03d}\"` produces three digits such as `\"003\"`. Use this for the classroom username pattern; checking only `randint(100, 999)` would exclude leading-zero cases.\n\n## 10 Part 1 Review and Debugging\n\n**Course file:** Part 1 review + `Debugging Practice` + past mixed tasks\n\nRead the last traceback line first. Find the relevant line in your own code, then check the value and its type.\n\n| Error | Likely issue / first check |\n| --- | --- |\n| `NameError` | Misspelling, missing definition, definition cell not run |\n| `TypeError` | Wrong types, wrong argument count, calling a value that is not a function |\n| `ValueError` | Invalid conversion; absent list value; wrong number of values to unpack |\n| `IndexError` | Invalid index; indexing an empty sequence |\n| `KeyError` | Missing dictionary key; absent member passed to set `.remove()` |\n| `ZeroDivisionError` | Zero denominator; mean of an empty list |\n| `SyntaxError` | Missing colon, quote, parenthesis or bracket; sometimes on the preceding line |\n| `IndentationError` | Inconsistent indentation or a missing indented block |\n| `UnboundLocalError` | A local name is read before it is assigned |\n| `ModuleNotFoundError` | Misspelled module or custom file not on the import path |\n\nA **logic error** gives the wrong answer even though the code runs. Check formulas, thresholds, indentation, update order and whether counters reset in the right place.\n\n### 10.1 Handle an invalid conversion\n\n```python\ntry:\n    number = float(input(\"Number: \"))\nexcept ValueError:\n    print(\"Enter a valid number.\")\nelse:\n    print(number)\n```\n\n`except` handles the specified error. The `else` block runs when the `try` block succeeds. Catch a specific exception rather than hiding unrelated bugs with bare `except`.\n\n### 10.2 Repeat until conversion succeeds\n\n```python\nwhile True:\n    try:\n        number = float(input(\"Number: \"))\n    except ValueError:\n        print(\"Enter a valid number.\")\n    else:\n        break\nprint(number)\n```\n\nA `try` statement alone does not repeat the prompt; this version adds a loop.\n\n\n\n### 10.3 Pattern: daily inventory and costs\n\nAssume consumption happens first, restocking happens below 150 kg, and storage costs apply to the final stock for that day.\n\n```python\ndaily_consumption = [80, 120, 80]\ninventory = 250\ntotal_cost = 0\n\nfor day, used in enumerate(daily_consumption, start=1):\n    inventory -= used\n    daily_cost = 0\n    if inventory < 150:\n        inventory += 500\n        daily_cost += 3500\n    daily_cost += inventory * 2\n    total_cost += daily_cost\n    print(f\"Day-{day}: {inventory} kg ({daily_cost} kr)\")\n\nprint(f\"Total: {total_cost} kr\")\n```\n\nOutput:\n\n```\nDay-1: 170 kg (340 kr)\nDay-2: 550 kg (4600 kr)\nDay-3: 470 kg (940 kr)\nTotal: 5880 kr\n```\n\n`inventory` and `total_cost` persist: initialise them **before** the loop. `daily_cost` starts fresh each day: reset it **inside** the loop. Match the order of consumption, restocking and charging to the question.\n\n\n## 11 Pandas1 - Objects\n\n**Course files:** `11_Pandas1.ipynb` → `11_Pandas1_Exercise.ipynb`.\n\n**Order:** import → Series → DataFrame → read files → inspect/statistics → sorting.\n\n### 11.1 Import and Series\n\npandas is the package; `pd` is its usual alias. A **Series** is one labelled column of values.\n\n```python\nimport pandas as pd\nprofit = pd.Series([40.4, 63.9, 17.9], index=[\"Jan\", \"Feb\", \"Mar\"])\n```\n\n| Operation          | Example                 | Result / meaning                                   |\n| ------------------ | ----------------------- | -------------------------------------------------- |\n| Select by label    | `profit.loc[\"Feb\"]`     | `63.9`                                             |\n| Select by position | `profit.iloc[1]`        | `63.9`; second item                                |\n| Show labels        | `profit.index.tolist()` | `[\"Jan\", \"Feb\", \"Mar\"]`                            |\n| Show values        | `profit.tolist()`       | `[40.4, 63.9, 17.9]`                               |\n| Underlying values  | `profit.values`         | Array-like values; representation depends on dtype |\n| Number of items    | `len(profit)`           | `3`                                                |\n| Mean               | `profit.mean()`         | About `40.73`                                      |\n\nIf pandas is missing, install it in the notebook's environment. In Jupyter, `%pip install pandas` is a notebook command; installation is separate from importing.\n\n### 11.2 Construct a DataFrame\n\nA **DataFrame** is a table of labelled rows and columns. Dictionary keys become columns; list values must have matching lengths.\n\n```python\ncompanies = pd.DataFrame({\n    \"company\": [\"JPMorgan Chase\", \"Apple\", \"Bank of America\"],\n    \"profit\": [40.4, 63.9, 17.9],\n    \"assets\": [3689.3, 354.1, 2832.2],\n})\ncompanies\n```\n\n| index | company | profit | assets |\n| --- | --- | --- | --- |\n| 0 | JPMorgan Chase | 40.4 | 3689.3 |\n| 1 | Apple | 63.9 | 354.1 |\n| 2 | Bank of America | 17.9 | 2832.2 |\n\n| Operation | Example | Result |\n| --- | --- | --- |\n| Dimensions | `companies.shape` | `(3, 3)` = rows, columns |\n| Row count | `len(companies)` | `3` |\n| Cell count | `companies.size` | `9`; not the row count |\n| Column names | `companies.columns.tolist()` | `[\"company\", \"profit\", \"assets\"]` |\n| One column | `companies[\"profit\"]` | Series |\n| One-column table | `companies[\"profit\"](obsidian://open?vault=Obsidian%20Vault&file=%22profit%22)` | DataFrame |\n| Round numeric results | `companies[\"profit\"].mean().round(2)` | `40.73` |\n\nAttributes such as `.shape`, `.index`, `.columns` and `.dtypes` have **no call parentheses**. Methods such as `.head()` and `.mean()` do.\n\n### 11.3 Read a file\n\n```python\nimport pandas as pd\ndiabetes = pd.read_csv(\"diabetes.csv\", dtype={\"Outcome\": \"category\"})\ndiabetes.head()\n```\n\n| Need | Code |\n| --- | --- |\n| CSV in working directory | `pd.read_csv(\"parks.csv\")` |\n| CSV in a subfolder | `pd.read_csv(\"data/parks.csv\")` |\n| CSV in a sibling data folder | `pd.read_csv(\"../data/parks.csv\")` |\n| First column is intended index | `pd.read_csv(\"wine.csv\", index_col=0)` |\n| Named column is intended index | `pd.read_csv(\"customers.csv\", index_col=\"CustomerID\")` |\n| Preserve identifier zeroes | `pd.read_csv(\"file.csv\", dtype={\"postcode\": \"string\"})` |\n| Semicolon separator / decimal comma | `pd.read_csv(\"file.csv\", sep=\";\", decimal=\",\")` |\n| Excel file | `pd.read_excel(\"complaints_mapping.xlsx\")` |\n| Save ordinary columns to CSV | `diabetes.to_csv(\"diabetes_copy.csv\", index=False)` |\n\nRelative paths start from the kernel's **working directory**; `%pwd` shows it in Jupyter. It is not guaranteed to equal the notebook's folder. Excel reading may require an engine such as `openpyxl`.\n\n> [!warning] Call the reader\n> Use `pd.read_csv(\"file.csv\", index_col=0)`. The exercise hint `pd.read_csv = (...)` is a typo: it overwrites the function. Also, `index_col=0` moves the first column into the index; use it only when intended.\n\n### 11.4 Inspect and describe\n\n| Question | Code | What you get |\n| --- | --- | --- |\n| First five rows | `diabetes.head()` | Small table preview |\n| First ten / last five | `diabetes.head(10)` / `diabetes.tail()` | Requested rows |\n| Number of rows/columns | `diabetes.shape` | `(rows, columns)` |\n| Types and nonmissing counts | `diabetes.info()` | Printed overview; returns `None` |\n| Column dtypes | `diabetes.dtypes` | One dtype per column |\n| Numeric summary | `diabetes.describe().round(1)` | count, mean, std, min, quartiles, max |\n| One numeric column | `diabetes[\"Age\"].describe()` | Summary of Age |\n| Frequency per category | `diabetes[\"Outcome\"].value_counts()` | Number in each category |\n| Include missing in frequency | `diabetes[\"Outcome\"].value_counts(dropna=False)` | Missing values also counted |\n| Unique category values | `diabetes[\"Outcome\"].unique()` | Actual labels in the data |\n\n`describe()`'s **count** means nonmissing values; **50%** is the median. Text may be stored with `object`, `string` or a newer string dtype; inspect the actual column. Encoded labels such as Outcome 0/1 can be categorical even though their symbols are numbers.\n\n### 11.5 Sorting and top N\n\nThe company examples below use the table from 11.2. Each row starts with that unchanged table.\n\n| Need | Code | Result / order |\n| --- | --- | --- |\n| Alphabetical order | `companies.sort_values(\"company\")` | Apple → Bank of America → JPMorgan Chase |\n| Highest profit first | `companies.sort_values(\"profit\", ascending=False)` | Apple → JPMorgan Chase → Bank of America |\n| Top two numeric values | `companies.nlargest(2, \"profit\")` | Apple, JPMorgan Chase |\n| Several sort keys | `companies.sort_values([\"profit\", \"assets\"], ascending=[False, True])` | Profit descending; assets breaks ties ascending |\n| Sort by row labels | `companies.sort_index()` | Index order |\n\nSave the result when you need it later: `companies_sorted = companies.sort_values(\"profit\")`.\n\n**Top rows** and **most frequent categories** differ: use `nlargest`/sorting for high numeric values; use `value_counts().head(3)` for the three most frequent categories. `head(3)` alone means only “first three current rows”.\n\n## 12 Pandas2 - Preprocessing\n\n**Course files:** `12_Pandas2.ipynb` → `12_Pandas2_Exercise.ipynb`.\n\n**Order:** subset selection → boolean filtering → concat → merge → copying/updating.\n\n### 12.1 Labels, positions and columns\n\n```python\nimport pandas as pd\ndf = pd.DataFrame({\n    \"state\": [\"Ohio\", \"Ohio\", \"Ohio\", \"Nevada\", \"Nevada\", \"Nevada\"],\n    \"year\": [2000, 2001, 2002, 2001, 2002, 2003],\n    \"pop\": [1.5, 1.7, 3.6, 2.4, 2.9, 3.2],\n}, index=[\"a\", \"b\", \"c\", \"d\", \"e\", \"f\"])\n```\n\n| Operation | Example | Result |\n| --- | --- | --- |\n| One column | `df[\"state\"]` | Series with six values |\n| Several columns | `df[\"state\", \"year\"](obsidian://open?vault=Obsidian%20Vault&file=%22state%22%2C%20%22year%22)` | Six-row, two-column DataFrame |\n| Label-based cell | `df.loc[\"b\", \"state\"]` | `\"Ohio\"` |\n| Position-based cell | `df.iloc[1, 0]` | `\"Ohio\"` |\n| Label slice | `df.loc[\"b\":\"d\", [\"state\", \"year\"]]` | Rows b, c, d; both endpoints included |\n| Position slice | `df.iloc[1:4, 0:2]` | Same rows/columns; stop positions excluded |\n| Keep a single row as a table | `df.loc[\"b\"](obsidian://open?vault=Obsidian%20Vault&file=%22b%22)` | One-row DataFrame |\n\n`.loc[rows, columns]` uses labels or a row mask. `.iloc[rows, columns]` uses integer positions. An integer **label** is still a label, not automatically a position. With duplicate labels, a label can select several rows. [pandas indexing](https://pandas.pydata.org/docs/user_guide/indexing.html)\n\n### 12.2 Boolean filters\n\nEach result below uses the unchanged `df` from 12.1.\n\n| Task | Code | Row labels retained |\n| --- | --- | --- |\n| One condition | `df.loc[df[\"year\"] > 2001]` | c, e, f |\n| Both conditions | `df.loc[(df[\"state\"] == \"Ohio\") & (df[\"year\"] > 2000)]` | b, c |\n| Either condition | `df.loc[(df[\"state\"] == \"Ohio\") \\| (df[\"year\"] > 2002)]` | a, b, c, f |\n| Not this category | `df.loc[~(df[\"state\"] == \"Ohio\")]` | d, e, f |\n| Any listed category | `df.loc[df[\"state\"].isin([\"Ohio\", \"Utah\"])]` | a, b, c |\n| Inclusive numeric interval | `df.loc[df[\"pop\"].between(2, 3)]` | d, e |\n| Filter and keep selected columns | `df.loc[df[\"year\"] > 2001, [\"state\", \"pop\"]]` | c, e, f; two columns |\n\n> [!warning] pandas conditions\n> Use `&`, `\\|` and `~` for Series conditions; put parentheses around each comparison. Scalar `and`/`or` do not combine whole columns. Use `.isin([...])` for multiple permitted values. Labels must match the data's case and spaces.\n\nText columns use `.str`: `df[\"state\"].str.lower()` returns lowercase text; `.str.startswith(\"O\", na=False)` makes a missing-safe starts-with mask. For a literal substring, use `.str.contains(\"hi\", regex=False, na=False)`.\n\n### 12.3 Concatenate: stack tables\n\n```python\njan = pd.DataFrame({\"product\": [\"A\", \"B\"], \"sales\": [100, 80]})\nfeb = pd.DataFrame({\"product\": [\"A\", \"B\"], \"sales\": [120, 90]})\ncombined = pd.concat([jan, feb], ignore_index=True)\nprint(combined[\"sales\"].tolist())  # [100, 80, 120, 90]\n```\n\n| Need | Code | Meaning |\n| --- | --- | --- |\n| Stack rows | `pd.concat([jan, feb])` | Four rows; original labels retained |\n| Stack and renumber | `pd.concat([jan, feb], ignore_index=True)` | Four rows; new index 0–3 |\n| Attach columns by index | `pd.concat([jan, feb], axis=1)` | Two rows, four columns; aligns row labels |\n\nDifferent columns or indices can create missing values. Horizontal concat matches **index labels**, not a product-ID column. To attach information by an ID, use a merge.\n\n### 12.4 Merge: match a key\n\n```python\nprice_df = pd.DataFrame({\"product\": [\"A\", \"B\", \"C\", \"D\", \"E\"],\n                         \"price\": [35, 10, 25, 30, 20]})\nsales_df = pd.DataFrame({\"product\": [\"A\", \"B\", \"C\", \"E\", \"F\"],\n                         \"sales\": [360, 470, 150, 290, 210]})\nresult = pd.merge(price_df, sales_df, on=\"product\", how=\"left\",\n                  validate=\"one_to_one\")\nresult\n```\n\n| product | price | sales |\n| --- | --- | --- |\n| A | 35 | 360 |\n| B | 10 | 470 |\n| C | 25 | 150 |\n| D | 30 | Missing |\n| E | 20 | 290 |\n\n| Join | Code parameter | Keys retained in this example |\n| --- | --- | --- |\n| Left | `how=\"left\"` | A, B, C, D, E |\n| Inner | `how=\"inner\"` | A, B, C, E |\n| Outer | `how=\"outer\"` | A, B, C, D, E, F |\n| Right | `how=\"right\"` | A, B, C, E, F |\n\n`on` identifies the shared key. Different names use `left_on=\"product_id\", right_on=\"id\"`.\n\n> [!warning] Check merge size\n> Duplicate matching keys can multiply rows. Use `validate=\"many_to_one\"` for a lookup whose right-side key must be unique; `\"one_to_one\"` requires uniqueness on both sides. Check key types, missing values, spelling and spaces. pandas can match null keys to each other. [Merge reference](https://pandas.pydata.org/docs/reference/api/pandas.merge.html)\n\n### 12.5 Copy a subset or update the original\n\n```python\n# Independent working table: changes here should not edit df.\nohio = df.loc[df[\"state\"] == \"Ohio\"].copy()\nohio[\"pop\"] = ohio[\"pop\"] * 2\n\n# Deliberately update the original in one operation.\nmask = df[\"state\"] == \"Nevada\"\ndf.loc[mask, \"pop\"] = df.loc[mask, \"pop\"] * 2\nprint(df.loc[\"d\", \"pop\"])  # 4.8\n```\n\n`other = df` shares the same object; it is not a copy. Avoid chained updates such as `df[mask][\"pop\"] = ...`. A single `.loc[mask, \"pop\"] = ...` targets the intended table and works with newer Copy-on-Write rules. [pandas migration guidance](https://pandas.pydata.org/docs/user_guide/migration.html#chained-assignment)\n\nSeries calculations align by **index labels**. Before assigning a Series from another table, check that its index matches the intended rows.\n\n## 13 Pandas3 - Calculations\n\n**Course files:** `13_Pandas3.ipynb` → `13_Pandas3_Exercise.ipynb`.\n\n**Order:** detect/drop/fill missing values → derive columns → numeric categories → groupby → pivot_table → crosstab.\n\nThe chapter's small sales example:\n\n```python\nimport pandas as pd\nsales = pd.DataFrame({\n    \"city\": [\"Oslo\", \"Oslo\", \"Bergen\", \"Bergen\"],\n    \"quarter\": [\"Q1\", \"Q2\", \"Q1\", \"Q2\"],\n    \"sales\": [100.0, None, 80.0, 120.0],\n    \"units\": [2, 3, 1, 2],\n})\n```\n\n| index | city | quarter | sales | units |\n| --- | --- | --- | --- | --- |\n| 0 | Oslo | Q1 | 100 | 2 |\n| 1 | Oslo | Q2 | Missing | 3 |\n| 2 | Bergen | Q1 | 80 | 1 |\n| 3 | Bergen | Q2 | 120 | 2 |\n\n**Each operation-table row starts with this unchanged table.**\n\n### 13.1 Detect missing values\n\n| Need | Code | Result |\n| --- | --- | --- |\n| Missing mask | `sales[\"sales\"].isna().tolist()` | `[False, True, False, False]` |\n| Missing per column | `sales.isna().sum().tolist()` | `[0, 0, 1, 0]` |\n| Missing per row | `sales.isna().sum(axis=1).tolist()` | `[0, 1, 0, 0]` |\n| Rows with missing sales | `sales.loc[sales[\"sales\"].isna()]` | Row 1 |\n| Recorded sales values | `sales[\"sales\"].count()` | `3` |\n| All records | `len(sales)` | `4` |\n\nUse `.isna()` / `.notna()` rather than equality to a missing marker. pandas can use `NaN`, `None`, `pd.NA` or `NaT`, depending on dtype. Zero and empty text are not automatically missing.\n\n### 13.2 Drop or fill\n\n| Task | Code | Result / effect |\n| --- | --- | --- |\n| Drop rows with any missing value | `sales.dropna()` | Rows 0, 2, 3 |\n| Drop rows whose values are all missing | `sales.dropna(how=\"all\")` | Keeps all four rows |\n| Require a particular field | `sales.dropna(subset=[\"sales\"])` | Rows 0, 2, 3 |\n| Drop columns with missing values | `sales.dropna(axis=1)` | Removes the sales column |\n| Replace missing with zero | `sales[\"sales\"].fillna(0).tolist()` | `[100, 0, 80, 120]` |\n| Replace missing with observed mean | `sales[\"sales\"].fillna(sales[\"sales\"].mean()).tolist()` | `[100, 100, 80, 120]` |\n\nKeep an intended change with assignment: `sales[\"sales\"] = sales[\"sales\"].fillna(0)`.\n\n> [!warning] Missing is not automatically zero\n> Unknown sales and no sales mean different things. Drop, zero-fill or mean-fill only when the task or data meaning supports it. Most reductions skip missing values. An all-missing sum can become zero; `.sum(min_count=1)` instead requires an observed value.\n\n**Axis:** `sum(axis=0)` goes down rows → one answer per column. `sum(axis=1)` goes across columns → one answer per row. `dropna(axis=0)` removes rows; `dropna(axis=1)` removes columns.\n\n### 13.3 Calculate derived columns\n\n```python\nsales[\"sales_with_tax\"] = sales[\"sales\"] * 1.25\nsales[\"sales_per_unit\"] = (sales[\"sales\"] / sales[\"units\"]).round(2)\nprint(sales[\"sales_per_unit\"].tolist())  # [50.0, nan, 80.0, 60.0]\n```\n\n| Task | Column calculation |\n| --- | --- |\n| Tip percentage | `tips[\"tip_pct\"] = (tips[\"tip\"] / tips[\"total_bill\"] * 100).round(1)` |\n| Seconds to minutes | `bike[\"duration_min\"] = (bike[\"duration_sec\"] / 60).round(2)` |\n| BMI, height in metres | `patients[\"BMI\"] = patients[\"weight\"] / patients[\"height\"] ** 2` |\n| Convert currency using a given rate | `wine[\"price_nok\"] = wine[\"price\"] * given_rate` |\n\nCheck units and zero denominators. Missing inputs normally produce missing derived values. Prefer whole-column arithmetic for these calculations.\n\n### 13.4 Convert numbers into categories\n\nInteger ages: 18–35, 36–55, 56–75.\n\n```python\nages = pd.DataFrame({\"age\": [18, 35, 36, 55, 56, 75, 76]})\nages[\"age_group\"] = pd.cut(\n    ages[\"age\"], bins=[18, 35, 55, 75],\n    labels=[\"young adults\", \"middle-aged adults\", \"older adults\"],\n    include_lowest=True,\n)\n```\n\n| Value | Result |\n| --- | --- |\n| 18, 35 | young adults |\n| 36, 55 | middle-aged adults |\n| 56, 75 | older adults |\n| 76 | Missing: outside the bins |\n\nDefault bins are `(a, b]`: left excluded, right included. `include_lowest=True` includes the first lower edge. `right=False` changes intervals to `[a, b)`. You need **one fewer labels than edges**. Decimal age 35.5 is in `(35, 55]`; the verbal labels above assume integer ages. [pandas.cut](https://pandas.pydata.org/docs/reference/api/pandas.cut.html)\n\n### 13.5 GroupBy and aggregation\n\nGroupBy means **split into groups → calculate within each group → combine**. Select the measure, then the calculation.\n\n| Question | Code | Result |\n| --- | --- | --- |\n| Records per city | `sales.groupby(\"city\").size().to_dict()` | `{'Bergen': 2, 'Oslo': 2}` |\n| Recorded sales per city | `sales.groupby(\"city\")[\"sales\"].count().to_dict()` | `{'Bergen': 2, 'Oslo': 1}` |\n| Known sales total per city | `sales.groupby(\"city\")[\"sales\"].sum().to_dict()` | `{'Bergen': 200.0, 'Oslo': 100.0}` |\n| Mean recorded sales per city | `sales.groupby(\"city\")[\"sales\"].mean().to_dict()` | `{'Bergen': 100.0, 'Oslo': 100.0}` |\n| Distinct quarters per city | `sales.groupby(\"city\")[\"quarter\"].nunique().to_dict()` | `{'Bergen': 2, 'Oslo': 2}` |\n| Several statistics | `sales.groupby(\"city\")[\"sales\"].agg([\"mean\", \"min\", \"max\"])` | A statistics table |\n| Two grouping keys | `sales.groupby([\"city\", \"quarter\"])[\"units\"].sum()` | One result per city-quarter pair |\n\n`.size()` counts rows; `.count()` counts nonmissing selected values; `.nunique()` counts distinct values. A total that omits missing sales is a **known subtotal**, not necessarily the complete total.\n\nUse `as_index=False` to keep group keys as columns. `.groups` on a GroupBy object shows group membership. `.reset_index()` turns index levels into columns.\n\nFor category groupers, set `observed=True` for observed combinations or `observed=False` to include unobserved categorical combinations. Set `dropna=False` when missing group keys should be retained. The `observed` default changed in pandas 3.0. [GroupBy reference](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.groupby.html)\n\n### 13.6 Pivot table: choose rows, columns and statistic\n\n```python\nwide_sales = sales.pivot_table(\n    index=\"city\", columns=\"quarter\", values=\"sales\",\n    aggfunc=\"mean\", observed=True,\n)\nwide_sales\n```\n\n| city | Q1 | Q2 |\n| --- | --- | --- |\n| Bergen | 80 | 120 |\n| Oslo | 100 | Missing |\n\n| Parameter | Means |\n| --- | --- |\n| `index` | Categories down the rows |\n| `columns` | Categories across the columns |\n| `values` | Measurement to calculate |\n| `aggfunc` | Calculation such as `\"mean\"`, `\"sum\"`, `\"max\"` |\n| `fill_value` | Replace missing result cells, only when that replacement makes sense |\n\n`pivot_table` defaults to a mean; specify the statistic explicitly. `fill_value=0` can suit absent counts, while an unknown mean is not zero. [Pivot table reference](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.pivot_table.html)\n\n### 13.7 Crosstab: count combinations\n\n```python\ncounts = pd.crosstab(sales[\"city\"], sales[\"quarter\"])\ncounts\n```\n\n| city | Q1 | Q2 |\n| --- | --- | --- |\n| Bergen | 1 | 1 |\n| Oslo | 1 | 1 |\n\nWithout `values`/`aggfunc`, `crosstab` counts records. With both supplied, it can aggregate a measure too. `normalize=\"index\"` gives proportions within rows; multiply by 100 for percentages. Check missing categories when reconciling totals.\n\n> [!tip] Count versus rate\n> A group with more survivors can still have a lower survival rate if it is much larger. Counts compare numbers; rates need a denominator. Use the statistic the question asks for.\n\n## 14 Pandas4 - Visualisations\n\n**Course files:** `14_Pandas4 visualization.ipynb` → `14_Pandas4_Exercise.ipynb`.\n\n**Order:** reshape data → line chart → bar/pie → histogram → scatter/hexbin.\n\n### 14.1 Long and wide data\n\n**Long:** a separate row per month/category. **Wide:** one row per month, with a column for each category.\n\n```python\nimport pandas as pd\nexpense = pd.DataFrame({\n    \"month\": [\"01-2022\", \"02-2022\", \"03-2022\"] * 2,\n    \"category\": [\"grocery\"] * 3 + [\"transportation\"] * 3,\n    \"expense\": [3050, 2800, 2750, 1050, 900, 1150],\n})\nwide = expense.pivot_table(index=\"month\", columns=\"category\",\n                           values=\"expense\", aggfunc=\"sum\", observed=True)\nwide\n```\n\n| month | grocery | transportation |\n| --- | --- | --- |\n| 01-2022 | 3050 | 1050 |\n| 02-2022 | 2800 | 900 |\n| 03-2022 | 2750 | 1150 |\n\n| Conversion | Code | Meaning |\n| --- | --- | --- |\n| Long → wide with aggregation | `expense.pivot_table(index=\"month\", columns=\"category\", values=\"expense\", aggfunc=\"sum\")` | Summary table above |\n| Grouped result → wide | `expense.groupby([\"month\", \"category\"])[\"expense\"].sum().unstack()` | Inner index level becomes columns |\n| Wide → long | `wide.reset_index().melt(id_vars=\"month\", var_name=\"category\", value_name=\"expense\")` | Month/category/expense columns |\n| Swap rows and columns | `wide.T` | Categories become rows |\n\n`pivot()` reshapes without aggregating and needs unique row/column combinations. `pivot_table()` can aggregate repeated combinations. Check whether repeated records should exist before averaging them away.\n\n### 14.2 Choose the plot\n\n| Question | Plot | Data preparation |\n| --- | --- | --- |\n| Trend over ordered time | Line | Aggregate by time if needed; put time in order |\n| Compare category counts/totals/means | Bar / horizontal bar | Calculate the requested statistic first |\n| Category shares of a whole | Pie | Nonnegative totals with a positive whole |\n| Distribution of one numeric variable | Histogram | Choose meaningful bins |\n| Relationship between two numbers | Scatter | One point per observation |\n| Many overlapping points | Hexbin | Colour shows observation density |\n\nA histogram groups a numeric scale into intervals; a bar chart compares categories.\n\n### 14.3 Line charts\n\nThese examples use `wide` from 14.1. Its month index is already in chronological order for this single year.\n\n```python\nimport matplotlib.pyplot as plt\nwide.plot(y=[\"grocery\", \"transportation\"], marker=\"o\", figsize=(8, 3),\n          title=\"Monthly expenses\", xlabel=\"Month\", ylabel=\"Expense\")\nplt.show()\n```\n\n| Need | Code |\n| --- | --- |\n| Single line | `wide[\"grocery\"].plot()` |\n| Multiple lines | `wide.plot()` |\n| Month stored as a column | `wide.reset_index().plot(x=\"month\", y=\"grocery\")` |\n| Dashed lines and markers | `wide.plot(linestyle=\"dashed\", marker=\"D\")` |\n\nIf no `x` is supplied, pandas uses the index. Sort actual dates before plotting. Alphabetical month-name order is not chronological order.\n\n### 14.4 Bar, stacked bar and pie\n\n```python\ncategory_totals = expense.groupby(\"category\")[\"expense\"].sum()\nprint(category_totals.to_dict())  # {'grocery': 8600, 'transportation': 3100}\ncategory_totals.plot(kind=\"barh\", title=\"Total expenses by category\",\n                      xlabel=\"Expense\", ylabel=\"Category\")\nplt.show()\n```\n\n| Need | Code | Interpretation |\n| --- | --- | --- |\n| Vertical bars | `category_totals.plot(kind=\"bar\")` | One bar per category total |\n| Horizontal bars | `category_totals.plot(kind=\"barh\")` | Same totals; horizontal layout |\n| Grouped bars | `wide.plot(kind=\"bar\")` | Grocery/transportation bars within each month |\n| Stacked bars | `wide.plot(kind=\"bar\", stacked=True)` | Each month's total split into categories |\n| Pie | `category_totals.plot(kind=\"pie\", autopct=\"%.1f%%\")` | Share of the three-month total |\n\nDo not use raw row counts when the question asks for a spending total. For a top-five pie, the displayed whole is only those five unless you include “Other” or explain the denominator.\n\n### 14.5 Histogram, scatter and hexbin\n\nA small stand-in for the wine exercise, so the plotting syntax works without downloading that dataset:\n\n```python\nwine_example = pd.DataFrame({\"price\": [20, 30, 50, 80, 25, 45],\n                              \"points\": [85, 88, 90, 93, 86, 89]})\nwine_example[\"price\"].plot(kind=\"hist\", bins=[0, 25, 50, 75, 100],\n                            edgecolor=\"black\", title=\"Price distribution\")\nplt.show()\n```\n\n| Need | Code |\n| --- | --- |\n| Histogram with 15 bins | `wine_example[\"price\"].plot(kind=\"hist\", bins=15)` |\n| Relationship | `wine_example.plot(kind=\"scatter\", x=\"price\", y=\"points\")` |\n| Colour by a third numeric variable | `wine_example.plot(kind=\"scatter\", x=\"price\", y=\"points\", c=\"points\", cmap=\"viridis\")` |\n| Density of overlapping points | `wine_example.plot(kind=\"hexbin\", x=\"price\", y=\"points\", gridsize=5)` |\n\nFor edges `[0,25,50,75,100]`, the sample histogram counts are **1, 3, 1, 1**. Histogram bins include the left edge and exclude the right, except the last bin includes its right edge. This differs from `pd.cut`'s default right-inclusive bins. Hexbin is most useful with many more observations than this example.\n\n> [!tip] Explain the evidence\n> Describe the pattern in the actual plot, with units and groups. Check the underlying values when the question asks for an exact count or maximum. A scatter relationship alone does not prove causation.\n\nExport a selected table with `subset.to_csv(\"subset.csv\", index=False)`. Keep the index or use `.reset_index()` first if it contains meaningful data.\n\n## 15 Matplotlib and Seaborn\n\n**Course files:** `15_Matplotlib and Seaborn.ipynb` → its exercise notebook.\n\n**Order:** Figure/Axes → subplots → secondary y-axis → Seaborn line/count/heatmap → numeric plots → joint/pair/facets.\n\n### 15.1 Figure and Axes\n\n**Figure** = whole canvas. **Axes** = one plotting area with its own x-axis and y-axis.\n\n```python\nimport pandas as pd\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nmonthly = pd.DataFrame({\"sales\": [100, 120, 80],\n                         \"cumulative\": [100, 220, 300]},\n                        index=[\"Jan\", \"Feb\", \"Mar\"])\nfig, ax = plt.subplots(figsize=(7, 3))\nmonthly[\"sales\"].plot(kind=\"bar\", ax=ax)\nax.set(title=\"Monthly sales\", xlabel=\"Month\", ylabel=\"Units\")\nfig.tight_layout()\nplt.show()\n```\n\n| Need | Operation |\n| --- | --- |\n| Title | `ax.set_title(\"Monthly sales\")` |\n| Axis labels | `ax.set_xlabel(\"Month\")`; `ax.set_ylabel(\"Units\")` |\n| Y limits | `ax.set_ylim(0, 150)` |\n| Unrotated x labels | `ax.tick_params(axis=\"x\", labelrotation=0)` |\n| Legend position | `ax.legend(loc=\"upper left\")` |\n| Fit labels into figure | `fig.tight_layout()` |\n| Save this figure | `fig.savefig(\"sales.png\", dpi=200, bbox_inches=\"tight\")` |\n\nSave before showing/closing when possible. Use the intended Figure, rather than relying on whichever plot is currently active. [Matplotlib savefig](https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.savefig.html)\n\n### 15.2 Side-by-side subplots\n\n```python\nfig, axes = plt.subplots(1, 2, figsize=(10, 3))\nmonthly[\"sales\"].plot(kind=\"bar\", ax=axes[0])\nmonthly[\"cumulative\"].plot(marker=\"o\", ax=axes[1], color=\"darkorange\")\naxes[0].set_title(\"Monthly sales\")\naxes[1].set_title(\"Cumulative sales\")\nfig.tight_layout()\nplt.show()\n```\n\n| Layout | Returned axes | Select a subplot |\n| --- | --- | --- |\n| `plt.subplots()` | Single Axes | `ax` |\n| `plt.subplots(1, 2)` | One-dimensional array | `axes[0]`, `axes[1]` |\n| `plt.subplots(2, 2)` | Two-dimensional array | `axes[0, 0]`, `axes[1, 1]` |\n\nPass `ax=...` to put a pandas/Seaborn plot in the intended area. `plt.subplot` and `plt.subplots` are different functions; do not swap their arguments.\n\n### 15.3 Secondary y-axis\n\n```python\nfig, ax1 = plt.subplots(figsize=(7, 3))\nax2 = ax1.twinx()\nax1.bar(monthly.index, monthly[\"sales\"], label=\"Monthly\", color=\"steelblue\")\nax2.plot(monthly.index, monthly[\"cumulative\"], label=\"Cumulative\",\n          marker=\"o\", color=\"darkorange\")\nax1.set(xlabel=\"Month\", ylabel=\"Monthly units\")\nax2.set_ylabel(\"Cumulative units\")\nax1.legend(loc=\"upper left\")\nax2.legend(loc=\"upper right\")\nfig.tight_layout()\nplt.show()\n```\n\nBoth y-axes need labels. Their scales differ; visual similarity between two lines can depend on chosen limits.\n\n### 15.4 Seaborn data and chart lookup\n\nUse this small stand-in for the course's tips dataset. It has one row per transaction.\n\n```python\ntips = pd.DataFrame({\n    \"total_bill\": [10, 20, 18, 30, 24, 40],\n    \"tip\": [1, 3, 2, 4, 3, 6],\n    \"day\": [\"Thur\", \"Thur\", \"Fri\", \"Sat\", \"Sun\", \"Sun\"],\n    \"time\": [\"Lunch\", \"Dinner\", \"Dinner\", \"Dinner\", \"Lunch\", \"Dinner\"],\n})\n```\n\nThe actual course examples also use `sns.load_dataset(\"tips\")`, `\"titanic\"` and `\"diamonds\"`. The loader may need internet unless cached; save local CSV copies for offline practice. Inspect exact labels: tips uses `tip`, and diamond cut `\"Premium\"` has a capital P. [Dataset loader](https://seaborn.pydata.org/generated/seaborn.load_dataset.html)\n\n| Question | Function | What it does |\n| --- | --- | --- |\n| Trend from wide-form monthly data | `sns.lineplot(data=monthly[\"sales\"](obsidian://open?vault=Obsidian%20Vault&file=%22sales%22))` | Line over the index |\n| Number of transactions per day | `sns.countplot(data=tips, x=\"day\")` | Counts raw rows |\n| Counts split by another category | `sns.countplot(data=tips, x=\"day\", hue=\"time\")` | Side-by-side group counts |\n| Category matrix | `sns.heatmap(counts, annot=True, fmt=\"d\")` | Colour + labels for a prepared numeric table |\n| Distribution | `sns.histplot(data=tips, x=\"total_bill\")` | Numeric histogram |\n| Distribution split by group | `sns.histplot(data=tips, x=\"total_bill\", hue=\"time\")` | Histogram by meal time |\n| Relationship split by group | `sns.scatterplot(data=tips, x=\"total_bill\", y=\"tip\", hue=\"time\")` | Coloured groups of points |\n\n`hue` selects a variable to encode by colour. `countplot` counts rows; `barplot` computes a statistic of `y` (mean by default). `lineplot` also aggregates repeated x-values by default. For totals, aggregate explicitly before plotting. [Seaborn barplot](https://seaborn.pydata.org/generated/seaborn.barplot.html), [lineplot](https://seaborn.pydata.org/generated/seaborn.lineplot.html)\n\n### 15.5 Heatmap from counts or means\n\n```python\ncounts = pd.crosstab(tips[\"time\"], tips[\"day\"])\nfig, ax = plt.subplots(figsize=(6, 3))\nsns.heatmap(counts, annot=True, fmt=\"d\", cmap=\"Blues\", ax=ax)\nax.set_title(\"Transactions by meal and day\")\nfig.tight_layout()\nplt.show()\n```\n\n`annot=True` prints cell values. `fmt=\"d\"` suits integer counts; `fmt=\".2f\"` suits decimal means. Prepare the right table first: crosstab for frequencies, pivot table for means/totals. A heatmap does not automatically calculate correlations.\n\n### 15.6 Jointplot, pairplot and FacetGrid\n\n| Need | Code | Result |\n| --- | --- | --- |\n| Relationship + individual distributions | `sns.jointplot(data=tips, x=\"total_bill\", y=\"tip\", height=4)` | Main scatter and marginal distributions |\n| Pairwise numeric relationships | `sns.pairplot(data=tips, vars=[\"total_bill\", \"tip\"], height=2)` | Pairwise plots; distributions on diagonal |\n| Distribution for each group | `sns.FacetGrid(tips, col=\"day\")` | A grid waiting for a plotting function |\n\n```python\ng = sns.FacetGrid(tips, col=\"day\", col_order=[\"Thur\", \"Fri\", \"Sat\", \"Sun\"],\n                  height=2.5, sharex=True, sharey=True)\ng.map_dataframe(sns.histplot, x=\"total_bill\", bins=[0, 10, 20, 30, 40, 50])\ng.set_axis_labels(\"Total bill\", \"Transactions\")\ng.set_titles(\"{col_name}\")\nplt.show()\n```\n\nFor scatter facets, replace the mapping with `g.map_dataframe(sns.scatterplot, x=\"total_bill\", y=\"tip\")`. For the course's KDE example, use `g.map_dataframe(sns.kdeplot, x=\"total_bill\")`; density estimation needs enough varying observations in each group.\n\n> [!warning] Axes plots versus whole grids\n> `histplot`, `scatterplot`, `countplot` and `heatmap` accept `ax=axes[0]`. `jointplot`, `pairplot` and `FacetGrid` manage their own figures/grids; do not treat them as one-Axes functions. [Seaborn overview](https://seaborn.pydata.org/tutorial/function_overview.html)\n\n### 15.7 Make the comparison readable\n\nUse descriptive titles, units, legends and meaningful category order. Keep colours, bin edges and scales consistent across comparable subplots. Bar charts usually need a zero baseline. Different group sizes can produce different count heights; use rates/density when that is the question. State the pattern supported by your actual results, rather than copying a sample-chart answer.\n\n## Appendix - Dates and Time Series\n\n**Course files:** `207234--16_Time Series.pdf`, `211315--16_Time series.ipynb`, and `2024H` / `2025H` Official Home Exam 2 papers & evaluation guides.\n\n### A.1 Date differences in ordinary Python (`datetime` & `timedelta`)\n\n```python\nfrom datetime import date, time, datetime, timedelta\nstart = datetime.strptime(\"02/10/2026\", \"%d/%m/%Y\")\nend = datetime.strptime(\"07/10/2026\", \"%d/%m/%Y\")\ndiff = end - start          # timedelta object (.days, .seconds)\nprint(diff.days)            # 5 elapsed days\nprint(start.strftime(\"%Y-%m-%d\"), start.isoweekday(), start.isocalendar())\n```\n\n| Directive / Method | Meaning / Output |\n| --- | --- |\n| `strptime(text, fmt)` | **String → `datetime`** (parse string using exact format codes) |\n| `strftime(fmt)` | **`datetime` → String** (format datetime into desired text) |\n| `%Y` / `%y` · `%m` · `%d` | 4-digit / 2-digit year · 2-digit month `[01..12]` · 2-digit day `[01..31]` |\n| `%H` · `%M` · `%S` | 24-hour `[00..23]` · minute `[00..59]` · second `[00..59]` |\n| `.isoweekday()` / `.isocalendar()` | `1` (Mon) .. `7` (Sun) / `(year, week, weekday)` tuple |\n| `(end - start).days` | Integer elapsed days (`timedelta.days`); differs from counting both endpoints |\n\n### A.2 Datetime columns and indices\n\n```python\ndates = pd.DataFrame({\"date\": [\"2026-01-02\", \"2026-01-03\", \"2026-02-01\"],\n                       \"usage\": [10, 20, 40]})\ndates[\"date\"] = pd.to_datetime(dates[\"date\"], format=\"%Y-%m-%d\")\ndates[\"weekday\"] = dates[\"date\"].dt.day_name()\ntimed = dates.set_index(\"date\").sort_index()\n```\n\n| Need | Code | Result / rule |\n| --- | --- | --- |\n| Column's month | `dates[\"date\"].dt.month.tolist()` | `[1, 1, 2]` |\n| Index's month | `timed.index.month.tolist()` | Same; no `.dt` for a DatetimeIndex |\n| Select January | `timed.loc[\"2026-01\"]` | Two January rows |\n| Inclusive date-string interval | `timed.loc[\"2026-01-03\":\"2026-02-01\"]` | Two rows including the end date |\n| Monthly usage totals | `timed[\"usage\"].resample(\"MS\").sum().tolist()` | `[30, 40]` |\n| Monthly record counts | `timed.resample(\"MS\").size().tolist()` | `[2, 1]` |\n\n**Frequency:** `\"D\"` daily, `\"MS\"` month start, `\"ME\"` month end in current pandas, `\"h\"` hourly. Older materials may use `\"M\"` for month end. `MS` is useful across older/newer versions.\n\nA sorted DatetimeIndex supports these date-string slices. For a datetime column, a midnight timestamp comparison does not automatically include later times on the end date. If calendar days refer to Oslo time, convert timezone-aware data to `Europe/Oslo` before daily grouping. [pandas time-series guide](https://pandas.pydata.org/docs/user_guide/timeseries.html)\n\n### A.3 Bike task: count trips or sum usage?\n\n```python\nbike = pd.read_csv(\"citybike.csv\", parse_dates=[\"departure_time\"],\n                    index_col=\"departure_time\").sort_index()\nbike[\"duration_min\"] = (bike[\"duration_sec\"] / 60).round(2)\ndaily_trips = bike.resample(\"D\").size()\nprint(\"Fewest trips on:\", daily_trips.idxmin().date())\ndaily_trips.plot(marker=\"o\", figsize=(10, 3), title=\"Daily trips\")\nplt.show()\n```\n\nThe archive calls this file `155349--citybike.csv`; use a working copy named `citybike.csv` for the code above. It contains one row per trip, so **size counts trips**. In the London-bike file, one row records an hour and `usage` holds the rides, so **sum usage** to calculate monthly rides. Summing duration measures riding time instead.\n\nFor a nonempty Series, `idxmin()`/`idxmax()` gives the **label** of the first minimum/maximum; `min()`/`max()` gives its **value**. Select all entries equal to the extreme if ties matter. Do not combine years by grouping only on month number.\n\n## Final checks\n\n| Check | Ask yourself |\n| --- | --- |\n| Task | Did I use the requested loop/comprehension/function/subset? |\n| Output | Must I print, return, display a table or save a file? |\n| Rules | Did I test boundaries and every decision case? |\n| Data | What does one row represent? Are units, missing values and group sizes correct? |\n| Count | Am I counting rows, recorded values or distinct values? |\n| Plot | Does the plotted statistic answer the question? Are labels and scales clear? |\n| Notebook | Does restart → run all reproduce the shown output? |\n| Save | Is the saved `.ipynb` the version I checked? |\n\n> [!important] Official Home Exam 2 Blueprint & Strict Rules (`26 Nov 2026, 09:00–12:00`, `40%`)\n> - **Platform & Monitoring:** Individual 3-hour WISEflow Home Exam with **Device Monitor** installed and active in advance (takes periodic screen captures). Anonymous `.ipynb` submission **only** (never write your name/student ID; do **not** upload `.csv` files; upload **at least 10 minutes before `12:00`**; to replace a submission you must **withdraw** the old `.ipynb` before uploading the new one).\n> - **Allowed vs. Forbidden Aids:** Course materials, personal notes/Obsidian Vault, and public Python documentation (`docs.python.org`, GeeksforGeeks, Real Python, W3Schools) are **permitted**. **AI tools (ChatGPT, Gemini, Claude, Copilot) and human help are strictly forbidden (`Grade F`).**\n> - **Strict 7-Package Whitelist (`2024H` / `2025H` Official Rule):** Only `pandas`, `seaborn`, `matplotlib`, `random`, `math`, `datetime`, and `numpy` are permitted — **importing any other module/package deducts points!**\n> - **Mandatory Output & Cell Hygiene:** Every sub-task (`Task 1.a`, `Task 3.b`, etc.) must be in **its own separate cell** with a clear heading, and **must show both code AND executed output** (*code without visible output, or output that changes when examiners run `Restart & Run All`, receives `0 points`!*). Write qualitative plot/table interpretations in **Markdown cells** when requested.\n> - **Historical 100-Point Exam 2 Structure (`2025H` `85–100 = A`; `2024H` `80–100 = A`):**\n>   1. **Task 1 (`15 pts`):** Loop / state simulation (`while` debt payoff with monthly interest & final-payment cap, or dictionary `for` loop with `datetime.strptime`).\n>   2. **Task 2 (`15 pts`):** Function + string methods (`generate_username` with `.lower()` + 3 `random.randint(0, 9)` digits preserving leading zeros `045`, or `password_strength` `.isdigit()` validator).\n>   3. **Task 3 (`30–35 pts`):** Pandas DataFrame cleaning, multi-condition `&` / `.isin()` filtering, `value_counts` / `nlargest`, `pivot_table` / `pd.crosstab`, `FacetGrid` / `subplots`, plus Markdown interpretation.\n>   4. **Task 4 (`35–40 pts`):** Pandas Time Series (`pd.read_csv(..., parse_dates=[...], index_col=0)`, date slicing `.loc[\"2025-05-29\"]` / `.loc[\"2016-05-02\":\"2016-05-15\"]`, `pd.cut(..., include_lowest=True)`, `.resample(\"D\").size()` vs `.resample(\"ME\").usage.sum()`, `sns.heatmap(..., annot=True, fmt=\"d\")`, plus Markdown interpretation).\n\n**Study and future updates:** see `EBA3400 - Study and Updates.md` for practice checklists, complete November 2026 archive coverage, and `Study-OS` interactive Exam 2 simulations.\n"
+}
