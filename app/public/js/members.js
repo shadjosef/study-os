@@ -39,9 +39,7 @@ window.StudyMembers = (() => {
       throw error;
     }
     if (manifest.format !== 1 || !manifest.courses) throw new Error('The library could not be read.');
-    const joinProof = new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(accessString.trim())));
-    session = { key, courses: manifest.courses,
-      proof: [...joinProof].map((value) => value.toString(16).padStart(2, '0')).join('') };
+    session = { key, courses: manifest.courses };
   }
 
   function course(courseId) {
@@ -120,6 +118,5 @@ window.StudyMembers = (() => {
     }
   }
 
-  return { enabled, unlock, isUnlocked: () => Boolean(session), communityProof: () => session?.proof,
-    course, loadBank, fillPreviews, bindDownloads };
+  return { enabled, unlock, isUnlocked: () => Boolean(session), course, loadBank, fillPreviews, bindDownloads };
 })();

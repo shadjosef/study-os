@@ -4,7 +4,8 @@ const digest = async (value) => hex(new Uint8Array(await crypto.subtle.digest('S
 const tokenPattern = /^soc1_[0-9a-f]{64}$/;
 const proofPattern = /^[0-9a-f]{64}$/;
 const idPattern = /^[0-9a-f-]{36}$/;
-const maxInputBytes = 8192;
+const maxInputBytes = 65_536;
+const breakRequired = new Set(['/dashboard', '/message', '/chat', '/block', '/sets']);
 
 function equalProof(expected, supplied) {
   if (!proofPattern.test(expected || '') || !proofPattern.test(supplied || '')) return false;
@@ -60,7 +61,8 @@ export default {
       } });
     }
 
-    const path = new URL(request.url).pathname;
+    const url = new URL(request.url);
+    const path = url.pathname;
     const db = env.DB;
     let data = {};
     if (request.method === 'POST') {
@@ -69,7 +71,7 @@ export default {
     }
 
     if (path === '/join' && request.method === 'POST') {
-      if (!equalProof(env.JOIN_PROOF, data.proof)) return reply({ error: 'Unlock the full library to join.' }, 403);
+      if (!equalProof(env.JOIN_PROOF, data.proof)) return reply({ error: 'Enter a valid Community invite code.' }, 403);
       const nickname = typeof data.nickname === 'string' ? data.nickname.trim().normalize('NFC') : '';
       if (!/^[\p{L}\p{N}][\p{L}\p{N} ._-]{1,23}$/u.test(nickname)) {
         return reply({ error: 'Choose a nickname of 2–24 letters, numbers or spaces.' }, 400);
@@ -84,16 +86,44 @@ export default {
     const token = (request.headers.get('Authorization') || '').replace(/^Bearer /, '');
     if (!tokenPattern.test(token)) return reply({ error: 'Enter your profile key.' }, 401);
     const me = await db.prepare(`
-      SELECT id, nickname, share_stats, study_minutes, completed, attempts, accuracy
-      FROM profiles WHERE token_hash = ?
+      SELECT profiles.id, nickname, study_minutes, completed, attempts, accuracy, break_ends_at, expires_at
+      FROM profiles LEFT JOIN presence ON presence.profile = profiles.id WHERE token_hash = ?
     `).bind(await digest(token)).first();
     if (!me) return reply({ error: 'That profile key is invalid.' }, 401);
+    const now = Date.now();
+    if (breakRequired.has(path) && !(me.break_ends_at > now && me.expires_at > now)) {
+      return reply({ error: 'Community opens during a timed Study-OS break.' }, 423);
+    }
+
+    if (path === '/profile' && request.method === 'GET') {
+      return reply({ nickname: me.nickname });
+    }
+
+    if (path === '/presence' && request.method === 'POST') {
+      if (!['working', 'paused', 'break', 'idle'].includes(data.mode) || !boundedInt(data.elapsed, 4500)
+        || !boundedInt(data.remaining, 1800) || (data.mode === 'break' && !data.remaining)) {
+        return reply({ error: 'Invalid timer state.' }, 400);
+      }
+      await db.prepare(`
+        INSERT INTO presence(profile, mode, elapsed_seconds, updated_at, expires_at, break_ends_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(profile) DO UPDATE SET mode = excluded.mode, elapsed_seconds = excluded.elapsed_seconds,
+          updated_at = excluded.updated_at, expires_at = excluded.expires_at, break_ends_at = excluded.break_ends_at
+      `).bind(me.id, data.mode, data.elapsed, now, data.mode === 'idle' ? now : now + 115_000,
+        data.mode === 'break' ? now + data.remaining * 1000 : 0).run();
+      return reply({ ok: true });
+    }
 
     if (path === '/dashboard' && request.method === 'GET') {
+      const offset = Number(url.searchParams.get('offset') || 0);
+      if (!boundedInt(offset, 1_000_000)) return reply({ error: 'Invalid leaderboard page.' }, 400);
       const ranks = await db.prepare(`
-        SELECT nickname, study_minutes, completed, attempts, accuracy FROM profiles
-        WHERE share_stats = 1 ORDER BY completed DESC, study_minutes DESC, nickname LIMIT 100
-      `).all();
+        SELECT nickname, study_minutes, completed, attempts, accuracy, presence.mode,
+          presence.elapsed_seconds, presence.updated_at, presence.break_ends_at
+        FROM profiles LEFT JOIN presence ON presence.profile = profiles.id AND presence.expires_at > ?
+          AND (presence.mode <> 'break' OR presence.break_ends_at > ?)
+        ORDER BY completed DESC, study_minutes DESC, nickname LIMIT 51 OFFSET ?
+      `).bind(now, now, offset).all();
       const contacts = await db.prepare(`
         SELECT id, nickname FROM profiles WHERE id <> ?
         AND NOT EXISTS (SELECT 1 FROM blocks WHERE (owner = ? AND blocked = profiles.id)
@@ -110,21 +140,84 @@ export default {
       const blocked = await db.prepare(`
         SELECT p.id, p.nickname FROM blocks b JOIN profiles p ON p.id = b.blocked WHERE b.owner = ?
       `).bind(me.id).all();
-      return reply({ me, ranks: ranks.results, contacts: contacts.results, messages: messages.results, blocked: blocked.results });
+      return reply({ me, ranks: ranks.results.slice(0, 50), hasMoreRanks: ranks.results.length > 50,
+        contacts: contacts.results, messages: messages.results, blocked: blocked.results, now });
+    }
+
+    if (path === '/chat') {
+      if (request.method === 'GET') {
+        const { results } = await db.prepare(`
+          SELECT p.nickname, c.message, c.created_at AS createdAt
+          FROM chat_messages c JOIN profiles p ON p.id = c.sender
+          WHERE c.created_at >= ? AND NOT EXISTS (
+            SELECT 1 FROM blocks WHERE (owner = ? AND blocked = c.sender) OR (blocked = ? AND owner = c.sender)
+          ) ORDER BY c.created_at DESC LIMIT 40
+        `).bind(now - 7 * 86_400_000, me.id, me.id).all();
+        return reply({ messages: results });
+      }
+      if (request.method === 'POST') {
+        const message = typeof data.message === 'string' ? data.message.trim() : '';
+        if (!message || message.length > 1500) return reply({ error: 'Write a message of up to 1,500 characters.' }, 400);
+        const result = await db.prepare(`
+          INSERT INTO chat_messages(id, sender, message, created_at)
+          SELECT ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM chat_messages WHERE sender = ? AND created_at >= ?) < 5
+        `).bind(crypto.randomUUID(), me.id, message, now, me.id, now - 60_000).run();
+        if (!result.meta.changes) return reply({ error: 'Could not send right now.' }, 409);
+        await db.prepare('DELETE FROM chat_messages WHERE created_at < ?').bind(now - 7 * 86_400_000).run();
+        return reply({ ok: true }, 201);
+      }
+    }
+
+    if (path === '/sets') {
+      const id = url.searchParams.get('id');
+      if (request.method === 'GET') {
+        if (id) {
+          if (!idPattern.test(id)) return reply({ error: 'Invalid set.' }, 400);
+          const set = await db.prepare(`
+            SELECT id, title, cards FROM study_sets WHERE id = ? AND NOT EXISTS (
+              SELECT 1 FROM blocks WHERE (owner = ? AND blocked = study_sets.owner)
+                OR (blocked = ? AND owner = study_sets.owner)
+            )
+          `).bind(id, me.id, me.id).first();
+          return set ? reply({ ...set, cards: JSON.parse(set.cards) }) : reply({ error: 'That set is unavailable.' }, 404);
+        }
+        const { results } = await db.prepare(`
+          SELECT s.id, s.title, s.card_count, s.owner, p.nickname FROM study_sets s JOIN profiles p ON p.id = s.owner
+          WHERE NOT EXISTS (
+            SELECT 1 FROM blocks WHERE (owner = ? AND blocked = s.owner) OR (blocked = ? AND owner = s.owner)
+          )
+          ORDER BY (s.owner = ?) DESC, s.created_at DESC LIMIT 50
+        `).bind(me.id, me.id, me.id).all();
+        return reply({ sets: results });
+      }
+      if (request.method === 'POST') {
+        if (data.action === 'remove') {
+          if (!idPattern.test(data.id || '')) return reply({ error: 'Invalid set.' }, 400);
+          await db.prepare('DELETE FROM study_sets WHERE id = ? AND owner = ?').bind(data.id, me.id).run();
+          return reply({ ok: true });
+        }
+        const title = typeof data.title === 'string' ? data.title.trim() : '';
+        const cards = Array.isArray(data.cards) ? data.cards : [];
+        if (!title || title.length > 80 || cards.length < 1 || cards.length > 30 || cards.some((card) =>
+          !Array.isArray(card) || card.length !== 2 || card.some((cell) => typeof cell !== 'string' || !cell.trim() || cell.length > 250))) {
+          return reply({ error: 'Use a title and 1–30 question-and-answer pairs, with up to 250 characters per field.' }, 400);
+        }
+        const result = await db.prepare(`
+          INSERT INTO study_sets(id, owner, title, cards, card_count, created_at)
+          SELECT ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM study_sets WHERE owner = ?) < 10
+        `).bind(crypto.randomUUID(), me.id, title, JSON.stringify(cards), cards.length, now, me.id).run();
+        return result.meta.changes ? reply({ ok: true }, 201) : reply({ error: 'Remove an existing set before sharing another.' }, 409);
+      }
     }
 
     if (path === '/stats' && request.method === 'POST') {
-      if (data.share === false) {
-        await db.prepare('UPDATE profiles SET share_stats = 0 WHERE id = ?').bind(me.id).run();
-        return reply({ ok: true });
-      }
-      if (data.share !== true || !boundedInt(data.minutes, 600_000) || !boundedInt(data.completed, 100_000)
+      if (!boundedInt(data.minutes, 600_000) || !boundedInt(data.completed, 100_000)
         || !boundedInt(data.attempts, 1_000_000) || !boundedInt(data.accuracy, 100)) {
         return reply({ error: 'Invalid study totals.' }, 400);
       }
       await db.prepare(`
-        UPDATE profiles SET share_stats = 1, study_minutes = ?, completed = ?, attempts = ?, accuracy = ? WHERE id = ?
-      `).bind(data.minutes, data.completed, data.attempts, data.accuracy, me.id).run();
+        UPDATE profiles SET study_minutes = ?, completed = ?, attempts = ?, accuracy = ? WHERE id = ? AND attempts <= ?
+      `).bind(data.minutes, data.completed, data.attempts, data.accuracy, me.id, data.attempts).run();
       return reply({ ok: true });
     }
 
@@ -133,7 +226,6 @@ export default {
       if (!idPattern.test(data.recipient || '') || data.recipient === me.id || !message || message.length > 1500) {
         return reply({ error: 'Choose a recipient and write a message of up to 1,500 characters.' }, 400);
       }
-      const now = Date.now();
       const result = await db.prepare(`
         INSERT INTO messages(id, sender, recipient, message, created_at)
         SELECT ?, ?, id, ?, ? FROM profiles WHERE id = ?
@@ -152,6 +244,12 @@ export default {
         await db.prepare('INSERT OR IGNORE INTO blocks(owner, blocked) SELECT ?, id FROM profiles WHERE id = ?')
           .bind(me.id, data.profile).run();
       }
+      return reply({ ok: true });
+    }
+
+    if (path === '/delete-profile' && request.method === 'POST') {
+      if (data.confirm !== true) return reply({ error: 'Confirm that you want to delete your profile.' }, 400);
+      await db.prepare('DELETE FROM profiles WHERE id = ?').bind(me.id).run();
       return reply({ ok: true });
     }
 

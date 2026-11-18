@@ -1650,7 +1650,7 @@ body.runner-foveal-compact .runner-topbar-inner {
 .community-messages { padding: 0; list-style: none; }
 .community-messages li { padding: 12px 0; border-bottom: 1px solid var(--line); }
 .community-messages p { white-space: pre-wrap; overflow-wrap: anywhere; }
-#community-message textarea { width: 100%; }
+#community-message textarea, #community-chat textarea { width: 100%; }
 
 @media (max-width: 720px) {
   .topbar { position: static; }

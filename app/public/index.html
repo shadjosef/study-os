@@ -118,9 +118,14 @@
           <button type="button" class="ghost-btn" id="btn-import-json">Import Backup</button>
           <input type="file" id="file-import-json" accept="application/json,.json" hidden>
           <button type="button" class="ghost-btn" id="btn-export-backup">Export Backup</button>
+          <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/CHANGELOG.md">What’s new</a>
         </div>
       </div>
       <div id="courses-grid" class="courses-grid"></div>
+      <details id="my-study-sets" class="panel">
+        <summary>My study sets</summary>
+        <div id="study-sets-root"></div>
+      </details>
     </section>
 
     <!-- VIEW 1B: MULTI-SEMESTER REFERENCE HUB (Browse Authored Obsidian Reference Sheets Online or Locally) -->
@@ -268,6 +273,7 @@
       <div class="modal-actions">
         <button type="button" class="ghost-btn" id="break-end-session-btn" title="Finish studying and stop universal timer until your next session">End Session</button>
         <button type="button" class="ghost-btn" id="break-add-2m">+2 min</button>
+        <button type="button" class="ghost-btn" id="break-community-btn" hidden>Open Community</button>
         <button type="button" class="primary-btn" id="break-resume-btn">Start Next 75m</button>
       </div>
     </div>
@@ -329,6 +335,7 @@
   <script src="./js/render.js"></script>
   <script src="./js/runner.js"></script>
   <script src="./js/members.js"></script>
+  <script src="./js/study-sets.js"></script>
   <script src="./js/community.js"></script>
   <script src="./js/app.js"></script>
 </body>

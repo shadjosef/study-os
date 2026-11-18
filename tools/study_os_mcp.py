@@ -170,6 +170,23 @@ def replace_study_schedule(schedule: dict[str, Any]) -> dict[str, Any]:
     return {"ok": result["ok"], "blockCount": result.get("blockCount", checked["total"])}
 
 
+@server.tool(annotations=READ)
+def draft_study_set(title: str, cards: list[tuple[str, str]]) -> dict[str, Any]:
+    """Format original question-answer pairs for the My study sets import."""
+    title = title.strip()
+    if not title or len(title) > 80 or not 1 <= len(cards) <= 30:
+        raise ValueError("Use a title of up to 80 characters and 1–30 cards.")
+    lines = []
+    for question, answer in cards:
+        pair = (question.strip(), answer.strip())
+        if pair[0].startswith("#") or any(
+            not field or len(field) > 250 or re.search(r"[\t\r\n]", field) for field in pair
+        ):
+            raise ValueError("Use plain text up to 250 characters per field. Start questions with text.")
+        lines.append("\t".join(pair))
+    return {"title": title, "tsv": "\n".join(lines)}
+
+
 def main() -> None:
     global BASE
     parser = argparse.ArgumentParser(description=__doc__)

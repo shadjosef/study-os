@@ -613,6 +613,8 @@ window.StudyUI = (() => {
       if (gBtn) gBtn.textContent = remSec > 0 ? 'In Break' : 'Start 75m';
       if (rBtn) rBtn.textContent = remSec > 0 ? 'In Break' : 'Start 75m';
       if (cdEl) cdEl.textContent = remSec > 0 ? clockSec(remSec) : 'Ready · 0:00';
+      const communityBtn = document.getElementById('break-community-btn');
+      if (communityBtn) communityBtn.hidden = remSec <= 0 || !window.StudyCommunity?.enabled;
     } else {
       const cls = 'live-clock-pill non-interactive idle-work-pill';
       const txt = `Screen ${scr.screenLabel} · 0:00 / 75m`;
@@ -635,6 +637,7 @@ window.StudyUI = (() => {
         rBtn.textContent = 'Start 75m';
       }
     }
+    window.StudyCommunity?.clockTick();
   }
 
   // ---------------------------------------------------------------------------
@@ -1294,6 +1297,12 @@ window.StudyUI = (() => {
     document.getElementById('global-work-action-btn')?.addEventListener('click', onWorkActionClick);
     document.getElementById('run-break-btn')?.addEventListener('click', onWorkActionClick);
     document.getElementById('break-add-2m')?.addEventListener('click', () => workClock.addBreakSeconds(120));
+    document.getElementById('break-community-btn')?.addEventListener('click', () => {
+      if (workState.mode !== 'break' || workState.breakEndsAtMs <= Date.now()) return;
+      document.getElementById('break-modal').hidden = true;
+      if (!document.getElementById('view-runner').hidden) document.getElementById('run-exit-btn').click();
+      window.StudyApp.navigate('community');
+    });
     document.getElementById('break-resume-btn')?.addEventListener('click', () => workClock.startNextInterval());
     document.getElementById('break-end-session-btn')?.addEventListener('click', () => {
       workClock.endSession();

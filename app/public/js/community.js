@@ -3,13 +3,25 @@
 window.StudyCommunity = (() => {
   const api = document.documentElement.dataset.communityApi;
   const keyName = 'study-os-community-profile';
-  const { esc, toast } = window.StudyUI;
+  const { esc, toast, clockSec, workClock } = window.StudyUI;
   let token = '';
+  let lastSync = '';
+  let syncTimer;
+  let lastPresence = '';
+  let lastPresenceAt = 0;
+  let presenceSync = Promise.resolve();
+  let lastChatAt = 0;
+  let chatLoading = false;
+  let openingBreak = false;
   try { token = localStorage.getItem(keyName) || ''; } catch {}
 
   function useProfile(key) {
     localStorage.setItem(keyName, key);
     token = key;
+    lastSync = '';
+    lastPresence = '';
+    lastPresenceAt = 0;
+    clearTimeout(syncTimer);
   }
 
   async function request(path, data, key = token) {
@@ -29,6 +41,70 @@ window.StudyCommunity = (() => {
     return result;
   }
 
+  async function syncStats() {
+    if (!api || !token) return;
+    const key = token;
+    const stats = window.StudyApp.communityStats();
+    const snapshot = JSON.stringify(stats);
+    if (snapshot === lastSync) return;
+    await request('/stats', stats, key);
+    if (token === key) lastSync = snapshot;
+  }
+
+  function queueStatsSync() {
+    if (!api || !token) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => syncStats().catch(() => {}), 800);
+  }
+
+  function timerStatus() {
+    const state = workClock.getState();
+    const remaining = Math.ceil((Number(state.breakEndsAtMs || 0) - Date.now()) / 1000);
+    if (state.mode === 'break' && remaining > 0) {
+      return { mode: 'break', remaining: Math.min(1800, remaining), elapsed: 0, breakEndsAt: state.breakEndsAtMs };
+    }
+    if (state.mode === 'working') {
+      return { mode: state.wavePausedSinceMs ? 'paused' : 'working', remaining: 0, elapsed: state.elapsedSec };
+    }
+    return { mode: 'idle', remaining: 0, elapsed: 0 };
+  }
+
+  function syncPresence(status = timerStatus()) {
+    if (!api || !token) return Promise.resolve();
+    const marker = status.mode + (status.breakEndsAt || '');
+    if (marker === lastPresence && (status.mode === 'idle' || Date.now() - lastPresenceAt < 60_000)) {
+      return presenceSync;
+    }
+    lastPresence = marker;
+    lastPresenceAt = Date.now();
+    const key = token;
+    presenceSync = presenceSync.catch(() => {}).then(() => {
+      if (token !== key) return;
+      const { mode, remaining, elapsed } = timerStatus();
+      return request('/presence', { mode, remaining, elapsed }, key);
+    }).catch((error) => {
+      if (token === key && lastPresence === marker) lastPresence = '';
+      throw error;
+    });
+    return presenceSync;
+  }
+
+  function clockTick() {
+    if (!api || !token) return;
+    const state = timerStatus();
+    if (state.mode !== 'idle' || (lastPresence && lastPresence !== 'idle')) syncPresence(state).catch(() => {});
+    const root = document.getElementById('community-root');
+    if (document.getElementById('view-community').hidden) return;
+    if (state.mode !== 'break' && root.querySelector('#community-social')) {
+      renderLocked(root, root.querySelector('#community-signed-in').textContent);
+    } else if (state.mode === 'break' && root.querySelector('#community-locked') && !openingBreak) {
+      openingBreak = true;
+      render().finally(() => { openingBreak = false; });
+    } else if (state.mode === 'break' && Date.now() - lastChatAt >= 30_000) {
+      refreshChat(root).catch(() => {});
+    }
+  }
+
   function action(form, handler, status) {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -45,41 +121,157 @@ window.StudyCommunity = (() => {
     });
   }
 
+  const privacyNote = `
+    <details class="panel">
+      <summary>Community privacy and rules</summary>
+      <p>Study-OS Community is run by the Study-OS project, independently of BI. Use a nickname. Keep private information, restricted course files and material from active assessments out of messages.</p>
+      <p>Cloudflare stores your nickname, study totals, chat posts, direct messages, shared study sets and block list. Members can see your totals, timer and shared sets while on a break. Only the sender and recipient see each direct message in the app.</p>
+      <p>Study-OS keeps your most recent timer status, which expires when updates stop. Delete your profile to remove your leaderboard entry and message history from the active database. Cloudflare may retain database backups for a limited period.</p>
+    </details>`;
+
   function renderEntry(root, error = '') {
-    const proof = window.StudyMembers.communityProof();
     root.innerHTML = `
       <section class="panel">
         <h1>Study community</h1>
-        <p class="muted">Use a nickname for the leaderboard and direct messages. Your study details stay private until you choose to share your totals.</p>
-        ${proof ? `<form id="community-join" class="row-actions">
+        <p class="muted">Join with an invite code to use the leaderboard and direct messages.</p>
+        <p id="community-stats-notice">Every Community profile shows its nickname, practice hours, completed questions, attempts, accuracy and current Study-OS timer to other members on break. You can study without creating a profile.</p>
+        <form id="community-join" class="row-actions">
           <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
-          <button type="submit" class="primary-btn">Create profile</button>
-        </form>` : '<p>Unlock the full library on Home to create a profile.</p>'}
+          <label class="field-label">Community invite code <input name="invite" type="password" required autocomplete="off"></label>
+          <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Join Community</button>
+        </form>
         <form id="community-sign-in" class="row-actions">
           <label class="field-label">Personal profile key <input name="key" type="password" required autocomplete="off"></label>
           <button type="submit" class="ghost-btn">Use my profile</button>
         </form>
         <p id="community-status" role="status">${esc(error)}</p>
-      </section>`;
+      </section>${privacyNote}`;
     const status = root.querySelector('#community-status');
     const join = root.querySelector('#community-join');
-    if (join) action(join, async (form) => {
+    action(join, async (form) => {
+      const invite = form.get('invite').trim();
+      if (!/^soci1_[A-Za-z0-9_-]{43}$/.test(invite)) throw new Error('Enter a valid Community invite code.');
+      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invite)));
+      const proof = [...hash].map((value) => value.toString(16).padStart(2, '0')).join('');
       const result = await request('/join', { nickname: form.get('nickname'), proof }, '');
       useProfile(result.token);
       await render();
     }, status);
     action(root.querySelector('#community-sign-in'), async (form) => {
       const key = form.get('key').trim();
-      const result = await request('/dashboard', null, key);
+      await request('/profile', null, key);
       useProfile(key);
-      renderDashboard(root, result);
+      await render();
     }, status);
   }
 
-  function renderDashboard(root, { me, ranks, contacts, messages, blocked }) {
+  function profileActions(root) {
+    root.querySelector('#community-logout').onclick = () => {
+      useProfile('');
+      render();
+    };
+    root.querySelector('#community-delete').onclick = async () => {
+      if (!window.confirm('Delete your Community profile, study totals and messages?')) return;
+      try {
+        await request('/delete-profile', { confirm: true });
+        useProfile('');
+        await render();
+        toast('Community profile deleted.');
+      } catch (error) {
+        toast(error.message);
+      }
+    };
+  }
+
+  function renderLocked(root, nickname) {
+    root.innerHTML = `
+      <section class="panel" id="community-locked">
+        <h1>Study community</h1>
+        <p id="community-signed-in">Signed in as ${esc(nickname)}</p>
+        <p>The leaderboard, global chat and direct messages open during a timed Study-OS break.</p>
+        <div class="row-actions">
+          <button type="button" class="ghost-btn" id="community-logout">Sign out</button>
+          <button type="button" class="ghost-btn" id="community-delete">Delete my profile</button>
+        </div>
+      </section>${privacyNote}`;
+    profileActions(root);
+  }
+
+  function presenceLabel(row, now) {
+    if (row.mode === 'break') return 'On break · ' + clockSec(Math.max(0, Math.ceil((row.break_ends_at - now) / 1000)));
+    if (row.mode === 'working') return 'Studying · ' + clockSec(Math.min(4500, row.elapsed_seconds + Math.floor((now - row.updated_at) / 1000)));
+    if (row.mode === 'paused') return 'Paused · ' + clockSec(row.elapsed_seconds);
+    return '—';
+  }
+
+  async function refreshChat(root) {
+    const list = root.querySelector('#community-chat-list');
+    if (chatLoading || !list || timerStatus().mode !== 'break') return;
+    chatLoading = true;
+    lastChatAt = Date.now();
+    try {
+      const { messages } = await request('/chat');
+      if (list.isConnected) list.innerHTML = messages.map((message) => `
+        <li><div class="row-between"><strong>${esc(message.nickname)}</strong>
+          <small>${esc(new Date(message.createdAt).toLocaleString())}</small></div>
+          <p>${esc(message.message)}</p></li>`).join('') || '<li>No messages yet.</li>';
+    } finally {
+      chatLoading = false;
+    }
+  }
+
+  async function renderStudySets(root, me) {
+    const panel = root.querySelector('#community-study-sets');
+    const { sets } = await request('/sets');
+    if (!panel.isConnected) return;
+    const localSets = window.StudySets.list();
+    panel.innerHTML = `
+      <p>Share your own study material. Practice from these sets earns no leaderboard or Elo points.</p>
+      ${localSets.length ? `<form id="community-share-set" class="row-actions">
+        <label class="field-label">Your set <select name="set">${localSets.map((set) =>
+          `<option value="${esc(set.id)}">${esc(set.title)}</option>`).join('')}</select></label>
+        <button type="submit" class="primary-btn">Share with Community</button>
+      </form>` : '<p>Make a set in <strong>My study sets</strong> on Home to share it here.</p>'}
+      <p id="community-set-status" role="status"></p>
+      <ul class="community-messages">${sets.map((set) => `
+        <li><strong>${esc(set.title)}</strong> <small>${set.card_count} cards · ${esc(set.nickname)}</small>
+          <div class="row-actions">
+            <button type="button" class="ghost-btn" data-save-community-set="${esc(set.id)}">Save to my sets</button>
+            ${set.owner === me.id ? `<button type="button" class="ghost-btn" data-remove-community-set="${esc(set.id)}">Remove from Community</button>` : ''}
+          </div></li>`).join('') || '<li>No shared sets yet.</li>'}</ul>`;
+    const status = panel.querySelector('#community-set-status');
+    const share = panel.querySelector('#community-share-set');
+    if (share) action(share, async (form) => {
+      const set = localSets.find((item) => item.id === form.get('set'));
+      await request('/sets', { title: set.title, cards: set.cards });
+      await renderStudySets(root, me);
+      toast('Study set shared.');
+    }, status);
+    for (const button of panel.querySelectorAll('[data-save-community-set], [data-remove-community-set]')) {
+      button.onclick = async () => {
+        button.disabled = true;
+        try {
+          if (button.dataset.saveCommunitySet) {
+            const set = await request('/sets?id=' + encodeURIComponent(button.dataset.saveCommunitySet));
+            window.StudySets.save(set);
+            toast('Saved under My study sets on Home.');
+          } else {
+            await request('/sets', { action: 'remove', id: button.dataset.removeCommunitySet });
+            await renderStudySets(root, me);
+          }
+        } catch (error) {
+          status.textContent = error.message;
+        } finally {
+          button.disabled = false;
+        }
+      };
+    }
+  }
+
+  function renderDashboard(root, { me, ranks, hasMoreRanks, contacts, messages, blocked, now }, offset) {
     const leaderRows = ranks.map((row, index) => `<tr>
-      <td>${index + 1}</td><td>${esc(row.nickname)}</td><td>${(row.study_minutes / 60).toFixed(1)}</td>
-      <td>${row.completed}</td><td>${row.attempts}</td><td>${row.attempts ? row.accuracy + '%' : '—'}</td>
+      <td>${offset + index + 1}</td><td>${esc(row.nickname)}</td><td>${(row.study_minutes / 60).toFixed(1)}</td>
+      <td>${row.completed}</td><td>${row.attempts}</td><td>${row.attempts ? row.accuracy + '%' : '—'}</td><td>${presenceLabel(row, now)}</td>
     </tr>`).join('');
     const messageRows = messages.map((row) => `
       <li>
@@ -89,9 +281,9 @@ window.StudyCommunity = (() => {
         ${row.sender === me.id ? '' : `<button type="button" class="ghost-btn" data-block-profile="${esc(row.sender)}">Block sender</button>`}
       </li>`).join('');
     root.innerHTML = `
-      <section class="panel">
+      <section class="panel" id="community-social">
         <div class="row-between">
-          <div><h1>Study community</h1><p class="muted">Signed in as ${esc(me.nickname)}</p></div>
+          <div><h1>Study community</h1><p class="muted">Signed in as <span id="community-signed-in">${esc(me.nickname)}</span></p></div>
           <div class="row-actions">
             <button type="button" class="ghost-btn" id="community-copy-key">Copy profile key</button>
             <button type="button" class="ghost-btn" id="community-logout">Sign out</button>
@@ -102,14 +294,26 @@ window.StudyCommunity = (() => {
       </section>
       <section class="panel">
         <h2>Leaderboard</h2>
-        <p class="muted">Only shared totals appear. Stats are taken from the browser of each member who chooses to share.</p>
+        <p class="muted">All Community profiles appear here. Practice stats use the browser with the most recorded attempts and update while you’re signed in.</p>
         <div class="row-actions">
-          <button type="button" class="primary-btn" id="community-stats">${me.share_stats ? 'Update my totals' : 'Share my totals'}</button>
-          ${me.share_stats ? '<button type="button" class="ghost-btn" id="community-hide">Hide my totals</button>' : ''}
+          <button type="button" class="ghost-btn" id="community-stats">Refresh totals</button>
         </div>
         ${leaderRows ? `<div class="community-table"><table>
-          <thead><tr><th>Rank</th><th>Nickname</th><th>Hours</th><th>Completed</th><th>Attempts</th><th>Accuracy</th></tr></thead>
-          <tbody>${leaderRows}</tbody></table></div>` : '<p class="muted">No one has shared their totals yet.</p>'}
+          <thead><tr><th>Rank</th><th>Nickname</th><th>Hours</th><th>Completed</th><th>Attempts</th><th>Accuracy</th><th>Current timer</th></tr></thead>
+          <tbody>${leaderRows}</tbody></table></div>` : ''}
+        ${offset || hasMoreRanks ? `<div class="row-actions">
+          <button type="button" class="ghost-btn" id="community-ranks-prev" ${offset ? '' : 'disabled'}>Previous</button>
+          <button type="button" class="ghost-btn" id="community-ranks-next" ${hasMoreRanks ? '' : 'disabled'}>Next</button>
+        </div>` : ''}
+      </section>
+      <section class="panel">
+        <div class="row-between"><h2>Global chat</h2><button type="button" class="ghost-btn" id="community-chat-refresh">Refresh</button></div>
+        <p class="muted">All Community members can read these conversations during their breaks.</p>
+        <form id="community-chat">
+          <label class="field-label">Message <textarea name="message" rows="2" maxlength="1500" required></textarea></label>
+          <button type="submit" class="primary-btn">Post to chat</button>
+        </form>
+        <ul class="community-messages" id="community-chat-list"></ul>
       </section>
       <section class="panel">
         <div class="row-between"><h2>Messages</h2><button type="button" class="ghost-btn" id="community-refresh">Refresh</button></div>
@@ -121,7 +325,13 @@ window.StudyCommunity = (() => {
         <ul class="community-messages">${messageRows}</ul>
         ${blocked.length ? `<details><summary>Blocked members</summary>${blocked.map((p) =>
           `<p>${esc(p.nickname)} <button type="button" class="ghost-btn" data-unblock-profile="${esc(p.id)}">Unblock</button></p>`).join('')}</details>` : ''}
-      </section>`;
+      </section>
+      <details id="community-set-panel" class="panel">
+        <summary>Shared study sets</summary>
+        <div id="community-study-sets"></div>
+      </details>
+      ${privacyNote}
+      <button type="button" class="ghost-btn" id="community-delete">Delete my profile</button>`;
     const status = root.querySelector('#community-status');
     const doAction = (element, handler) => {
       if (!element) return;
@@ -135,22 +345,23 @@ window.StudyCommunity = (() => {
       await navigator.clipboard.writeText(token);
       status.textContent = 'Profile key copied. Keep it somewhere private.';
     });
-    doAction(root.querySelector('#community-logout'), async () => {
-      useProfile('');
-      await render();
-    });
-    doAction(root.querySelector('#community-refresh'), render);
-    doAction(root.querySelector('#community-stats'), async () => {
-      const stats = window.StudyApp.communityStats();
-      await request('/stats', { share: true, ...stats });
-      await render();
-      toast('Your totals are on the leaderboard.');
-    });
-    doAction(root.querySelector('#community-hide'), async () => {
-      await request('/stats', { share: false });
-      await render();
-      toast('Your totals are hidden.');
-    });
+    profileActions(root);
+    doAction(root.querySelector('#community-refresh'), () => render(offset));
+    doAction(root.querySelector('#community-stats'), () => render(offset));
+    doAction(root.querySelector('#community-ranks-prev'), () => render(offset - 50));
+    doAction(root.querySelector('#community-ranks-next'), () => render(offset + 50));
+    doAction(root.querySelector('#community-chat-refresh'), () => refreshChat(root));
+    action(root.querySelector('#community-chat'), async (form) => {
+      await request('/chat', { message: form.get('message') });
+      root.querySelector('#community-chat')?.reset();
+      await refreshChat(root);
+    }, status);
+    refreshChat(root).catch((error) => { status.textContent = error.message; });
+    root.querySelector('#community-set-panel').ontoggle = (event) => {
+      if (event.currentTarget.open) {
+        renderStudySets(root, me).catch((error) => { status.textContent = error.message; });
+      }
+    };
 
     const messageForm = root.querySelector('#community-message');
     if (messageForm) action(messageForm, async (form) => {
@@ -167,7 +378,7 @@ window.StudyCommunity = (() => {
     }
   }
 
-  async function render() {
+  async function render(offset = 0) {
     if (!api) return;
     const root = document.getElementById('community-root');
     if (!token) {
@@ -175,10 +386,22 @@ window.StudyCommunity = (() => {
       return;
     }
     try {
-      renderDashboard(root, await request('/dashboard'));
+      await syncStats().catch(() => {});
+      const state = timerStatus();
+      if (state.mode !== 'break') {
+        const { nickname } = await request('/profile');
+        renderLocked(root, nickname);
+        return;
+      }
+      const generation = token;
+      await syncPresence(state);
+      const result = await request('/dashboard?offset=' + offset);
+      if (generation !== token) return;
+      if (timerStatus().mode === 'break') renderDashboard(root, result, offset);
+      else renderLocked(root, result.me.nickname);
     } catch (error) {
       renderEntry(root, error.status === 401 ? 'Enter a current profile key or create a new profile.' : 'The community is unavailable. Please try again.');
     }
   }
-  return { enabled: Boolean(api), render };
+  return { enabled: Boolean(api), render, queueStatsSync, clockTick };
 })();

@@ -2914,7 +2914,7 @@ window.StudyApp = (() => {
       }
     }
     if (ws) {
-      saveWebState(ws);
+      if (saveWebState(ws)) window.StudyCommunity.queueStatsSync();
       recomputeWebAnalytics();
       updateHeaderStats();
       return;
@@ -2986,6 +2986,7 @@ window.StudyApp = (() => {
       const attempt = { ...payload, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio };
       ws.attempts.push(attempt);
       const saved = saveWebState(ws);
+      if (saved) window.StudyCommunity.queueStatsSync();
       recomputeWebAnalytics();
       updateHeaderStats();
       return { ok: saved, attempt, record: rec, analytics: boot.analytics };
@@ -3067,6 +3068,7 @@ window.StudyApp = (() => {
     bindGlobalChrome();
     window.StudyRunner.bindRunnerGlobals();
     document.querySelector('[data-nav="community"]').hidden = !window.StudyCommunity.enabled;
+    window.StudyCommunity.queueStatsSync();
     if (isStaticWeb) window.addEventListener('pagehide', flushWebDrafts);
 
     document.querySelectorAll('.tab-btn').forEach((btn) => {

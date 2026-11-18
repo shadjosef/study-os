@@ -12,7 +12,7 @@ To study offline, select **Save for offline** on the home page while connected. 
 
 Open the website and paste the shared access string when prompted. The library opens in the same browser tab and adds the complete local question banks, linked source excerpts, and the searchable **Original course files** list to each subject. Protected files open while online. The public notes and practice can be saved for offline use.
 
-Share the string privately with the people authorized to use these materials. Study-OS uses it to decrypt the library in the browser and keeps it out of the site's source and browser storage. **Lock full library** closes the unlocked session. Locking does not remove files a student has downloaded.
+Before sharing the string, confirm that you have permission to host and share each included work with the intended group. Send the string privately to approved recipients. Study-OS uses the string to decrypt the library in the browser and keeps it out of the site's source and browser storage. **Lock full library** closes the unlocked session. Recipients may retain files they download.
 
 To update the library, run `tools/build_member_library.py` using Python with `cryptography`, passing the local Study-OS, Canvas Archive and Obsidian Vault paths. Keep the key file outside Git. Upload the encrypted archive as `study-os-members.zip` to a new GitHub prerelease, and set the release tag and archive SHA-256 in `site-pack/member-archive.json`. For a replacement string, build with a new key file or `--rotate-key`. Retire the old release after the new one is live. Old keys can still open encrypted copies already downloaded with that key.
 
@@ -20,7 +20,7 @@ To update the library, run `tools/build_member_library.py` using Python with `cr
 
 Start the local desktop app and register a stdio MCP server with your AI client. Use `uv` as the command and `run --script /absolute/path/to/Study-OS/tools/study_os_mcp.py` as its arguments. The bridge uses the official MCP Python SDK and connects to the app on port 8765. Add `--port` after the script path if the local app uses another port.
 
-The tools can find subjects and questions, read the notes for an exercise, show study reports, and preview or replace the active schedule inside Study-OS. Google Calendar access remains read-only.
+The tools can find subjects and questions, read the notes for an exercise, show study reports, and preview or replace the active schedule inside Study-OS. Google Calendar access remains read-only. The `draft_study_set` tool formats original question-and-answer pairs for **My study sets** on Home.
 
 Community profiles, the leaderboard and direct messages use a separate [community backend](community/README.md).
 
@@ -59,10 +59,10 @@ Use the desktop edition to study from your own Canvas Archive and Obsidian Vault
 python3 tools/build_public_site.py --sync-pack --cname yourdomain.me
 
 # 2. Commit & push — .github/workflows/pages.yml automatically deploys to GitHub Pages!
-git add . && git commit -m "chore: update semester reference pack" && git push
+git add site-pack && git commit -m "chore: update semester reference pack" && git push
 ```
 
-> **Copyright & Privacy Guarantee**: `data/` (personal telemetry, FSRS state, private builders in `data/local_builders/`, and copyrighted university PDFs/crops) is strictly `.gitignore`d. `build_public_site.py` exports **only** your authored reference sheets, SVGs, and synthetic/mock drills (`origin` in `synthetic_drill` / `mock_exam` without PDF image crops).
+Keep personal telemetry, private builders, original university files and invite keys outside Git. The default static build exports authored reference sheets, diagrams and original practice. Publish an optional encrypted member archive only under the permissions covering its contents and hosting.
 
 ---
 
