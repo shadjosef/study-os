@@ -12,7 +12,7 @@ window.StudyRunner = (() => {
   let activeRun = null;
   let tickInterval = null;
 
-  const RUNNER_UI_KEY = 'study-os-runner-ui-v2';
+  const RUNNER_UI_KEY = 'study-os-runner-ui-v3';
   function getRunnerUiPrefs() {
     try {
       return JSON.parse(localStorage.getItem(RUNNER_UI_KEY)) || {};
@@ -28,13 +28,10 @@ window.StudyRunner = (() => {
     return next;
   }
 
-  function needsSplitByContent(q, st, hasWf, hasFigures) {
+  function needsSplitByContent(q, st) {
     if (!q) return false;
+    // Default to clean single-column Focus mode unless user opens inline PDF/Reference reader
     if (st?.readerTab === 'pdf' || st?.readerTab === 'ref') return true;
-    if (hasWf || hasFigures || Boolean(q.svgDiagram)) return true;
-    const combinedMd = `${q.contextMarkdown || ''}\n${q.promptMarkdown || ''}`.trim();
-    if (/\n\|[-:\s|]+\|/.test(combinedMd)) return true;
-    if (combinedMd.length >= 520) return true;
     return false;
   }
 
@@ -246,7 +243,7 @@ window.StudyRunner = (() => {
     return Object.values(activeRun.items).reduce((s, st) => s + itemActiveSec(st, now), 0);
   }
 
-  const AUTOPAUSE_KEY = 'study-os-autopause-v2';
+  const AUTOPAUSE_KEY = 'study-os-autopause-v3';
   let autoPauseMode = (() => {
     try {
       const v = localStorage.getItem(AUTOPAUSE_KEY);
@@ -891,13 +888,15 @@ window.StudyRunner = (() => {
     if (st.readerTab === 'pdf' && !sourcePdfs.length) st.readerTab = 'task';
     if (st.readerTab === 'ref' && isBlindUnfinished) st.readerTab = 'task';
 
-    const autoNeedsSplit = needsSplitByContent(q, st, hasWf, hasFigures);
-    const isSplit =
-      st.layoutOverride === 'split'
-        ? true
-        : st.layoutOverride === 'foveal'
-        ? false
-        : autoNeedsSplit;
+    const autoNeedsSplit = needsSplitByContent(q, st);
+    const preferredSplit = uiPrefs.preferredLayout === 'split';
+    const isSplit = autoNeedsSplit
+      ? true
+      : st.layoutOverride === 'split'
+      ? true
+      : st.layoutOverride === 'foveal'
+      ? false
+      : preferredSplit;
 
     document.body.classList.toggle('runner-split-wide', isSplit);
     document.body.classList.toggle('runner-split-pdf', isSplit && st.readerTab === 'pdf');
@@ -1198,6 +1197,9 @@ window.StudyRunner = (() => {
     }
 
     // Solution, Self-Verification Rubric & Optional 1-Tap Difficulty Adaptation
+    const hasMoreQuestions = activeRun.index + 1 < activeRun.questionIds.length;
+    const nextShortLbl = hasMoreQuestions ? 'Next →' : 'Finish';
+    const nextFullLbl = hasMoreQuestions ? 'Next Question → (N)' : 'Finish Run (N)';
     let solutionHtml = '';
     if (st.revealed && !isBlindUnfinished) {
       const solAssets = renderAssets(q.solutionAssets, q.courseId, sourcesMap, 100, false);
@@ -1205,8 +1207,28 @@ window.StudyRunner = (() => {
         ? `<p style="margin-top:10px;color:var(--warn)"><strong>Exam Pitfall:</strong> ${esc(q.pitfall)}</p>`
         : '';
 
+      const isSelfVerified = q.kind !== 'mcq' && !hasWf;
+      const topQuickActionsHtml = isSelfVerified
+        ? `
+          <div class="row-actions" style="gap:6px">
+            <button type="button" class="primary-btn btn-got-it-next" style="padding:6px 12px;font-size:12.5px" title="Confirm 100% right, log verified score &amp; jump straight to next question (Shortcut: G)">
+              ✓ Got It &amp; ${nextShortLbl} (G)
+            </button>
+            <button type="button" class="ghost-btn btn-missed-next" style="padding:6px 10px;font-size:12.5px" title="Mark Revisit (0%) &amp; jump to next question (Shortcut: X)">
+              Revisit &amp; ${nextShortLbl} (X)
+            </button>
+          </div>
+        `
+        : `
+          <div class="row-actions" style="gap:6px">
+            <button type="button" class="primary-btn btn-next-q-inline" style="padding:6px 12px;font-size:12.5px">
+              ${nextFullLbl}
+            </button>
+          </div>
+        `;
+
       let verificationHtml = '';
-      if (q.kind !== 'mcq' && !hasWf) {
+      if (isSelfVerified) {
         const checks =
           Array.isArray(q.rubricChecks) && q.rubricChecks.length
             ? q.rubricChecks
@@ -1217,7 +1239,7 @@ window.StudyRunner = (() => {
               ];
         verificationHtml = `
           <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-            <strong>Self-Verify Your Attempt (${st.loggedAttempt ? 'Logged' : 'Tick passed checks & click Verify Score'}):</strong>
+            <strong>Self-Verify Your Attempt (${st.loggedAttempt ? 'Logged' : 'Press G if 100% right, or tick partial checks'}):</strong>
             <ul class="rubric-list">
               ${checks
                 .map(
@@ -1228,12 +1250,26 @@ window.StudyRunner = (() => {
                 )
                 .join('')}
             </ul>
-            <div class="row-actions">
-              <button type="button" class="primary-btn" id="btn-submit-rubric">
-                ${st.loggedAttempt ? 'Update Verified Score' : 'Log Verified Score'}
+            <div class="row-actions" style="gap:8px;flex-wrap:wrap">
+              <button type="button" class="primary-btn btn-got-it-next" title="Check all 100%, log verified score &amp; jump to next question (Shortcut: G)">
+                ✓ Got It Right (100%) &amp; ${nextShortLbl} (G)
               </button>
-              <button type="button" class="ghost-btn" id="btn-all-rubric">Check All (100%)</button>
+              <button type="button" class="ghost-btn" id="btn-verify-and-next" title="Log currently ticked rubric checks &amp; jump to next question (Shortcut: N / Enter)">
+                Log Checked &amp; ${nextShortLbl} (N)
+              </button>
+              <button type="button" class="ghost-btn btn-missed-next" title="Mark Revisit (0%) &amp; jump to next question (Shortcut: X)">
+                Revisit &amp; ${nextShortLbl} (X)
+              </button>
+              <button type="button" class="ghost-btn" id="btn-submit-rubric" style="font-size:12.5px">
+                ${st.loggedAttempt ? 'Update Score Only' : 'Log Score Only'}
+              </button>
             </div>
+          </div>
+        `;
+      } else {
+        verificationHtml = `
+          <div class="row-actions" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+            <button type="button" class="primary-btn btn-next-q-inline">${nextFullLbl}</button>
           </div>
         `;
       }
@@ -1304,7 +1340,10 @@ window.StudyRunner = (() => {
       solutionHtml = `
         <section class="solution-panel" id="solution-box">
           ${attemptBanner}
-          <h3>Worked Solution</h3>
+          <div class="row-between" style="margin:0 0 10px;gap:8px">
+            <h3 style="margin:0">Worked Solution</h3>
+            ${topQuickActionsHtml}
+          </div>
           ${solAssets}
           <div class="markdown-body">${renderMarkdownWithMath(q.solutionMarkdown || '')}</div>
           ${pitfallHtml}
@@ -1364,28 +1403,21 @@ window.StudyRunner = (() => {
     const canHint = activeRun.mode !== 'exam' && st.hintsUsed < hintsArr.length && !st.revealed;
     let primaryActionBtn = '';
     if (isBlindUnfinished) {
-      primaryActionBtn =
-        activeRun.index + 1 < activeRun.questionIds.length
-          ? `<button type="button" class="primary-btn" id="btn-next-q">Save &amp; Next →</button>`
-          : `<button type="button" class="primary-btn" id="btn-submit-paper-bottom">Submit Paper</button>`;
+      primaryActionBtn = hasMoreQuestions
+        ? `<button type="button" class="primary-btn" id="btn-next-q">Save &amp; Next → (N)</button>`
+        : `<button type="button" class="primary-btn" id="btn-submit-paper-bottom">Submit Paper</button>`;
     } else if (q.kind === 'mcq') {
       primaryActionBtn = !st.revealed
         ? `<button type="button" class="primary-btn" id="btn-check-mcq" ${st.choice === null ? 'disabled' : ''}>Check Answer (Enter)</button>`
-        : `<button type="button" class="primary-btn" id="btn-next-q">${
-            activeRun.index + 1 < activeRun.questionIds.length ? 'Next Question →' : 'Finish Run'
-          }</button>`;
+        : `<button type="button" class="primary-btn" id="btn-next-q">${nextFullLbl}</button>`;
     } else if (hasWf) {
       primaryActionBtn = !st.revealed
         ? `<button type="button" class="primary-btn" id="btn-check-wf">Check Answers (Enter)</button>`
-        : `<button type="button" class="primary-btn" id="btn-next-q">${
-            activeRun.index + 1 < activeRun.questionIds.length ? 'Next Question →' : 'Finish Run'
-          }</button>`;
+        : `<button type="button" class="primary-btn" id="btn-next-q">${nextFullLbl}</button>`;
     } else {
       primaryActionBtn = !st.revealed
-        ? `<button type="button" class="primary-btn" id="btn-reveal-sol">Reveal Solution (S)</button>`
-        : `<button type="button" class="primary-btn" id="btn-next-q">${
-            activeRun.index + 1 < activeRun.questionIds.length ? 'Next Question →' : 'Finish Run'
-          }</button>`;
+        ? `<button type="button" class="primary-btn" id="btn-reveal-sol" title="Shortcut: S or Cmd/Ctrl+Enter">Reveal Solution (S)</button>`
+        : `<button type="button" class="primary-btn btn-got-it-next" title="Confirm 100% right &amp; jump to next question (Shortcut: G)">✓ Got It &amp; ${nextShortLbl} (G)</button>`;
     }
 
     const instantMcqToggleHtml =
@@ -1395,10 +1427,16 @@ window.StudyRunner = (() => {
           }</button>`
         : '';
 
+    const secondaryNextBtn =
+      !isBlindUnfinished && st.revealed && q.kind !== 'mcq' && !hasWf
+        ? `<button type="button" class="ghost-btn" id="btn-next-q" title="Advance to next question (Shortcut: N or Enter)">${nextShortLbl} (N)</button>`
+        : '';
+
     const fovealActionBarHtml = `
       <div class="foveal-action-bar">
         <div class="row-actions" style="gap:7px">
           ${primaryActionBtn}
+          ${secondaryNextBtn}
           ${canHint ? `<button type="button" class="ghost-btn" id="btn-hint">Hint ${st.hintsUsed + 1}/${hintsArr.length} (H)</button>` : ''}
           ${
             !isBlindUnfinished && !st.revealed && (q.kind === 'mcq' || hasWf)
@@ -1410,45 +1448,34 @@ window.StudyRunner = (() => {
         <div class="row-actions" style="gap:6px">
           <button type="button" class="ghost-btn" id="btn-prev-q" ${activeRun.index === 0 ? 'disabled' : ''}>← Prev</button>
           ${
-            sourcePdfs.length
+            !isSplit && sourcePdfs.length
               ? `<button type="button" class="ghost-btn" id="btn-bottom-pdf" title="Open embedded Source PDF side-by-side">PDF</button>`
               : ''
           }
-          ${!isBlindUnfinished ? `<button type="button" class="ghost-btn" id="btn-inline-ref" title="Open Vault Reference (O)">Ref</button>` : ''}
+          ${!isSplit && !isBlindUnfinished ? `<button type="button" class="ghost-btn" id="btn-inline-ref" title="Open Vault Reference (O)">Ref</button>` : ''}
           <button type="button" class="ghost-btn" id="btn-end-run">${isBlindUnfinished ? 'Submit…' : 'End Run'}</button>
         </div>
       </div>
     `;
 
-    const stickyNavHtml = `
-      <div class="sticky-runner-nav">
-        <div class="row-actions">
-          <button type="button" class="ghost-btn" id="btn-prev-q" ${activeRun.index === 0 ? 'disabled' : ''}>← Prev</button>
-          ${canHint ? `<button type="button" class="ghost-btn" id="btn-hint">Hint ${st.hintsUsed + 1}/${hintsArr.length} (H)</button>` : ''}
-          ${
-            !isBlindUnfinished && !st.revealed && (q.kind === 'mcq' || hasWf)
-              ? `<button type="button" class="ghost-btn" id="btn-reveal-sol">Show Solution (S)</button>`
-              : ''
-          }
-          ${instantMcqToggleHtml}
-        </div>
-        <div class="row-actions">
-          ${primaryActionBtn}
-          <button type="button" class="ghost-btn" id="btn-end-run">${
-            isBlindUnfinished ? 'Submit Paper…' : 'End &amp; Log Run'
-          }</button>
-        </div>
-      </div>
-    `;
-
-    const kbdBarHtml = `
+    const kbdBarHtml =
+      st.revealed && !isBlindUnfinished
+        ? `
       <div class="kbd-hint-bar">
-        <span><kbd>1–6</kbd>/<kbd>A–F</kbd> Select</span>
-        <span><kbd>Enter</kbd> Check/Next</span>
+        ${q.kind !== 'mcq' && !hasWf ? '<span><kbd>G</kbd> Got It (100%) &amp; Next</span><span><kbd>X</kbd> Revisit &amp; Next</span>' : ''}
+        <span><kbd>N</kbd>/<kbd>Enter</kbd> Next Question</span>
+        <span><kbd>V</kbd> Focus/Split</span>
+        <span><kbd>←</kbd><kbd>→</kbd> Nav</span>
+      </div>
+    `
+        : `
+      <div class="kbd-hint-bar">
+        ${q.kind === 'mcq' ? '<span><kbd>1–6</kbd>/<kbd>A–F</kbd> Select</span>' : '<span><kbd>⌘/Ctrl+↵</kbd> Reveal/Check</span>'}
+        <span><kbd>S</kbd> Solution</span>
+        <span><kbd>Enter</kbd>/<kbd>N</kbd> Check/Next</span>
         <span><kbd>P</kbd> Pause</span>
         <span><kbd>V</kbd> Focus/Split</span>
         ${!isBlindUnfinished ? '<span><kbd>H</kbd> Hint</span><span><kbd>O</kbd> Ref</span>' : ''}
-        <span><kbd>M</kbd> Sound</span>
         <span><kbd>←</kbd><kbd>→</kbd> Nav</span>
       </div>
     `;
@@ -1473,12 +1500,12 @@ window.StudyRunner = (() => {
             ${ghostHtml}
             <div id="stall-nudge-banner" class="hint-box stall-banner" hidden></div>
             ${workspaceHtml}
+            ${fovealActionBarHtml}
             ${hintsHtml}
             ${solutionHtml}
             ${kbdBarHtml}
           </div>
         </div>
-        ${stickyNavHtml}
       `;
     } else {
       card.innerHTML = `
@@ -1797,8 +1824,51 @@ window.StudyRunner = (() => {
         }
       }
       renderRunner();
+      if (document.activeElement && (document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'INPUT')) {
+        document.activeElement.blur();
+      }
       document.getElementById('solution-box')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
+
+    const advanceToNextOrEnd = () => {
+      if (activeRun.index + 1 < activeRun.questionIds.length) enterQuestion(activeRun.index + 1);
+      else openEndRunModal();
+    };
+
+    const confirmGotItAndNext = async () => {
+      const hasWfLocal = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
+      if (q.kind !== 'mcq' && !hasWfLocal) {
+        const total = document.querySelectorAll('[data-rubric-idx]').length || (q.rubricChecks || []).length || 3;
+        st.checkedRubrics = Array.from({ length: total }, (_, i) => i);
+        await submitVerifiedAttempt(q, st, 1.0);
+        toast('✓ Verified 100% — advancing');
+      }
+      advanceToNextOrEnd();
+    };
+
+    const markMissedAndNext = async () => {
+      const hasWfLocal = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
+      if (q.kind !== 'mcq' && !hasWfLocal) {
+        st.checkedRubrics = [];
+        await submitVerifiedAttempt(q, st, 0.0);
+      }
+      await window.StudyApp.setQuestionDifficulty(q.id, 1);
+      toast('Marked Revisit (1d) — advancing');
+      advanceToNextOrEnd();
+    };
+
+    const logCheckedAndNext = async () => {
+      const hasWfLocal = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
+      if (st.revealed && !isBlindUnfinished && q.kind !== 'mcq' && !hasWfLocal && !st.loggedAttempt) {
+        const total = Math.max(1, document.querySelectorAll('[data-rubric-idx]').length);
+        const acc = st.checkedRubrics.length > 0 ? st.checkedRubrics.length / total : 1.0;
+        if (st.checkedRubrics.length === 0) {
+          st.checkedRubrics = Array.from({ length: total }, (_, i) => i);
+        }
+        await submitVerifiedAttempt(q, st, acc);
+      }
+      advanceToNextOrEnd();
+    };
 
     // Rubric checkboxes & Submit
     document.querySelectorAll('[data-rubric-idx]').forEach((li) => {
@@ -1814,11 +1884,19 @@ window.StudyRunner = (() => {
       });
     });
 
-    document.getElementById('btn-all-rubric')?.addEventListener('click', async () => {
-      const total = document.querySelectorAll('[data-rubric-idx]').length || 1;
-      st.checkedRubrics = Array.from({ length: total }, (_, i) => i);
-      await submitVerifiedAttempt(q, st, 1.0);
-      renderRunner();
+    document.querySelectorAll('.btn-got-it-next').forEach((btn) => {
+      btn.addEventListener('click', confirmGotItAndNext);
+    });
+
+    document.querySelectorAll('.btn-missed-next').forEach((btn) => {
+      btn.addEventListener('click', markMissedAndNext);
+    });
+
+    document.getElementById('btn-verify-and-next')?.addEventListener('click', async () => {
+      const total = Math.max(1, document.querySelectorAll('[data-rubric-idx]').length);
+      const acc = st.checkedRubrics.length / total;
+      await submitVerifiedAttempt(q, st, acc);
+      advanceToNextOrEnd();
     });
 
     document.getElementById('btn-submit-rubric')?.addEventListener('click', async () => {
@@ -1863,9 +1941,9 @@ window.StudyRunner = (() => {
 
     // Prev / Next / Submit Paper / End / Reference
     document.getElementById('btn-prev-q')?.addEventListener('click', () => enterQuestion(activeRun.index - 1));
-    document.getElementById('btn-next-q')?.addEventListener('click', () => {
-      if (activeRun.index + 1 < activeRun.questionIds.length) enterQuestion(activeRun.index + 1);
-      else openEndRunModal();
+    document.getElementById('btn-next-q')?.addEventListener('click', logCheckedAndNext);
+    document.querySelectorAll('.btn-next-q-inline').forEach((btn) => {
+      btn.addEventListener('click', advanceToNextOrEnd);
     });
     document.getElementById('btn-submit-paper-bottom')?.addEventListener('click', () => promptSubmitFullExam());
     document.getElementById('btn-end-run')?.addEventListener('click', () => {
@@ -2155,8 +2233,13 @@ window.StudyRunner = (() => {
     if (!q) return;
     const st = itemState(q.id);
     const curSplit = document.body.classList.contains('runner-split-wide');
-    st.layoutOverride = curSplit ? 'foveal' : 'split';
-    toast(curSplit ? 'Focus Column (minimal eye movement)' : 'Side-by-Side Split View');
+    const nextSplit = !curSplit;
+    if (!nextSplit && (st.readerTab === 'pdf' || st.readerTab === 'ref')) {
+      st.readerTab = 'task';
+    }
+    st.layoutOverride = nextSplit ? 'split' : 'foveal';
+    saveRunnerUiPrefs({ preferredLayout: nextSplit ? 'split' : 'focus' });
+    toast(nextSplit ? 'Side-by-Side Split View' : 'Focus Column (default)');
     renderRunner();
   }
 
@@ -2251,24 +2334,62 @@ window.StudyRunner = (() => {
       }
       if (!activeRun || document.getElementById('view-runner').hidden || !document.getElementById('checkin-modal').hidden) return;
       if (!document.getElementById('img-lightbox')?.hidden) return;
+
+      // Cmd/Ctrl + Enter works even while typing inside the answer textarea:
+      // 1st press -> Reveal Solution / Check Answer; 2nd press -> Got It Right & Next Question!
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key === 'Enter') {
+        const primary =
+          document.getElementById('btn-check-mcq') ||
+          document.getElementById('btn-check-wf') ||
+          document.getElementById('btn-reveal-sol') ||
+          document.querySelector('.btn-got-it-next') ||
+          document.getElementById('btn-next-q');
+        if (primary && !primary.disabled) {
+          primary.click();
+          e.preventDefault();
+        }
+        return;
+      }
+
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const tag = e.target?.tagName;
       if (tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'SELECT') return;
 
       const key = e.key.toLowerCase();
       const letterIdx = 'abcdef'.indexOf(key);
-      if (/^[1-6]$/.test(key) || letterIdx >= 0) {
-        const idx = letterIdx >= 0 ? letterIdx : Number(key) - 1;
-        const opt = document.querySelector(`[data-mcq-idx="${idx}"]`);
-        if (opt) {
-          opt.click();
+      const mcqIdx = letterIdx >= 0 ? letterIdx : /^[1-6]$/.test(key) ? Number(key) - 1 : -1;
+      const mcqOpt = mcqIdx >= 0 ? document.querySelector(`[data-mcq-idx="${mcqIdx}"]`) : null;
+      if (mcqOpt) {
+        mcqOpt.click();
+        e.preventDefault();
+      } else if (key === 'g') {
+        const gotBtn = document.querySelector('.btn-got-it-next') || document.getElementById('btn-next-q');
+        if (gotBtn && !gotBtn.disabled) {
+          gotBtn.click();
+          e.preventDefault();
+        }
+      } else if (key === 'x') {
+        const missBtn = document.querySelector('.btn-missed-next');
+        if (missBtn && !missBtn.disabled) {
+          missBtn.click();
+          e.preventDefault();
+        }
+      } else if (key === 'n') {
+        const nextBtn =
+          document.getElementById('btn-next-q') ||
+          document.querySelector('.btn-next-q-inline') ||
+          document.getElementById('btn-verify-and-next');
+        if (nextBtn && !nextBtn.disabled) {
+          nextBtn.click();
           e.preventDefault();
         }
       } else if (key === 'enter') {
         const btn =
           document.getElementById('btn-check-mcq') ||
           document.getElementById('btn-check-wf') ||
-          document.getElementById('btn-next-q');
+          document.getElementById('btn-next-q') ||
+          document.querySelector('.btn-next-q-inline') ||
+          document.querySelector('.btn-got-it-next');
         if (btn && !btn.disabled) {
           btn.click();
           e.preventDefault();

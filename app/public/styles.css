@@ -1159,18 +1159,15 @@ html[data-theme="dark"] .preset-chip.active {
 @media (min-width: 1020px) {
   body.runner-split-wide .container {
     max-width: 1340px;
+    padding-top: 14px;
+    padding-bottom: 48px;
   }
   body.runner-split-wide.runner-split-pdf .container {
     max-width: 1500px;
   }
-  body.runner-split-wide .sticky-runner-nav {
-    width: min(1320px, calc(100vw - 32px));
-  }
-  body.runner-split-wide.runner-split-pdf .sticky-runner-nav {
-    width: min(1480px, calc(100vw - 32px));
-  }
   .question-card.split-card {
-    padding: 12px 12px 92px;
+    padding: 0;
+    margin-bottom: 16px;
     background: transparent;
     border: none;
     box-shadow: none;
