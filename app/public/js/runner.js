@@ -537,6 +537,19 @@ window.StudyRunner = (() => {
 
   function resolveSourceEntry(srcMeta, pageNum = 1, labelOverride = '') {
     if (!srcMeta) return null;
+    if (srcMeta.id && srcMeta.mime) {
+      const page = Math.max(1, Number(pageNum) || 1);
+      const isPdf = srcMeta.mime === 'application/pdf';
+      return {
+        key: `member:${srcMeta.id}#p${page}`,
+        memberAsset: srcMeta,
+        title: srcMeta.title,
+        label: labelOverride || `${srcMeta.title}${isPdf ? ` · p. ${page}` : ''}`,
+        page,
+        isPdf,
+        pathStr: srcMeta.title,
+      };
+    }
     const cPath = srcMeta.canvasPath || '';
     const vPath = srcMeta.vaultPath || '';
     if (!cPath && !vPath) return null;
@@ -570,7 +583,7 @@ window.StudyRunner = (() => {
       const meta = sourcesMap?.[a.sourceId];
       const entry = resolveSourceEntry(meta, a.page || 1, a.caption || '');
       if (!entry) return;
-      if (isBlindUnfinished && (isSol || looksLikeSolutionDoc(entry.title) || looksLikeSolutionDoc(entry.pathStr))) {
+      if (isBlindUnfinished && (entry.memberAsset || isSol || looksLikeSolutionDoc(entry.title) || looksLikeSolutionDoc(entry.pathStr))) {
         return;
       }
       if (!seen.has(entry.key)) {
@@ -592,7 +605,7 @@ window.StudyRunner = (() => {
     }
     if (!out.length && q.collectionId && sourcesMap?.[q.collectionId]) {
       const fallback = resolveSourceEntry(sourcesMap[q.collectionId], 1, '');
-      if (fallback && !(isBlindUnfinished && (looksLikeSolutionDoc(fallback.title) || looksLikeSolutionDoc(fallback.pathStr)))) {
+      if (fallback && !(isBlindUnfinished && (fallback.memberAsset || looksLikeSolutionDoc(fallback.title) || looksLikeSolutionDoc(fallback.pathStr)))) {
         out.push(fallback);
       }
     }
@@ -638,28 +651,41 @@ window.StudyRunner = (() => {
       .map((a, idx) => {
         const rel = typeof a === 'string' ? a : a.src;
         const cap = typeof a === 'string' ? 'Course source excerpt' : a.caption;
+        const memberCourse = window.StudyMembers?.course(courseId);
+        const privateAsset = memberCourse?.assets[rel];
+        if (memberCourse && !privateAsset) return '';
         const srcUrl = window.StudyApp?.isStaticMode?.()
           ? `./static-data/course-assets/${encodeURIComponent(courseId)}/${rel}`
           : `/api/course-asset/${encodeURIComponent(courseId)}/${rel}`;
         const srcMeta = a?.sourceId && sourcesMap?.[a.sourceId];
         const entry = resolveSourceEntry(srcMeta, a?.page || 1, cap || '');
         const hideRawPdf =
-          isBlindUnfinished && entry && /solution|guideline|evaluation|examiner\s*guide|eba11805l\.pdf/i.test(`${entry.title} ${entry.pathStr}`);
+          isBlindUnfinished && entry && (entry.memberAsset || /solution|guideline|evaluation|examiner\s*guide|eba11805l\.pdf/i.test(`${entry.title} ${entry.pathStr}`));
         const pdfActions =
           entry && !hideRawPdf
             ? `<span class="row-actions" style="gap:6px">
                  <button type="button" class="mini-tool-btn" data-open-inline-pdf="${esc(entry.key)}" title="Read full source PDF side-by-side inside Study-OS">In-App PDF${entry.isPdf ? ` (p.${entry.page})` : ''}</button>
-                 <button type="button" class="mini-tool-btn" data-open-native-pdf="${esc(entry.openAppUrl)}" title="Open original file in your macOS / Windows PDF viewer app">PDF App</button>
+                 ${entry.memberAsset ? memberDownload(entry.memberAsset) : `<button type="button" class="mini-tool-btn" data-open-native-pdf="${esc(entry.openAppUrl)}">PDF App</button>`}
                </span>`
             : '';
         return `<figure class="pdf-figure" data-fig-idx="${idx}">
           <figcaption><span>${esc(cap || srcMeta?.title || 'Source excerpt')}</span>${pdfActions}</figcaption>
           <div class="pdf-figure-scroll">
-            <img src="${srcUrl}" alt="${esc(cap || 'Question excerpt')}" loading="eager" ${imgStyle}>
+            <img ${privateAsset ? memberPreviewAttrs(privateAsset) : `src="${esc(srcUrl)}"`} alt="${esc(cap || 'Question excerpt')}" loading="eager" ${imgStyle}>
           </div>
         </figure>`;
       })
       .join('');
+  }
+
+  function memberDownload(file) {
+    return `<button type="button" class="mini-tool-btn" data-member-download="${esc(file.id)}"
+      data-member-mime="${esc(file.mime)}" data-filename="${esc(file.title)}">Download original</button>`;
+  }
+
+  function memberPreviewAttrs(file, page) {
+    return `data-member-preview="${esc(file.id)}" data-member-mime="${esc(file.mime)}"
+      ${page ? `data-pdf-page="${esc(page)}"` : ''}`;
   }
 
   function renderWiseflowWorksheet(q, st) {
@@ -995,6 +1021,8 @@ window.StudyRunner = (() => {
     if (st.readerTab === 'pdf' && sourcePdfs.length) {
       const pdfIdx = Math.max(0, Math.min(sourcePdfs.length - 1, Number(st.selectedPdfIdx) || 0));
       const curPdf = sourcePdfs[pdfIdx];
+      const memberFile = curPdf.memberAsset;
+      const inlineMember = memberFile && (curPdf.isPdf || memberFile.mime.startsWith('image/'));
       const selectorHtml =
         sourcePdfs.length > 1
           ? `<select id="sel-inline-pdf" style="font-size:12.5px;padding:4px 8px;max-width:340px">` +
@@ -1009,12 +1037,18 @@ window.StudyRunner = (() => {
             <div>${selectorHtml}</div>
             <div class="row-actions" style="gap:6px">
               <button type="button" class="mini-tool-btn ${st.invertPdfFrame ? 'active' : ''}" id="btn-invert-pdf-frame" title="Invert embedded PDF colors for night reading">Invert PDF</button>
-              <button type="button" class="mini-tool-btn" data-open-native-pdf="${esc(curPdf.openAppUrl)}" title="Open in macOS Preview / PDFcraft / system PDF viewer">Open in PDF App</button>
-              <a class="mini-tool-btn" href="${esc(curPdf.embedUrl)}" target="_blank" rel="noopener" style="text-decoration:none">New Tab ↗</a>
+              ${memberFile ? memberDownload(memberFile) : `
+                <button type="button" class="mini-tool-btn" data-open-native-pdf="${esc(curPdf.openAppUrl)}">Open in PDF App</button>
+                <a class="mini-tool-btn" href="${esc(curPdf.embedUrl)}" target="_blank" rel="noopener">New Tab ↗</a>`}
             </div>
           </div>
           ${
-            curPdf.isPdf
+            memberFile ? (inlineMember
+              ? (curPdf.isPdf
+                ? `<iframe class="inline-pdf-frame ${st.invertPdfFrame ? 'pdf-invert-frame' : ''}" ${memberPreviewAttrs(memberFile, curPdf.page)} title="${esc(curPdf.title)}"></iframe>`
+                : `<img ${memberPreviewAttrs(memberFile)} alt="${esc(curPdf.title)}" style="max-width:100%">`)
+              : '<p class="muted">Download this file to open it on your device.</p>')
+            : curPdf.isPdf
               ? `<iframe class="inline-pdf-frame ${st.invertPdfFrame ? 'pdf-invert-frame' : ''}" src="${esc(curPdf.embedUrl)}" title="${esc(curPdf.title)}"></iframe>`
               : `<div class="pdf-figure-scroll"><img src="${esc(curPdf.rawUrl)}" alt="${esc(curPdf.title)}" style="max-width:100%;height:auto"></div>`
           }
@@ -1360,24 +1394,26 @@ window.StudyRunner = (() => {
       : { tier: Number(q.dlpfcBase || q.difficulty || 2), chunked: false };
     const diffBadgeHtml =
       dlpfcInfo.tier >= 3
-        ? '<span class="diff-badge diff-3" title="High dlPFC executive &amp; working-memory load (best 08:00–15:00)">High-dlPFC · Synthesis</span>'
+        ? '<span class="diff-badge diff-3" title="Multi-step problems">Hard</span>'
         : dlpfcInfo.tier === 2
         ? `<span class="diff-badge diff-2" title="${
             dlpfcInfo.chunked
-              ? 'Previously mastered High-dlPFC item — now Med-dlPFC procedural speed drill'
-              : 'Medium dlPFC applied procedural load (ideal 15:00–18:00)'
-          }">Med-dlPFC · ${dlpfcInfo.chunked ? 'Chunked' : 'Procedural'}</span>`
-        : `<span class="diff-badge diff-1" title="Low dlPFC recognition / spaced recall (ideal evening or light review)">Low-dlPFC · ${
-            dlpfcInfo.chunked ? 'Consolidated' : 'Recall'
-          }</span>`;
+              ? 'Previously mastered problem with fewer new steps'
+              : 'Standard practice'
+          }">Medium</span>`
+        : '<span class="diff-badge diff-1" title="Short recall and review exercises">Easy</span>';
 
     // Compact Low-Clutter Status Bar
+    const questionTopic = activeRun.bank.topics?.find((topic) => String(topic.id) === String(q.topicId));
+    const questionCollection = activeRun.bank.collections?.find((collection) => collection.id === q.collectionId);
     const statusBarHtml = `
       <div class="row-between" style="margin:0 0 8px">
         <div class="row-actions" style="gap:6px">
-          <span class="badge">${esc(q.collectionId || q.origin)}</span>
-          <span class="badge">Topic ${esc(q.topicId)}</span>
+          ${questionCollection ? `<span class="badge">${esc(questionCollection.title)}</span>` : ''}
+          <span class="badge">${esc(questionTopic?.title || 'Topic ' + q.topicId)}</span>
           ${diffBadgeHtml}
+          ${!isBlindUnfinished && (q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference)
+            ? '<button type="button" class="ghost-btn" id="btn-question-notes">Study notes</button>' : ''}
           ${q.points ? `<span class="badge gold">${q.points} pts</span>` : ''}
         </div>
         <div class="status-group" role="group" aria-label="Task completion state">
@@ -1559,6 +1595,12 @@ window.StudyRunner = (() => {
 
   function bindQuestionCardEvents(q, st, sourcePdfs = []) {
     const isBlindUnfinished = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
+    const card = document.getElementById('runner-question-card');
+    window.StudyMembers?.fillPreviews(card);
+    window.StudyMembers?.bindDownloads(card);
+    document.getElementById('btn-question-notes')?.addEventListener('click', () => {
+      openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '');
+    });
 
     // Reader Tabs (Task & Excerpts | Source PDF | Vault Reference)
     document.querySelectorAll('[data-reader-tab]').forEach((btn) => {

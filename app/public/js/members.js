@@ -1,0 +1,125 @@
+'use strict';
+
+window.StudyMembers = (() => {
+  const enabled = document.documentElement.dataset.memberLibrary === '1';
+  const idPattern = /^[0-9a-f]{36}$/;
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let session = null;
+  const previews = new Map();
+
+  async function decrypt(id, key) {
+    if (!idPattern.test(id)) throw new Error('Invalid library reference');
+    const response = await fetch(`./member-library/${id}.enc`);
+    if (!response.ok) throw new Error('Library file unavailable');
+    const payload = new Uint8Array(await response.arrayBuffer());
+    return crypto.subtle.decrypt({
+      name: 'AES-GCM',
+      iv: payload.subarray(0, 12),
+      additionalData: encoder.encode(id),
+    }, key, payload.subarray(12));
+  }
+
+  async function unlock(accessString) {
+    const match = /^sos1_([A-Za-z0-9_-]{43})$/.exec(accessString.trim());
+    if (!match || !crypto.subtle) throw new Error('Enter the Study-OS access string.');
+    const bytes = Uint8Array.from(atob(match[1].replace(/-/g, '+').replace(/_/g, '/') + '='), (c) => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['decrypt']);
+    bytes.fill(0);
+
+    const response = await fetch('./member-library/index.json', { cache: 'no-store' });
+    if (!response.ok) throw new Error('The library is unavailable. Try again online.');
+    const index = await response.json();
+    if (index.format !== 1 || !idPattern.test(index.manifest)) throw new Error('The library index could not be read.');
+    let manifest;
+    try {
+      manifest = JSON.parse(decoder.decode(await decrypt(index.manifest, key)));
+    } catch (error) {
+      if (error.name === 'OperationError') throw new Error('That access string did not unlock this library.');
+      throw error;
+    }
+    if (manifest.format !== 1 || !manifest.courses) throw new Error('The library could not be read.');
+    const joinProof = new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(accessString.trim())));
+    session = { key, courses: manifest.courses,
+      proof: [...joinProof].map((value) => value.toString(16).padStart(2, '0')).join('') };
+  }
+
+  function course(courseId) {
+    return session?.courses[courseId];
+  }
+
+  async function loadBank(courseId) {
+    const entry = course(courseId);
+    if (!entry) return null;
+    const bank = JSON.parse(decoder.decode(await decrypt(entry.bank, session.key)));
+    // This past paper was saved separately from the course archive with its original name.
+    if (courseId === 'acct-2527' && !bank.sources.E23F) {
+      const paper = entry.documents.find((doc) => doc.title === 'EXC 3430_Exam_2023.pdf');
+      if (paper) bank.sources.E23F = paper;
+    }
+    return bank;
+  }
+
+  async function fileBlob(id, mime) {
+    if (!session) throw new Error('Unlock the library first.');
+    return new Blob([await decrypt(id, session.key)], { type: mime });
+  }
+
+  async function previewUrl(id, mime) {
+    if (!previews.has(id)) {
+      previews.set(id, fileBlob(id, mime).then((blob) => URL.createObjectURL(blob)).catch((error) => {
+        previews.delete(id);
+        throw error;
+      }));
+      // Limit memory held by previously viewed question figures and documents.
+      if (previews.size > 28) {
+        const oldest = previews.keys().next().value;
+        previews.get(oldest).then((url) => URL.revokeObjectURL(url)).catch(() => {});
+        previews.delete(oldest);
+      }
+    }
+    return previews.get(id);
+  }
+
+  function fillPreviews(root) {
+    for (const el of root.querySelectorAll('[data-member-preview]')) {
+      const { memberPreview, memberMime, pdfPage } = el.dataset;
+      previewUrl(memberPreview, memberMime).then((url) => {
+        if (el.isConnected) el.src = url + (pdfPage ? `#page=${pdfPage}&view=FitH` : '');
+      }).catch(() => {
+        if (!el.isConnected) return;
+        const note = document.createElement('p');
+        note.textContent = 'Could not open this source. Check your connection.';
+        el.replaceWith(note);
+      });
+    }
+  }
+
+  function bindDownloads(root) {
+    for (const button of root.querySelectorAll('[data-member-download]')) {
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        const { memberDownload, memberMime, filename } = button.dataset;
+        const originalLabel = button.textContent;
+        button.textContent = 'Opening…';
+        try {
+          const blob = await fileBlob(memberDownload, memberMime);
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(url), 30000);
+          button.textContent = originalLabel;
+        } catch {
+          button.textContent = 'Could not open. Retry';
+        } finally {
+          button.disabled = false;
+        }
+      });
+    }
+  }
+
+  return { enabled, unlock, isUnlocked: () => Boolean(session), communityProof: () => session?.proof,
+    course, loadBank, fillPreviews, bindDownloads };
+})();

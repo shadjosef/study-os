@@ -23,6 +23,7 @@ window.StudyApp = (() => {
   const bankCache = {};
   const staticRefCache = {};
   const isStaticWeb = document.documentElement.dataset.studyMode === 'web';
+  const members = window.StudyMembers;
   const WEB_STATE_KEY = 'study-os-web-state-v1';
   let offlineStatus = navigator.serviceWorker?.controller ? 'Saved for offline' : '';
 
@@ -54,26 +55,26 @@ window.StudyApp = (() => {
         return {
           mode: 'med_dlpfc',
           windowLabel: 'Pre-15:00 · 4.5h Cap Reached',
-          explain: `4.5h High-dlPFC novel cap reached (${(usedHighMin / 60).toFixed(1)}h) — auto-downshifted to Med-dlPFC procedural drills.`,
+          explain: `4.5h Hard novel cap reached (${(usedHighMin / 60).toFixed(1)}h) — auto-downshifted to Medium procedural drills.`,
         };
       }
       return {
         mode: 'high_dlpfc',
         windowLabel: '08:00–15:00 Peak Capacity Window',
-        explain: 'High-dlPFC Synthesis Active — Prioritizes unseen derivations, cases & multi-box problems (interleaved across topics).',
+        explain: 'Hard · Multi-step Active — Prioritizes unseen derivations, cases & multi-box problems (interleaved across topics).',
       };
     }
     if (hr >= 15 && hr < 18) {
       return {
         mode: 'med_dlpfc',
         windowLabel: '15:00–18:00 Procedural Window',
-        explain: 'Med-dlPFC Procedural Active — Prioritizes standard drills & chunked mastered problems without heavy prefrontal strain.',
+        explain: 'Medium · Standard practice Active — Prioritizes standard drills & chunked mastered problems without heavy prefrontal strain.',
       };
     }
     return {
       mode: 'low_dlpfc',
       windowLabel: 'Evening Consolidation Window',
-      explain: 'Low-dlPFC Recall Active — Prioritizes fast FSRS spaced reviews, conceptual MCQs & low-friction recall.',
+      explain: 'Easy · Recall Active — Prioritizes fast FSRS spaced reviews, conceptual MCQs & low-friction recall.',
     };
   }
 
@@ -321,6 +322,19 @@ window.StudyApp = (() => {
     return isStaticWeb;
   }
 
+  function communityStats() {
+    const state = loadWebState();
+    const attempts = state.attempts;
+    return {
+      minutes: Math.round(attempts.reduce((total, attempt) => total + (Number(attempt.activeSec) || 0), 0) / 60),
+      completed: Object.values(state.records).filter((record) => record.status === 'done').length,
+      attempts: attempts.length,
+      accuracy: attempts.length
+        ? Math.round(100 * attempts.reduce((total, attempt) => total + (Number(attempt.qualityAccuracy) || 0), 0) / attempts.length)
+        : 0,
+    };
+  }
+
   function findPublicReference(file) {
     for (const entry of boot.references) {
       for (const note of [entry, ...(entry.companions || [])]) {
@@ -339,6 +353,11 @@ window.StudyApp = (() => {
 
   async function ensureCourseBank(courseId) {
     if (bankCache[courseId]) return bankCache[courseId];
+    if (isStaticWeb && members.course(courseId)) {
+      const bank = await members.loadBank(courseId);
+      bankCache[courseId] = bank;
+      return bank;
+    }
     const url = isStaticWeb
       ? `./static-data/courses/${encodeURIComponent(courseId)}.json`
       : `/api/course/${encodeURIComponent(courseId)}`;
@@ -402,6 +421,15 @@ window.StudyApp = (() => {
   async function refreshBootstrap(forceCalendar = false) {
     if (isStaticWeb) {
       boot = await apiGet('./static-data/bootstrap.json');
+      if (members.isUnlocked()) {
+        boot.catalog = boot.catalog.map((entry) => ({
+          ...entry, ...members.course(entry.courseId)?.catalog,
+        }));
+        for (const ref of boot.references) {
+          const course = members.course(ref.courseId);
+          if (course) ref.questionCount = course.catalog.questionCount;
+        }
+      }
       recomputeWebAnalytics();
     } else {
       boot = await apiGet(`/api/bootstrap${forceCalendar ? '?refresh_calendar=1' : ''}`);
@@ -434,7 +462,7 @@ window.StudyApp = (() => {
   }
 
   function showRawView(name) {
-    for (const v of ['home', 'references', 'schedule', 'exams', 'course', 'runner', 'analytics']) {
+    for (const v of ['home', 'references', 'schedule', 'exams', 'course', 'runner', 'analytics', 'community']) {
       const sec = document.getElementById(`view-${v}`);
       if (sec) sec.hidden = v !== name;
     }
@@ -457,6 +485,7 @@ window.StudyApp = (() => {
       renderExamsHub(opts.focusCourseId || '');
     } else if (viewName === 'course') await renderCourseExplorer(selectedCourseId, opts.preset || '');
     else if (viewName === 'analytics') renderAnalytics();
+    else if (viewName === 'community') await window.StudyCommunity.render();
   }
 
   function daysUntilDateStr(isoDate) {
@@ -473,6 +502,9 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   function renderHome() {
     document.getElementById('btn-refresh-cal').hidden = isStaticWeb;
+    const memberButton = document.getElementById('btn-member-library');
+    memberButton.hidden = !members.enabled;
+    memberButton.textContent = members.isUnlocked() ? 'Lock full library' : 'Unlock full library';
     document.getElementById('home-metrics-strip').hidden = isStaticWeb && !boot.analytics.totalAttempts;
     // 1. Paused Run Banner
     const paused = window.StudyRunner.getRun();
@@ -490,20 +522,20 @@ window.StudyApp = (() => {
       resumeEl.hidden = true;
     }
 
-    // 2. Circadian dlPFC Cognitive Load Bar + Zero-Decision-Fatigue Google Calendar Hero
+    // 2. Circadian Difficulty Bar + Zero-Decision-Fatigue Google Calendar Hero
     const resolvedFocus = getResolvedFocusMode();
     const autoTarget = getCircadianAutoTarget();
     const focusExplain =
       sessionFocusMode === 'auto'
         ? autoTarget.explain
         : resolvedFocus === 'high_dlpfc'
-        ? 'High-dlPFC Synthesis Override — Excludes Low-dlPFC recall and interleaves novel multi-step problems.'
+        ? 'Hard · Multi-step Override — Excludes Easy recall and interleaves novel multi-step problems.'
         : resolvedFocus === 'med_dlpfc'
-        ? 'Med-dlPFC Procedural Override — Prioritizes standard calculation drills & mastered chunked exercises.'
-        : 'Low-dlPFC Recall Override — Prioritizes fast FSRS spaced reviews & recognition MCQs.';
+        ? 'Medium · Standard practice Override — Prioritizes standard calculation drills & mastered chunked exercises.'
+        : 'Easy · Recall Override — Prioritizes fast FSRS spaced reviews & recognition MCQs.';
 
     const autoShort =
-      autoTarget.mode === 'high_dlpfc' ? 'High' : autoTarget.mode === 'med_dlpfc' ? 'Med' : 'Low';
+      autoTarget.mode === 'high_dlpfc' ? 'Hard' : autoTarget.mode === 'med_dlpfc' ? 'Medium' : 'Easy';
 
     const focusBarHtml = `
       <div class="focus-mode-bar ${resolvedFocus === 'high_dlpfc' ? 'pre15-active' : ''}">
@@ -511,18 +543,18 @@ window.StudyApp = (() => {
           <span class="eyebrow" style="margin:0">${esc(autoTarget.windowLabel)}</span>
           <div style="font-size:13.5px;font-weight:600;margin-top:2px">${esc(focusExplain)}</div>
         </div>
-        <div class="focus-mode-pills" role="group" aria-label="Session dlPFC Load Mode">
+        <div class="focus-mode-pills" role="group" aria-label="Session difficulty">
           <button type="button" class="preset-chip ${sessionFocusMode === 'auto' ? 'active' : ''}" data-focus-mode="auto">
-            Auto (${autoShort}-dlPFC)
+            Auto (${autoShort})
           </button>
           <button type="button" class="preset-chip ${sessionFocusMode === 'high_dlpfc' ? 'active' : ''}" data-focus-mode="high_dlpfc">
-            High-dlPFC (&lt;15:00)
+            Hard (&lt;15:00)
           </button>
           <button type="button" class="preset-chip ${sessionFocusMode === 'med_dlpfc' ? 'active' : ''}" data-focus-mode="med_dlpfc">
-            Med-dlPFC (15–18)
+            Medium (15–18)
           </button>
           <button type="button" class="preset-chip ${sessionFocusMode === 'low_dlpfc' ? 'active' : ''}" data-focus-mode="low_dlpfc">
-            Low-dlPFC (Eve)
+            Easy (Eve)
           </button>
         </div>
       </div>
@@ -544,7 +576,7 @@ window.StudyApp = (() => {
           : `<span class="badge">UP NEXT · ${esc(primary.date)} ${esc(primary.startLabel)}–${esc(primary.endLabel)}</span>`;
       const modeNote =
         sessionFocusMode !== 'auto'
-          ? `Mode: ${resolvedFocus === 'high_dlpfc' ? 'High-dlPFC Synthesis' : resolvedFocus === 'low_dlpfc' ? 'Low-dlPFC Recall' : 'Med-dlPFC Procedural'}`
+          ? `Mode: ${resolvedFocus === 'high_dlpfc' ? 'Hard · Multi-step' : resolvedFocus === 'low_dlpfc' ? 'Easy · Recall' : 'Medium · Standard practice'}`
           : primary.autoQueue?.strategy || `${primary.focusMinutes}m block`;
 
       heroEl.innerHTML = `
@@ -562,12 +594,12 @@ window.StudyApp = (() => {
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;min-width:240px">
             <button type="button" class="primary-btn btn-lg" id="btn-launch-hero" ${qCount ? '' : 'disabled'}>
-              Start ${primary.focusMinutes}m ${resolvedFocus === 'high_dlpfc' ? 'High-dlPFC ' : ''}Run →
+              Start ${primary.focusMinutes}m ${resolvedFocus === 'high_dlpfc' ? 'Hard ' : ''}Run →
             </button>
             <div class="row-actions" style="gap:6px">
               ${
                 cMeta
-                  ? `<button type="button" class="ghost-btn" style="flex:1" id="btn-hero-deep-filter">High-dlPFC Tasks</button>
+                  ? `<button type="button" class="ghost-btn" style="flex:1" id="btn-hero-deep-filter">Hard practice</button>
                      <button type="button" class="ghost-btn" style="flex:1" id="btn-hero-ref">${esc(cMeta.shortTitle)} Ref</button>`
                   : ''
               }
@@ -585,7 +617,7 @@ window.StudyApp = (() => {
                         <strong>${esc(b.summary)}</strong>
                       </div>
                       <div class="row-between" style="margin:4px 0 0">
-                        <small>${b.autoQueue?.questionIds?.length || 0} queued${b.autoQueue?.cognitiveMode === 'high_dlpfc' ? ' · High-dlPFC' : b.autoQueue?.cognitiveMode === 'med_dlpfc' ? ' · Med' : ''}</small>
+                        <small>${b.autoQueue?.questionIds?.length || 0} queued${b.autoQueue?.cognitiveMode === 'high_dlpfc' ? ' · Hard' : b.autoQueue?.cognitiveMode === 'med_dlpfc' ? ' · Med' : ''}</small>
                         ${
                           b.courseId
                             ? `<button type="button" class="ghost-btn" style="padding:4px 9px;font-size:12px" data-launch-event="${esc(b.eventId)}">Start →</button>`
@@ -617,7 +649,7 @@ window.StudyApp = (() => {
         <div class="hero-top">
           <div>
             <h1 class="hero-title">Study by subject</h1>
-            <p class="muted">${boot.catalog.length} subjects and ${questionCount} practice questions with hints, worked answers and course notes. Progress saves in this browser.</p>
+            <p class="muted">${boot.catalog.length} subjects and ${questionCount} practice questions with hints, worked answers and course notes.</p>
           </div>
           <div class="row-actions">
             <button type="button" class="primary-btn" id="btn-web-refs">Browse course notes</button>
@@ -637,7 +669,7 @@ window.StudyApp = (() => {
           </div>
           <div class="row-actions">
             <button type="button" class="primary-btn btn-lg" id="btn-hero-smart">${
-              resolvedFocus === 'high_dlpfc' ? 'Start 45m High-dlPFC Run' : resolvedFocus === 'low_dlpfc' ? 'Start 25m Recall Run' : 'Start 40m Procedural Run'
+              resolvedFocus === 'high_dlpfc' ? 'Start 45m Hard Run' : resolvedFocus === 'low_dlpfc' ? 'Start 25m Recall Run' : 'Start 40m Procedural Run'
             }</button>
             <button type="button" class="ghost-btn btn-lg" id="btn-hero-exams">Exam Simulator</button>
           </div>
@@ -680,7 +712,7 @@ window.StudyApp = (() => {
         <small>Accuracy-gated (${ov.count || 0} attempts)</small>
       </div>
       <div class="metric-tile">
-        <small>High-dlPFC Budget Today</small>
+        <small>Hard Budget Today</small>
         <b>${(highMin / 60).toFixed(1)}h / 4.5h</b>
         <small>${Math.round(highMin)}m High · ${Math.round(medMin)}m Med</small>
       </div>
@@ -746,16 +778,16 @@ window.StudyApp = (() => {
             <div class="course-bar"><div class="course-bar-fill" style="width:${pct}%;background:${esc(c.color)}"></div></div>
             <div class="course-stats-row">
               <span><b>${cp.done}</b>/${cp.total} done (${pct}%)</span>
-              ${isStaticWeb ? '' : `<span>· <b>${c.highDlpfcCount ?? c.writtenOrCalcCount ?? 0}</b> High-dlPFC</span>`}
+              ${isStaticWeb ? '' : `<span>· <b>${c.highDlpfcCount ?? c.writtenOrCalcCount ?? 0}</b> Hard</span>`}
               <span>· <b>${cp.revisit}</b> revisit</span>
               <span>· UPI <b>${cm.upi ?? '—'}</b></span>
             </div>
           </div>
           <div class="course-actions">
             <button type="button" class="primary-btn" data-smart-course="${esc(c.courseId)}">${
-              isStaticWeb ? 'Quick practice' : resolvedFocus === 'high_dlpfc' ? 'High-dlPFC 45m' : resolvedFocus === 'low_dlpfc' ? 'Recall 25m' : 'Procedural 40m'
+              isStaticWeb ? 'Quick practice' : resolvedFocus === 'high_dlpfc' ? 'Hard 45m' : resolvedFocus === 'low_dlpfc' ? 'Recall 25m' : 'Procedural 40m'
             }</button>
-            ${isStaticWeb ? '' : `<button type="button" class="ghost-btn" data-deep-course="${esc(c.courseId)}" title="Filter to High-dlPFC Synthesis tasks">High-dlPFC</button>`}
+            ${isStaticWeb ? '' : `<button type="button" class="ghost-btn" data-deep-course="${esc(c.courseId)}" title="Filter to Hard · Multi-step tasks">Hard</button>`}
             <button type="button" class="ghost-btn" data-open-course="${esc(c.courseId)}">${isStaticWeb ? 'Topics &amp; practice' : `All (${c.questionCount})`}</button>
             <button type="button" class="ghost-btn" data-exam-course="${esc(c.courseId)}">Exams</button>
             <button type="button" class="ghost-btn" data-ref-course="${esc(c.courseId)}">Notes</button>
@@ -972,6 +1004,51 @@ window.StudyApp = (() => {
     }
   }
 
+  function bindMemberAccess() {
+    if (!members.enabled) return;
+    const dialog = document.getElementById('member-dialog');
+    const form = document.getElementById('member-form');
+    const key = document.getElementById('member-key');
+    const feedback = document.getElementById('member-feedback');
+    const submit = form.querySelector('button[type=submit]');
+    const dismiss = () => {
+      try { sessionStorage.setItem('study-os-member-dismissed', '1'); } catch {}
+      key.value = '';
+      dialog.close();
+    };
+    const show = () => {
+      feedback.textContent = '';
+      dialog.showModal();
+    };
+    dialog.addEventListener('cancel', dismiss);
+    document.getElementById('member-dismiss').onclick = dismiss;
+    document.getElementById('btn-member-library').onclick = () => {
+      if (members.isUnlocked()) {
+        try { sessionStorage.removeItem('study-os-member-dismissed'); } catch {}
+        location.reload();
+      } else show();
+    };
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      submit.disabled = true;
+      feedback.textContent = 'Opening your library…';
+      try {
+        await members.unlock(key.value);
+        key.value = '';
+        for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
+        await refreshBootstrap();
+        dialog.close();
+        toast('Full library unlocked.');
+      } catch (error) {
+        feedback.textContent = error.message || 'Could not open the library.';
+      } finally {
+        submit.disabled = false;
+      }
+    };
+    try { if (sessionStorage.getItem('study-os-member-dismissed')) return; } catch {}
+    show();
+  }
+
   // ---------------------------------------------------------------------------
   // VIEW 2: EXAM SIMULATOR HUB (All 5 Subjects + WISEflow ±2% + Custom Papers)
   // ---------------------------------------------------------------------------
@@ -1029,7 +1106,7 @@ window.StudyApp = (() => {
                 <button type="button" class="primary-btn" style="flex:1" data-sit-course="${esc(c.courseId)}" data-sit-coll="${esc(
               col.id
             )}" data-sit-dur="${colDur}" data-sit-title="${esc(col.title)}">
-                  Sit Paper →
+                  ${members.isUnlocked() && col.kind === 'exam' ? 'Review paper' : 'Start paper'}
                 </button>
               </div>
             </div>`;
@@ -1154,14 +1231,17 @@ window.StudyApp = (() => {
     const bank = await ensureCourseBank(courseId);
     const cMeta = boot.catalog.find((c) => c.courseId === courseId);
     const colObj = (bank.collections || []).find((c) => String(c.id) === String(collectionId));
-    const qids = (bank.questions || [])
-      .filter((q) => q.available !== false && String(q.collectionId) === String(collectionId))
-      .map((q) => q.id);
+    const questions = (bank.questions || [])
+      .filter((q) => q.available !== false && String(q.collectionId) === String(collectionId));
+    const qids = questions.map((q) => q.id);
     if (!qids.length) {
       toast('No available questions in that exam paper.');
       return;
     }
     const durMin = Number(customDurationMin || colObj?.durationMinutes || cMeta?.examInfo?.durationMinutes || 180);
+    if (members.course(courseId) && questions.some((q) => !['synthetic_drill', 'mock_exam'].includes(q.origin))) {
+      examStyle = 'guided';
+    }
     window.StudyRunner.startRun({
       courseMeta: cMeta,
       bank,
@@ -1178,7 +1258,9 @@ window.StudyApp = (() => {
   async function launchRandomizedFullExam(courseId, examStyle = 'blind') {
     const bank = await ensureCourseBank(courseId);
     const cMeta = boot.catalog.find((c) => c.courseId === courseId);
-    const avail = (bank.questions || []).filter((q) => q.available !== false);
+    const memberCourse = members.course(courseId);
+    const avail = (bank.questions || []).filter((q) => q.available !== false
+      && (!memberCourse || ['synthetic_drill', 'mock_exam'].includes(q.origin)));
     let picked = [];
 
     if (courseId === 'acct-2527') {
@@ -1442,7 +1524,7 @@ window.StudyApp = (() => {
   }
 
   // ---------------------------------------------------------------------------
-  // VIEW 3: COURSE EXPLORER & TASK STATUS MANAGER (dlPFC Load, Horizon & Interleaving)
+  // VIEW 3: COURSE EXPLORER & TASK STATUS MANAGER (Difficulty, Horizon & Interleaving)
   // ---------------------------------------------------------------------------
   async function renderCourseExplorer(courseId, initialPreset = '') {
     const root = document.getElementById('course-explorer-root');
@@ -1465,6 +1547,19 @@ window.StudyApp = (() => {
     const cMeta = boot.catalog.find((c) => c.courseId === courseId) || { courseId, title: bank.title, shortTitle: bank.shortTitle };
     const autoMode = getCircadianAutoTarget().mode;
     const defaultSort = autoMode === 'high_dlpfc' ? 'deep_first' : 'smart_priority';
+    const documents = members.course(courseId)?.documents || [];
+    const documentSections = new Map();
+    for (const doc of documents) {
+      if (!documentSections.has(doc.section)) documentSections.set(doc.section, []);
+      documentSections.get(doc.section).push(doc);
+    }
+    const library = [...documentSections].map(([section, files]) => `
+      <details class="course-document-group">
+        <summary>${esc(section)} (${files.length})</summary>
+        <ul>${files.map((doc) => `<li><button type="button" class="member-file"
+          data-member-download="${esc(doc.id)}" data-member-mime="${esc(doc.mime)}" data-filename="${esc(doc.title)}">
+          ${esc(doc.title)}</button></li>`).join('')}</ul>
+      </details>`).join('');
 
     const courseOptions = boot.catalog
       .map((c) => `<option value="${esc(c.courseId)}" ${c.courseId === courseId ? 'selected' : ''}>${esc(c.code)} · ${esc(c.title)}</option>`)
@@ -1505,7 +1600,7 @@ window.StudyApp = (() => {
       <div class="panel">
         <div class="row-between" style="margin-top:0">
           <div style="flex:1;min-width:260px">
-            <span class="eyebrow">Course Builder &amp; dlPFC Cognitive Load Filter</span>
+            <span class="eyebrow">Course Builder &amp; Difficulty filters</span>
             <div style="margin-top:4px">
               <select id="exp-course-sel" aria-label="Choose subject" style="font-size:17px;font-weight:700;padding:8px 14px">${courseOptions}</select>
             </div>
@@ -1522,12 +1617,17 @@ window.StudyApp = (() => {
           <ol>${curriculum}</ol>
           <p><a href="https://canvas.bi.no/${cMeta.canvasId ? `courses/${encodeURIComponent(cMeta.canvasId)}` : ''}" target="_blank" rel="noopener">Course handouts and assignments in BI Canvas ↗</a></p>
         </details>` : ''}
+        ${library ? `<details class="curriculum">
+          <summary>Original course files (${documents.length})</summary>
+          <input type="search" id="member-file-search" aria-label="Find course files" placeholder="Find a book, slide deck or exam">
+          ${library}
+        </details>` : ''}
 
-        <div class="preset-chips-bar" role="group" aria-label="1-Click dlPFC & Time-of-Day Filter Presets">
+        <div class="preset-chips-bar" role="group" aria-label="Practice difficulty presets">
           <small class="muted" style="font-weight:700;margin-right:4px">PRESETS:</small>
-          <button type="button" class="preset-chip" data-exp-preset="high_dlpfc">High-dlPFC Synthesis (&lt;15:00)</button>
-          <button type="button" class="preset-chip" data-exp-preset="med_dlpfc">Med-dlPFC Drills (15–18)</button>
-          <button type="button" class="preset-chip" data-exp-preset="low_dlpfc">Low-dlPFC Recall (Eve)</button>
+          <button type="button" class="preset-chip" data-exp-preset="high_dlpfc">Hard</button>
+          <button type="button" class="preset-chip" data-exp-preset="med_dlpfc">Medium</button>
+          <button type="button" class="preset-chip" data-exp-preset="low_dlpfc">Easy</button>
           <button type="button" class="preset-chip" data-exp-preset="long_horizon">Long Horizon (10m+)</button>
           ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-exp-preset="wiseflow_only">FLOWmulti ±2%</button>' : ''}
           <button type="button" class="preset-chip active" data-exp-preset="reset">All Tasks</button>
@@ -1551,13 +1651,13 @@ window.StudyApp = (() => {
               <option value="mcq">Multiple Choice (MCQ) Only</option>
             </select>
           </label>
-          <label class="field-label">dlPFC Cognitive Load
+          <label class="field-label">Difficulty
             <select id="flt-diff">
-              <option value="all">All dlPFC Tiers</option>
-              <option value="3">High-dlPFC (3 · Synthesis)</option>
-              <option value="2plus">High + Med dlPFC (2–3)</option>
-              <option value="2">Med-dlPFC (2 · Procedural / Chunked)</option>
-              <option value="1">Low-dlPFC (1 · Recall / Spaced)</option>
+              <option value="all">All difficulty levels</option>
+              <option value="3">Hard</option>
+              <option value="2plus">Medium and hard</option>
+              <option value="2">Medium</option>
+              <option value="1">Easy</option>
             </select>
           </label>
           <label class="field-label">Time / Effort Horizon
@@ -1582,9 +1682,9 @@ window.StudyApp = (() => {
           </label>
           <label class="field-label">Sort Tasks By
             <select id="flt-sort">
-              <option value="deep_first" ${defaultSort === 'deep_first' ? 'selected' : ''}>High-dlPFC First (Interleaved)</option>
+              <option value="deep_first" ${defaultSort === 'deep_first' ? 'selected' : ''}>Hard First (Interleaved)</option>
               <option value="horizon_desc">Longest Horizon First (AI Par ↓)</option>
-              <option value="diff_desc">dlPFC Load: High → Low (3 → 1)</option>
+              <option value="diff_desc">Difficulty: hard first</option>
               <option value="smart_priority" ${defaultSort === 'smart_priority' ? 'selected' : ''}>Smart Priority (Revisit → Due → Todo)</option>
               <option value="horizon_asc">Quickest First (AI Par ↑)</option>
               <option value="bank_order">Original Paper / Bank Order</option>
@@ -1625,7 +1725,7 @@ window.StudyApp = (() => {
         <div class="row-between" style="margin-top:0">
           <div>
             <h3>Exercise Inventory &amp; Instant Status Controls</h3>
-            <small class="muted">Live dlPFC load steps down automatically as you master &amp; chunk tasks (High → Med · Chunked → Low).</small>
+            <small class="muted">Difficulty can change as you practise and master a question.</small>
           </div>
           <div class="row-actions">
             <button type="button" class="ghost-btn" id="btn-bulk-uncomplete">Mark Matching Uncomplete</button>
@@ -1638,7 +1738,7 @@ window.StudyApp = (() => {
               <tr>
                 <th>Question</th>
                 <th>Topic</th>
-                <th>dlPFC Load</th>
+                <th>Difficulty</th>
                 <th>Format</th>
                 <th>Horizon (Learn / Exam)</th>
                 <th>Your Best</th>
@@ -1864,12 +1964,12 @@ window.StudyApp = (() => {
           const dlpfc = effectiveDlpfc(q, rec);
           const diffBadge =
             dlpfc.tier >= 3
-              ? `<span class="diff-badge diff-3" title="High-dlPFC novel synthesis">High-dlPFC</span>`
+              ? `<span class="diff-badge diff-3" title="Hard novel synthesis">Hard</span>`
               : dlpfc.tier === 2
-              ? `<span class="diff-badge diff-2" title="${dlpfc.chunked ? 'Mastered High-dlPFC item — now Med-dlPFC procedural drill' : 'Med-dlPFC procedural'}">${
-                  dlpfc.chunked ? 'Med · Chunked' : 'Med-dlPFC'
+              ? `<span class="diff-badge diff-2" title="${dlpfc.chunked ? 'Previously mastered problem with fewer new steps' : 'Medium procedural'}">${
+                  dlpfc.chunked ? 'Medium' : 'Medium'
                 }</span>`
-              : `<span class="diff-badge diff-1" title="Low-dlPFC recall">${dlpfc.chunked ? 'Low · Consol.' : 'Low-dlPFC'}</span>`;
+              : `<span class="diff-badge diff-1" title="Easy recall">${dlpfc.chunked ? 'Easy' : 'Easy'}</span>`;
           return `<tr>
             <td><strong>${esc(q.title)}</strong><br><small class="muted">${esc(q.localId || q.id)}</small></td>
             <td><span class="badge">T${esc(q.topicId)}</span></td>
@@ -1918,6 +2018,20 @@ window.StudyApp = (() => {
       });
     });
 
+    members.bindDownloads(root);
+    const fileSearch = root.querySelector('#member-file-search');
+    if (fileSearch) fileSearch.oninput = () => {
+      const query = fileSearch.value.trim().toLowerCase();
+      for (const group of root.querySelectorAll('.course-document-group')) {
+        let any = false;
+        for (const file of group.querySelectorAll('li')) {
+          file.hidden = !file.textContent.toLowerCase().includes(query);
+          any ||= !file.hidden;
+        }
+        group.hidden = !any;
+        if (query && any) group.open = true;
+      }
+    };
     root.querySelectorAll('[data-practice-topic]').forEach((button) => {
       button.addEventListener('click', () => {
         const topic = document.getElementById('flt-topic');
@@ -2007,9 +2121,9 @@ window.StudyApp = (() => {
       night_23_06: 'Night (23:00–06:00)',
     };
     const dlpfcNames = {
-      high_3: 'dlPFC: High (Synthesis)',
-      med_2: 'dlPFC: Med (Procedural)',
-      low_1: 'dlPFC: Low (Recall)',
+      high_3: 'Hard',
+      med_2: 'Medium',
+      low_1: 'Easy',
     };
     const db = a.dlpfcBudget || {};
 
@@ -2028,14 +2142,14 @@ window.StudyApp = (() => {
       <div class="section-heading" style="margin-top:0">
         <div>
           <span class="eyebrow">Universal &amp; Subgroup Telemetry</span>
-          <h2>Productivity Index, dlPFC Budget &amp; Focus Telemetry</h2>
+          <h2>Productivity Index, Study time &amp; Focus Telemetry</h2>
         </div>
       </div>
 
       <div class="metrics-grid">
         <div class="metric-tile"><small>All-Time UPI</small><b>${ov.upi ?? '—'}</b><small>${a.totalAttempts || 0} verified attempts</small></div>
         <div class="metric-tile"><small>Last 7 Days UPI</small><b>${a.last7Days?.upi ?? '—'}</b><small>${a.last7Days?.totalActiveMinutes || 0}m active</small></div>
-        <div class="metric-tile"><small>High-dlPFC Today</small><b>${((db.todayHighMinutes || 0) / 60).toFixed(1)}h / 4.5h</b><small>${Math.round(db.remainingHighMinutes ?? 270)}m novel budget left</small></div>
+        <div class="metric-tile"><small>Hard Today</small><b>${((db.todayHighMinutes || 0) / 60).toFixed(1)}h / 4.5h</b><small>${Math.round(db.remainingHighMinutes ?? 270)}m novel budget left</small></div>
         <div class="metric-tile"><small>Screen Time Today</small><b>${esc(window.StudyUI.workClock?.getScreenStats?.()?.screenLabel || `${a.today?.totalActiveMinutes || 0}m`)}</b><small>${esc(window.StudyUI.workClock?.getScreenStats?.()?.offScreenLabel || `${db.todayAwayMinutes || 0}m`)} off-screen · ${db.todayFocusSwitches || 0} focus sw.</small></div>
       </div>
 
@@ -2057,7 +2171,7 @@ window.StudyApp = (() => {
         </div>
 
         <div class="panel" style="margin:0">
-          <h3>UPI by dlPFC Tier, Format &amp; Time</h3>
+          <h3>UPI by difficulty, Format &amp; Time</h3>
           <div class="task-table-wrap">
             <table class="task-table">
               <thead><tr><th>Subgroup</th><th>Qs</th><th>UPI</th><th>Acc</th><th>Beat AI</th><th>Time</th></tr></thead>
@@ -2109,7 +2223,7 @@ window.StudyApp = (() => {
       `OVERALL METRICS & COGNITIVE BUDGET:`,
       `- Universal Productivity Index (UPI): ${ov.upi ?? 'N/A'} (7-day: ${a.last7Days?.upi ?? 'N/A'})`,
       `- Verified Attempts: ${a.totalAttempts || 0} | Accuracy: ${ov.avgAccuracy != null ? Math.round(ov.avgAccuracy * 100) + '%' : 'N/A'} | Beat AI Par: ${ov.beatAiRate != null ? Math.round(ov.beatAiRate * 100) + '%' : 'N/A'}`,
-      `- Today dlPFC Load: High=${db.todayHighMinutes || 0}m / 270m cap, Med=${db.todayMedMinutes || 0}m, Low=${db.todayLowMinutes || 0}m | Focus Switches=${db.todayFocusSwitches || 0} (${db.todayAwayMinutes || 0}m away)`,
+      `- Today Difficulty: High=${db.todayHighMinutes || 0}m / 270m cap, Med=${db.todayMedMinutes || 0}m, Low=${db.todayLowMinutes || 0}m | Focus Switches=${db.todayFocusSwitches || 0} (${db.todayAwayMinutes || 0}m away)`,
       `- Active Streak: ${a.streakDays || 0} day(s) | Logged Sessions: ${a.totalSessions || 0}`,
       '',
       'COURSE COMPLETION & UPI:',
@@ -2420,7 +2534,7 @@ window.StudyApp = (() => {
       'STUDENT CONSTRAINTS & COGNITIVE RULES:',
       `- Part-time job hours/week: ${prefs.weeklyWorkHours || 0}h -> Target self-study budget: ~${targetH}h/week`,
       `- Preferred daily study window: ${String(prefs.dayStartHour || 8).padStart(2, '0')}:00 to ${String(prefs.dayEndHour || 19).padStart(2, '0')}:00 (${prefs.blockMinutes || 50}m focus / ${prefs.breakMinutes || 10}m off-screen break)`,
-      '- Circadian routing: schedule heavy quantitative/coding synthesis BEFORE 15:00 (High-dlPFC), procedural drills 15:00-18:00 (Med-dlPFC), and light recall/MCQ review after 18:00 (Low-dlPFC).',
+      '- Circadian routing: schedule heavy quantitative/coding synthesis BEFORE 15:00 (Hard), procedural drills 15:00-18:00 (Medium), and light recall/MCQ review after 18:00 (Easy).',
       customNotes ? `- Personal constraints / shifts / preferences: ${customNotes}` : '',
       '',
       'ACTIVE COURSES (use exact courseId strings):',
@@ -2437,7 +2551,7 @@ window.StudyApp = (() => {
       '      "startTime": "09:00",',
       '      "endTime": "09:50",',
       `      "courseId": "${boot.catalog[0]?.courseId || 'demo-101'}",`,
-      '      "title": "High-dlPFC Deep Problem Block (50/10)",',
+      '      "title": "Hard Deep Problem Block (50/10)",',
       '      "profile": "learning"',
       '    }',
       '  ]',
@@ -2606,7 +2720,7 @@ window.StudyApp = (() => {
         <div class="row-between" style="margin-top:0">
           <div>
             <h3>Active Upcoming Schedule (${upcomingBlocks.length} blocks shown)</h3>
-            <small class="muted">Click Start on any study block to launch its dlPFC-matched question queue immediately.</small>
+            <small class="muted">Click Start on any study block to launch its matching practice questions immediately.</small>
           </div>
         </div>
         <div class="task-table-wrap">
@@ -2952,6 +3066,7 @@ window.StudyApp = (() => {
   async function init() {
     bindGlobalChrome();
     window.StudyRunner.bindRunnerGlobals();
+    document.querySelector('[data-nav="community"]').hidden = !window.StudyCommunity.enabled;
     if (isStaticWeb) window.addEventListener('pagehide', flushWebDrafts);
 
     document.querySelectorAll('.tab-btn').forEach((btn) => {
@@ -2999,6 +3114,7 @@ window.StudyApp = (() => {
 
     try {
       await refreshBootstrap(false);
+      bindMemberAccess();
     } catch {
       const hero = document.getElementById('up-next-hero');
       hero.innerHTML = '<h1>Could not load Study-OS</h1><p>Check your connection and try again.</p><button type="button" class="primary-btn">Retry</button>';
@@ -3055,6 +3171,7 @@ window.StudyApp = (() => {
 
   return {
     isStaticMode,
+    communityStats,
     publicReferenceUrl,
     fetchReferenceSection,
     getProgressRecord,

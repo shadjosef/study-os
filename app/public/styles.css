@@ -1625,6 +1625,33 @@ body.runner-foveal-compact .runner-topbar-inner {
 
 #offline-status { display: block; }
 
+.member-dialog {
+  width: min(480px, calc(100% - 24px));
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.member-dialog::backdrop { background: rgba(4, 13, 10, .68); }
+.member-dialog input { width: 100%; }
+.course-document-group { margin: 10px 0; }
+.course-document-group ul { list-style: none; padding: 0; }
+.member-file {
+  background: none;
+  color: var(--accent);
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.community-table { overflow-x: auto; }
+.community-messages { padding: 0; list-style: none; }
+.community-messages li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.community-messages p { white-space: pre-wrap; overflow-wrap: anywhere; }
+#community-message textarea { width: 100%; }
+
 @media (max-width: 720px) {
   .topbar { position: static; }
   .main-tabs { flex-wrap: wrap; }

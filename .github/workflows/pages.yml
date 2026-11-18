@@ -24,8 +24,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build static web bundle (dist/)
-        run: python3 tools/build_public_site.py --out ./dist
+      - name: Build static web bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f site-pack/member-archive.json ]; then
+            tag=$(python3 -c 'import json; print(json.load(open("site-pack/member-archive.json"))["tag"])')
+            gh release download "$tag" --pattern study-os-members.zip --dir "$RUNNER_TEMP"
+            python3 tools/build_public_site.py --out ./dist --member-archive "$RUNNER_TEMP/study-os-members.zip"
+          else
+            python3 tools/build_public_site.py --out ./dist
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

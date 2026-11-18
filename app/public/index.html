@@ -29,6 +29,7 @@
         <button type="button" class="tab-btn" data-nav="exams">Exams</button>
         <button type="button" class="tab-btn" data-nav="course">Courses</button>
         <button type="button" class="tab-btn" data-nav="analytics">Metrics &amp; AI</button>
+        <button type="button" class="tab-btn" data-nav="community" hidden>Community</button>
       </nav>
 
       <div class="topbar-stats">
@@ -74,6 +75,20 @@
 
   <main class="container">
     <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+    <dialog id="member-dialog" class="member-dialog" aria-labelledby="member-title">
+      <form id="member-form">
+        <h2 id="member-title">Unlock the full Study-OS library</h2>
+        <p class="muted">Enter your access string to open the full question banks, source files, books and worked answers.</p>
+        <label class="field-label">Access string
+          <input id="member-key" type="password" autocomplete="off" spellcheck="false" required autofocus>
+        </label>
+        <p id="member-feedback" role="status"></p>
+        <div class="row-actions">
+          <button type="submit" class="primary-btn">Unlock Study-OS</button>
+          <button type="button" class="ghost-btn" id="member-dismiss">Continue with public practice</button>
+        </div>
+      </form>
+    </dialog>
 
     <!-- VIEW 1: COMMAND CENTER (Zero-Decision-Fatigue Calendar Queue + All Courses) -->
     <section id="view-home" class="view-section">
@@ -98,6 +113,7 @@
         <div class="row-actions">
           <select id="home-semester-filter" title="Filter by semester" style="padding:7px 10px;font-size:13px" hidden></select>
           <button type="button" class="ghost-btn" id="btn-open-schedule-studio">Schedule / TimeEdit</button>
+          <button type="button" class="ghost-btn" id="btn-member-library" hidden>Unlock full library</button>
           <button type="button" class="ghost-btn" id="btn-refresh-cal">↻ Sync Calendar</button>
           <button type="button" class="ghost-btn" id="btn-import-json">Import Backup</button>
           <input type="file" id="file-import-json" accept="application/json,.json" hidden>
@@ -140,6 +156,9 @@
     <!-- VIEW 4: ANALYTICS, SUBGROUPS, CORRELATIONS & AI REVIEW BRIEF -->
     <section id="view-analytics" class="view-section" hidden>
       <div id="analytics-root"></div>
+    </section>
+    <section id="view-community" class="view-section" hidden>
+      <div id="community-root"></div>
     </section>
   </main>
 
@@ -309,6 +328,8 @@
   <script src="./vendor/auto-render.min.js"></script>
   <script src="./js/render.js"></script>
   <script src="./js/runner.js"></script>
+  <script src="./js/members.js"></script>
+  <script src="./js/community.js"></script>
   <script src="./js/app.js"></script>
 </body>
 </html>

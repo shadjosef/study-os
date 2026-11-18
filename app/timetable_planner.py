@@ -4,7 +4,7 @@ Supports three seamless scheduling workflows in Study-OS:
   1. TimeEdit `.ics` URL (or uploaded `.ics` text) + Weekly Part-Time Work Hours:
      Automatically imports lectures/seminars/exams, estimates realistic weekly study
      hours adjusted for hours worked (`Lectures + Job + Deep Study`), and slots
-     circadian `High-dlPFC (<15:00)` / `Med-dlPFC (15–18)` / `Low-dlPFC (18+)` study
+     circadian `Hard (<15:00)` / `Medium (15–18)` / `Easy (18+)` study
      blocks into open calendar gaps.
   2. One-Prompt "Any-LLM" Copy-Paste Workflow (ChatGPT, Claude, Gemini, local Ollama):
      Student copies a pre-filled prompt with their classes/courses/work hours into ANY
@@ -448,13 +448,13 @@ def generate_adaptive_schedule(
 
             hour = cursor.hour
             if hour < 15:
-                phase_tag = "High-dlPFC Synthesis"
+                phase_tag = "Hard · Multi-step"
                 b_type = "deep_50_10"
             elif hour < 18:
-                phase_tag = "Med-dlPFC Practice"
+                phase_tag = "Medium practice"
                 b_type = "deep_50_10"
             else:
-                phase_tag = "Low-dlPFC Recall"
+                phase_tag = "Easy · Recall"
                 b_type = "sprint_20"
 
             generated_blocks.append(

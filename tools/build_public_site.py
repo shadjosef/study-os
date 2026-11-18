@@ -19,13 +19,15 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import hashlib
+from html import escape
 import json
 from pathlib import Path
 import re
 import shutil
 import sys
 from typing import Any
-from urllib.parse import quote, unquote
+from urllib.parse import quote, unquote, urlsplit
+from zipfile import ZipFile
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 APP_DIR = ROOT_DIR / "app"
@@ -186,7 +188,35 @@ def add_bundled_practice(static_dir: Path, bootstrap: dict[str, Any]) -> None:
     reference["questionCount"] = entry["questionCount"]
 
 
-def finalize_site(out_dir: Path, bootstrap: dict[str, Any]) -> dict[str, Any]:
+def install_member_library(out_dir: Path, archive: Path) -> None:
+    # The release asset contains only encrypted files and a small index. Enforce
+    # its layout before copying anything into the publication directory.
+    release = json.loads((ROOT_DIR / "site-pack" / "member-archive.json").read_text(encoding="utf-8"))
+    fingerprint = hashlib.sha256()
+    with archive.open("rb") as signed:
+        for chunk in iter(lambda: signed.read(4 * 1024 * 1024), b""):
+            fingerprint.update(chunk)
+    if fingerprint.hexdigest() != release["sha256"]:
+        raise ValueError("Encrypted member archive checksum does not match the release.")
+    with ZipFile(archive) as package:
+        entries = package.infolist()
+        names = {entry.filename for entry in entries}
+        if len(names) != len(entries) or "index.json" not in names:
+            raise ValueError("Invalid member archive layout.")
+        for entry in entries:
+            if entry.filename != "index.json" and (
+                not re.fullmatch(r"[0-9a-f]{36}\.enc", entry.filename) or entry.file_size < 28
+            ):
+                raise ValueError("Member archive contains an unexpected file.")
+        index = json.loads(package.read("index.json"))
+        if index.get("format") != 1 or f"{index.get('manifest')}.enc" not in names:
+            raise ValueError("Missing encrypted member manifest.")
+        if sum(entry.file_size for entry in entries) > 900_000_000:
+            raise ValueError("Member archive is too large for Pages.")
+        package.extractall(out_dir / "member-library")
+
+
+def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path | None = None) -> dict[str, Any]:
     static_dir = out_dir / "static-data"
     add_bundled_practice(static_dir, bootstrap)
     for ref in bootstrap["references"]:
@@ -201,7 +231,16 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any]) -> dict[str, Any]:
     )
     index = out_dir / "index.html"
     html = index.read_text(encoding="utf-8")
-    html = html.replace("<html ", '<html data-study-mode="web" ', 1)
+    member_marker = ' data-member-library="1"' if member_archive else ''
+    community_marker = ""
+    config = ROOT_DIR / "site-pack" / "community.json"
+    if config.is_file():
+        endpoint = json.loads(config.read_text(encoding="utf-8"))["api"].rstrip("/")
+        parsed = urlsplit(endpoint)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError("The community endpoint must be an HTTPS URL without credentials.")
+        community_marker = f' data-community-api="{escape(endpoint, quote=True)}"'
+    html = html.replace("<html ", f'<html data-study-mode="web"{member_marker}{community_marker} ', 1)
     html = html.replace("</head>", '  <link rel="manifest" href="./app.webmanifest">\n</head>', 1)
     index.write_text(html, encoding="utf-8")
 
@@ -217,6 +256,8 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any]) -> dict[str, Any]:
         (f"const VERSION = {json.dumps(fingerprint.hexdigest()[:20])};\n"
          f"const ASSETS = {json.dumps(assets)};\n").encode() + template
     )
+    if member_archive:
+        install_member_library(out_dir, member_archive)
     return {
         "outDir": str(out_dir),
         "coursesExported": len(bootstrap["catalog"]),
@@ -225,7 +266,7 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def build_site(out_dir: Path, cname: str = "") -> dict[str, Any]:
+def build_site(out_dir: Path, cname: str = "", member_archive: Path | None = None) -> dict[str, Any]:
     if out_dir.exists():
         shutil.rmtree(out_dir)
     shutil.copytree(APP_DIR / "public", out_dir)
@@ -244,7 +285,7 @@ def build_site(out_dir: Path, cname: str = "") -> dict[str, Any]:
     if not raw_catalog and not v_root.is_dir() and (pack_static / "bootstrap.json").is_file():
         shutil.copytree(pack_static, static_dir)
         boot_saved = json.loads((static_dir / "bootstrap.json").read_text(encoding="utf-8"))
-        return finalize_site(out_dir, boot_saved)
+        return finalize_site(out_dir, boot_saved, member_archive)
 
     courses_out = static_dir / "courses"
     refs_out = static_dir / "references"
@@ -322,13 +363,14 @@ def build_site(out_dir: Path, cname: str = "") -> dict[str, Any]:
         "analytics": {},
         "recentSessions": [],
     }
-    return finalize_site(out_dir, bootstrap_payload)
+    return finalize_site(out_dir, bootstrap_payload, member_archive)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build static public web bundle of Study-OS.")
     parser.add_argument("--out", default=str(ROOT_DIR / "dist"), help="Output directory (default: ./dist)")
     parser.add_argument("--cname", default="", help="Optional custom domain for GitHub Pages CNAME file")
+    parser.add_argument("--member-archive", type=Path, help="Verified encrypted library release asset")
     parser.add_argument(
         "--sync-pack",
         action="store_true",
@@ -337,7 +379,7 @@ def main() -> int:
     args = parser.parse_args()
 
     out_path = Path(args.out).resolve()
-    summary = build_site(out_path, cname=args.cname)
+    summary = build_site(out_path, cname=args.cname, member_archive=args.member_archive)
     if args.sync_pack:
         pack_dst = ROOT_DIR / "site-pack" / "static-data"
         if pack_dst.exists():

@@ -461,7 +461,7 @@ def build_auto_queue_for_block(
     def q_eff_tier(q: dict[str, Any]) -> int:
         return effective_dlpfc_tier(q, progress_records.get(q["id"]))[0]
 
-    # Filter out Low-dlPFC recognition items during morning High-dlPFC windows whenever High/Med work remains
+    # Filter out Easy recognition items during morning Hard windows whenever High/Med work remains
     if dlpfc_mode == "high_dlpfc":
         deep_min = sum(
             q_minutes(q)
@@ -514,7 +514,7 @@ def build_auto_queue_for_block(
             # Morning Peak: Tier 3 Novel Synthesis -> Tier 2 Procedural, non-MCQ & longer horizon first
             tier_pref = {3: 0, 2: 1, 1: 2}[tier]
             return (bucket, tier_pref, is_mcq, -qm, synth_rank, q["id"])
-        # Afternoon Med-dlPFC Downshift (15:00–18:00 or post-4.5h cap): Tier 2 Procedural -> Tier 1 -> Tier 3
+        # Afternoon Medium Downshift (15:00–18:00 or post-4.5h cap): Tier 2 Procedural -> Tier 1 -> Tier 3
         tier_pref = {2: 0, 1: 1, 3: 2}[tier]
         return (bucket, tier_pref, synth_rank, abs(qm - 12.0), q["id"])
 
@@ -566,9 +566,9 @@ def build_auto_queue_for_block(
 
     topic_label = f"Topic(s) {', '.join(block['topicIds'])}" if block.get("topicIds") else "Course priority"
     mode_tag = {
-        "high_dlpfc": "High-dlPFC Synthesis",
-        "med_dlpfc": "Med-dlPFC Procedural",
-        "low_dlpfc": "Low-dlPFC Recall",
+        "high_dlpfc": "Hard · Multi-step",
+        "med_dlpfc": "Medium · Standard practice",
+        "low_dlpfc": "Easy · Recall",
     }[dlpfc_mode]
     return {
         "questionIds": chosen,
