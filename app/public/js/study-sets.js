@@ -149,5 +149,12 @@ window.StudySets = (() => {
     if (event.currentTarget.open) render();
   });
 
+  window.addEventListener('hashchange', async () => {
+    if (!location.hash.startsWith('#study-set=')) return;
+    if (!document.getElementById('view-runner').hidden) document.getElementById('run-exit-btn').click();
+    await window.StudyApp.navigate('home');
+    await activateDraft();
+  });
+
   return { activateDraft, save, clockTick };
 })();
