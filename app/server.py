@@ -90,6 +90,22 @@ def append_jsonl(path: Path, row: dict[str, Any]) -> None:
         fh.write(line)
 
 
+def merge_course_practice(bank: dict[str, Any], supplement: dict[str, Any]) -> dict[str, Any]:
+    """Append bundled practice without replacing any matching items in the main bank."""
+    if bank["courseId"] != supplement["courseId"]:
+        return bank
+    merged = dict(bank)
+    for field in ("topics", "collections", "questions"):
+        entries = list(bank.get(field) or [])
+        ids = {entry["id"] for entry in entries}
+        for entry in supplement.get(field, []):
+            if entry["id"] not in ids:
+                entries.append(entry)
+                ids.add(entry["id"])
+        merged[field] = entries
+    return merged
+
+
 class StudyStore:
     def __init__(self, root: Path, data_dir: Path | None = None) -> None:
         self.root = root
@@ -101,7 +117,7 @@ class StudyStore:
         self.attempts_path = self.data_dir / "logs" / "attempts.jsonl"
         self.sessions_path = self.data_dir / "logs" / "sessions.jsonl"
         self.catalog_path = self.data_dir / "catalog.json"
-        self._bank_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+        self._bank_cache: dict[str, tuple[tuple[int, int], dict[str, Any]]] = {}
 
     def load_progress(self) -> dict[str, Any]:
         if not self.progress_path.is_file():
@@ -124,16 +140,28 @@ class StudyStore:
         bank_file = self.courses_dir / course_id / "bank.json"
         if not bank_file.is_file():
             return None
-        mtime = bank_file.stat().st_mtime
+        supplement_file = self.root / "examples" / "math-2588" / "bank.json"
+        has_supplement = course_id == "math-2588" and supplement_file.is_file()
+        signature = (
+            bank_file.stat().st_mtime_ns,
+            supplement_file.stat().st_mtime_ns if has_supplement else 0,
+        )
         cached = self._bank_cache.get(course_id)
-        if cached and cached[0] == mtime:
+        if cached and cached[0] == signature:
             return cached[1]
         try:
             bank = json.loads(bank_file.read_text(encoding="utf-8"))
-            self._bank_cache[course_id] = (mtime, bank)
-            return bank
         except Exception:
             return None
+        if has_supplement:
+            try:
+                supplement = json.loads(supplement_file.read_text(encoding="utf-8"))
+                bank = merge_course_practice(bank, supplement)
+            except (OSError, ValueError, TypeError, KeyError):
+                # The local bank is usable even while OneDrive copies the supplement.
+                return bank
+        self._bank_cache[course_id] = (signature, bank)
+        return bank
 
     def discover_courses(self) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
         courses_by_id: dict[str, dict[str, Any]] = {}

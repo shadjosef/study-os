@@ -40,7 +40,7 @@ from obsidian_sync import (  # noqa: E402
     strip_frontmatter,
     vault_root,
 )
-from server import STORE  # noqa: E402
+from server import STORE, merge_course_practice  # noqa: E402
 
 
 def ref_slug(rel_file: str) -> str:
@@ -164,11 +164,7 @@ def add_bundled_practice(static_dir: Path, bootstrap: dict[str, Any]) -> None:
     course_file = static_dir / "courses" / f"{course_id}.json"
     if course_file.is_file():
         bank = json.loads(course_file.read_text(encoding="utf-8"))
-        for field in ("topics", "collections", "questions"):
-            entries = {entry["id"]: entry for entry in bank.get(field, [])}
-            for entry in starter[field]:
-                entries.setdefault(entry["id"], entry)
-            bank[field] = list(entries.values())
+        bank = merge_course_practice(bank, starter)
     else:
         bank = starter
     prep_file = "math-reference/Autumn 2026 exam preparation.md"
