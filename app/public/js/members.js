@@ -8,6 +8,27 @@ window.StudyMembers = (() => {
   let session = null;
   const previews = new Map();
 
+  async function savedKey(operation, value) {
+    const db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('study-os-member-access', 1);
+      request.onupgradeneeded = () => request.result.createObjectStore('keys');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+      request.onblocked = () => reject(new Error('Browser storage is busy.'));
+    });
+    try {
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction('keys', operation === 'get' ? 'readonly' : 'readwrite');
+        const keys = tx.objectStore('keys');
+        const request = operation === 'put' ? keys.put(value, 'library') : keys[operation]('library');
+        tx.oncomplete = () => resolve(request.result);
+        tx.onabort = () => reject(tx.error || request.error);
+      });
+    } finally {
+      db.close();
+    }
+  }
+
   async function decrypt(id, key) {
     if (!idPattern.test(id)) throw new Error('Invalid library reference');
     const response = await fetch(`./member-library/${id}.enc`);
@@ -20,13 +41,23 @@ window.StudyMembers = (() => {
     }, key, payload.subarray(12));
   }
 
-  async function unlock(accessString) {
+  async function unlock(accessString, remember) {
     const match = /^sos1_([A-Za-z0-9_-]{43})$/.exec(accessString.trim());
     if (!match || !crypto.subtle) throw new Error('Enter the Study-OS access string.');
     const bytes = Uint8Array.from(atob(match[1].replace(/-/g, '+').replace(/_/g, '/') + '='), (c) => c.charCodeAt(0));
     const key = await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['decrypt']);
     bytes.fill(0);
+    await unlockWithKey(key);
+    try {
+      if (remember) await savedKey('put', key);
+      else await savedKey('delete');
+      return Boolean(remember);
+    } catch {
+      return false;
+    }
+  }
 
+  async function unlockWithKey(key) {
     const response = await fetch('./member-library/index.json', { cache: 'no-store' });
     if (!response.ok) throw new Error('The library is unavailable. Try again online.');
     const index = await response.json();
@@ -40,6 +71,23 @@ window.StudyMembers = (() => {
     }
     if (manifest.format !== 1 || !manifest.courses) throw new Error('The library could not be read.');
     session = { key, courses: manifest.courses };
+  }
+
+  async function restore() {
+    if (!enabled) return;
+    try {
+      const key = await savedKey('get');
+      if (key) await unlockWithKey(key);
+    } catch {}
+  }
+
+  async function forget() {
+    await savedKey('delete');
+    session = null;
+    for (const pending of previews.values()) {
+      pending.then((url) => URL.revokeObjectURL(url)).catch(() => {});
+    }
+    previews.clear();
   }
 
   function course(courseId) {
@@ -118,5 +166,5 @@ window.StudyMembers = (() => {
     }
   }
 
-  return { enabled, unlock, isUnlocked: () => Boolean(session), course, loadBank, fillPreviews, bindDownloads };
+  return { enabled, unlock, restore, forget, isUnlocked: () => Boolean(session), course, loadBank, fillPreviews, bindDownloads };
 })();

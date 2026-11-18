@@ -35,7 +35,8 @@
       <div class="topbar-stats">
         <span class="live-clock-pill" id="global-work-pill" title="Universal non-pausable working interval (capped at 75:00 · 1:5 recovery break)">Session 0:00 / 75m</span>
         <button type="button" class="ghost-btn" id="global-work-action-btn" title="Start 75m working interval or take scaled 1:5 recovery break">Start 75m</button>
-        <span class="kpi-pill" title="Universal Productivity Index (100 = matching AI Par at 100% accuracy)">
+        <button type="button" class="ghost-btn" id="evening-break-tools-btn" hidden>Break tools</button>
+        <span class="kpi-pill" data-layout-performance title="Universal Productivity Index (100 = matching AI Par at 100% accuracy)">
           <small>UPI</small> <b id="hdr-upi">—</b>
         </span>
         <span class="kpi-pill" title="Active day streak &amp; cumulative XP">
@@ -82,6 +83,7 @@
         <label class="field-label">Access string
           <input id="member-key" type="password" autocomplete="off" spellcheck="false" required autofocus>
         </label>
+        <label class="check-row"><input id="member-remember" type="checkbox" checked> Remember on this browser</label>
         <p id="member-feedback" role="status"></p>
         <div class="row-actions">
           <button type="submit" class="primary-btn">Unlock Study-OS</button>
@@ -261,23 +263,40 @@
   <!-- SCALED 1:5 OFF-SCREEN RECOVERY BREAK MODAL (TIED TO UNIVERSAL 75M WORKING CAP) -->
   <div id="break-modal" class="modal-wrap" hidden role="dialog" aria-modal="true" aria-labelledby="break-modal-title">
     <div class="modal-card" style="max-width:480px">
-      <span class="eyebrow">1:5 Off-Screen Recovery</span>
-      <h3 id="break-modal-title" style="margin:4px 0 8px">Step Away From Screens</h3>
+      <h3 id="break-modal-title" style="margin:4px 0 8px">Study break</h3>
       <div class="break-timer-display" id="break-countdown-lbl">05:00</div>
       <p class="muted" id="break-ratio-note" style="margin:0 0 12px;font-size:13.5px">Scaled 1:5 from your working interval (capped at 75m / 15m break).</p>
-      <ul class="rubric-list" style="margin:0 0 16px">
-        <li class="rubric-item"><span><strong>Move &amp; hydrate:</strong> Stand up, open window, walk stairs, and drink water + electrolytes.</span></li>
-        <li class="rubric-item"><span><strong>Zero screens:</strong> No phone scrolling (preserves 20x hippocampal replay &amp; glutamate clearance).</span></li>
-        <li class="rubric-item"><span><strong>Panoramic gaze (&gt;20m):</strong> Look out at a distant horizon or close eyes to relax ciliary strain.</span></li>
-      </ul>
       <div class="modal-actions">
         <button type="button" class="ghost-btn" id="break-end-session-btn" title="Finish studying and stop universal timer until your next session">End Session</button>
-        <button type="button" class="ghost-btn" id="break-add-2m">+2 min</button>
+        <button type="button" class="ghost-btn" id="break-add-1m">+1 min</button>
+        <button type="button" class="ghost-btn" id="break-close-btn" hidden>Close</button>
+        <button type="button" class="ghost-btn" id="break-layout-btn" hidden>Layout presets</button>
+        <button type="button" class="ghost-btn" id="break-sets-btn" hidden>My study sets</button>
         <button type="button" class="ghost-btn" id="break-community-btn" hidden>Open Community</button>
         <button type="button" class="primary-btn" id="break-resume-btn">Start Next 75m</button>
       </div>
     </div>
   </div>
+
+  <dialog id="layout-dialog" class="member-dialog" aria-labelledby="layout-title">
+    <form id="layout-form">
+      <h2 id="layout-title">Layout presets</h2>
+      <label class="field-label">Preset <select id="layout-preset"></select></label>
+      <label class="field-label">Name <input name="title" maxlength="48" placeholder="My study layout"></label>
+      <label class="check-row"><input type="checkbox" name="dlpfc"> Use Low, Medium and High dlPFC labels</label>
+      <label class="check-row"><input type="checkbox" name="budget"> Show the daily dlPFC budget on Home</label>
+      <label class="check-row"><input type="checkbox" name="performance"> Show UPI and pace metrics</label>
+      <label class="check-row"><input type="checkbox" name="screen"> Show screen time and focus switches on Home</label>
+      <label class="field-label">Shared preset code <input id="layout-code" maxlength="400" autocomplete="off"></label>
+      <p id="layout-status" role="status"></p>
+      <div class="row-actions">
+        <button type="submit" class="primary-btn">Save and apply</button>
+        <button type="button" class="ghost-btn" id="layout-copy">Copy code</button>
+        <button type="button" class="ghost-btn" id="layout-load">Load code</button>
+        <button type="button" class="ghost-btn" id="layout-close">Done</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- LOW-FATIGUE BACKGROUND SOUND MASKING POPOVER -->
   <aside id="sound-popover" class="sound-popover" hidden role="dialog" aria-label="Background Sound Masking">
@@ -333,6 +352,7 @@
   <script src="./vendor/katex.min.js"></script>
   <script src="./vendor/auto-render.min.js"></script>
   <script src="./js/render.js"></script>
+  <script src="./js/layouts.js"></script>
   <script src="./js/runner.js"></script>
   <script src="./js/members.js"></script>
   <script src="./js/study-sets.js"></script>

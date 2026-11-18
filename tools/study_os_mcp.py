@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import gzip
 import json
 from pathlib import Path
 import re
@@ -14,6 +16,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+from uuid import uuid4
 
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
@@ -172,19 +175,26 @@ def replace_study_schedule(schedule: dict[str, Any]) -> dict[str, Any]:
 
 @server.tool(annotations=READ)
 def draft_study_set(title: str, cards: list[tuple[str, str]]) -> dict[str, Any]:
-    """Format original question-answer pairs for the My study sets import."""
+    """Make a clickable Study-OS import link for 1–30 original question/answer pairs.
+
+    Give the student the returned link. They review and save the set during a
+    break or evening access. The link contains the cards, so omit private
+    information and material that the student cannot share.
+    """
     title = title.strip()
     if not title or len(title) > 80 or not 1 <= len(cards) <= 30:
         raise ValueError("Use a title of up to 80 characters and 1–30 cards.")
-    lines = []
+    pairs = []
     for question, answer in cards:
         pair = (question.strip(), answer.strip())
-        if pair[0].startswith("#") or any(
-            not field or len(field) > 250 or re.search(r"[\t\r\n]", field) for field in pair
-        ):
-            raise ValueError("Use plain text up to 250 characters per field. Start questions with text.")
-        lines.append("\t".join(pair))
-    return {"title": title, "tsv": "\n".join(lines)}
+        if any(not field or len(field) > 250 for field in pair):
+            raise ValueError("Use plain text up to 250 characters per field.")
+        pairs.append(pair)
+    payload = {"format": "study-os-set-v1", "id": str(uuid4()), "title": title, "cards": pairs}
+    packed = gzip.compress(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode())
+    code = base64.urlsafe_b64encode(packed).decode().rstrip("=")
+    return {"title": title, "cardCount": len(cards),
+            "importUrl": "https://shadjosef.github.io/study-os/#study-set=" + code}
 
 
 def main() -> None:

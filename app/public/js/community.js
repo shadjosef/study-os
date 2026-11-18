@@ -95,12 +95,13 @@ window.StudyCommunity = (() => {
     if (state.mode !== 'idle' || (lastPresence && lastPresence !== 'idle')) syncPresence(state).catch(() => {});
     const root = document.getElementById('community-root');
     if (document.getElementById('view-community').hidden) return;
-    if (state.mode !== 'break' && root.querySelector('#community-social')) {
+    const canUse = workClock.canUseBreakTools();
+    if (!canUse && root.querySelector('#community-social')) {
       renderLocked(root, root.querySelector('#community-signed-in').textContent);
-    } else if (state.mode === 'break' && root.querySelector('#community-locked') && !openingBreak) {
+    } else if (canUse && root.querySelector('#community-locked') && !openingBreak) {
       openingBreak = true;
       render().finally(() => { openingBreak = false; });
-    } else if (state.mode === 'break' && Date.now() - lastChatAt >= 30_000) {
+    } else if (canUse && Date.now() - lastChatAt >= 30_000) {
       refreshChat(root).catch(() => {});
     }
   }
@@ -188,7 +189,7 @@ window.StudyCommunity = (() => {
       <section class="panel" id="community-locked">
         <h1>Study community</h1>
         <p id="community-signed-in">Signed in as ${esc(nickname)}</p>
-        <p>The leaderboard, global chat and direct messages open during a timed Study-OS break.</p>
+        <p>Community opens during a timed break and from 20:00 to midnight Oslo time.</p>
         <div class="row-actions">
           <button type="button" class="ghost-btn" id="community-logout">Sign out</button>
           <button type="button" class="ghost-btn" id="community-delete">Delete my profile</button>
@@ -206,7 +207,7 @@ window.StudyCommunity = (() => {
 
   async function refreshChat(root) {
     const list = root.querySelector('#community-chat-list');
-    if (chatLoading || !list || timerStatus().mode !== 'break') return;
+    if (chatLoading || !list || !workClock.canUseBreakTools()) return;
     chatLoading = true;
     lastChatAt = Date.now();
     try {
@@ -224,14 +225,8 @@ window.StudyCommunity = (() => {
     const panel = root.querySelector('#community-study-sets');
     const { sets } = await request('/sets');
     if (!panel.isConnected) return;
-    const localSets = window.StudySets.list();
     panel.innerHTML = `
-      <p>Share your own study material. Practice from these sets earns no leaderboard or Elo points.</p>
-      ${localSets.length ? `<form id="community-share-set" class="row-actions">
-        <label class="field-label">Your set <select name="set">${localSets.map((set) =>
-          `<option value="${esc(set.id)}">${esc(set.title)}</option>`).join('')}</select></label>
-        <button type="submit" class="primary-btn">Share with Community</button>
-      </form>` : '<p>Make a set in <strong>My study sets</strong> on Home to share it here.</p>'}
+      <p>Open a Study-OS link from your AI to share a new set. Practice here earns no leaderboard or Elo points.</p>
       <p id="community-set-status" role="status"></p>
       <ul class="community-messages">${sets.map((set) => `
         <li><strong>${esc(set.title)}</strong> <small>${set.card_count} cards · ${esc(set.nickname)}</small>
@@ -240,13 +235,6 @@ window.StudyCommunity = (() => {
             ${set.owner === me.id ? `<button type="button" class="ghost-btn" data-remove-community-set="${esc(set.id)}">Remove from Community</button>` : ''}
           </div></li>`).join('') || '<li>No shared sets yet.</li>'}</ul>`;
     const status = panel.querySelector('#community-set-status');
-    const share = panel.querySelector('#community-share-set');
-    if (share) action(share, async (form) => {
-      const set = localSets.find((item) => item.id === form.get('set'));
-      await request('/sets', { title: set.title, cards: set.cards });
-      await renderStudySets(root, me);
-      toast('Study set shared.');
-    }, status);
     for (const button of panel.querySelectorAll('[data-save-community-set], [data-remove-community-set]')) {
       button.onclick = async () => {
         button.disabled = true;
@@ -388,7 +376,7 @@ window.StudyCommunity = (() => {
     try {
       await syncStats().catch(() => {});
       const state = timerStatus();
-      if (state.mode !== 'break') {
+      if (!workClock.canUseBreakTools()) {
         const { nickname } = await request('/profile');
         renderLocked(root, nickname);
         return;
@@ -397,11 +385,19 @@ window.StudyCommunity = (() => {
       await syncPresence(state);
       const result = await request('/dashboard?offset=' + offset);
       if (generation !== token) return;
-      if (timerStatus().mode === 'break') renderDashboard(root, result, offset);
+      if (workClock.canUseBreakTools()) renderDashboard(root, result, offset);
       else renderLocked(root, result.me.nickname);
     } catch (error) {
       renderEntry(root, error.status === 401 ? 'Enter a current profile key or create a new profile.' : 'The community is unavailable. Please try again.');
     }
   }
-  return { enabled: Boolean(api), render, queueStatsSync, clockTick };
+  const canShareSet = () => Boolean(api && token);
+  async function shareSet(set) {
+    if (!canShareSet() || !workClock.canUseBreakTools()) throw new Error('Sign in to Community and share during a break.');
+    await syncPresence();
+    if (!workClock.canUseBreakTools()) throw new Error('Your break has ended.');
+    return request('/sets', { title: set.title, cards: set.cards });
+  }
+
+  return { enabled: Boolean(api), render, queueStatsSync, clockTick, canShareSet, shareSet };
 })();

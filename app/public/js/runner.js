@@ -1392,16 +1392,8 @@ window.StudyRunner = (() => {
     const dlpfcInfo = window.StudyApp.effectiveDlpfc
       ? window.StudyApp.effectiveDlpfc(q, rec)
       : { tier: Number(q.dlpfcBase || q.difficulty || 2), chunked: false };
-    const diffBadgeHtml =
-      dlpfcInfo.tier >= 3
-        ? '<span class="diff-badge diff-3" title="Multi-step problems">Hard</span>'
-        : dlpfcInfo.tier === 2
-        ? `<span class="diff-badge diff-2" title="${
-            dlpfcInfo.chunked
-              ? 'Previously mastered problem with fewer new steps'
-              : 'Standard practice'
-          }">Medium</span>`
-        : '<span class="diff-badge diff-1" title="Short recall and review exercises">Easy</span>';
+    const diffBadgeHtml = `<span class="diff-badge diff-${dlpfcInfo.tier}" data-layout-tier="${dlpfcInfo.tier}"${dlpfcInfo.chunked
+      ? ' title="Previously mastered problem with fewer new steps"' : ''}>${window.StudyLayout.label(dlpfcInfo.tier)}</span>`;
 
     // Compact Low-Clutter Status Bar
     const questionTopic = activeRun.bank.topics?.find((topic) => String(topic.id) === String(q.topicId));

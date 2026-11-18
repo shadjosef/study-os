@@ -6,6 +6,9 @@ const proofPattern = /^[0-9a-f]{64}$/;
 const idPattern = /^[0-9a-f-]{36}$/;
 const maxInputBytes = 65_536;
 const breakRequired = new Set(['/dashboard', '/message', '/chat', '/block', '/sets']);
+const osloHour = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Oslo', hour: 'numeric', hourCycle: 'h23',
+});
 
 function equalProof(expected, supplied) {
   if (!proofPattern.test(expected || '') || !proofPattern.test(supplied || '')) return false;
@@ -91,8 +94,8 @@ export default {
     `).bind(await digest(token)).first();
     if (!me) return reply({ error: 'That profile key is invalid.' }, 401);
     const now = Date.now();
-    if (breakRequired.has(path) && !(me.break_ends_at > now && me.expires_at > now)) {
-      return reply({ error: 'Community opens during a timed Study-OS break.' }, 423);
+    if (breakRequired.has(path) && Number(osloHour.format(now)) < 20 && !(me.break_ends_at > now && me.expires_at > now)) {
+      return reply({ error: 'Community opens during a timed Study-OS break or after 20:00 Oslo time.' }, 423);
     }
 
     if (path === '/profile' && request.method === 'GET') {

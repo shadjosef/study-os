@@ -1652,6 +1652,12 @@ body.runner-foveal-compact .runner-topbar-inner {
 .community-messages p { white-space: pre-wrap; overflow-wrap: anywhere; }
 #community-message textarea, #community-chat textarea { width: 100%; }
 
+html:not([data-show-budget]) [data-layout-budget],
+html:not([data-show-performance]) [data-layout-performance],
+html:not([data-show-screen]) [data-layout-screen] { display: none; }
+
+#layout-form .check-row { display: flex; align-items: center; gap: 0.55rem; }
+
 @media (max-width: 720px) {
   .topbar { position: static; }
   .main-tabs { flex-wrap: wrap; }

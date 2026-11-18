@@ -4,9 +4,9 @@ The website and encrypted library run on GitHub Pages. Community profiles, the l
 
 Join with a Community invite code and use a nickname and a personal profile key. Every profile appears on the members-only leaderboard, with hours, completed questions, attempts, practice accuracy and the current Study-OS timer. Stats are submitted from the browser with the most recorded attempts. Solo practice works without a profile.
 
-The leaderboard, global chat and direct messages open during live breaks on the Study-OS timer. Timer status updates once a minute while active and expires after less than two minutes without an update. The status comes from the browser timer. Direct messages are visible to their participants in the app. Chat is shared with all Community members, displays posts from the last seven days, and supports blocking members. Members can delete their profile and messages from the active database. Review your privacy notice, contact details and Cloudflare terms with the operator before inviting students.
+The leaderboard, global chat and direct messages open during timed breaks and from 20:00 to midnight Europe/Oslo. Timer status updates once a minute while active and expires after less than two minutes without an update. The status comes from the browser timer. Direct messages are visible to their participants in the app. Chat is shared with all Community members, displays posts from the last seven days, and supports blocking members. Members can delete their profile and messages from the active database. Review your privacy notice, contact details and Cloudflare terms with the operator before inviting students.
 
-Create a personal study set from tab-separated questions and answers on Home. On a break, members can share a set with Community, save a copy for solo practice, or remove a set they published. Custom sets use their own practice view and never add attempts or hours to ranked practice totals.
+Use the [Study-OS MCP tool](../docs/study-sets-mcp.md) to create a study set link. During break access, members can share a set after opening that link, save copies of shared sets, or remove a set they published. Practice from custom sets stays outside the leaderboard and Elo.
 
 ## Deploy the community
 

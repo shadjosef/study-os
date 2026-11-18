@@ -6,7 +6,10 @@
 - Renamed practice difficulty to Easy, Medium and Hard.
 - Added a course library with question references beside exercises and a searchable index of original files.
 - Added a local MCP bridge for question search, reports and schedule updates.
-- Added personal study sets with tab-separated question-and-answer import.
+- Added AI-created study sets with one-click import from the Study-OS MCP tool.
+- Added break-time layout presets with optional dlPFC labels and a daily practice budget. Share a preset as a copyable code.
+- Break tools lock at zero before 20:00 Oslo time. Add one minute to reopen them or start your next session. Evening access runs until midnight.
+- Added the option to remember the full-library key on this browser.
 
 ## Community awaiting deployment
 

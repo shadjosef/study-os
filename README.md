@@ -12,7 +12,7 @@ To study offline, select **Save for offline** on the home page while connected. 
 
 Open the website and paste the shared access string when prompted. The library opens in the same browser tab and adds the complete local question banks, linked source excerpts, and the searchable **Original course files** list to each subject. Protected files open while online. The public notes and practice can be saved for offline use.
 
-Before sharing the string, confirm that you have permission to host and share each included work with the intended group. Send the string privately to approved recipients. Study-OS uses the string to decrypt the library in the browser and keeps it out of the site's source and browser storage. **Lock full library** closes the unlocked session. Recipients may retain files they download.
+Before sharing the string, confirm that you have permission to host and share each included work with the intended group. Send the string privately to approved recipients. Study-OS decrypts the library in the browser. **Remember on this browser** stores a non-extractable browser key. **Lock full library** clears that saved key. Recipients may retain files they download.
 
 To update the library, run `tools/build_member_library.py` using Python with `cryptography`, passing the local Study-OS, Canvas Archive and Obsidian Vault paths. Keep the key file outside Git. Upload the encrypted archive as `study-os-members.zip` to a new GitHub prerelease, and set the release tag and archive SHA-256 in `site-pack/member-archive.json`. For a replacement string, build with a new key file or `--rotate-key`. Retire the old release after the new one is live. Old keys can still open encrypted copies already downloaded with that key.
 
@@ -20,7 +20,7 @@ To update the library, run `tools/build_member_library.py` using Python with `cr
 
 Start the local desktop app and register a stdio MCP server with your AI client. Use `uv` as the command and `run --script /absolute/path/to/Study-OS/tools/study_os_mcp.py` as its arguments. The bridge uses the official MCP Python SDK and connects to the app on port 8765. Add `--port` after the script path if the local app uses another port.
 
-The tools can find subjects and questions, read the notes for an exercise, show study reports, and preview or replace the active schedule inside Study-OS. Google Calendar access remains read-only. The `draft_study_set` tool formats original question-and-answer pairs for **My study sets** on Home.
+The tools can find subjects and questions, read the notes for an exercise, show study reports, and preview or replace the active schedule inside Study-OS. Google Calendar access remains read-only. The [study set tool](docs/study-sets-mcp.md) turns an AI-generated set into a link you can open and save on a break.
 
 Community profiles, the leaderboard and direct messages use a separate [community backend](community/README.md).
 

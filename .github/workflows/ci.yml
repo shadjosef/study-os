@@ -38,6 +38,7 @@ jobs:
       - name: Frontend & Obsidian plugin JS syntax check
         run: |
           node --check app/public/js/render.js
+          node --check app/public/js/layouts.js
           node --check app/public/js/runner.js
           node --check app/public/js/app.js
           node --check app/public/js/members.js

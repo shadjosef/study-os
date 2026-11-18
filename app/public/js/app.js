@@ -284,9 +284,18 @@ window.StudyApp = (() => {
     const beatRate = n ? attempts.filter((a) => a.beatAi).length / n : null;
     const avgPr = n ? attempts.reduce((s, a) => s + Math.min(1.35, Number(a.paceRatio || 0.85)), 0) / n : null;
     const upi = n ? Math.round(100 * (0.45 * avgAcc + 0.35 * avgPr + 0.2 * 0.9)) : null;
-    const todayPrefix = nowIso.slice(0, 10);
-    const todayAttempts = attempts.filter((a) => (a.timestamp || '').startsWith(todayPrefix));
+    const dayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
+    const today = dayFormat.format(new Date());
+    const isToday = (timestamp) => {
+      const date = new Date(timestamp);
+      return !Number.isNaN(date.getTime()) && dayFormat.format(date) === today;
+    };
+    const todayAttempts = attempts.filter((a) => isToday(a.timestamp));
     const todayMin = Math.round(todayAttempts.reduce((s, a) => s + Number(a.activeSec || 0), 0) / 60);
+    const minutesAtTier = (tier) => todayAttempts.reduce((sum, attempt) =>
+      sum + (Number(attempt.dlpfcTier) === tier ? Number(attempt.activeSec || 0) : 0), 0) / 60;
+    const todayHighMinutes = minutesAtTier(3);
+    const todaySessions = ws.sessions.filter((session) => isToday(session.endedAt));
 
     boot.progress = { records };
     boot.recentSessions = (ws.sessions || []).slice(-25).reverse();
@@ -298,7 +307,13 @@ window.StudyApp = (() => {
       overall: { count: n, avgAccuracy: avgAcc, beatAiRate: beatRate, upi },
       last7Days: { upi, totalActiveMinutes: todayMin },
       today: { count: todayAttempts.length, totalActiveMinutes: todayMin },
-      dlpfcBudget: { todayHighMinutes: 0, todayMedMinutes: todayMin, remainingHighMinutes: 270, todayAwayMinutes: 0, todayFocusSwitches: 0 },
+      dlpfcBudget: {
+        todayHighMinutes,
+        todayMedMinutes: minutesAtTier(2),
+        remainingHighMinutes: Math.max(0, 270 - todayHighMinutes),
+        todayAwayMinutes: todaySessions.reduce((sum, session) => sum + Number(session.awaySec || 0), 0) / 60,
+        todayFocusSwitches: todaySessions.reduce((sum, session) => sum + Number(session.focusSwitchCount || 0), 0),
+      },
       courseProgress,
       subgroups: { byCourse: {}, byDlpfcTier: {}, byKind: {}, byTimeSlot: {} },
     };
@@ -701,18 +716,18 @@ window.StudyApp = (() => {
     const totalItems = Object.values(a.courseProgress || {}).reduce((s, c) => s + (c.total || 0), 0);
 
     document.getElementById('home-metrics-strip').innerHTML = `
-      <div class="metric-tile">
+      <div class="metric-tile" data-layout-performance>
         <small>Universal Productivity (UPI)</small>
         <b>${ov.upi ?? '—'}</b>
         <small>7-day: ${a.last7Days?.upi ?? '—'} · 100 = AI Par @ 100%</small>
       </div>
-      <div class="metric-tile">
+      <div class="metric-tile" data-layout-performance>
         <small>Beat AI Par Rate</small>
         <b>${ov.beatAiRate != null ? Math.round(ov.beatAiRate * 100) + '%' : '—'}</b>
         <small>Accuracy-gated (${ov.count || 0} attempts)</small>
       </div>
-      <div class="metric-tile">
-        <small>Hard Budget Today</small>
+      <div class="metric-tile" data-layout-budget>
+        <small>High dlPFC practice budget</small>
         <b>${(highMin / 60).toFixed(1)}h / 4.5h</b>
         <small>${Math.round(highMin)}m High · ${Math.round(medMin)}m Med</small>
       </div>
@@ -721,7 +736,7 @@ window.StudyApp = (() => {
         <b>${totalDone} / ${totalItems}</b>
         <small>${totalRevisit} revisit · ${totalDue} due FSRS</small>
       </div>
-      <div class="metric-tile">
+      <div class="metric-tile" data-layout-screen>
         <small>Screen Time Today</small>
         <b id="home-screen-today-val">${esc(window.StudyUI.workClock?.getScreenStats?.()?.screenLabel || `${a.today?.totalActiveMinutes || 0}m`)}</b>
         <small>${a.today?.count || 0} Qs · <span id="home-offscreen-today-val">${esc(window.StudyUI.workClock?.getScreenStats?.()?.offScreenLabel || '0m')}</span> off-screen · ${focusSwitches} sw.</small>
@@ -1004,7 +1019,7 @@ window.StudyApp = (() => {
     }
   }
 
-  function bindMemberAccess() {
+  function bindMemberAccess(showWelcome = true) {
     if (!members.enabled) return;
     const dialog = document.getElementById('member-dialog');
     const form = document.getElementById('member-form');
@@ -1022,10 +1037,18 @@ window.StudyApp = (() => {
     };
     dialog.addEventListener('cancel', dismiss);
     document.getElementById('member-dismiss').onclick = dismiss;
-    document.getElementById('btn-member-library').onclick = () => {
+    document.getElementById('btn-member-library').onclick = async () => {
       if (members.isUnlocked()) {
+        try {
+          await members.forget();
+        } catch {
+          toast('Browser storage did not clear. Clear the stored site data to forget the key.');
+          return;
+        }
         try { sessionStorage.removeItem('study-os-member-dismissed'); } catch {}
-        location.reload();
+        for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
+        await refreshBootstrap();
+        show();
       } else show();
     };
     form.onsubmit = async (event) => {
@@ -1033,18 +1056,20 @@ window.StudyApp = (() => {
       submit.disabled = true;
       feedback.textContent = 'Opening your library…';
       try {
-        await members.unlock(key.value);
+        const remember = document.getElementById('member-remember').checked;
+        const remembered = await members.unlock(key.value, remember);
         key.value = '';
         for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
         await refreshBootstrap();
         dialog.close();
-        toast('Full library unlocked.');
+        toast(remember && !remembered ? 'Library unlocked for this visit. This browser could not save the key.' : 'Full library unlocked.');
       } catch (error) {
         feedback.textContent = error.message || 'Could not open the library.';
       } finally {
         submit.disabled = false;
       }
     };
+    if (!showWelcome || members.isUnlocked()) return;
     try { if (sessionStorage.getItem('study-os-member-dismissed')) return; } catch {}
     show();
   }
@@ -1625,9 +1650,9 @@ window.StudyApp = (() => {
 
         <div class="preset-chips-bar" role="group" aria-label="Practice difficulty presets">
           <small class="muted" style="font-weight:700;margin-right:4px">PRESETS:</small>
-          <button type="button" class="preset-chip" data-exp-preset="high_dlpfc">Hard</button>
-          <button type="button" class="preset-chip" data-exp-preset="med_dlpfc">Medium</button>
-          <button type="button" class="preset-chip" data-exp-preset="low_dlpfc">Easy</button>
+          <button type="button" class="preset-chip" data-exp-preset="high_dlpfc" data-layout-tier="3">${window.StudyLayout.label(3)}</button>
+          <button type="button" class="preset-chip" data-exp-preset="med_dlpfc" data-layout-tier="2">${window.StudyLayout.label(2)}</button>
+          <button type="button" class="preset-chip" data-exp-preset="low_dlpfc" data-layout-tier="1">${window.StudyLayout.label(1)}</button>
           <button type="button" class="preset-chip" data-exp-preset="long_horizon">Long Horizon (10m+)</button>
           ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-exp-preset="wiseflow_only">FLOWmulti ±2%</button>' : ''}
           <button type="button" class="preset-chip active" data-exp-preset="reset">All Tasks</button>
@@ -1654,10 +1679,10 @@ window.StudyApp = (() => {
           <label class="field-label">Difficulty
             <select id="flt-diff">
               <option value="all">All difficulty levels</option>
-              <option value="3">Hard</option>
-              <option value="2plus">Medium and hard</option>
-              <option value="2">Medium</option>
-              <option value="1">Easy</option>
+              <option value="3" data-layout-tier="3">${window.StudyLayout.label(3)}</option>
+              <option value="2plus" data-layout-tier-group>${window.StudyLayout.label(2)} and ${window.StudyLayout.label(3)}</option>
+              <option value="2" data-layout-tier="2">${window.StudyLayout.label(2)}</option>
+              <option value="1" data-layout-tier="1">${window.StudyLayout.label(1)}</option>
             </select>
           </label>
           <label class="field-label">Time / Effort Horizon
@@ -1962,14 +1987,8 @@ window.StudyApp = (() => {
             ? `<span class="badge live" style="font-size:11px">FLOWmulti</span>`
             : `<small>${esc(q.kind)}</small>`;
           const dlpfc = effectiveDlpfc(q, rec);
-          const diffBadge =
-            dlpfc.tier >= 3
-              ? `<span class="diff-badge diff-3" title="Hard novel synthesis">Hard</span>`
-              : dlpfc.tier === 2
-              ? `<span class="diff-badge diff-2" title="${dlpfc.chunked ? 'Previously mastered problem with fewer new steps' : 'Medium procedural'}">${
-                  dlpfc.chunked ? 'Medium' : 'Medium'
-                }</span>`
-              : `<span class="diff-badge diff-1" title="Easy recall">${dlpfc.chunked ? 'Easy' : 'Easy'}</span>`;
+          const diffBadge = `<span class="diff-badge diff-${dlpfc.tier}" data-layout-tier="${dlpfc.tier}"${dlpfc.chunked
+            ? ' title="Previously mastered problem with fewer new steps"' : ''}>${window.StudyLayout.label(dlpfc.tier)}</span>`;
           return `<tr>
             <td><strong>${esc(q.title)}</strong><br><small class="muted">${esc(q.localId || q.id)}</small></td>
             <td><span class="badge">T${esc(q.topicId)}</span></td>
@@ -3115,8 +3134,10 @@ window.StudyApp = (() => {
     });
 
     try {
+      await members.restore();
       await refreshBootstrap(false);
-      bindMemberAccess();
+      const openedStudySet = await window.StudySets.activateDraft();
+      bindMemberAccess(!openedStudySet);
     } catch {
       const hero = document.getElementById('up-next-hero');
       hero.innerHTML = '<h1>Could not load Study-OS</h1><p>Check your connection and try again.</p><button type="button" class="primary-btn">Retry</button>';
