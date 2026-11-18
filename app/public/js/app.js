@@ -22,8 +22,9 @@ window.StudyApp = (() => {
   };
   const bankCache = {};
   const staticRefCache = {};
-  let isStaticWeb = false;
+  const isStaticWeb = document.documentElement.dataset.studyMode === 'web';
   const WEB_STATE_KEY = 'study-os-web-state-v1';
+  let offlineStatus = navigator.serviceWorker?.controller ? 'Saved for offline' : '';
 
   let currentView = 'home';
   let selectedCourseId = '';
@@ -32,7 +33,10 @@ window.StudyApp = (() => {
   let selectedRefSemester = 'all';
   let selectedExamStyle = 'blind'; // 'blind' (Strict WISEflow Sit) | 'guided' (Instant Section Check)
   let sessionFocusMode = (() => {
-    const saved = sessionStorage.getItem('study-os-focus-mode') || 'auto';
+    let saved = 'auto';
+    try {
+      saved = sessionStorage.getItem('study-os-focus-mode') || saved;
+    } catch {}
     if (saved === 'deep') return 'high_dlpfc';
     if (saved === 'balanced') return 'med_dlpfc';
     if (saved === 'light') return 'low_dlpfc';
@@ -236,6 +240,22 @@ window.StudyApp = (() => {
     return isStaticWeb;
   }
 
+  function findPublicReference(file) {
+    for (const entry of boot.references) {
+      for (const note of [entry, ...(entry.companions || [])]) {
+        if (note.file.replace(/\.md$/i, '') === file.replace(/\.md$/i, '')) {
+          return { entry, file: note.file };
+        }
+      }
+    }
+    return null;
+  }
+
+  function publicReferenceUrl(file, heading = '') {
+    if (!findPublicReference(file)) return '';
+    return `?${new URLSearchParams({ view: 'references', note: file, section: heading })}`;
+  }
+
   async function ensureCourseBank(courseId) {
     if (bankCache[courseId]) return bankCache[courseId];
     const url = isStaticWeb
@@ -259,6 +279,9 @@ window.StudyApp = (() => {
       return apiGet(`/api/obsidian/section?file=${encodeURIComponent(relFile)}&heading=${encodeURIComponent(heading || '')}`);
     }
     const slug = refSlug(relFile);
+    if (!findPublicReference(relFile)) {
+      return { available: false, error: 'This source is available in the local archive or through your course.' };
+    }
     if (!staticRefCache[slug]) {
       staticRefCache[slug] = await apiGet(`./static-data/references/${encodeURIComponent(slug)}.json`);
     }
@@ -271,45 +294,36 @@ window.StudyApp = (() => {
     }
     const lines = doc.markdown.split('\n');
     const qNorm = heading.trim().toLowerCase().replace(/^#+\s*/, '');
-    let matchIdx = -1;
-    let matchLvl = 2;
-    let matchTitle = heading;
-    for (const h of doc.toc || []) {
+    const toc = doc.toc || [];
+    const match = toc.find((h) => h.title.toLowerCase() === qNorm) || toc.find((h) => {
       const hNorm = h.title.toLowerCase();
-      if (hNorm === qNorm || hNorm.includes(qNorm) || (hNorm.length >= 10 && qNorm.includes(hNorm))) {
-        matchIdx = h.line;
-        matchLvl = h.level;
-        matchTitle = h.title;
-        break;
-      }
-    }
-    if (matchIdx < 0) {
+      return hNorm.includes(qNorm) || (hNorm.length >= 10 && qNorm.includes(hNorm));
+    });
+    if (!match) {
       return { available: true, markdown: doc.markdown, toc: doc.toc || [], selectedHeading: '', obsidianUri: '' };
     }
     let endIdx = lines.length;
-    for (const h of doc.toc || []) {
-      if (h.line > matchIdx && h.level <= matchLvl) {
+    for (const h of toc) {
+      if (h.line > match.line && h.level <= match.level) {
         endIdx = h.line;
         break;
       }
     }
     return {
       available: true,
-      markdown: lines.slice(matchIdx, endIdx).join('\n'),
-      toc: doc.toc || [],
-      selectedHeading: matchTitle,
+      markdown: lines.slice(match.line, endIdx).join('\n'),
+      toc,
+      selectedHeading: match.title,
       obsidianUri: '',
     };
   }
 
   async function refreshBootstrap(forceCalendar = false) {
-    try {
-      boot = await apiGet(`/api/bootstrap${forceCalendar ? '?refresh_calendar=1' : ''}`);
-      isStaticWeb = false;
-    } catch {
+    if (isStaticWeb) {
       boot = await apiGet('./static-data/bootstrap.json');
-      isStaticWeb = true;
       recomputeWebAnalytics();
+    } else {
+      boot = await apiGet(`/api/bootstrap${forceCalendar ? '?refresh_calendar=1' : ''}`);
     }
     if (!selectedCourseId && boot.catalog.length) {
       selectedCourseId = boot.catalog[0].courseId;
@@ -345,6 +359,8 @@ window.StudyApp = (() => {
     }
     document.querySelectorAll('.tab-btn').forEach((b) => {
       b.classList.toggle('active', b.dataset.nav === name);
+      if (b.dataset.nav === name) b.setAttribute('aria-current', 'page');
+      else b.removeAttribute('aria-current');
     });
   }
 
@@ -354,7 +370,7 @@ window.StudyApp = (() => {
     if (opts.refFile) selectedRefFile = opts.refFile;
     showRawView(viewName);
     if (viewName === 'home') renderHome();
-    else if (viewName === 'references') await renderReferencesHub();
+    else if (viewName === 'references') await renderReferencesHub(opts.refDoc, opts.heading);
     else if (viewName === 'schedule') renderScheduleStudio();
     else if (viewName === 'exams') {
       renderExamsHub(opts.focusCourseId || '');
@@ -375,6 +391,8 @@ window.StudyApp = (() => {
   // VIEW 1: COMMAND CENTER (Zero-Decision-Fatigue Calendar Hero + Courses Grid)
   // ---------------------------------------------------------------------------
   function renderHome() {
+    document.getElementById('btn-refresh-cal').hidden = isStaticWeb;
+    document.getElementById('home-metrics-strip').hidden = isStaticWeb && !boot.analytics.totalAttempts;
     // 1. Paused Run Banner
     const paused = window.StudyRunner.getRun();
     const resumeEl = document.getElementById('resume-banner');
@@ -512,6 +530,21 @@ window.StudyApp = (() => {
           if (blk) launchCalendarBlock(blk);
         });
       });
+    } else if (isStaticWeb) {
+      const questionCount = boot.catalog.reduce((count, c) => count + c.questionCount, 0);
+      heroEl.innerHTML = `
+        <div class="hero-top">
+          <div>
+            <h1 class="hero-title">Study by subject</h1>
+            <p class="muted">${boot.catalog.length} subjects and ${questionCount} practice questions with hints, worked answers and course notes. Progress saves in this browser.</p>
+          </div>
+          <div class="row-actions">
+            <button type="button" class="primary-btn" id="btn-web-refs">Browse course notes</button>
+            <button type="button" class="ghost-btn" id="btn-web-exams">Mock exams</button>
+          </div>
+        </div>`;
+      document.getElementById('btn-web-refs').onclick = () => navigate('references');
+      document.getElementById('btn-web-exams').onclick = () => navigate('exams');
     } else {
       heroEl.innerHTML = `
         ${focusBarHtml}
@@ -519,7 +552,7 @@ window.StudyApp = (() => {
           <div>
             <span class="eyebrow">Ready to Practice</span>
             <h1 class="hero-title">Pick a course below, launch an Interleaved Run, or sync Google Calendar</h1>
-            <p class="muted">Routes tasks by live dlPFC cognitive load, interleaves topics, auto-pauses when unfocused, and saves to OneDrive.</p>
+            <p class="muted">Choose a subject or let Study-OS build a practice session from your question bank.</p>
           </div>
           <div class="row-actions">
             <button type="button" class="primary-btn btn-lg" id="btn-hero-smart">${
@@ -642,9 +675,9 @@ window.StudyApp = (() => {
               resolvedFocus === 'high_dlpfc' ? 'High-dlPFC 45m' : resolvedFocus === 'low_dlpfc' ? 'Recall 25m' : 'Procedural 40m'
             }</button>
             <button type="button" class="ghost-btn" data-deep-course="${esc(c.courseId)}" title="Filter to High-dlPFC Synthesis tasks">High-dlPFC</button>
-            <button type="button" class="ghost-btn" data-open-course="${esc(c.courseId)}">All (${c.questionCount})</button>
+            <button type="button" class="ghost-btn" data-open-course="${esc(c.courseId)}">${isStaticWeb ? 'Topics &amp; practice' : `All (${c.questionCount})`}</button>
             <button type="button" class="ghost-btn" data-exam-course="${esc(c.courseId)}">Exams</button>
-            <button type="button" class="ghost-btn" data-ref-course="${esc(c.courseId)}">Ref</button>
+            <button type="button" class="ghost-btn" data-ref-course="${esc(c.courseId)}">Notes</button>
           </div>
         </article>`;
       })
@@ -680,20 +713,17 @@ window.StudyApp = (() => {
       strip.innerHTML = `
         <div class="canvas-connect-bar">
           <div>
-            <span class="badge gold">Hosted Web Edition</span>
-            <strong style="margin-left:8px">Semester Reference Hub &amp; Practice Simulator</strong>
-            <small class="muted" style="margin-left:8px">Progress &amp; custom schedules save privately in your browser. Clone Study-OS + Canvas-Archive locally to sync your own Canvas PDFs via cookie session.</small>
+            <strong>Study offline</strong>
+            <small class="muted">Save the notes and questions to this browser. Use its Install app or Add to Home Screen option if you want an icon on your device.</small>
+            <small id="offline-status" role="status">${esc(offlineStatus)}</small>
           </div>
           <div class="row-actions">
-            <button type="button" class="ghost-btn" id="btn-strip-refs">Browse Reference Sheets →</button>
-            <button type="button" class="ghost-btn" id="btn-strip-sched">Build Schedule →</button>
-            <a class="ghost-btn" href="https://github.com/shadjosef/canvas-study-sync" target="_blank" rel="noopener">Get Canvas-Sync ↗</a>
-            <a class="ghost-btn" href="https://github.com/shadjosef/study-os" target="_blank" rel="noopener">GitHub ↗</a>
+            <button type="button" class="ghost-btn" id="btn-save-offline">${offlineStatus === 'Saved for offline' ? 'Check offline copy' : 'Save for offline'}</button>
+            <a class="ghost-btn" href="https://github.com/shadjosef/study-os#desktop-setup" target="_blank" rel="noopener">Desktop setup for Canvas and Obsidian ↗</a>
           </div>
         </div>
       `;
-      document.getElementById('btn-strip-refs')?.addEventListener('click', () => navigate('references'));
-      document.getElementById('btn-strip-sched')?.addEventListener('click', () => navigate('schedule'));
+      document.getElementById('btn-save-offline').addEventListener('click', saveForOffline);
       return;
     }
 
@@ -812,6 +842,46 @@ window.StudyApp = (() => {
     document.getElementById('btn-onboard-sched')?.addEventListener('click', () => navigate('schedule'));
   }
 
+  async function saveForOffline(event) {
+    const button = event.currentTarget;
+    const showStatus = (message) => {
+      offlineStatus = message;
+      const status = document.getElementById('offline-status');
+      if (status) status.textContent = message;
+    };
+    if (!navigator.serviceWorker) {
+      showStatus('Offline saving is unavailable in this browser.');
+      return;
+    }
+    button.disabled = true;
+    showStatus('Saving notes and questions…');
+    try {
+      const registration = await navigator.serviceWorker.register('./offline-worker.js');
+      const worker = registration.installing || registration.waiting || registration.active;
+      if (!worker) throw new Error('Offline worker missing');
+      if (worker.state === 'installing') {
+        await new Promise((resolve, reject) => {
+          const onStateChange = () => {
+            if (worker.state === 'installing') return;
+            worker.removeEventListener('statechange', onStateChange);
+            if (worker.state === 'redundant') reject(new Error('Offline install failed'));
+            else resolve();
+          };
+          worker.addEventListener('statechange', onStateChange);
+          onStateChange();
+        });
+      }
+      showStatus('Saved for offline');
+      button.textContent = 'Check offline copy';
+    } catch {
+      showStatus(navigator.serviceWorker.controller
+        ? 'The saved copy is available. Connect to update it.'
+        : 'Could not save. Check your connection and try again.');
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // VIEW 2: EXAM SIMULATOR HUB (All 5 Subjects + WISEflow ±2% + Custom Papers)
   // ---------------------------------------------------------------------------
@@ -822,7 +892,7 @@ window.StudyApp = (() => {
       col.kind === 'mock_exam' ||
       col.kind === 'exam'
     );
-    return examColls.length ? examColls : colls.slice(0, 4);
+    return examColls.length || isStaticWeb ? examColls : colls.slice(0, 4);
   }
 
   function renderExamsHub(focusCourseId = '') {
@@ -852,6 +922,9 @@ window.StudyApp = (() => {
             : '';
         const durMin = c.examInfo?.durationMinutes || 180;
         const examColls = getExamPaperCollections(c);
+        const mathPrep = c.courseId === 'math-2588' && c.obsidian?.practiceNote
+          ? publicReferenceUrl(c.obsidian.practiceNote)
+          : '';
 
         const packsHtml = examColls
           .map(
@@ -860,7 +933,7 @@ window.StudyApp = (() => {
               return `<div class="exam-pack-card">
               <div>
                 <strong>${esc(col.title)}</strong>
-                <small class="muted">Collection <code>${esc(col.id)}</code> · ${colDur}m exam timer</small>
+                <small class="muted">${colDur} min${col.description ? ` · ${esc(col.description)}` : ''}</small>
               </div>
               <div class="row-actions">
                 <button type="button" class="primary-btn" style="flex:1" data-sit-course="${esc(c.courseId)}" data-sit-coll="${esc(
@@ -892,6 +965,8 @@ window.StudyApp = (() => {
                 <span class="eyebrow" style="color:${esc(c.color)}">${esc(c.code)} · ${esc(c.examInfo?.format || 'Exam Preparation')}</span>
                 <h2>${esc(c.title)}</h2>
                 ${c.examInfo?.notes ? `<p class="muted" style="font-size:13.5px;margin:6px 0 0">${esc(c.examInfo.notes)}</p>` : ''}
+                ${mathPrep ? `<p><a href="${esc(mathPrep)}">2026 preparation guide</a></p>` : ''}
+                ${c.courseId === 'math-2588' ? '<p><a href="https://www.dr-eriksen.no/teaching/EBA1180/exams.php" target="_blank" rel="noopener">Mathematics past papers and solutions ↗</a></p>' : ''}
               </div>
               <div class="row-actions">
                 ${daysPill}
@@ -919,10 +994,11 @@ window.StudyApp = (() => {
         <div class="hero-top">
           <div style="flex:1;min-width:260px">
             <span class="eyebrow">WISEflow &amp; Past Exam Simulator</span>
-            <h1 class="hero-title" style="margin-bottom:6px">Full Exam Simulation Across All 5 Subjects</h1>
+            <h1 class="hero-title" style="margin-bottom:6px">Mock exams and past papers</h1>
             <p class="muted" style="margin:0;font-size:14px">
-              Includes <strong>WISEflow FLOWmulti</strong> numeric grading for Accounting (whole numbers by default or dot-decimal 3dp when announced, leading minus <code>-50</code>, <strong>±2% rounding margin</strong>), Official Home Exam 2 notebooks for Programming, and Past Exams across Economics, Mathematics &amp; OB.
+              Choose a timed mock or a guided practice session. Accounting mocks include numerical entry with a 2% tolerance.
             </p>
+            <p><a href="https://portal.bi.no/en/exams/former-examination-papers" target="_blank" rel="noopener">Official past papers and marking guides on the BI portal ↗</a></p>
           </div>
           <div>
             <small class="muted" style="display:block;margin-bottom:6px;font-weight:700">DELIVERY MODE:</small>
@@ -1281,7 +1357,14 @@ window.StudyApp = (() => {
     }
 
     root.innerHTML = '<div class="panel"><p class="muted">Loading course bank…</p></div>';
-    const bank = await ensureCourseBank(courseId);
+    let bank;
+    try {
+      bank = await ensureCourseBank(courseId);
+    } catch {
+      root.innerHTML = '<div class="panel"><p>Could not load this course. Check your connection or open a course saved for offline.</p></div>';
+      return;
+    }
+    if (selectedCourseId !== courseId || currentView !== 'course') return;
     const cMeta = boot.catalog.find((c) => c.courseId === courseId) || { courseId, title: bank.title, shortTitle: bank.shortTitle };
     const autoMode = getCircadianAutoTarget().mode;
     const defaultSort = autoMode === 'high_dlpfc' ? 'deep_first' : 'smart_priority';
@@ -1298,13 +1381,36 @@ window.StudyApp = (() => {
       `<option value="all">All Sources &amp; Past Papers</option>` +
       (bank.collections || []).map((c) => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('');
 
+    const topicCounts = new Map();
+    for (const question of bank.questions || []) {
+      if (question.available !== false) {
+        const key = String(question.topicId);
+        topicCounts.set(key, (topicCounts.get(key) || 0) + 1);
+      }
+    }
+    const curriculum = (bank.topics || []).map((topic) => {
+      const count = topicCounts.get(String(topic.id)) || 0;
+      const file = topic.obsidianFile || cMeta.obsidian?.mainReference || '';
+      const ref = publicReferenceUrl(file, topic.obsidianHeading || '');
+      const practice = count
+        ? `<button type="button" class="ghost-btn" data-practice-topic="${esc(topic.id)}">Practice (${count})</button>`
+        : '<small>Notes only</small>';
+      return `<li>
+        <span>${esc(topic.title)}</span>
+        <div class="row-actions">
+          ${ref ? `<a href="${esc(ref)}" class="ghost-btn">Notes</a>` : ''}
+          ${practice}
+        </div>
+      </li>`;
+    }).join('');
+
     root.innerHTML = `
       <div class="panel">
         <div class="row-between" style="margin-top:0">
           <div style="flex:1;min-width:260px">
             <span class="eyebrow">Course Builder &amp; dlPFC Cognitive Load Filter</span>
             <div style="margin-top:4px">
-              <select id="exp-course-sel" style="font-size:17px;font-weight:700;padding:8px 14px">${courseOptions}</select>
+              <select id="exp-course-sel" aria-label="Choose subject" style="font-size:17px;font-weight:700;padding:8px 14px">${courseOptions}</select>
             </div>
           </div>
           <div class="row-actions">
@@ -1313,6 +1419,12 @@ window.StudyApp = (() => {
             ${cMeta.obsidianUri ? `<a class="ghost-btn" href="${esc(cMeta.obsidianUri)}">Obsidian ↗</a>` : ''}
           </div>
         </div>
+
+        ${isStaticWeb && curriculum ? `<details class="curriculum">
+          <summary>Curriculum and study materials</summary>
+          <ol>${curriculum}</ol>
+          <p><a href="https://canvas.bi.no/${cMeta.canvasId ? `courses/${encodeURIComponent(cMeta.canvasId)}` : ''}" target="_blank" rel="noopener">Course handouts and assignments in BI Canvas ↗</a></p>
+        </details>` : ''}
 
         <div class="preset-chips-bar" role="group" aria-label="1-Click dlPFC & Time-of-Day Filter Presets">
           <small class="muted" style="font-weight:700;margin-right:4px">PRESETS:</small>
@@ -1709,6 +1821,15 @@ window.StudyApp = (() => {
       });
     });
 
+    root.querySelectorAll('[data-practice-topic]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const topic = document.getElementById('flt-topic');
+        topic.value = button.dataset.practiceTopic;
+        topic.dispatchEvent(new Event('change'));
+        button.closest('details').open = false;
+        topic.focus();
+      });
+    });
     document.getElementById('exp-course-sel').onchange = (e) => renderCourseExplorer(e.target.value, initialPreset);
     document.getElementById('exp-open-exams').onclick = () => navigate('exams', { focusCourseId: courseId });
     document.getElementById('exp-open-ref').onclick = () => openReferenceDrawer(cMeta);
@@ -1928,7 +2049,7 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   // VIEW 5: MULTI-SEMESTER REFERENCE HUB (Obsidian Reference Sheets + SVG + KaTeX)
   // ---------------------------------------------------------------------------
-  async function renderReferencesHub() {
+  async function renderReferencesHub(initialFile = '', initialHeading = '') {
     const root = document.getElementById('references-hub-root');
     const refs = boot.references || [];
     if (!refs.length) {
@@ -1973,12 +2094,12 @@ window.StudyApp = (() => {
           ${filteredRefs
             .map(
               (r) => `
-            <div class="ref-note-card ${r.file === selectedRefFile ? 'active' : ''}" data-ref-pick="${esc(r.file)}">
+            <div class="ref-note-card ${r.file === selectedRefFile ? 'active' : ''}" data-ref-card="${esc(r.file)}">
               <div class="row-between" style="margin:0 0 3px">
                 <span class="eyebrow" style="color:${esc(r.color)};margin:0">${esc(r.code)} · ${esc(r.semester)}</span>
                 <small class="muted">${r.headingCount || 0} sec</small>
               </div>
-              <strong style="display:block;font-size:14.5px">${esc(r.title)}</strong>
+              <button type="button" class="ref-note-title" data-ref-pick="${esc(r.file)}"${r.file === selectedRefFile ? ' aria-current="true"' : ''}>${esc(r.title)}</button>
               <div class="row-actions" style="margin-top:8px;gap:6px">
                 ${
                   r.courseId
@@ -2003,8 +2124,8 @@ window.StudyApp = (() => {
               <h2 id="ref-pane-title" style="margin:2px 0 0">${esc(activeEntry?.title || 'Reference')}</h2>
             </div>
             <div class="row-actions">
-              <select id="ref-pane-doc-sel" style="max-width:210px;font-size:13px"></select>
-              <select id="ref-pane-toc-sel" style="max-width:260px;font-size:13px"></select>
+              <select id="ref-pane-doc-sel" aria-label="Reference document" style="max-width:210px;font-size:13px"></select>
+              <select id="ref-pane-toc-sel" aria-label="Reference section" style="max-width:260px;font-size:13px"></select>
             </div>
           </div>
           <div id="ref-pane-body" class="markdown-body"><p class="muted">Loading reference sheet…</p></div>
@@ -2048,8 +2169,6 @@ window.StudyApp = (() => {
       tocSel.onchange = () => loadReader(entry, docSel.value, tocSel.value);
     };
 
-    await loadReader(activeEntry);
-
     document.getElementById('ref-hub-sem-sel').onchange = (e) => {
       selectedRefSemester = e.target.value;
       renderReferencesHub();
@@ -2057,8 +2176,8 @@ window.StudyApp = (() => {
 
     document.getElementById('ref-hub-search').oninput = (e) => {
       const q = e.target.value.trim().toLowerCase();
-      document.querySelectorAll('[data-ref-pick]').forEach((card) => {
-        const rf = refs.find((x) => x.file === card.dataset.refPick);
+      root.querySelectorAll('[data-ref-card]').forEach((card) => {
+        const rf = refs.find((x) => x.file === card.dataset.refCard);
         const hay = `${rf?.code || ''} ${rf?.title || ''} ${(rf?.headings || []).join(' ')}`.toLowerCase();
         card.hidden = !!q && !hay.includes(q);
       });
@@ -2077,6 +2196,7 @@ window.StudyApp = (() => {
         navigate('course', { courseId: btn.dataset.refPractice });
       });
     });
+    await loadReader(activeEntry, initialFile, initialHeading);
   }
 
   // ---------------------------------------------------------------------------
@@ -2755,7 +2875,14 @@ window.StudyApp = (() => {
       impFile.value = '';
     });
 
-    await refreshBootstrap(false);
+    try {
+      await refreshBootstrap(false);
+    } catch {
+      const hero = document.getElementById('up-next-hero');
+      hero.innerHTML = '<h1>Could not load Study-OS</h1><p>Check your connection and try again.</p><button type="button" class="primary-btn">Retry</button>';
+      hero.querySelector('button').onclick = () => window.location.reload();
+      return;
+    }
 
     // Handle deep links (`?course=...&topic=...&autostart=1`, `?view=exams|references|schedule`, or `?autostart_event=...`)
     const params = new URLSearchParams(window.location.search);
@@ -2774,6 +2901,13 @@ window.StudyApp = (() => {
       }
     }
     if (['exams', 'references', 'schedule'].includes(qView)) {
+      if (qView === 'references' && isStaticWeb) {
+        const target = findPublicReference(params.get('note') || '');
+        if (target) {
+          await navigate('references', { refFile: target.entry.file, refDoc: target.file, heading: params.get('section') || '' });
+          return;
+        }
+      }
       window.history.replaceState({}, '', window.location.pathname);
       await navigate(qView, { focusCourseId: qCourse || '' });
       return;
@@ -2799,6 +2933,7 @@ window.StudyApp = (() => {
 
   return {
     isStaticMode,
+    publicReferenceUrl,
     fetchReferenceSection,
     getProgressRecord,
     effectiveDifficulty,

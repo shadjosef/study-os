@@ -18,12 +18,14 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
 import re
 import shutil
 import sys
 from typing import Any
+from urllib.parse import quote, unquote
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 APP_DIR = ROOT_DIR / "app"
@@ -148,6 +150,85 @@ def build_catalog_entry(bank: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def add_bundled_practice(static_dir: Path, bootstrap: dict[str, Any]) -> None:
+    """Include original mathematics exercises in hosted builds and refreshed packs."""
+    bank_file = ROOT_DIR / "examples" / "math-2588" / "bank.json"
+    starter = json.loads(bank_file.read_text(encoding="utf-8"))
+    reference = next(
+        (r for r in bootstrap["references"] if r["file"] == starter["obsidian"]["mainReference"]),
+        None,
+    )
+    if reference is None:
+        return
+    course_id = starter["courseId"]
+    course_file = static_dir / "courses" / f"{course_id}.json"
+    if course_file.is_file():
+        bank = json.loads(course_file.read_text(encoding="utf-8"))
+        for field in ("topics", "collections", "questions"):
+            entries = {entry["id"]: entry for entry in bank.get(field, [])}
+            for entry in starter[field]:
+                entries.setdefault(entry["id"], entry)
+            bank[field] = list(entries.values())
+    else:
+        bank = starter
+    prep_file = "math-reference/Autumn 2026 exam preparation.md"
+    prep_markdown = bank_file.with_name("autumn-2026-prep.md").read_text(encoding="utf-8")
+    prep = {"file": prep_file, "toc": parse_headings(prep_markdown), "markdown": prep_markdown}
+    (static_dir / "references" / f"{ref_slug(prep_file)}.json").write_text(
+        json.dumps(prep, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    companions = [c for c in reference.get("companions", []) if c["file"] != prep_file]
+    reference["companions"] = [
+        {"file": prep_file, "label": "Autumn 2026 exam preparation"}, *companions,
+    ]
+    bank["obsidian"].setdefault("practiceNote", prep_file)
+    course_file.write_text(json.dumps(bank, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    entry = build_catalog_entry(bank)
+    bootstrap["catalog"] = [c for c in bootstrap["catalog"] if c["courseId"] != course_id]
+    bootstrap["catalog"].append(entry)
+    reference["courseId"] = course_id
+    reference["questionCount"] = entry["questionCount"]
+
+
+def finalize_site(out_dir: Path, bootstrap: dict[str, Any]) -> dict[str, Any]:
+    static_dir = out_dir / "static-data"
+    add_bundled_practice(static_dir, bootstrap)
+    for ref in bootstrap["references"]:
+        for entry in [ref, *ref.get("companions", [])]:
+            path = static_dir / "references" / f"{ref_slug(entry['file'])}.json"
+            note = json.loads(path.read_text(encoding="utf-8"))
+            for asset in re.findall(r"!\[[^\]]*\]\(\./(static-data/vault-assets/[^)]+)\)", note["markdown"]):
+                if not (out_dir / unquote(asset)).is_file():
+                    raise ValueError(f"Missing figure {asset} in {entry['file']}")
+    (static_dir / "bootstrap.json").write_text(
+        json.dumps(bootstrap, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    index = out_dir / "index.html"
+    html = index.read_text(encoding="utf-8")
+    html = html.replace("<html ", '<html data-study-mode="web" ', 1)
+    html = html.replace("</head>", '  <link rel="manifest" href="./app.webmanifest">\n</head>', 1)
+    index.write_text(html, encoding="utf-8")
+
+    template = (ROOT_DIR / "tools" / "offline-worker.js").read_bytes()
+    fingerprint = hashlib.sha256(template)
+    assets = []
+    for path in sorted(out_dir.rglob("*")):
+        if path.is_file() and path.name not in {".nojekyll", "CNAME"}:
+            rel = path.relative_to(out_dir).as_posix()
+            assets.append(quote(rel, safe="/"))
+            fingerprint.update(rel.encode() + b"\0" + hashlib.sha256(path.read_bytes()).digest())
+    (out_dir / "offline-worker.js").write_bytes(
+        (f"const VERSION = {json.dumps(fingerprint.hexdigest()[:20])};\n"
+         f"const ASSETS = {json.dumps(assets)};\n").encode() + template
+    )
+    return {
+        "outDir": str(out_dir),
+        "coursesExported": len(bootstrap["catalog"]),
+        "questionsExported": sum(c["questionCount"] for c in bootstrap["catalog"]),
+        "referencesExported": len(bootstrap["references"]),
+    }
+
+
 def build_site(out_dir: Path, cname: str = "") -> dict[str, Any]:
     if out_dir.exists():
         shutil.rmtree(out_dir)
@@ -167,12 +248,7 @@ def build_site(out_dir: Path, cname: str = "") -> dict[str, Any]:
     if not raw_catalog and not v_root.is_dir() and (pack_static / "bootstrap.json").is_file():
         shutil.copytree(pack_static, static_dir)
         boot_saved = json.loads((static_dir / "bootstrap.json").read_text(encoding="utf-8"))
-        return {
-            "outDir": str(out_dir),
-            "coursesExported": len(boot_saved.get("catalog") or []),
-            "questionsExported": sum(c.get("questionCount", 0) for c in (boot_saved.get("catalog") or [])),
-            "referencesExported": len(boot_saved.get("references") or []),
-        }
+        return finalize_site(out_dir, boot_saved)
 
     courses_out = static_dir / "courses"
     refs_out = static_dir / "references"
@@ -250,17 +326,7 @@ def build_site(out_dir: Path, cname: str = "") -> dict[str, Any]:
         "analytics": {},
         "recentSessions": [],
     }
-    (static_dir / "bootstrap.json").write_text(
-        json.dumps(bootstrap_payload, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-
-    return {
-        "outDir": str(out_dir),
-        "coursesExported": len(public_catalog),
-        "questionsExported": sum(c["questionCount"] for c in public_catalog),
-        "referencesExported": len(exported_refs),
-    }
+    return finalize_site(out_dir, bootstrap_payload)
 
 
 def main() -> int:

@@ -99,6 +99,10 @@ small, .muted { color: var(--muted); }
   align-items: center;
   gap: 10px;
   cursor: pointer;
+  background: none;
+  border: 0;
+  color: inherit;
+  text-align: left;
 }
 .brand-dot {
   width: 12px;
@@ -1580,6 +1584,54 @@ body.runner-foveal-compact .runner-topbar-inner {
 .ref-note-card.active {
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+
+.ref-note-title {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.curriculum {
+  margin: 12px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.curriculum summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.curriculum ol {
+  padding: 0;
+  list-style: none;
+}
+
+.curriculum li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+#offline-status { display: block; }
+
+@media (max-width: 720px) {
+  .topbar { position: static; }
+  .main-tabs { flex-wrap: wrap; }
+  .ref-sidebar { position: static; max-height: 16rem; }
+  .ref-reader-pane { min-width: 0; }
+  #exp-course-sel { max-width: 100%; }
+  .ref-reader-pane .markdown-body { overflow-wrap: anywhere; }
 }
 
 .ref-reader-pane {

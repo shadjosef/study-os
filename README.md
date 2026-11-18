@@ -1,14 +1,16 @@
 # Study-OS
 
+[Open Study-OS in your browser](https://shadjosef.github.io/study-os/)
+
 Open-source (`MIT`), zero-dependency university practice engine, **WISEflow `FLOWmulti` (`±2%`) exam simulator**, **Multi-Semester Reference Hub**, and **Adaptive Timetable Studio** — built to pair seamlessly with **[`canvas-study-sync`](https://github.com/shadjosef/canvas-study-sync)** (cookie-session `Canvas-Archive` downloader) and **`Obsidian Vault`**.
 
-Runs in **two modes from the exact same codebase**:
-1. **Hosted Web Edition (GitHub Pages / Custom Domain)** — Zero install! Classmates open your domain to browse **Multi-Semester Reference Sheets** (with KaTeX math & SVG diagrams), practice copyright-safe **WISEflow `FLOWmulti` & mock exams**, and build custom study schedules in their browser (`localStorage`).
-2. **Local Desktop Edition (`127.0.0.1:8765`, macOS & Windows)** — Plugs directly into a local **`Canvas-Archive`** (`canvas_session` cookie downloader) for 1-click course import, Side-by-Side Split PDF reading of university past papers, and OneDrive-synced FSRS-5 + `UPI` telemetry.
+Choose a subject, open **Topics & practice**, or use **Notes** for the reference sheets and worked examples. The public edition includes original exercises and mocks for the five subjects. **Exams** links to BI's former papers and marking guides, and the curriculum pages link to BI Canvas for course handouts and assignments.
 
----
+To study offline, select **Save for offline** on the home page while connected. If your browser offers **Install app** or **Add to Home Screen**, use it to add Study-OS to your device. Progress stays in the browser profile you used to study. Use **Export Backup** to save a copy of your progress records.
 
-## Quick Start for Students (Local + `Canvas-Archive` Cookie Workflow)
+## Desktop setup
+
+Use the desktop edition to study from your own Canvas Archive and Obsidian Vault. [Download the source ZIP](https://github.com/shadjosef/study-os/archive/refs/heads/main.zip), extract it, and install Python 3.9 or later. On Windows, install the time zone database with `py -3 -m pip install tzdata` before starting the app.
 
 1. **Sync your Canvas courses once via cookie session ([`canvas-study-sync`](https://github.com/shadjosef/canvas-study-sync))**:
    - Clone or unzip [`canvas-study-sync`](https://github.com/shadjosef/canvas-study-sync) into `Canvas-Archive/` and place `Study-OS/` right next to it (e.g. inside `Documents` or OneDrive).
@@ -27,7 +29,7 @@ Runs in **two modes from the exact same codebase**:
 
 - **WISEflow `FLOWmulti` (`±2%`) & Exam Simulator**: Blind countdown sits or guided checks, enforcing dot-decimal `.` input, leading `-` outflows, `±2%` rounding tolerance, and carry-forward intermediate answers.
 - **Multi-Semester Reference Hub**: Organizes authored Obsidian Semester Reference sheets (`Autumn 2026`, `Spring 2027`, …) with section search, KaTeX math, and embedded SVG diagrams.
-- **Circadian dlPFC Cognitive Routing & 75m Flowtime**: Routes heavy novel derivations before `15:00` (`4.5h` High-dlPFC cap), interleaves topics, auto-pauses when window focus leaves, and enforces `1:5` off-screen recovery breaks.
+- **Practice and session timers**: Both clocks continue while you switch apps by default. The runner offers manual pause and optional automatic pause.
 - **FSRS-5 Spaced Repetition & Universal Productivity Index (`UPI`)**: Accuracy-gated `Beat-AI` pacing (`>=85%` accuracy, `0` hints) + FSRS-5 scheduling.
 
 ---

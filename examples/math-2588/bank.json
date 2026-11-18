@@ -1,0 +1,1374 @@
+{
+  "schemaVersion": 1,
+  "courseId": "math-2588",
+  "code": "EBA 1181",
+  "title": "Mathematics for Data Science",
+  "shortTitle": "Mathematics",
+  "semester": "Autumn 2026",
+  "color": "#477eaa",
+  "obsidian": {
+    "mainReference": "math-reference/Mathematics for Data Science - Semester Reference.md"
+  },
+  "topics": [
+    {
+      "id": "1",
+      "number": 1,
+      "title": "Basic algebra and mathematical language",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "1. Basic algebra and mathematical language"
+    },
+    {
+      "id": "2",
+      "number": 2,
+      "title": "Rates of change, powers, roots and interest",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "2. Rates of change, powers, roots and interest"
+    },
+    {
+      "id": "3",
+      "number": 3,
+      "title": "Present value, cash flows and internal rate of return",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "3. Present value, cash flows and internal rate of return"
+    },
+    {
+      "id": "4",
+      "number": 4,
+      "title": "Geometric series, annuities and continuous compounding",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "4. Geometric series, annuities and continuous compounding"
+    },
+    {
+      "id": "5",
+      "number": 5,
+      "title": "Linear and quadratic equations, substitutions and parameters",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "5. Linear and quadratic equations, substitutions and parameters"
+    },
+    {
+      "id": "6",
+      "number": 6,
+      "title": "Polynomials, division and factorisation",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "6. Polynomials, division and factorisation"
+    },
+    {
+      "id": "7",
+      "number": 7,
+      "title": "Rational equations, radical equations and inequalities",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "7. Rational equations, radical equations and inequalities"
+    },
+    {
+      "id": "8",
+      "number": 8,
+      "title": "Functions, lines, quadratics, circles and ellipses",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "8. Functions, lines, quadratics, circles and ellipses"
+    },
+    {
+      "id": "9",
+      "number": 9,
+      "title": "Rational functions, limits, continuity and asymptotes",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "9. Rational functions, limits, continuity and asymptotes"
+    },
+    {
+      "id": "10",
+      "number": 10,
+      "title": "Inverse functions, exponentials and logarithms",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "10. Inverse functions, exponentials and logarithms"
+    },
+    {
+      "id": "11",
+      "number": 11,
+      "title": "Tangents and differentiation rules",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "11. Tangents and differentiation rules"
+    },
+    {
+      "id": "12",
+      "number": 12,
+      "title": "Stationary points and optimisation in one variable",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "12. Stationary points and optimisation in one variable"
+    },
+    {
+      "id": "13",
+      "number": 13,
+      "title": "Implicit differentiation",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "13. Implicit differentiation"
+    },
+    {
+      "id": "14",
+      "number": 14,
+      "title": "Second derivatives, convexity and inflection points",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "14. Second derivatives, convexity and inflection points"
+    },
+    {
+      "id": "15",
+      "number": 15,
+      "title": "Limits with L'Hôpital's rule",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "15. Limits with L'Hôpital's rule"
+    },
+    {
+      "id": "16",
+      "number": 16,
+      "title": "Marginal cost, revenue and cost optimum",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "16. Marginal cost, revenue and cost optimum"
+    },
+    {
+      "id": "17",
+      "number": 17,
+      "title": "Price elasticity",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "17. Price elasticity"
+    },
+    {
+      "id": "18",
+      "number": 18,
+      "title": "Linearisation and Taylor polynomials",
+      "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianHeading": "18. Linearisation and Taylor polynomials"
+    }
+  ],
+  "collections": [
+    {
+      "id": "math-topic-practice",
+      "title": "Curriculum practice",
+      "kind": "practice"
+    },
+    {
+      "id": "mock-exam-math-autumn-2026",
+      "title": "Autumn 2026 Mathematics Mock",
+      "kind": "mock_exam",
+      "durationMinutes": 180,
+      "description": "12 original, equally weighted written problems. Based on available autumn 2026 lecture and exercise sheets, with broader review from the May 2026 paper and autumn reference. Mark your written work with the worked solutions after submission."
+    }
+  ],
+  "questions": [
+    {
+      "id": "math-2588:PUBLIC-MATH-01",
+      "localId": "PUBLIC-MATH-01",
+      "courseId": "math-2588",
+      "topicId": "1",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Simplify an algebraic fraction",
+      "available": true,
+      "promptMarkdown": "Simplify $\\frac{6x^2-24}{3(x-2)}$ and state any excluded value.",
+      "hints": [
+        "Factor the numerator before cancelling."
+      ],
+      "solutionMarkdown": "$6x^2-24=6(x-2)(x+2)$, so the expression simplifies to $2(x+2)$ for $x\\ne 2$. The original denominator is zero at $x=2$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "1. Basic algebra and mathematical language"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "rubricChecks": [
+        "Simplify to $2(x+2)$",
+        "Exclude $x=2$"
+      ]
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-02",
+      "localId": "PUBLIC-MATH-02",
+      "courseId": "math-2588",
+      "topicId": "2",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Compare growth over two years",
+      "available": true,
+      "promptMarkdown": "A balance of 5,000 NOK grows by 8% in year 1 and falls by 5% in year 2. Find the final balance in NOK.",
+      "hints": [
+        "Multiply the two growth factors."
+      ],
+      "solutionMarkdown": "$5000(1.08)(0.95)=5130$ NOK. The overall growth factor is $1.026$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "2. Rates of change, powers, roots and interest"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "numericCheck": {
+        "expected": 5130
+      }
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-03",
+      "localId": "PUBLIC-MATH-03",
+      "courseId": "math-2588",
+      "topicId": "3",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Compare two projects at 10%",
+      "available": true,
+      "promptMarkdown": "Project A costs 900 now and pays 550 at the end of each of years 1 and 2. Project B costs 900 now and pays 1,150 at the end of year 2 only. At a 10% annual discount rate, which has the higher NPV? Show both NPVs.",
+      "hints": [
+        "Both initial costs are already at time zero. Discount each later payment separately."
+      ],
+      "solutionMarkdown": "$NPV_A=-900+550/1.1+550/1.1^2\\approx54.55$. $NPV_B=-900+1150/1.1^2\\approx50.41$. A has the higher NPV.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "3. Present value, cash flows and internal rate of return"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "rubricChecks": [
+        "Discount payments at their own dates",
+        "Compare the correct NPVs and choose A"
+      ]
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-04",
+      "localId": "PUBLIC-MATH-04",
+      "courseId": "math-2588",
+      "topicId": "4",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Value a savings annuity",
+      "available": true,
+      "promptMarkdown": "You deposit 1,000 NOK at the end of each of four years. The account earns 5% annually. How much is in the account just after the fourth deposit? Give NOK to two decimals.",
+      "hints": [
+        "The first deposit earns three years of interest, and the fourth earns none."
+      ],
+      "solutionMarkdown": "$1000(1+1.05+1.05^2+1.05^3)=4310.125$, or 4,310.13 NOK rounded to two decimals.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "4. Geometric series, annuities and continuous compounding"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "numericCheck": {
+        "expected": 4310.13
+      }
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-05",
+      "localId": "PUBLIC-MATH-05",
+      "courseId": "math-2588",
+      "topicId": "5",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Find two roots by substitution",
+      "available": true,
+      "promptMarkdown": "Solve $x^4-13x^2+36=0$ over the reals.",
+      "hints": [
+        "Let $u=x^2$ and factor the resulting quadratic."
+      ],
+      "solutionMarkdown": "$u^2-13u+36=(u-4)(u-9)$, so $u=4$ or $9$. Taking both signs gives $x=-3,-2,2,3$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "5. Linear and quadratic equations, substitutions and parameters"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "rubricChecks": [
+        "Solve for $u=4,9$",
+        "Give all four real roots"
+      ]
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-06",
+      "localId": "PUBLIC-MATH-06",
+      "courseId": "math-2588",
+      "topicId": "6",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Use the factor theorem",
+      "available": true,
+      "promptMarkdown": "Find $a$ if $x-2$ is a factor of $p(x)=x^3+ax^2-5x+6$.",
+      "hints": [
+        "If $x-2$ is a factor, what is $p(2)$?"
+      ],
+      "solutionMarkdown": "$p(2)=8+4a-10+6=4+4a$. Setting this equal to zero gives $a=-1$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "6. Polynomials, division and factorisation"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "numericCheck": {
+        "expected": -1
+      }
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-07",
+      "localId": "PUBLIC-MATH-07",
+      "courseId": "math-2588",
+      "topicId": "7",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Check for an extraneous root",
+      "available": true,
+      "promptMarkdown": "Solve $\\sqrt{x+6}=x$ over the reals. Explain why any rejected root fails.",
+      "hints": [
+        "The right side must be nonnegative before squaring."
+      ],
+      "solutionMarkdown": "Squaring gives $x^2-x-6=0$, so $x=3$ or $-2$. Only $3$ meets $x\\ge0$ and $\\sqrt{3+6}=3$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "7. Rational equations, radical equations and inequalities"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "rubricChecks": [
+        "State $x\\ge0$",
+        "Reject $-2$ and verify $3$"
+      ]
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-08",
+      "localId": "PUBLIC-MATH-08",
+      "courseId": "math-2588",
+      "topicId": "8",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Read the centre of an ellipse",
+      "available": true,
+      "promptMarkdown": "Rewrite $4x^2+9y^2-16x+18y-11=0$ in standard ellipse form. Give its centre and semi-axis lengths.",
+      "hints": [
+        "Group the $x$ and $y$ terms and complete each square."
+      ],
+      "solutionMarkdown": "$4(x-2)^2+9(y+1)^2=36$, so $\\frac{(x-2)^2}{9}+\\frac{(y+1)^2}{4}=1$. The centre is $(2,-1)$ and the horizontal and vertical semi-axis lengths are $3$ and $2$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "8. Functions, lines, quadratics, circles and ellipses"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "rubricChecks": [
+        "Obtain the standard form",
+        "Identify the centre and both semi-axis lengths"
+      ]
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-09",
+      "localId": "PUBLIC-MATH-09",
+      "courseId": "math-2588",
+      "topicId": "9",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Distinguish a hole from an asymptote",
+      "available": true,
+      "promptMarkdown": "Find the hole and vertical asymptote of $f(x)=\\frac{(x-1)(x+3)}{(x-1)(x-2)}$. Give the coordinates of the hole.",
+      "hints": [
+        "Identify the zeros of the original denominator, then cancel the common factor."
+      ],
+      "solutionMarkdown": "The reduced function is $(x+3)/(x-2)$. At $x=1$ it approaches $-4$, so the hole is $(1,-4)$. At $x=2$ the nonzero numerator and zero denominator give a vertical asymptote.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "9. Rational functions, limits, continuity and asymptotes"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "rubricChecks": [
+        "Give the hole $(1,-4)$",
+        "Give the asymptote $x=2$"
+      ]
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-10",
+      "localId": "PUBLIC-MATH-10",
+      "courseId": "math-2588",
+      "topicId": "10",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Find a logarithmic inverse",
+      "available": true,
+      "promptMarkdown": "Find $f^{-1}$ for $f(x)=2e^{3x}-4$. State the domain of the inverse.",
+      "hints": [
+        "Solve $y+4=2e^{3x}$ for $x$."
+      ],
+      "solutionMarkdown": "$f^{-1}(x)=\\frac13\\ln\\left(\\frac{x+4}{2}\\right)$, with domain $x>-4$, the range of $f$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "10. Inverse functions, exponentials and logarithms"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "rubricChecks": [
+        "Isolate the exponential and apply the log",
+        "State the correct domain"
+      ]
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-11",
+      "localId": "PUBLIC-MATH-11",
+      "courseId": "math-2588",
+      "topicId": "11",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Find the tangent slope",
+      "available": true,
+      "promptMarkdown": "Find the slope of the tangent to $f(x)=x^2e^x$ at $x=1$. Give a decimal to three places.",
+      "hints": [
+        "Use the product rule before substituting."
+      ],
+      "solutionMarkdown": "$f\\prime(x)=2xe^x+x^2e^x$. At $1$ the slope is $3e\\approx8.155$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "11. Tangents and differentiation rules"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "numericCheck": {
+        "expected": 8.155
+      }
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-12",
+      "localId": "PUBLIC-MATH-12",
+      "courseId": "math-2588",
+      "topicId": "12",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Maximise area with a constraint",
+      "available": true,
+      "promptMarkdown": "A rectangular garden borders a long straight wall. You have 48 m of fencing for the three other sides. What is the largest garden area in square metres?",
+      "hints": [
+        "If the two shorter fenced sides each have length $x$, the remaining side is $48-2x$."
+      ],
+      "solutionMarkdown": "$A(x)=x(48-2x)$ for $0\\le x\\le24$. The vertex occurs at $x=12$ and gives $A=288$ square metres. The endpoints give zero.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "12. Stationary points and optimisation in one variable"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "numericCheck": {
+        "expected": 288
+      }
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-13",
+      "localId": "PUBLIC-MATH-13",
+      "courseId": "math-2588",
+      "topicId": "13",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Differentiate an implicit curve",
+      "available": true,
+      "promptMarkdown": "Find $dy/dx$ at $(2,1)$ on $x^2+xy+y^2=7$. Give a decimal to two places.",
+      "hints": [
+        "Differentiate $xy$ with the product rule, treating $y$ as a function of $x$."
+      ],
+      "solutionMarkdown": "$2x+y+x y\\prime+2y y\\prime=0$. Thus $y\\prime=-(2x+y)/(x+2y)$, which at $(2,1)$ is $-5/4=-1.25$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "13. Implicit differentiation"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "numericCheck": {
+        "expected": -1.25
+      }
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-14",
+      "localId": "PUBLIC-MATH-14",
+      "courseId": "math-2588",
+      "topicId": "14",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Locate an inflection point",
+      "available": true,
+      "promptMarkdown": "Find the inflection point of $f(x)=x^3-9x^2+5x+4$ and say where the graph is concave down or up.",
+      "hints": [
+        "Look for a sign change in $f\\prime\\prime(x)$."
+      ],
+      "solutionMarkdown": "$f\\prime\\prime(x)=6x-18$, which is negative for $x<3$ and positive for $x>3$. As $f(3)=-35$, the inflection point is $(3,-35)$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "14. Second derivatives, convexity and inflection points"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "rubricChecks": [
+        "Check both signs of the second derivative",
+        "Give the point $(3,-35)$"
+      ]
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-15",
+      "localId": "PUBLIC-MATH-15",
+      "courseId": "math-2588",
+      "topicId": "15",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Evaluate a zero-over-zero limit",
+      "available": true,
+      "promptMarkdown": "Evaluate $\\lim_{x\\to0}\\frac{e^{2x}-1-2x}{x^2}$ using L’Hôpital’s rule.",
+      "hints": [
+        "After the first differentiation, check whether the limit is still of the indeterminate form $0/0$."
+      ],
+      "solutionMarkdown": "The first derivative ratio is $(2e^{2x}-2)/(2x)$, still $0/0$. Differentiating again gives $4e^{2x}/2$, which tends to $2$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "15. Limits with L'Hôpital's rule"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "numericCheck": {
+        "expected": 2
+      }
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-16",
+      "localId": "PUBLIC-MATH-16",
+      "courseId": "math-2588",
+      "topicId": "16",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Minimise average cost",
+      "available": true,
+      "promptMarkdown": "For output $q>0$, total cost is $C(q)=200+8q+2q^2$. Find the output $q$ that minimises average cost.",
+      "hints": [
+        "Divide total cost by output before differentiating."
+      ],
+      "solutionMarkdown": "$AC=200/q+8+2q$. Setting $AC\\prime=-200/q^2+2=0$ gives $q=10$. The derivative changes from negative to positive there.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "16. Marginal cost, revenue and cost optimum"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "numericCheck": {
+        "expected": 10
+      }
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-17",
+      "localId": "PUBLIC-MATH-17",
+      "courseId": "math-2588",
+      "topicId": "17",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Classify demand elasticity",
+      "available": true,
+      "promptMarkdown": "Demand is $q(p)=240-4p$ for $0<p<60$. Compute the signed point price elasticity $q\\prime(p)p/q(p)$ at $p=40$. Is demand elastic or inelastic there?",
+      "hints": [
+        "Use the quantity at the given price, and compare the absolute value of elasticity with 1."
+      ],
+      "solutionMarkdown": "$q(40)=80$ and $q\\prime=-4$, so elasticity is $-4(40)/80=-2$. Its absolute value exceeds 1, so demand is elastic.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "17. Price elasticity"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "rubricChecks": [
+        "Calculate the signed elasticity $-2$",
+        "Classify demand as elastic"
+      ]
+    },
+    {
+      "id": "math-2588:PUBLIC-MATH-18",
+      "localId": "PUBLIC-MATH-18",
+      "courseId": "math-2588",
+      "topicId": "18",
+      "collectionId": "math-topic-practice",
+      "difficulty": 2,
+      "origin": "synthetic_drill",
+      "kind": "calculation",
+      "title": "Approximate a square root",
+      "available": true,
+      "promptMarkdown": "Use the degree two Taylor polynomial of $f(x)=\\sqrt{x}$ around $x=4$ to approximate $\\sqrt{4.4}$. Give four decimal places.",
+      "hints": [
+        "$f\\prime(4)=1/4$ and $f\\prime\\prime(4)=-1/32$. Include the $2!$ in the quadratic term."
+      ],
+      "solutionMarkdown": "$T_2(x)=2+\\frac14(x-4)-\\frac1{64}(x-4)^2$. At $x=4.4$, this gives $2+0.1-0.0025=2.0975$.",
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "18. Linearisation and Taylor polynomials"
+      },
+      "pacing": {
+        "learning": {
+          "target": 5,
+          "min": 3,
+          "max": 8
+        },
+        "exam": {
+          "target": 4,
+          "min": 2,
+          "max": 6
+        }
+      },
+      "tags": [
+        "curriculum-practice"
+      ],
+      "numericCheck": {
+        "expected": 2.0975
+      }
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-01",
+      "localId": "MATH26-MOCK-01",
+      "courseId": "math-2588",
+      "topicId": "11",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 1 · Combine derivative rules",
+      "available": true,
+      "promptMarkdown": "Differentiate each function. Give the domain where each derivative exists. (a) $\\sqrt{4+x^2}$, (b) $(x-1)e^{2x}$, (c) $\\ln(x)/x$.",
+      "contextMarkdown": "Allow 180 minutes for this mock. All 12 problems carry equal weight. Show your reasoning, then compare your work with the marking checklist after submission.",
+      "hints": [
+        "For each part, identify the outermost operation before differentiating."
+      ],
+      "solutionMarkdown": "(a) Chain rule gives $x/\\sqrt{4+x^2}$ for every real $x$. (b) Product and chain rules give $e^{2x}(2x-1)$ for every real $x$. (c) Quotient rule gives $(1-\\ln x)/x^2$ for $x>0$.",
+      "rubricChecks": [
+        "Correct chain-rule derivative and domain",
+        "Correct product-rule derivative and domain",
+        "Correct quotient-rule derivative and domain"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "11. Tangents and differentiation rules"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-02",
+      "localId": "MATH26-MOCK-02",
+      "courseId": "math-2588",
+      "topicId": "11",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 2 · Apply the mean value theorem",
+      "available": true,
+      "promptMarkdown": "For $f(x)=x^3-3x^2+x$ on $[0,3]$, compute the secant slope. Verify that the mean value theorem applies and find every point in $(0,3)$ where the tangent is parallel to the secant.",
+      "contextMarkdown": "",
+      "hints": [
+        "The endpoints define the secant, but the theorem asks for an interior point."
+      ],
+      "solutionMarkdown": "$f(0)=0$ and $f(3)=3$, so the secant slope is $1$. A polynomial is continuous on the closed interval and differentiable on its interior. Solve $f\\prime(c)=3c^2-6c+1=1$, giving $c=0$ or $2$. Only $c=2$ lies in $(0,3)$.",
+      "rubricChecks": [
+        "Compute the secant slope and check both hypotheses",
+        "Identify $c=2$ and exclude the endpoint"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "11. Tangents and differentiation rules"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-03",
+      "localId": "MATH26-MOCK-03",
+      "courseId": "math-2588",
+      "topicId": "13",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 3 · Find an implicit tangent",
+      "available": true,
+      "promptMarkdown": "The curve is given by $x^2+xy+2y^2=8$. Verify that $(2,1)$ lies on the curve, derive $dy/dx$, and find the tangent line at $(2,1)$.",
+      "contextMarkdown": "",
+      "hints": [
+        "Differentiate $xy$ and $y^2$ with $y$ treated as a function of $x$."
+      ],
+      "solutionMarkdown": "At $(2,1)$ the left side is $4+2+2=8$. Differentiating gives $2x+y+(x+4y)y\\prime=0$, so $y\\prime=-(2x+y)/(x+4y)$ when $x+4y\\ne0$. The slope at $(2,1)$ is $-5/6$ and the tangent is $y-1=-\\frac56(x-2)$.",
+      "rubricChecks": [
+        "Verify the point and differentiate correctly",
+        "Give the correct slope and tangent equation"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "13. Implicit differentiation"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-04",
+      "localId": "MATH26-MOCK-04",
+      "courseId": "math-2588",
+      "topicId": "14",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 4 · Distinguish a stationary inflection from a minimum",
+      "available": true,
+      "promptMarkdown": "Let $f(x)=x^4-4x^3$. Find and classify its stationary points. State where it is concave up and concave down, and give both inflection points.",
+      "contextMarkdown": "",
+      "hints": [
+        "A zero derivative tells you where to check. Use sign changes to decide what happens there."
+      ],
+      "solutionMarkdown": "$f\\prime=4x^2(x-3)$ is negative on both sides of $0$ and becomes positive at $3$. The minimum is $(3,-27)$ and $0$ is stationary without being an extremum. $f\\prime\\prime=12x(x-2)$ is positive for $x<0$ and $x>2$, negative for $0<x<2$. The inflection points are $(0,0)$ and $(2,-16)$.",
+      "rubricChecks": [
+        "Classify the two stationary points from the first derivative",
+        "Give the curvature intervals and verify both inflection points"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "14. Second derivatives, convexity and inflection points"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-05",
+      "localId": "MATH26-MOCK-05",
+      "courseId": "math-2588",
+      "topicId": "7",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 5 · Solve a logarithmic inequality",
+      "available": true,
+      "promptMarkdown": "(a) Simplify $\\frac{6x^2-6}{9x+9}$ and state the excluded value. (b) Solve $\\ln(x-1)+\\ln(x+3)\\ge\\ln(12)$. Justify the domain and endpoints in part (b).",
+      "contextMarkdown": "",
+      "hints": [
+        "For (a), factor the numerator and denominator. For (b), check both log arguments before combining the logarithms."
+      ],
+      "solutionMarkdown": "(a) The numerator is $6(x+1)(x-1)$ and the denominator is $9(x+1)$. The expression is $2(x-1)/3$ for $x\\ne-1$. (b) Both arguments are positive when $x>1$. On this domain, monotonicity of logarithms gives $(x-1)(x+3)\\ge12$. Thus $(x+5)(x-3)\\ge0$, which reduces to $x\\ge3$. At $x=3$ equality holds and both logs exist.",
+      "rubricChecks": [
+        "Simplify the fraction and preserve the excluded value",
+        "Set the correct log domain and remove the logs correctly",
+        "Solve the inequality and include $x=3$"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "7. Rational equations, radical equations and inequalities"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-06",
+      "localId": "MATH26-MOCK-06",
+      "courseId": "math-2588",
+      "topicId": "6",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 6 · Factor a polynomial and read its sign",
+      "available": true,
+      "promptMarkdown": "For $p(x)=x^3-2x^2-5x+6$, show that $x-1$ is a factor. Factor $p$ fully and solve $p(x)\\le0$.",
+      "contextMarkdown": "",
+      "hints": [
+        "Evaluate the polynomial at 1, then divide and use a sign chart."
+      ],
+      "solutionMarkdown": "$p(1)=0$. Dividing by $x-1$ gives $x^2-x-6=(x-3)(x+2)$. All roots are simple, so the signs on the four intervals cut by $-2,1,3$ are respectively $-,+,-,+$. The solution is $(-\\infty,-2]\\cup[1,3]$.",
+      "rubricChecks": [
+        "Verify the factor and obtain the full factorisation",
+        "Use correct interval signs and include all three roots"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "6. Polynomials, division and factorisation"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-07",
+      "localId": "MATH26-MOCK-07",
+      "courseId": "math-2588",
+      "topicId": "9",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 7 · Sketch a rational function with a hole",
+      "available": true,
+      "promptMarkdown": "For $f(x)=(2x^2-3x-5)/(x^2-x-2)$, find the domain, any hole, and both asymptotes. Sketch the graph or describe which side of the horizontal asymptote each branch lies on.",
+      "contextMarkdown": "",
+      "hints": [
+        "Factor both polynomials and preserve the restrictions from the original denominator."
+      ],
+      "solutionMarkdown": "The factors give $f(x)=(x+1)(2x-5)/((x+1)(x-2))=2-1/(x-2)$ for $x\\ne-1,2$. The hole is $(-1,7/3)$, the vertical asymptote is $x=2$, and the horizontal asymptote is $y=2$. The left branch lies above $2$ and the right branch below it.",
+      "rubricChecks": [
+        "Correct domain and hole coordinates",
+        "Correct asymptotes and branch positions"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "9. Rational functions, limits, continuity and asymptotes"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-08",
+      "localId": "MATH26-MOCK-08",
+      "courseId": "math-2588",
+      "topicId": "4",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 8 · Value delayed payments and decide whether to invest",
+      "available": true,
+      "promptMarkdown": "A renovation costs 18,500 NOK today and pays 8,000 NOK at the end of years 3, 4 and 5. At an effective annual discount rate of 5%, find the present value and NPV. Find the highest price today that would still give a nonnegative NPV.",
+      "contextMarkdown": "",
+      "hints": [
+        "Draw the cash-flow timeline and discount the first receipt for three years."
+      ],
+      "solutionMarkdown": "$PV=8000(1.05^{-3}+1.05^{-4}+1.05^{-5})\\approx19760.53$ NOK. Subtract the cost at time zero to get $NPV\\approx1260.53$ NOK. The maximum price is the present value, about 19,760.53 NOK.",
+      "rubricChecks": [
+        "Place and discount the three payments correctly",
+        "Compute NPV and identify the break-even price"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "4. Geometric series, annuities and continuous compounding"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-09",
+      "localId": "MATH26-MOCK-09",
+      "courseId": "math-2588",
+      "topicId": "16",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 9 · Compare profit maximisation and cost efficiency",
+      "available": true,
+      "promptMarkdown": "A firm faces $p(q)=120-2q$ for $0\\le q\\le60$ and total cost $C(q)=100+20q+q^2$. For positive output, find the quantity that minimises average cost. For $0\\le q\\le60$, find the quantity that maximises profit. Explain why the quantities differ.",
+      "contextMarkdown": "",
+      "hints": [
+        "Write average cost as $C(q)/q$ and profit as $q p(q)-C(q)$."
+      ],
+      "solutionMarkdown": "$AC=100/q+20+q$ has $AC\\prime=1-100/q^2$, negative before $q=10$ and positive after. Profit is $\\pi=100q-3q^2-100$, a concave parabola with maximum at $q=50/3$. Minimising cost per unit compares marginal with average cost. Maximising profit compares marginal revenue with marginal cost.",
+      "rubricChecks": [
+        "Find and verify the average-cost minimum",
+        "Find and verify the profit maximum and explain the two criteria"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "16. Marginal cost, revenue and cost optimum"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-10",
+      "localId": "MATH26-MOCK-10",
+      "courseId": "math-2588",
+      "topicId": "17",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 10 · Connect elasticity with revenue",
+      "available": true,
+      "promptMarkdown": "For $p>0$, demand is $D(p)=180/(p+3)^2$. Find the signed price elasticity, the elastic price region, and the price that maximises revenue. Justify the maximum.",
+      "contextMarkdown": "",
+      "hints": [
+        "Use $E=pD\\prime/D$ and relate $1+E$ to the sign of the revenue derivative."
+      ],
+      "solutionMarkdown": "$E=-2p/(p+3)$, so $|E|>1$ exactly when $p>3$. For $R=pD(p)$, $R\\prime=D(p)(1+E)=180(3-p)/(p+3)^3$. Revenue increases up to $p=3$ and decreases after, giving a global maximum at $3$.",
+      "rubricChecks": [
+        "Derive the signed elasticity and elastic price region",
+        "Use the revenue derivative sign to justify the maximum"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "17. Price elasticity"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-11",
+      "localId": "MATH26-MOCK-11",
+      "courseId": "math-2588",
+      "topicId": "10",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 11 · Invert a function with a restricted range",
+      "available": true,
+      "promptMarkdown": "For $f(x)=5-2\\sqrt{x+1}$ with $x\\ge-1$, find its inverse and state the inverse domain and range. Find the inverse slope at input $1$.",
+      "contextMarkdown": "",
+      "hints": [
+        "Before squaring, determine the sign of $5-y$ from the original equation."
+      ],
+      "solutionMarkdown": "The function is strictly decreasing with range $(-\\infty,5]$. From $\\sqrt{x+1}=(5-y)/2$, obtain $f^{-1}(y)=(5-y)^2/4-1$, for $y\\le5$, with range $[-1,\\infty)$. The derivative of the inverse is $(y-5)/2$, giving $-2$ at $y=1$.",
+      "rubricChecks": [
+        "Find the inverse and its domain and range",
+        "Calculate the inverse slope at the stated input"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "10. Inverse functions, exponentials and logarithms"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    },
+    {
+      "id": "math-2588:MATH26-MOCK-12",
+      "localId": "MATH26-MOCK-12",
+      "courseId": "math-2588",
+      "topicId": "18",
+      "collectionId": "mock-exam-math-autumn-2026",
+      "origin": "mock_exam",
+      "kind": "calculation",
+      "difficulty": 2,
+      "points": 10,
+      "title": "Problem 12 · Connect a Taylor approximation to a limit",
+      "available": true,
+      "promptMarkdown": "Find the degree-two Taylor polynomial of $f(x)=\\ln(1+2x)$ at $0$ and use it to approximate $\\ln(1.1)$. Then evaluate $\\lim_{x\\to0}(\\ln(1+2x)-2x)/x^2$.",
+      "contextMarkdown": "",
+      "hints": [
+        "The coefficient on $x^2$ is half the second derivative at zero."
+      ],
+      "solutionMarkdown": "$f(0)=0$, $f\\prime(0)=2$, and $f\\prime\\prime(0)=-4$, giving $T_2=2x-2x^2$. At $x=0.05$ this gives $0.095$. Taylor's remainder is $o(x^2)$, so the requested ratio tends to $-2$. Alternatively, differentiating numerator and denominator twice gives $-4/(1+2x)^2$ divided by $2$, with the same limit.",
+      "rubricChecks": [
+        "Derive the Taylor polynomial and give the approximation",
+        "Justify the limit by the remainder or a valid application of L’Hôpital’s rule"
+      ],
+      "obsidianLink": {
+        "file": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "heading": "18. Linearisation and Taylor polynomials"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18,
+          "min": 12,
+          "max": 24
+        },
+        "exam": {
+          "target": 15,
+          "min": 10,
+          "max": 20
+        }
+      },
+      "tags": [
+        "autumn-2026-mock"
+      ]
+    }
+  ],
+  "canvasId": "2588"
+}

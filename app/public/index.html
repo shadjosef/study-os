@@ -3,6 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Study by subject with course notes, guided practice and mock exams.">
+  <meta name="theme-color" content="#1f6b58">
+  <link rel="icon" href="./pwa/study-os-192.png">
+  <link rel="apple-touch-icon" href="./pwa/study-os-192.png">
   <title>Study-OS · Universal Practice, Reference Hub &amp; Adaptive Scheduler</title>
   <link rel="stylesheet" href="./vendor/katex.min.css">
   <link rel="stylesheet" href="./styles.css">
@@ -11,19 +15,18 @@
   <!-- Top Global Navigation (hidden during active runner mode for zero distraction) -->
   <header id="global-header" class="topbar">
     <div class="topbar-inner">
-      <div class="brand" id="nav-brand" role="button" tabindex="0">
+      <button type="button" class="brand" id="nav-brand">
         <span class="brand-dot"></span>
-        <div>
+        <span>
           <strong>Study-OS</strong>
-          <small>Canvas × References × Schedule</small>
-        </div>
-      </div>
+        </span>
+      </button>
 
       <nav class="main-tabs" aria-label="Primary views">
-        <button type="button" class="tab-btn active" data-nav="home">Command Center</button>
-        <button type="button" class="tab-btn" data-nav="references">Reference Hub</button>
-        <button type="button" class="tab-btn" data-nav="schedule">Schedule Studio</button>
-        <button type="button" class="tab-btn" data-nav="exams">Exam Simulator</button>
+        <button type="button" class="tab-btn active" data-nav="home" aria-current="page">Home</button>
+        <button type="button" class="tab-btn" data-nav="references">Notes</button>
+        <button type="button" class="tab-btn" data-nav="schedule">Schedule</button>
+        <button type="button" class="tab-btn" data-nav="exams">Exams</button>
         <button type="button" class="tab-btn" data-nav="course">Courses</button>
         <button type="button" class="tab-btn" data-nav="analytics">Metrics &amp; AI</button>
       </nav>
@@ -90,7 +93,7 @@
       <div class="section-heading">
         <div>
           <span class="eyebrow">Active Semester Courses</span>
-          <h2>Universal Practice Banks</h2>
+          <h2>Courses</h2>
         </div>
         <div class="row-actions">
           <select id="home-semester-filter" title="Filter by semester" style="padding:7px 10px;font-size:13px" hidden></select>
@@ -144,7 +147,7 @@
   <aside id="ref-drawer" class="ref-drawer" hidden aria-label="Obsidian Reference Drawer">
     <div class="ref-drawer-header">
       <div class="grow">
-        <span class="eyebrow">Obsidian Vault Live Reader</span>
+        <span class="eyebrow">Course notes</span>
         <h3 id="ref-drawer-title">Semester Reference</h3>
       </div>
       <a id="ref-drawer-obsidian-uri" class="ghost-btn" href="#">↗ Open in Obsidian</a>

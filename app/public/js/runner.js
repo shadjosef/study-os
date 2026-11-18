@@ -838,7 +838,9 @@ window.StudyRunner = (() => {
 
     const ps = activeRun.paperScoreSummary;
     const blockLabel = ps
-      ? `<span class="badge live">Exam Graded: ${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts (${Math.round(ps.pct)}%)</span>`
+      ? `<span class="badge live">${ps.totalPts
+          ? `Auto-graded: ${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts (${Math.round(ps.pct)}%)`
+          : 'Paper submitted · use the worked solutions and marking checklists'}</span>`
       : activeRun.calendarBlock
       ? `<span class="badge live">${esc(activeRun.calendarBlock.summary)}</span>`
       : `<span class="badge">${activeRun.profile === 'exam' ? 'Exam Par' : 'Learning Par'}</span>`;
@@ -933,7 +935,7 @@ window.StudyRunner = (() => {
     if (examCountdownEl) examCountdownEl.hidden = !activeRun.examBudgetSec || activeRun.paperSubmitted;
     if (submitExamBtn) submitExamBtn.hidden = !isBlindUnfinished;
     if (breakBtn) breakBtn.hidden = activeRun.mode !== 'practice';
-    if (runObsLink) runObsLink.hidden = isBlindUnfinished;
+    if (runObsLink) runObsLink.hidden = isBlindUnfinished || window.StudyApp?.isStaticMode();
 
     renderRunnerDashboard();
 
@@ -1970,7 +1972,7 @@ window.StudyRunner = (() => {
     const msg =
       unanswered > 0
         ? `You have ${unanswered} unanswered question(s) out of ${m.total}. Submit and grade the entire exam paper now?`
-        : `Submit all ${m.total} questions and grade your full WISEflow exam paper now?`;
+        : `Submit all ${m.total} questions and open the solutions?`;
     if (!confirm(msg)) {
       resumeCurrentTimer();
       return;
@@ -2005,7 +2007,7 @@ window.StudyRunner = (() => {
     activeRun.paperSubmitted = true;
     activeRun.paperScoreSummary = {
       earnedPts,
-      totalPts: Math.max(1, totalPts),
+      totalPts,
       pct: totalPts > 0 ? (earnedPts / totalPts) * 100 : 0,
       manualCount,
     };
@@ -2013,7 +2015,7 @@ window.StudyRunner = (() => {
     renderRunner();
     toast(
       manualCount > 0
-        ? `Auto-graded sections scored ${Math.round(activeRun.paperScoreSummary.pct)}%! Self-verify ${manualCount} written/problem item(s) below.`
+        ? `Check your working against the marking checklists for ${manualCount} written problem(s).`
         : `Exam graded: ${earnedPts.toFixed(1)} / ${totalPts} pts (${Math.round(activeRun.paperScoreSummary.pct)}%)! Review any question or click Finish Run.`
     );
   }
@@ -2132,8 +2134,8 @@ window.StudyRunner = (() => {
     const ps = activeRun.paperScoreSummary;
     const scr = workClock?.getScreenStats?.() || {};
     const hdr = document.getElementById('checkin-summary-header');
-    const examLine = ps
-      ? `<p style="margin:4px 0 8px"><strong>Exam Paper Score: ${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts (${Math.round(
+    const examLine = ps?.totalPts
+      ? `<p style="margin:4px 0 8px"><strong>Auto-graded score: ${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts (${Math.round(
           ps.pct
         )}%)</strong></p>`
       : '';

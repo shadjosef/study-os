@@ -63,7 +63,26 @@ window.StudyUI = (() => {
       return item.displayMode ? `<pre>${esc(item.tex)}</pre>` : `<code>${esc(item.tex)}</code>`;
     });
 
-    return html;
+    if (!window.StudyApp?.isStaticMode() || !html.includes('obsidian://')) return html;
+    const content = document.createElement('template');
+    content.innerHTML = html;
+    for (const link of content.content.querySelectorAll('a[href^="obsidian://"]')) {
+      const url = new URL(link.getAttribute('href'));
+      const [file, ...heading] = (url.searchParams.get('file') || '').split('#');
+      const target = window.StudyApp.publicReferenceUrl(file, heading.join('#'));
+      if (target) {
+        link.href = target;
+        link.target = '_blank';
+        link.rel = 'noopener';
+      } else {
+        const label = document.createElement('span');
+        label.className = 'muted';
+        label.title = 'See the original course or local archive for this source.';
+        label.replaceChildren(...link.childNodes);
+        link.replaceWith(label);
+      }
+    }
+    return content.innerHTML;
   }
 
   let toastTimer = null;
@@ -160,7 +179,7 @@ window.StudyUI = (() => {
     drawer.hidden = false;
     backdrop.hidden = false;
     titleEl.textContent = `${courseMeta?.shortTitle || 'Course'} · Reference`;
-    bodyEl.innerHTML = '<p class="muted">Loading live note from Obsidian Vault…</p>';
+    bodyEl.innerHTML = '<p class="muted">Loading course note…</p>';
 
     await loadDrawerSection(currentNoteFile, targetHeading);
 
@@ -177,11 +196,15 @@ window.StudyUI = (() => {
     const bodyEl = document.getElementById('ref-drawer-body');
     const tocSel = document.getElementById('ref-drawer-toc-select');
     const uriEl = document.getElementById('ref-drawer-obsidian-uri');
+    uriEl.hidden = true;
     try {
       const data = window.StudyApp?.fetchReferenceSection
         ? await window.StudyApp.fetchReferenceSection(relFile, heading || '')
         : await (await fetch(`/api/obsidian/section?file=${encodeURIComponent(relFile)}&heading=${encodeURIComponent(heading || '')}`)).json();
-      if (data.obsidianUri) uriEl.href = data.obsidianUri;
+      if (data.obsidianUri) {
+        uriEl.href = data.obsidianUri;
+        uriEl.hidden = false;
+      }
       if (!data.available) {
         bodyEl.innerHTML = `<p class="muted">${esc(data.error || 'Could not read reference note.')}</p>`;
         return;
