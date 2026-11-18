@@ -6,7 +6,7 @@ Open-source (`MIT`), zero-dependency university practice engine, **WISEflow `FLO
 
 Choose a subject, open **Topics & practice**, or use **Notes** for the reference sheets and worked examples. The public edition includes original exercises and mocks for the five subjects. **Exams** links to BI's former papers and marking guides, and the curriculum pages link to BI Canvas for course handouts and assignments.
 
-To study offline, select **Save for offline** on the home page while connected. If your browser offers **Install app** or **Add to Home Screen**, use it to add Study-OS to your device. Progress stays in the browser profile you used to study. Use **Export Backup** to save a copy of your progress records.
+To study offline, select **Save for offline** on the home page while connected. If your browser offers **Install app** or **Add to Home Screen**, use it to add Study-OS to your device. Progress stays in the browser profile you used to study. To move between browsers or devices, use **Export Backup** and then **Import Backup**. This carries your question progress, drafts, attempts, sessions and web schedule.
 
 ## Desktop setup
 

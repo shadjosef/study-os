@@ -42,7 +42,7 @@ window.StudyApp = (() => {
     if (saved === 'light') return 'low_dlpfc';
     return ['auto', 'high_dlpfc', 'med_dlpfc', 'low_dlpfc'].includes(saved) ? saved : 'auto';
   })();
-  let draftTimer = null;
+  const pendingDrafts = new Map();
 
   const HIGH_DLPFC_CAP_MIN = 270; // 4.5h/day max-intensity novel synthesis budget
 
@@ -177,7 +177,88 @@ window.StudyApp = (() => {
   function saveWebState(st) {
     try {
       localStorage.setItem(WEB_STATE_KEY, JSON.stringify(st));
-    } catch {}
+      return true;
+    } catch {
+      toast('This browser could not save your progress. Check its storage settings.');
+      return false;
+    }
+  }
+
+  function isRecord(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function backupTime(value) {
+    return typeof value === 'string' ? Date.parse(value) || 0 : 0;
+  }
+
+  function restoreWebBackup(data) {
+    const incomingRecords = data?.progress?.records ?? data?.records;
+    if (!isRecord(incomingRecords)) throw new Error('Choose a Study-OS progress backup.');
+
+    const ws = loadWebState();
+    const incomingAttempts = Array.isArray(data.attempts) ? data.attempts.filter((row) =>
+      isRecord(row) && typeof row.questionId === 'string' && backupTime(row.timestamp)
+    ) : [];
+    const incomingSessions = Array.isArray(data.sessions) ? data.sessions.filter((row) =>
+      isRecord(row) && typeof row.sessionId === 'string' && backupTime(row.endedAt)
+    ) : [];
+    const lastAttempt = (attempts) => {
+      const times = new Map();
+      for (const row of attempts) {
+        times.set(row.questionId, Math.max(times.get(row.questionId) || 0, backupTime(row.timestamp)));
+      }
+      return times;
+    };
+    const existingTimes = lastAttempt(ws.attempts);
+    const incomingTimes = lastAttempt(incomingAttempts);
+    const timeOf = (record, attemptTime) => Math.max(
+      backupTime(record.updatedAt), backupTime(record.lastAttemptAt), attemptTime || 0
+    );
+    const mergedRecords = new Map(Object.entries(ws.records));
+    let changed = 0;
+    for (const [qid, incoming] of Object.entries(incomingRecords)) {
+      if (!qid.includes(':') || !isRecord(incoming)) continue;
+      const existing = mergedRecords.get(qid);
+      if (!existing || timeOf(incoming, incomingTimes.get(qid)) > timeOf(existing, existingTimes.get(qid))) {
+        mergedRecords.set(qid, incoming);
+        changed++;
+      }
+    }
+    ws.records = Object.fromEntries(mergedRecords);
+
+    function mergeHistory(existing, incoming, timeKey, identity) {
+      const unique = new Map(existing.map((row) => [identity(row), row]));
+      for (const row of incoming) {
+        const id = identity(row);
+        if (!unique.has(id)) unique.set(id, row);
+      }
+      return [...unique.values()].sort((a, b) => backupTime(a[timeKey]) - backupTime(b[timeKey]));
+    }
+
+    const originalAttemptCount = ws.attempts.length;
+    const originalSessionCount = ws.sessions.length;
+    ws.attempts = mergeHistory(ws.attempts, incomingAttempts, 'timestamp', (row) =>
+      JSON.stringify([row.questionId, row.sessionId || '', backupTime(row.timestamp)])
+    );
+    ws.sessions = mergeHistory(ws.sessions, incomingSessions, 'endedAt', (row) => row.sessionId);
+
+    const schedule = data.customSchedule;
+    const currentSchedule = ws.customSchedule;
+    const scheduleChanged = isRecord(schedule) && typeof schedule.enabled === 'boolean'
+      && isRecord(schedule.prefs) && Array.isArray(schedule.blocks) && schedule.blocks.every(isRecord)
+      && ((!currentSchedule.enabled && !currentSchedule.updatedAt)
+        || backupTime(schedule.updatedAt) > backupTime(currentSchedule.updatedAt));
+    if (scheduleChanged) ws.customSchedule = schedule;
+    if (!saveWebState(ws)) return '';
+
+    const restored = [
+      changed ? `${changed} progress records` : '',
+      ws.attempts.length > originalAttemptCount ? `${ws.attempts.length - originalAttemptCount} attempts` : '',
+      ws.sessions.length > originalSessionCount ? `${ws.sessions.length - originalSessionCount} sessions` : '',
+      scheduleChanged ? 'your schedule' : '',
+    ].filter(Boolean);
+    return restored.length ? `Restored ${restored.join(', ')}.` : 'This backup contains no newer study data.';
   }
 
   function recomputeWebAnalytics() {
@@ -665,16 +746,16 @@ window.StudyApp = (() => {
             <div class="course-bar"><div class="course-bar-fill" style="width:${pct}%;background:${esc(c.color)}"></div></div>
             <div class="course-stats-row">
               <span><b>${cp.done}</b>/${cp.total} done (${pct}%)</span>
-              <span>· <b>${c.highDlpfcCount ?? c.writtenOrCalcCount ?? 0}</b> High-dlPFC</span>
+              ${isStaticWeb ? '' : `<span>· <b>${c.highDlpfcCount ?? c.writtenOrCalcCount ?? 0}</b> High-dlPFC</span>`}
               <span>· <b>${cp.revisit}</b> revisit</span>
               <span>· UPI <b>${cm.upi ?? '—'}</b></span>
             </div>
           </div>
           <div class="course-actions">
             <button type="button" class="primary-btn" data-smart-course="${esc(c.courseId)}">${
-              resolvedFocus === 'high_dlpfc' ? 'High-dlPFC 45m' : resolvedFocus === 'low_dlpfc' ? 'Recall 25m' : 'Procedural 40m'
+              isStaticWeb ? 'Quick practice' : resolvedFocus === 'high_dlpfc' ? 'High-dlPFC 45m' : resolvedFocus === 'low_dlpfc' ? 'Recall 25m' : 'Procedural 40m'
             }</button>
-            <button type="button" class="ghost-btn" data-deep-course="${esc(c.courseId)}" title="Filter to High-dlPFC Synthesis tasks">High-dlPFC</button>
+            ${isStaticWeb ? '' : `<button type="button" class="ghost-btn" data-deep-course="${esc(c.courseId)}" title="Filter to High-dlPFC Synthesis tasks">High-dlPFC</button>`}
             <button type="button" class="ghost-btn" data-open-course="${esc(c.courseId)}">${isStaticWeb ? 'Topics &amp; practice' : `All (${c.questionCount})`}</button>
             <button type="button" class="ghost-btn" data-exam-course="${esc(c.courseId)}">Exams</button>
             <button type="button" class="ghost-btn" data-ref-course="${esc(c.courseId)}">Notes</button>
@@ -686,7 +767,16 @@ window.StudyApp = (() => {
     grid.querySelectorAll('[data-smart-course]').forEach((b) => {
       const m = getResolvedFocusMode();
       const mins = m === 'high_dlpfc' ? 45 : m === 'low_dlpfc' ? 25 : 40;
-      b.addEventListener('click', () => launchSmartCourseRun(b.dataset.smartCourse, mins, 'learning', '', m));
+      b.addEventListener('click', async () => {
+        b.disabled = true;
+        try {
+          await launchSmartCourseRun(b.dataset.smartCourse, isStaticWeb ? 10 : mins, 'learning', '', m, isStaticWeb);
+        } catch {
+          toast('Could not load this course. Check your connection and try again.');
+        } finally {
+          b.disabled = false;
+        }
+      });
     });
     grid.querySelectorAll('[data-deep-course]').forEach((b) => {
       b.addEventListener('click', () => navigate('course', { courseId: b.dataset.deepCourse, preset: 'high_dlpfc' }));
@@ -1324,15 +1414,22 @@ window.StudyApp = (() => {
     });
   }
 
-  async function launchSmartCourseRun(courseId, budgetMinutes = 40, profile = 'learning', filterTopic = '', effortMode = 'auto') {
+  async function launchSmartCourseRun(courseId, budgetMinutes = 40, profile = 'learning', filterTopic = '', effortMode = 'auto', quick = false) {
     const bank = await ensureCourseBank(courseId);
     const cMeta = boot.catalog.find((c) => c.courseId === courseId);
+    let pool = bank.questions || [];
+    if (quick) {
+      const minutes = (q) => Number(q.pacing?.learning?.target || (q.kind === 'mcq' ? 2 : 8));
+      const available = pool.filter((q) => q.available !== false);
+      const short = available.filter((q) => minutes(q) <= budgetMinutes);
+      pool = short.length ? short : available.sort((a, b) => minutes(a) - minutes(b)).slice(0, 1);
+    }
     const chosen = buildEffortSortedQueue(
-      bank.questions || [],
+      pool,
       budgetMinutes,
       profile,
       filterTopic ? [filterTopic] : [],
-      effortMode
+      quick ? 'med_dlpfc' : effortMode
     );
 
     window.StudyRunner.startRun({
@@ -2665,7 +2762,7 @@ window.StudyApp = (() => {
     document.getElementById('btn-reset-custom-sched')?.addEventListener('click', async () => {
       if (isStaticWeb) {
         const ws = loadWebState();
-        ws.customSchedule = { enabled: false, prefs: {}, blocks: [] };
+        ws.customSchedule = { enabled: false, prefs: {}, blocks: [], updatedAt: new Date().toISOString() };
         saveWebState(ws);
         await refreshBootstrap(false);
         return;
@@ -2688,9 +2785,13 @@ window.StudyApp = (() => {
   // STATE MUTATIONS (Local Python Server + Static Web Browser Fallback)
   // ---------------------------------------------------------------------------
   async function setQuestionStatus(questionIds, status, resetWork = false) {
+    const ws = isStaticWeb ? loadWebState() : null;
+    const records = ws ? ws.records : boot.progress.records;
+    const updatedAt = new Date().toISOString();
     for (const qid of questionIds) {
-      const rec = (boot.progress.records[qid] = boot.progress.records[qid] || {});
+      const rec = (records[qid] = records[qid] || {});
       rec.status = status;
+      if (isStaticWeb) rec.updatedAt = updatedAt;
       if (resetWork) {
         delete rec.savedDraft;
         delete rec.savedChoice;
@@ -2698,9 +2799,7 @@ window.StudyApp = (() => {
         delete rec.checkedRubricIndices;
       }
     }
-    if (isStaticWeb) {
-      const ws = loadWebState();
-      ws.records = boot.progress.records;
+    if (ws) {
       saveWebState(ws);
       recomputeWebAnalytics();
       updateHeaderStats();
@@ -2710,16 +2809,17 @@ window.StudyApp = (() => {
   }
 
   async function saveDraft(questionId, fields) {
-    const rec = (boot.progress.records[questionId] = boot.progress.records[questionId] || {});
+    const ws = isStaticWeb ? loadWebState() : null;
+    const records = ws ? ws.records : boot.progress.records;
+    const rec = (records[questionId] = records[questionId] || {});
     Object.assign(rec, {
       ...(fields.draft !== undefined ? { savedDraft: fields.draft } : {}),
       ...(fields.choice !== undefined ? { savedChoice: fields.choice } : {}),
       ...(fields.wiseflowAnswers !== undefined ? { savedWiseflow: fields.wiseflowAnswers } : {}),
     });
-    if (isStaticWeb) {
-      const ws = loadWebState();
-      ws.records = boot.progress.records;
-      saveWebState(ws);
+    if (ws) {
+      rec.updatedAt = new Date().toISOString();
+      if (saveWebState(ws)) boot.progress.records = ws.records;
       return;
     }
     try {
@@ -2728,8 +2828,22 @@ window.StudyApp = (() => {
   }
 
   function debouncedSaveDraft(questionId, fields) {
-    clearTimeout(draftTimer);
-    draftTimer = setTimeout(() => saveDraft(questionId, fields), 450);
+    const pending = pendingDrafts.get(questionId);
+    if (pending) clearTimeout(pending.timer);
+    const next = { fields: { ...pending?.fields, ...fields } };
+    next.timer = setTimeout(() => {
+      pendingDrafts.delete(questionId);
+      saveDraft(questionId, next.fields);
+    }, 450);
+    pendingDrafts.set(questionId, next);
+  }
+
+  function flushWebDrafts() {
+    for (const [qid, pending] of pendingDrafts) {
+      clearTimeout(pending.timer);
+      saveDraft(qid, pending.fields);
+    }
+    pendingDrafts.clear();
   }
 
   async function logAttempt(payload) {
@@ -2741,7 +2855,10 @@ window.StudyApp = (() => {
       const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !payload.assisted && effSec <= aiSec;
       const paceRatio = qAcc < 0.6 ? 0.35 : Math.min(1.5, aiSec / Math.max(1, effSec));
       const rec = (ws.records[payload.questionId] = ws.records[payload.questionId] || {});
+      const timestamp = new Date().toISOString();
       rec.status = payload.explicitStatus || (qAcc >= 0.75 ? 'done' : 'revisit');
+      rec.updatedAt = timestamp;
+      rec.lastAttemptAt = timestamp;
       rec.attemptCount = (rec.attemptCount || 0) + 1;
       if (beatAi) rec.beatAiCount = (rec.beatAiCount || 0) + 1;
       if (qAcc >= 0.85 && (!rec.pbEffectiveSec || effSec < rec.pbEffectiveSec)) rec.pbEffectiveSec = effSec;
@@ -2752,11 +2869,12 @@ window.StudyApp = (() => {
         lastGrade: qAcc >= 0.85 ? 3 : 1,
         due: new Date(Date.now() + daysOut * 86400000).toISOString(),
       };
-      ws.attempts.push({ ...payload, timestamp: new Date().toISOString(), effectiveSec: effSec, beatAi, paceRatio });
-      saveWebState(ws);
+      const attempt = { ...payload, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio };
+      ws.attempts.push(attempt);
+      const saved = saveWebState(ws);
       recomputeWebAnalytics();
       updateHeaderStats();
-      return { ok: true, record: rec, analytics: boot.analytics };
+      return { ok: saved, attempt, record: rec, analytics: boot.analytics };
     }
     const res = await apiPost('/api/attempt', payload);
     if (res.record) boot.progress.records[payload.questionId] = res.record;
@@ -2772,6 +2890,7 @@ window.StudyApp = (() => {
       const ws = loadWebState();
       const rec = (ws.records[questionId] = ws.records[questionId] || {});
       rec.personalDifficulty = fsrsGrade <= 2 ? 3 : fsrsGrade === 4 ? 1 : 2;
+      rec.updatedAt = new Date().toISOString();
       saveWebState(ws);
       recomputeWebAnalytics();
       return { ok: true, record: rec, analytics: boot.analytics };
@@ -2801,6 +2920,7 @@ window.StudyApp = (() => {
       window.location.href = '/api/export-backup';
       return;
     }
+    flushWebDrafts();
     const ws = loadWebState();
     const blob = new Blob(
       [
@@ -2811,6 +2931,7 @@ window.StudyApp = (() => {
             progress: { records: ws.records },
             attempts: ws.attempts,
             sessions: ws.sessions,
+            customSchedule: ws.customSchedule,
           },
           null,
           2
@@ -2822,6 +2943,7 @@ window.StudyApp = (() => {
     a.href = URL.createObjectURL(blob);
     a.download = 'study-os-web-backup.json';
     a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
   }
 
   // ---------------------------------------------------------------------------
@@ -2830,6 +2952,7 @@ window.StudyApp = (() => {
   async function init() {
     bindGlobalChrome();
     window.StudyRunner.bindRunnerGlobals();
+    if (isStaticWeb) window.addEventListener('pagehide', flushWebDrafts);
 
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => navigate(btn.dataset.nav));
@@ -2857,20 +2980,19 @@ window.StudyApp = (() => {
       try {
         const data = JSON.parse(await f.text());
         if (isStaticWeb) {
-          const ws = loadWebState();
-          const incoming = data.progress?.records || data.records || {};
-          Object.assign(ws.records, incoming);
-          saveWebState(ws);
-          recomputeWebAnalytics();
-          renderHome();
-          toast(`Imported ${Object.keys(incoming).length} saved records!`);
+          flushWebDrafts();
+          const message = restoreWebBackup(data);
+          if (message) {
+            await refreshBootstrap();
+            toast(message);
+          }
         } else {
           const res = await apiPost('/api/import-legacy', data);
           toast(`Imported ${res.importedRecords || 0} saved question records!`);
           await refreshBootstrap();
         }
-      } catch (err) {
-        toast('Could not parse JSON backup file.');
+      } catch {
+        toast('Could not open this file. Choose a Study-OS JSON backup.');
       }
       impFile.value = '';
     });
