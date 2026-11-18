@@ -3,6 +3,13 @@ name: Deploy Study-OS Static Hub to GitHub Pages
 on:
   push:
     branches: [main]
+    paths:
+      - app/public/**
+      - app/*.py
+      - examples/**
+      - site-pack/**
+      - tools/build_public_site.py
+      - .github/workflows/pages.yml
   workflow_dispatch:
 
 permissions:

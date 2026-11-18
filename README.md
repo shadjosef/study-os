@@ -8,6 +8,22 @@ Choose a subject, open **Topics & practice**, or use **Notes** for the reference
 
 To study offline, select **Save for offline** on the home page while connected. If your browser offers **Install app** or **Add to Home Screen**, use it to add Study-OS to your device. Progress stays in the browser profile you used to study. To move between browsers or devices, use **Export Backup** and then **Import Backup**. This carries your question progress, drafts, attempts, sessions and web schedule.
 
+## Full member library
+
+Open the website and paste the shared access string when prompted. The library opens in the same browser tab and adds the complete local question banks, linked source excerpts, and the searchable **Original course files** list to each subject. Protected files open while online. The public notes and practice can be saved for offline use.
+
+Share the string privately with the people authorized to use these materials. Study-OS uses it to decrypt the library in the browser and keeps it out of the site's source and browser storage. **Lock full library** closes the unlocked session. Locking does not remove files a student has downloaded.
+
+To update the library, run `tools/build_member_library.py` using Python with `cryptography`, passing the local Study-OS, Canvas Archive and Obsidian Vault paths. Keep the key file outside Git. Upload the encrypted archive as `study-os-members.zip` to a new GitHub prerelease, and set the release tag and archive SHA-256 in `site-pack/member-archive.json`. For a replacement string, build with a new key file or `--rotate-key`. Retire the old release after the new one is live. Old keys can still open encrypted copies already downloaded with that key.
+
+## AI and MCP
+
+Start the local desktop app and register a stdio MCP server with your AI client. Use `uv` as the command and `run --script /absolute/path/to/Study-OS/tools/study_os_mcp.py` as its arguments. The bridge uses the official MCP Python SDK and connects to the app on port 8765. Add `--port` after the script path if the local app uses another port.
+
+The tools can find subjects and questions, read the notes for an exercise, show study reports, and preview or replace the active schedule inside Study-OS. Google Calendar access remains read-only.
+
+Community profiles, the leaderboard and direct messages use a separate [community backend](community/README.md).
+
 ## Desktop setup
 
 Use the desktop edition to study from your own Canvas Archive and Obsidian Vault. [Download the source ZIP](https://github.com/shadjosef/study-os/archive/refs/heads/main.zip), extract it, and install Python 3.9 or later. On Windows, install the time zone database with `py -3 -m pip install tzdata` before starting the app.

@@ -31,13 +31,18 @@ jobs:
             app/obsidian_sync.py \
             app/dlpfc.py \
             tools/cli.py \
-            tools/build_public_site.py
+            tools/build_public_site.py \
+            tools/build_member_library.py \
+            tools/study_os_mcp.py
 
       - name: Frontend & Obsidian plugin JS syntax check
         run: |
           node --check app/public/js/render.js
           node --check app/public/js/runner.js
           node --check app/public/js/app.js
+          node --check app/public/js/members.js
+          node --check app/public/js/community.js
+          node --check community/worker.mjs
           node --check obsidian-plugin/main.js
 
       - name: Fresh-clone CLI & HTTP smoke test (zero data/)

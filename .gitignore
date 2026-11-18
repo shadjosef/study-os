@@ -32,3 +32,6 @@ Desktop.ini
 .claude/
 .codex/
 .cursor/
+.wrangler/
+.dev.vars
+community/wrangler.json

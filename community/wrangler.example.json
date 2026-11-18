@@ -1,0 +1,15 @@
+{
+  "name": "study-os-community",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-18",
+  "vars": {
+    "WEB_ORIGIN": "https://shadjosef.github.io"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "study-os-community",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
+    }
+  ]
+}
