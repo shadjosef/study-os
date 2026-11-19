@@ -4153,6 +4153,11 @@ window.StudyApp = (() => {
     };
     window.StudyCommunity.queueStatsSync();
     if (isStaticWeb) window.addEventListener('pagehide', flushWebDrafts);
+    if (isStaticWeb) document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && Date.now() - cloudSyncMeta.updatedAt >= 60_000) {
+        syncCloudProgress().catch(() => {});
+      }
+    });
 
     document.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => navigate(btn.dataset.nav));
