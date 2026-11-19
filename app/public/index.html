@@ -249,15 +249,20 @@
       <!-- Courses Grid -->
       <div class="section-heading home-courses-heading">
         <div>
-          <span class="eyebrow">Active Semester Courses · 75m AI Par Blocks</span>
+          <span class="eyebrow" id="home-courses-eyebrow">Active Semester Courses · 50m AI Par Blocks</span>
           <h2>Courses</h2>
         </div>
         <div class="home-course-controls">
-          <div class="ios-segmented home-diff-seg" id="home-difficulty-seg" role="group" aria-label="Difficulty level for 75-minute study blocks">
+          <div class="ios-segmented home-diff-seg" id="home-difficulty-seg" role="group" aria-label="Difficulty level for study blocks">
             <button type="button" data-home-diff="all" class="active" aria-pressed="true">All</button>
             <button type="button" data-home-diff="1" aria-pressed="false">Easy</button>
             <button type="button" data-home-diff="2" aria-pressed="false">Medium</button>
             <button type="button" data-home-diff="3" aria-pressed="false">Hard</button>
+          </div>
+          <div class="ios-segmented home-dur-seg" id="home-duration-seg" role="group" aria-label="Target study block length">
+            <button type="button" data-home-mins="25" aria-pressed="false">25m</button>
+            <button type="button" data-home-mins="50" class="active" aria-pressed="true">50m</button>
+            <button type="button" data-home-mins="75" aria-pressed="false">75m</button>
           </div>
           <select id="home-semester-filter" title="Filter by semester" style="padding:7px 10px;font-size:13px" hidden></select>
         </div>

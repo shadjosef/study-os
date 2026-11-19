@@ -3601,6 +3601,16 @@ body {
   font-weight: 600;
   white-space: nowrap;
 }
+.home-dur-seg {
+  display: inline-grid;
+  grid-template-columns: repeat(3, minmax(46px, auto));
+}
+.home-dur-seg button {
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 
 /* Auth sheet overflow & Passkey fixes */
 .auth-google-slot {
@@ -4092,14 +4102,22 @@ dialog.ai-tutor-sheet:focus {
   }
   .home-course-controls {
     width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px;
   }
   .home-diff-seg {
     width: 100%;
     grid-template-columns: repeat(4, 1fr);
   }
-  .home-diff-seg button {
-    padding: 8px 6px;
+  .home-diff-seg button,
+  .home-dur-seg button {
+    padding: 8px 5px;
+    font-size: 12.5px;
     text-align: center;
+  }
+  .home-dur-seg {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   /* Clean mobile course card button layout */

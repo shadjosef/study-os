@@ -17,6 +17,19 @@ def clamp(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
 
 
+def is_auto_graded_attempt(a: dict[str, Any]) -> bool:
+    if isinstance(a.get("autoGraded"), bool):
+        return a["autoGraded"]
+    kind = str(a.get("kind") or "").lower()
+    return kind in ("mcq", "wiseflow", "flowmulti")
+
+
+def difficulty_upi_multiplier(tier: int, profile: str = "learning") -> float:
+    base = {1: 0.85, 2: 1.00, 3: 1.22}.get(int(tier or 2), 1.00)
+    exam_bonus = 1.08 if str(profile or "learning").lower() == "exam" else 1.0
+    return base * exam_bonus
+
+
 def compute_attempt_metrics(
     active_sec: float,
     ai_par_sec: float,
@@ -24,11 +37,16 @@ def compute_attempt_metrics(
     hint_handicap_sec: float,
     quality_accuracy: float,
     assisted: bool = False,
+    dlpfc_tier: int = 2,
+    profile: str = "learning",
+    auto_graded: bool = True,
 ) -> dict[str, Any]:
     """Accuracy-Gated & Zero-Hint 'Beat the AI' scoring.
 
     - Beating AI Par ONLY counts when quality_accuracy >= 0.85, hints_used == 0, and assisted is False!
     - Rushing wrong answers or peeking hints/solutions yields 0 Beat-AI credit.
+    - Hard (Tier 3) and Exam-Par runs receive a UPI difficulty bonus; Easy (Tier 1) scales conservatively.
+    - Self-graded written tasks cap pace ratio at 1.00 and carry reduced weight in aggregate UPI.
     """
     q = clamp(float(quality_accuracy), 0.0, 1.0)
     par = max(15.0, float(ai_par_sec))
@@ -40,12 +58,16 @@ def compute_attempt_metrics(
         pace_ratio = round(0.4 * q, 3)
         beat_ai = False
     else:
-        raw_ratio = clamp(par / max(effective_sec, 0.25 * par), 0.35, 1.50)
+        max_pr = 1.50 if auto_graded else 1.00
+        raw_ratio = clamp(par / max(effective_sec, 0.25 * par), 0.35, max_pr)
         pace_ratio = round(raw_ratio * q, 3)
         beat_ai = bool(q >= 0.85 and int(hints_used) == 0 and (not assisted) and effective_sec <= par)
 
-    # Single-question UPI preview (assuming 0.90 focus density while actively answering)
-    item_upi = round(100.0 * (0.45 * q + 0.35 * min(pace_ratio, 1.35) + 0.20 * 0.90))
+    # Single-question difficulty & verification-aware UPI preview
+    mult = difficulty_upi_multiplier(dlpfc_tier, profile)
+    pr_cap = 1.35 if auto_graded else 1.00
+    raw_upi = 100.0 * (0.45 * q + 0.35 * min(pace_ratio, pr_cap) + 0.20 * 0.90) * mult
+    item_upi = round(clamp(raw_upi, 0.0, 150.0))
 
     # FSRS rating auto-suggestion: 1=Again, 2=Hard, 3=Good, 4=Easy
     if q < 0.6:
@@ -164,11 +186,24 @@ def aggregate_attempt_group(attempts: list[dict[str, Any]], focus_density: float
         }
     n = len(attempts)
     avg_q = sum(float(a.get("qualityAccuracy", 0.0)) for a in attempts) / n
-    avg_pr = sum(min(1.35, float(a.get("paceRatio", 0.0))) for a in attempts) / n
+    avg_pr = sum(min(1.35 if is_auto_graded_attempt(a) else 1.00, float(a.get("paceRatio", 0.0))) for a in attempts) / n
     beat_rate = sum(1 for a in attempts if a.get("beatAi")) / n
     avg_delta = sum(float(a.get("deltaSec", 0.0)) for a in attempts) / n
     tot_min = sum(float(a.get("activeSec", 0.0)) for a in attempts) / 60.0
-    upi = round(100.0 * (0.45 * avg_q + 0.35 * avg_pr + 0.20 * clamp(focus_density, 0.0, 1.0)))
+    fd = clamp(focus_density, 0.0, 1.0)
+    weighted_sum = 0.0
+    total_w = 0.0
+    for a in attempts:
+        auto = is_auto_graded_attempt(a)
+        w = 1.0 if auto else 0.45
+        q_val = clamp(float(a.get("qualityAccuracy", 0.0)), 0.0, 1.0)
+        pr_val = min(1.35 if auto else 1.00, float(a.get("paceRatio", 0.0)))
+        tier = int(a.get("dlpfcTier") or (1 if str(a.get("kind") or "") == "mcq" else 2))
+        mult = difficulty_upi_multiplier(tier, str(a.get("profile") or "learning"))
+        item_score = 100.0 * (0.45 * q_val + 0.35 * pr_val + 0.20 * fd) * mult
+        weighted_sum += w * clamp(item_score, 0.0, 150.0)
+        total_w += w
+    upi = round(weighted_sum / max(0.001, total_w))
     return {
         "count": n,
         "avgAccuracy": round(avg_q, 3),
@@ -319,6 +354,7 @@ def build_full_analytics(
         d.setdefault(k, []).append(item)
 
     g_course: dict[str, list] = {}
+    g_course_tier: dict[str, list] = {}
     g_topic: dict[str, list] = {}
     g_kind: dict[str, list] = {}
     g_prof: dict[str, list] = {}
@@ -346,6 +382,7 @@ def build_full_analytics(
         tier_key = {3: "high_3", 2: "med_2", 1: "low_1"}[tier]
 
         bucket_push(g_course, cid, a)
+        bucket_push(g_course_tier, f"{cid}:{tier}", a)
         bucket_push(g_topic, tid, a)
         bucket_push(g_kind, str(a.get("kind") or "mcq"), a)
         bucket_push(g_prof, str(a.get("profile") or "learning"), a)
@@ -358,8 +395,11 @@ def build_full_analytics(
             today_away_sec += float(a.get("awayElapsedSec") or 0.0)
 
     by_dlpfc: dict[str, Any] = {}
+    by_course_tier: dict[str, Any] = {}
     for k, arr in g_course.items():
         by_course[k] = aggregate_attempt_group(arr, avg_focus_density)
+    for k, arr in g_course_tier.items():
+        by_course_tier[k] = aggregate_attempt_group(arr, avg_focus_density)
     for k, arr in g_topic.items():
         by_topic[k] = aggregate_attempt_group(arr, avg_focus_density)
     for k, arr in g_kind.items():
@@ -393,19 +433,30 @@ def build_full_analytics(
 
     for cid, bank in courses_by_id.items():
         qs = [q for q in bank.get("questions", []) if q.get("available", True)]
-        counts = {"total": len(qs), "not_started": 0, "in_progress": 0, "done": 0, "revisit": 0, "dueFsrs": 0, "beatAiItems": 0}
+        by_tier = {
+            "1": {"total": 0, "done": 0, "revisit": 0, "in_progress": 0, "dueFsrs": 0},
+            "2": {"total": 0, "done": 0, "revisit": 0, "in_progress": 0, "dueFsrs": 0},
+            "3": {"total": 0, "done": 0, "revisit": 0, "in_progress": 0, "dueFsrs": 0},
+        }
+        counts: dict[str, Any] = {"total": len(qs), "not_started": 0, "in_progress": 0, "done": 0, "revisit": 0, "dueFsrs": 0, "beatAiItems": 0, "byTier": by_tier}
         topic_titles = {str(t["id"]): t["title"] for t in bank.get("topics") or []}
         topic_revisit: dict[str, int] = {}
 
         for q in qs:
             rec = records.get(q["id"]) or {}
             st = rec.get("status") or "not_started"
+            t_key_str = str(min(3, max(1, int(q.get("dlpfcBase") or classify_intrinsic_dlpfc(q)[0]))))
+            tb = by_tier[t_key_str]
+            tb["total"] += 1
             counts[st if st in counts else "not_started"] += 1
+            if st in tb:
+                tb[st] += 1
             if (rec.get("beatAiCount") or 0) > 0:
                 counts["beatAiItems"] += 1
             fsrs = rec.get("fsrs") or {}
             if fsrs.get("due") and fsrs["due"] <= now_iso and st in ("done", "revisit"):
                 counts["dueFsrs"] += 1
+                tb["dueFsrs"] += 1
             if st == "revisit":
                 tid = str(q.get("topicId") or "")
                 topic_revisit[tid] = topic_revisit.get(tid, 0) + 1
@@ -469,6 +520,7 @@ def build_full_analytics(
         "courseProgress": course_progress,
         "subgroups": {
             "byCourse": by_course,
+            "byCourseTier": by_course_tier,
             "byTopic": by_topic,
             "byKind": by_kind,
             "byProfile": by_profile,

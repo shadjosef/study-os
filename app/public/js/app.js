@@ -41,6 +41,14 @@ window.StudyApp = (() => {
       return 'all';
     }
   })();
+  let homeBlockMinutes = (() => {
+    try {
+      const saved = Number(localStorage.getItem('study-os-home-mins-v1') || 50);
+      return [25, 50, 75].includes(saved) ? saved : 50;
+    } catch {
+      return 50;
+    }
+  })();
   let selectedRefFile = '';
   let selectedRefSemester = 'all';
   let selectedExamStyle = 'blind'; // 'blind' (Strict WISEflow Sit) | 'guided' (Instant Section Check)
@@ -368,28 +376,137 @@ window.StudyApp = (() => {
     return restored.length ? `Restored ${restored.join(', ')}.` : 'This backup contains no newer study data.';
   }
 
+  function calibratedParSec(q, profile = 'learning') {
+    if (!q) return 90;
+    const prof = profile === 'exam' ? 'exam' : 'learning';
+    const rawLearnSec = Math.max(20, Math.round((Number(q.pacing?.learning?.target) || (q.kind === 'mcq' ? 2 : 6)) * 60));
+    const rawExamSec = q.pacing?.exam?.target ? Math.max(20, Math.round(Number(q.pacing.exam.target) * 60)) : 0;
+
+    if (q.kind === 'mcq') {
+      const tier = effectiveDlpfc(q).tier;
+      const textLen = (q.contextMarkdown?.length || 0)
+        + (q.promptMarkdown?.length || 0)
+        + (Array.isArray(q.options) ? q.options.join(' ').length : 0);
+      const extraCap = tier === 1 ? 25 : tier === 2 ? 35 : 45;
+      const extra = Math.min(extraCap, Math.round(Math.max(0, textLen - 160) / 14));
+      const baseLearn = tier === 1 ? 50 : tier === 2 ? 80 : 120;
+      const maxLearn = tier === 1 ? 85 : tier === 2 ? 135 : 190;
+      const learnSec = Math.min(rawLearnSec, maxLearn, baseLearn + extra);
+      if (prof === 'exam') {
+        const examTarget = Math.max(30, Math.round(learnSec * 0.72));
+        return rawExamSec ? Math.min(rawExamSec, examTarget) : examTarget;
+      }
+      return learnSec;
+    }
+
+    if (prof === 'exam') {
+      if (rawExamSec && rawExamSec < rawLearnSec * 0.92) return rawExamSec;
+      return Math.max(45, Math.round(rawLearnSec * 0.78));
+    }
+    return rawLearnSec;
+  }
+
+  function isAutoGradedAttempt(a) {
+    if (typeof a?.autoGraded === 'boolean') return a.autoGraded;
+    const k = String(a?.kind || '').toLowerCase();
+    return k === 'mcq' || k === 'wiseflow' || k === 'flowmulti';
+  }
+
+  function computeWeightedUpi(attempts, focusDensity = 0.9) {
+    if (!Array.isArray(attempts) || !attempts.length) return null;
+    const fd = Math.max(0, Math.min(1, Number(focusDensity) || 0.9));
+    let weightedSum = 0;
+    let totalW = 0;
+    for (const a of attempts) {
+      const auto = isAutoGradedAttempt(a);
+      const w = auto ? 1.0 : 0.45; // Conservative weight on self-graded written tasks
+      const qAcc = Math.max(0, Math.min(1, Number(a.qualityAccuracy || 0)));
+      const prCap = auto ? 1.35 : 1.0;
+      const pr = Math.max(0, Math.min(prCap, Number(a.paceRatio || 0)));
+      const tier = Number(a.dlpfcTier || (a.kind === 'mcq' ? 1 : 2));
+      const tierMult = tier === 3 ? 1.22 : tier === 1 ? 0.85 : 1.0; // Reward selecting Hard
+      const examMult = a.profile === 'exam' ? 1.08 : 1.0; // Reward Exam Par timing
+      const score = Math.min(150, 100 * (0.45 * qAcc + 0.35 * pr + 0.2 * fd) * tierMult * examMult);
+      weightedSum += w * score;
+      totalW += w;
+    }
+    return totalW > 0 ? Math.round(weightedSum / totalW) : null;
+  }
+
   function recomputeWebAnalytics() {
     const ws = loadWebState();
     const records = ws.records || {};
     const attempts = ws.attempts || [];
     const courseProgress = {};
+    const qTierLookup = {};
     for (const c of boot.catalog || []) {
-      courseProgress[c.courseId] = { total: c.questionCount || 0, done: 0, revisit: 0, in_progress: 0, dueFsrs: 0 };
+      const tIds = c.tierQuestionIds || null;
+      const byTier = {
+        '1': { total: tIds ? tIds['1'].length : Number(c.lowDlpfcCount || 0), done: 0, revisit: 0, in_progress: 0, dueFsrs: 0 },
+        '2': { total: tIds ? tIds['2'].length : Number(c.medDlpfcCount || 0), done: 0, revisit: 0, in_progress: 0, dueFsrs: 0 },
+        '3': { total: tIds ? tIds['3'].length : Number(c.highDlpfcCount || 0), done: 0, revisit: 0, in_progress: 0, dueFsrs: 0 },
+      };
+      if (tIds) {
+        for (const t of ['1', '2', '3']) {
+          for (const qid of tIds[t] || []) qTierLookup[qid] = t;
+        }
+      } else if (bankCache[c.courseId]?.questions) {
+        for (const q of bankCache[c.courseId].questions) {
+          qTierLookup[q.id] = String(effectiveDlpfc(q).tier);
+        }
+      }
+      courseProgress[c.courseId] = {
+        total: c.questionCount || 0,
+        done: 0,
+        revisit: 0,
+        in_progress: 0,
+        dueFsrs: 0,
+        byTier,
+      };
     }
     const nowIso = new Date().toISOString();
     for (const [qid, rec] of Object.entries(records)) {
       const cid = qid.split(':')[0];
       if (!courseProgress[cid]) continue;
-      if (rec.status === 'done') courseProgress[cid].done++;
-      else if (rec.status === 'revisit') courseProgress[cid].revisit++;
-      else if (rec.status === 'in_progress') courseProgress[cid].in_progress++;
-      if (rec.fsrs?.due && rec.fsrs.due <= nowIso) courseProgress[cid].dueFsrs++;
+      const tierStr = qTierLookup[qid] || (rec.dlpfcTier ? String(rec.dlpfcTier) : '');
+      const tb = tierStr && courseProgress[cid].byTier[tierStr];
+      if (rec.status === 'done') {
+        courseProgress[cid].done++;
+        if (tb) tb.done++;
+      } else if (rec.status === 'revisit') {
+        courseProgress[cid].revisit++;
+        if (tb) tb.revisit++;
+      } else if (rec.status === 'in_progress') {
+        courseProgress[cid].in_progress++;
+        if (tb) tb.in_progress++;
+      }
+      if (rec.fsrs?.due && rec.fsrs.due <= nowIso) {
+        courseProgress[cid].dueFsrs++;
+        if (tb) tb.dueFsrs++;
+      }
     }
     const n = attempts.length;
     const avgAcc = n ? attempts.reduce((s, a) => s + Number(a.qualityAccuracy || 0), 0) / n : null;
     const beatRate = n ? attempts.filter((a) => a.beatAi).length / n : null;
-    const avgPr = n ? attempts.reduce((s, a) => s + Math.min(1.35, Number(a.paceRatio || 0.85)), 0) / n : null;
-    const upi = n ? Math.round(100 * (0.45 * avgAcc + 0.35 * avgPr + 0.2 * 0.9)) : null;
+    const upi = computeWeightedUpi(attempts, 0.9);
+    const byCourseBuckets = {};
+    const byCourseTierBuckets = {};
+    for (const a of attempts) {
+      const cid = a.courseId || String(a.questionId || '').split(':')[0];
+      if (!cid) continue;
+      (byCourseBuckets[cid] = byCourseBuckets[cid] || []).push(a);
+      const t = String(a.dlpfcTier || qTierLookup[a.questionId] || (a.kind === 'mcq' ? 1 : 2));
+      const ctKey = `${cid}:${t}`;
+      (byCourseTierBuckets[ctKey] = byCourseTierBuckets[ctKey] || []).push(a);
+    }
+    const summarizeBucket = (arr) => ({
+      count: arr.length,
+      avgAccuracy: arr.reduce((s, a) => s + Number(a.qualityAccuracy || 0), 0) / arr.length,
+      beatAiRate: arr.filter((a) => a.beatAi).length / arr.length,
+      upi: computeWeightedUpi(arr, 0.9),
+    });
+    const byCourse = Object.fromEntries(Object.entries(byCourseBuckets).map(([k, arr]) => [k, summarizeBucket(arr)]));
+    const byCourseTier = Object.fromEntries(Object.entries(byCourseTierBuckets).map(([k, arr]) => [k, summarizeBucket(arr)]));
     const dayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
     const today = dayFormat.format(new Date());
     const isToday = (timestamp) => {
@@ -421,7 +538,7 @@ window.StudyApp = (() => {
         todayFocusSwitches: todaySessions.reduce((sum, session) => sum + Number(session.focusSwitchCount || 0), 0),
       },
       courseProgress,
-      subgroups: { byCourse: {}, byDlpfcTier: {}, byKind: {}, byTimeSlot: {} },
+      subgroups: { byCourse, byCourseTier, byDlpfcTier: {}, byKind: {}, byTimeSlot: {} },
     };
     if (ws.customSchedule?.enabled && ws.customSchedule.blocks?.length) {
       boot.calendar = {
@@ -1053,7 +1170,7 @@ window.StudyApp = (() => {
           </div>
           <div class="row-actions">
             <button type="button" class="primary-btn btn-lg" id="btn-hero-smart">${
-              homeDifficulty === '1' ? 'Start Easy 75m' : homeDifficulty === '2' ? 'Start Medium 75m' : homeDifficulty === '3' ? 'Start Hard 75m' : 'Start 75m Block'
+              homeDifficulty === '1' ? `Start Easy ${homeBlockMinutes}m` : homeDifficulty === '2' ? `Start Medium ${homeBlockMinutes}m` : homeDifficulty === '3' ? `Start Hard ${homeBlockMinutes}m` : `Start ${homeBlockMinutes}m Block`
             }</button>
             <button type="button" class="ghost-btn btn-lg" id="btn-hero-exams">Exam Simulator</button>
           </div>
@@ -1063,7 +1180,7 @@ window.StudyApp = (() => {
         if (boot.catalog[0]) {
           const exactDiff = homeDifficulty === 'all' ? 0 : Number(homeDifficulty);
           const m = exactDiff === 3 ? 'high_dlpfc' : exactDiff === 2 ? 'med_dlpfc' : exactDiff === 1 ? 'low_dlpfc' : getResolvedFocusMode();
-          launchSmartCourseRun(boot.catalog[0].courseId, 75, 'learning', '', m, false, exactDiff);
+          launchSmartCourseRun(boot.catalog[0].courseId, homeBlockMinutes, 'learning', '', m, false, exactDiff);
         }
       });
       document.getElementById('btn-hero-exams')?.addEventListener('click', () => navigate('exams'));
@@ -1116,7 +1233,12 @@ window.StudyApp = (() => {
     // 3B. Canvas-Archive Cookie-Session Strip & Fresh-Clone Onboarding
     renderCanvasBridgeStrip();
 
-    // 4. Difficulty Picker + Semester Filter + Courses Grid
+    // 4. Difficulty Picker + Duration Picker + Semester Filter + Courses Grid
+    const eyebrowEl = document.getElementById('home-courses-eyebrow');
+    if (eyebrowEl) {
+      const dTag = homeDifficulty === '1' ? ' · Easy' : homeDifficulty === '2' ? ' · Medium' : homeDifficulty === '3' ? ' · Hard' : '';
+      eyebrowEl.textContent = `Active Semester Courses · ${homeBlockMinutes}m AI Par Blocks${dTag}`;
+    }
     const diffSeg = document.getElementById('home-difficulty-seg');
     if (diffSeg) {
       diffSeg.querySelectorAll('[data-home-diff]').forEach((btn) => {
@@ -1131,13 +1253,23 @@ window.StudyApp = (() => {
         };
       });
     }
-    const primaryCtaLabel = homeDifficulty === '1'
-      ? 'Easy 75m'
-      : homeDifficulty === '2'
-      ? 'Medium 75m'
-      : homeDifficulty === '3'
-      ? 'Hard 75m'
-      : 'Start 75m';
+    const durSeg = document.getElementById('home-duration-seg');
+    if (durSeg) {
+      durSeg.querySelectorAll('[data-home-mins]').forEach((btn) => {
+        const mins = Number(btn.dataset.homeMins);
+        const active = mins === homeBlockMinutes;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        btn.onclick = () => {
+          if (homeBlockMinutes === mins) return;
+          homeBlockMinutes = mins;
+          try { localStorage.setItem('study-os-home-mins-v1', String(homeBlockMinutes)); } catch {}
+          renderHome();
+        };
+      });
+    }
+    const diffWord = homeDifficulty === '1' ? 'Easy' : homeDifficulty === '2' ? 'Medium' : homeDifficulty === '3' ? 'Hard' : '';
+    const primaryCtaLabel = diffWord ? `${diffWord} ${homeBlockMinutes}m` : `Start ${homeBlockMinutes}m`;
 
     const semesters = [...new Set((boot.catalog || []).map((c) => c.semester).filter(Boolean))];
     const semSel = document.getElementById('home-semester-filter');
@@ -1162,15 +1294,29 @@ window.StudyApp = (() => {
     const grid = document.getElementById('courses-grid');
     grid.innerHTML = visibleCourses
       .map((c) => {
-        const cp = a.courseProgress?.[c.courseId] || { total: c.questionCount, done: 0, revisit: 0, in_progress: 0, dueFsrs: 0 };
-        const cm = a.subgroups?.byCourse?.[c.courseId] || {};
-        const pct = Math.round((cp.done / Math.max(1, cp.total)) * 100);
+        const fullCp = a.courseProgress?.[c.courseId] || { total: c.questionCount, done: 0, revisit: 0, in_progress: 0, dueFsrs: 0 };
+        const tierCp = homeDifficulty !== 'all' ? fullCp.byTier?.[homeDifficulty] : null;
+        const fallbackTierTotal = homeDifficulty === '1'
+          ? Number(c.lowDlpfcCount || 0)
+          : homeDifficulty === '2'
+          ? Number(c.medDlpfcCount || 0)
+          : homeDifficulty === '3'
+          ? Number(c.highDlpfcCount || 0)
+          : Number(c.questionCount || 0);
+        const cp = tierCp || (homeDifficulty !== 'all'
+          ? { total: fallbackTierTotal, done: 0, revisit: 0, in_progress: 0, dueFsrs: 0 }
+          : fullCp);
+        const cm = homeDifficulty !== 'all'
+          ? (a.subgroups?.byCourseTier?.[`${c.courseId}:${homeDifficulty}`] || {})
+          : (a.subgroups?.byCourse?.[c.courseId] || {});
+        const pct = cp.total ? Math.round((cp.done / cp.total) * 100) : 0;
         const daysLeft = daysUntilDateStr(c.examInfo?.date);
         const examBadge = c.examInfo?.date
           ? `<span class="badge ${daysLeft !== null && daysLeft >= 0 && daysLeft <= 14 ? 'warn' : ''}">Exam ${esc(c.examInfo.date)}${
               daysLeft !== null && daysLeft >= 0 ? ` (${daysLeft}d)` : ''
             }</span>`
           : '';
+        const noItemsInDiff = homeDifficulty !== 'all' && cp.total === 0;
 
         return `<article class="course-card" style="--course-accent:${esc(c.color)}">
           <div>
@@ -1184,14 +1330,14 @@ window.StudyApp = (() => {
               <span class="course-pct">${pct}%</span>
             </div>
             <div class="course-stats-row">
-              <span><b>${cp.done}</b>/${cp.total} done</span>
-              ${isStaticWeb ? '' : `<span>· <b>${c.highDlpfcCount ?? c.writtenOrCalcCount ?? 0}</b> Hard</span>`}
+              <span><b>${cp.done}</b>/${cp.total} ${diffWord ? `${diffWord.toLowerCase()} ` : ''}done</span>
+              ${isStaticWeb || homeDifficulty !== 'all' ? '' : `<span>· <b>${c.highDlpfcCount ?? c.writtenOrCalcCount ?? 0}</b> Hard</span>`}
               <span>· <b>${cp.revisit}</b> revisit</span>
               <span>· UPI <b>${cm.upi ?? '—'}</b></span>
             </div>
           </div>
           <div class="course-actions">
-            <button type="button" class="primary-btn" data-smart-course="${esc(c.courseId)}">${primaryCtaLabel}</button>
+            <button type="button" class="primary-btn" data-smart-course="${esc(c.courseId)}" ${noItemsInDiff ? 'disabled' : ''}>${noItemsInDiff ? `No ${diffWord} Qs` : primaryCtaLabel}</button>
             <button type="button" class="ghost-btn" data-open-course="${esc(c.courseId)}">${isStaticWeb ? 'Topics' : `All (${c.questionCount})`}</button>
             <button type="button" class="ghost-btn" data-exam-course="${esc(c.courseId)}">Exams</button>
             <button type="button" class="ghost-btn" data-ref-course="${esc(c.courseId)}">Notes</button>
@@ -1206,7 +1352,7 @@ window.StudyApp = (() => {
         try {
           const exactDiff = homeDifficulty === 'all' ? 0 : Number(homeDifficulty);
           const m = exactDiff === 3 ? 'high_dlpfc' : exactDiff === 2 ? 'med_dlpfc' : exactDiff === 1 ? 'low_dlpfc' : getResolvedFocusMode();
-          await launchSmartCourseRun(b.dataset.smartCourse, 75, 'learning', '', m, false, exactDiff);
+          await launchSmartCourseRun(b.dataset.smartCourse, homeBlockMinutes, 'learning', '', m, false, exactDiff);
         } catch {
           toast('Could not load this course. Check your connection and try again.');
         } finally {
@@ -2163,7 +2309,7 @@ window.StudyApp = (() => {
       return true;
     });
 
-    const qMin = (q) => Number(q.pacing?.[profile]?.target || q.pacing?.learning?.target || (q.kind === 'mcq' ? 2 : 8));
+    const qMin = (q) => calibratedParSec(q, profile) / 60;
     if (quick) {
       const short = pool.filter((q) => qMin(q) <= budgetMinutes);
       pool = short.length ? short : pool.sort((a, b) => qMin(a) - qMin(b)).slice(0, 1);
@@ -2228,7 +2374,7 @@ window.StudyApp = (() => {
     // Interleave distinct topics within each (statusBucket, dlpfcTier) band
     pool = interleaveByTopic(pool, (q) => `${bucketRank(q)}:${tierRank(q)}`);
 
-    const maxItems = Math.max(24, Math.min(50, Math.round(budgetMinutes * 0.7)));
+    const maxItems = Math.max(30, Math.min(80, Math.round(budgetMinutes * 1.1)));
     const chosen = [];
     let accMin = 0;
     for (const q of pool) {
@@ -2494,9 +2640,9 @@ window.StudyApp = (() => {
             </label>
             <label class="field-label">Run Mode &amp; Size
               <select id="flt-budget">
-                <option value="budget:75" selected>75 min Full Block (AI Par)</option>
-                <option value="budget:45">45 min Focused Block</option>
-                <option value="budget:20">20 min Quick Drill</option>
+                <option value="budget:25">25 min Focus Block (AI Par)</option>
+                <option value="budget:50" selected>50 min Study Block (AI Par)</option>
+                <option value="budget:75">75 min Deep Block (AI Par)</option>
                 <option value="count:12">Top 12 Matching Tasks</option>
                 <option value="all">All Matching (Full Set)</option>
                 <option value="exam_sim">Blind Exam Sit (Countdown + Submit)</option>
@@ -2563,21 +2709,21 @@ window.StudyApp = (() => {
         hEl.value = 'all';
         sEl.value = 'unfinished';
         sortEl.value = 'deep_first';
-        bEl.value = 'budget:75';
+        bEl.value = 'budget:50';
       } else if (presetName === 'med_dlpfc') {
         kEl.value = 'all';
         dEl.value = '2';
         hEl.value = 'all';
         sEl.value = 'unfinished';
         sortEl.value = 'smart_priority';
-        bEl.value = 'budget:75';
+        bEl.value = 'budget:50';
       } else if (presetName === 'low_dlpfc') {
         kEl.value = 'all';
         dEl.value = '1';
         hEl.value = 'all';
         sEl.value = 'unfinished';
         sortEl.value = 'horizon_asc';
-        bEl.value = 'budget:75';
+        bEl.value = 'budget:50';
       } else if (presetName === 'long_horizon') {
         kEl.value = 'no_mcq';
         dEl.value = 'all';
@@ -2619,8 +2765,8 @@ window.StudyApp = (() => {
       const qTerm = document.getElementById('flt-search').value.trim().toLowerCase();
       const nowIso = new Date().toISOString();
 
-      const qLearnMin = (q) => Number(q.pacing?.learning?.target || q.pacing?.[prof]?.target || (q.kind === 'mcq' ? 2 : 8));
-      const qActiveMin = (q) => Number(q.pacing?.[prof]?.target || q.pacing?.learning?.target || (q.kind === 'mcq' ? 2 : 8));
+      const qLearnMin = (q) => calibratedParSec(q, 'learning') / 60;
+      const qActiveMin = (q) => calibratedParSec(q, prof) / 60;
 
       let filtered = (bank.questions || []).filter((q) => {
         if (q.available === false) return false;
@@ -2716,7 +2862,7 @@ window.StudyApp = (() => {
         const picked = [];
         let acc = 0;
         for (const q of list) {
-          const m = Number(q.pacing?.[prof]?.target || 4);
+          const m = calibratedParSec(q, prof) / 60;
           if (picked.length && acc + m > bMin * 1.28) {
             if (picked.length >= (acc >= bMin * 0.65 ? 1 : 2)) break;
             continue;
@@ -2728,7 +2874,7 @@ window.StudyApp = (() => {
         if (!picked.length && list.length) picked.push(list[0]);
         list = picked;
       }
-      const estMin = list.reduce((s, q) => s + Number(q.pacing?.[prof]?.target || 4), 0);
+      const estMin = list.reduce((s, q) => s + calibratedParSec(q, prof) / 60, 0);
       const isExamSim = spec === 'exam_sim';
       return {
         list,
@@ -2750,8 +2896,8 @@ window.StudyApp = (() => {
         .map((q) => {
           const rec = getProgressRecord(q.id);
           const st = rec?.status || 'not_started';
-          const lp = q.pacing?.learning?.target ?? '—';
-          const ep = q.pacing?.exam?.target ?? '—';
+          const lp = clockSec(calibratedParSec(q, 'learning'));
+          const ep = clockSec(calibratedParSec(q, 'exam'));
           const pb = rec?.pbEffectiveSec ? `${clockSec(rec.pbEffectiveSec)}${rec.beatAiCount ? ' · Par' : ''}` : '—';
           const hasWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
           const kindBadge = hasWf
@@ -2765,7 +2911,7 @@ window.StudyApp = (() => {
             <td><span class="badge">T${esc(q.topicId)}</span></td>
             <td>${diffBadge}</td>
             <td>${kindBadge}</td>
-            <td><small><b>${lp}m</b> / ${ep}m</small></td>
+            <td><small><b>${lp}</b> / ${ep}</small></td>
             <td><small>${pb}</small></td>
             <td>
               <div class="status-group">
@@ -3950,10 +4096,13 @@ window.StudyApp = (() => {
       const effSec = Number(payload.activeSec || 1) + Number(payload.hintsUsed || 0) * Number(payload.hintHandicapSec || 30);
       const aiSec = Number(payload.aiParSec || 120);
       const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !payload.assisted && effSec <= aiSec;
-      const paceRatio = qAcc < 0.6 ? 0.35 : Math.min(1.5, aiSec / Math.max(1, effSec));
+      const autoGraded = isAutoGradedAttempt(payload);
+      const maxPr = autoGraded ? 1.5 : 1.0;
+      const paceRatio = qAcc < 0.6 ? 0.35 : Math.min(maxPr, aiSec / Math.max(1, effSec));
       const rec = (ws.records[payload.questionId] = ws.records[payload.questionId] || {});
       const timestamp = new Date().toISOString();
       rec.status = payload.explicitStatus || (qAcc >= 0.75 ? 'done' : 'revisit');
+      if (payload.dlpfcTier) rec.dlpfcTier = Number(payload.dlpfcTier);
       rec.updatedAt = timestamp;
       rec.lastAttemptAt = timestamp;
       rec.attemptCount = (rec.attemptCount || 0) + 1;
@@ -4470,6 +4619,8 @@ window.StudyApp = (() => {
     getProgressRecord,
     effectiveDifficulty,
     effectiveDlpfc,
+    calibratedParSec,
+    computeWeightedUpi,
     refreshBootstrap,
     syncSettingsRows,
     syncCloudProgress,

@@ -226,6 +226,21 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
             for asset in re.findall(r"!\[[^\]]*\]\(\./(static-data/vault-assets/[^)]+)\)", note["markdown"]):
                 if not (out_dir / unquote(asset)).is_file():
                     raise ValueError(f"Missing figure {asset} in {entry['file']}")
+    for course_entry in bootstrap.get("catalog", []):
+        cid = course_entry.get("courseId")
+        cfile = static_dir / "courses" / f"{cid}.json"
+        if not cid or not cfile.is_file():
+            continue
+        cbank = json.loads(cfile.read_text(encoding="utf-8"))
+        cqs = [q for q in cbank.get("questions", []) if q.get("available", True)]
+        tier_ids = {"1": [], "2": [], "3": []}
+        for q in cqs:
+            t = int(q.get("dlpfcBase") or classify_intrinsic_dlpfc(q)[0])
+            tier_ids[str(min(3, max(1, t)))].append(q["id"])
+        course_entry["tierQuestionIds"] = tier_ids
+        course_entry["lowDlpfcCount"] = len(tier_ids["1"])
+        course_entry["medDlpfcCount"] = len(tier_ids["2"])
+        course_entry["highDlpfcCount"] = len(tier_ids["3"])
     (static_dir / "bootstrap.json").write_text(
         json.dumps(bootstrap, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )

@@ -194,13 +194,16 @@ window.StudyRunner = (() => {
         && (rec.status === 'in_progress' || (!rec.lastAttemptAt && !rec.attemptCount && !rec.pbEffectiveSec));
       const prof = activeRun.profile || 'learning';
       const pSpec = q?.pacing?.[prof] || q?.pacing?.learning || { target: 3, min: 2, max: 5 };
+      const calPar = window.StudyApp.calibratedParSec
+        ? window.StudyApp.calibratedParSec(q, prof)
+        : Math.max(15, Math.round((Number(pSpec.target) || 3) * 60));
       activeRun.items[qid] = {
         elapsedMs: 0,
         runningSince: null,
-        targetSec: Math.max(15, Math.round((Number(pSpec.target) || 3) * 60)),
-        minSec: Math.round((Number(pSpec.min) || 1.5) * 60),
-        maxSec: Math.round((Number(pSpec.max) || 5) * 60),
-        stuckSec: Math.round((Number(q?.pacing?.stuckMinutes) || 2) * 60),
+        targetSec: calPar,
+        minSec: Math.max(15, Math.round(calPar * 0.65)),
+        maxSec: Math.round(calPar * 1.55),
+        stuckSec: Math.max(45, Math.min(Math.round((Number(q?.pacing?.stuckMinutes) || 2) * 60), Math.round(calPar * 1.2))),
         handicapPerHintSec: Number(q?.pacing?.hintHandicapSeconds ?? 30),
         hintsUsed: 0,
         choice: resumeDraft ? rec.savedChoice ?? null : null,
@@ -840,12 +843,14 @@ window.StudyRunner = (() => {
     }).length;
     const beatCount = attempts.filter((a) => a.beatAi).length;
     const avgAcc = reviewed ? attempts.reduce((s, a) => s + a.qualityAccuracy, 0) / reviewed : 0;
-    const avgPr = reviewed ? attempts.reduce((s, a) => s + Math.min(1.35, a.paceRatio), 0) / reviewed : 0;
+    const avgPr = reviewed ? attempts.reduce((s, a) => s + Math.min(a.autoGraded === false ? 1.0 : 1.35, a.paceRatio), 0) / reviewed : 0;
     const activeSec = Object.values(activeRun.items).reduce((s, it) => s + itemActiveSec(it), 0);
     const wallSec = Math.max(1, (Date.now() - activeRun.startedAtMs) / 1000);
     const focusDensity = Math.min(1, activeSec / wallSec);
     const liveUpi = reviewed
-      ? Math.round(100 * (0.45 * avgAcc + 0.35 * avgPr + 0.2 * Math.max(0.7, focusDensity)))
+      ? (window.StudyApp.computeWeightedUpi
+          ? window.StudyApp.computeWeightedUpi(attempts, Math.max(0.7, focusDensity))
+          : Math.round(100 * (0.45 * avgAcc + 0.35 * avgPr + 0.2 * Math.max(0.7, focusDensity))))
       : null;
     return { total, reviewed, answeredCount, beatCount, avgAcc, avgPr, activeSec, wallSec, liveUpi };
   }
@@ -2126,12 +2131,14 @@ window.StudyRunner = (() => {
   async function submitVerifiedAttempt(q, st, qualityAccuracy) {
     closePauseRecord(st, 1.5);
     const dlpfcTier = window.StudyApp.effectiveDlpfc?.(q)?.tier || Number(q.dlpfcBase || 2);
+    const autoGraded = Boolean(q.kind === 'mcq' || (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length) || q.numericCheck);
     const res = await window.StudyApp.logAttempt({
       sessionId: activeRun.sessionId,
       courseId: q.courseId,
       questionId: q.id,
       topicId: q.topicId,
       kind: q.kind,
+      autoGraded,
       dlpfcTier,
       profile: activeRun.profile,
       activeSec: Math.max(1, itemActiveSec(st)),
