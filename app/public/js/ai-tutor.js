@@ -1,10 +1,12 @@
 /* Built-in Socratic AI Tutor for Study-OS
- * Dual-mode architecture:
+ * Docked side-pane chat interface (Claude / ChatGPT / Gemini style) that adapts
+ * the workspace layout side-by-side so you can read the question and chat live.
+ *
+ * Dual-mode engine:
  *  1) Default (zero setup): calls Study-OS Cloudflare Worker (/ai/tutor) powered by
- *     Cloudflare Workers AI (free) or shared Gemini key, with per-student daily quota.
+ *     Gemini (Hydrogen / 3.8 Flash / 3.5 Flash-Lite) or Cloudflare Workers AI.
  *  2) Personal Free Gemini Key (BYOK): optional key saved ONLY in this browser's
- *     localStorage, calling Google Gemini Developer API directly from the browser
- *     using the student's own free AI Studio quota (Gemini 4 Hydrogen / 3.8 Flash / 3.5 Flash-Lite).
+ *     localStorage, calling Google Gemini Developer API directly from the browser.
  */
 'use strict';
 
@@ -12,9 +14,11 @@ window.StudyAiTutor = (() => {
   const { esc, toast, renderMarkdownWithMath } = window.StudyUI;
   const BYOK_KEY = 'study-os-ai-byok-key-v1';
   const BYOK_MODEL_KEY = 'study-os-ai-byok-model-v1';
+  const SIDE_KEY = 'study-os-ai-side-v1';
+  const WIDTH_KEY = 'study-os-ai-width-v1';
 
   const BYOK_MODELS = [
-    { id: 'auto', label: 'Auto (Hydrogen → 3.8 Flash → 3.5 Lite)' },
+    { id: 'auto', label: 'Auto (Hydrogen → Flash → Lite)' },
     { id: 'gemini-4-hydrogen', label: 'Gemini 4 Hydrogen' },
     { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
     { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
@@ -26,19 +30,14 @@ window.StudyAiTutor = (() => {
     { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
   ];
 
-  const QUICK_ACTIONS = [
-    { action: 'hint', icon: '💡', label: 'Small hint' },
-    { action: 'check', icon: '🔍', label: 'Check my work' },
-    { action: 'concept', icon: '📐', label: 'Key formula' },
-    { action: 'solution', icon: '✅', label: 'Walk through solution' },
-  ];
-
-  const threadsByQuestion = new Map(); // questionId -> [{ role, text, meta? }]
+  const threadsByQuestion = new Map(); // key -> [{ role, text, meta? }]
   let activeKey = 'general';
   let customCourseContext = null;
+  let isOpen = false;
   let busy = false;
   let serverStatus = null;
   let configOpen = false;
+  let draftByKey = new Map();
 
   function getByokKey() {
     try { return (localStorage.getItem(BYOK_KEY) || '').trim(); } catch { return ''; }
@@ -58,6 +57,27 @@ window.StudyAiTutor = (() => {
   }
   function setByokModel(val) {
     try { localStorage.setItem(BYOK_MODEL_KEY, val); } catch {}
+  }
+  function getDockSide() {
+    try { return localStorage.getItem(SIDE_KEY) === 'left' ? 'left' : 'right'; } catch { return 'right'; }
+  }
+  function setDockSide(side) {
+    const clean = side === 'left' ? 'left' : 'right';
+    try { localStorage.setItem(SIDE_KEY, clean); } catch {}
+    syncBodyClasses();
+  }
+  function getSavedWidth() {
+    try {
+      const n = Number(localStorage.getItem(WIDTH_KEY));
+      if (Number.isFinite(n) && n >= 310 && n <= 560) return Math.round(n);
+    } catch {}
+    return null;
+  }
+  function applyPaneWidth(px) {
+    if (Number.isFinite(px) && px >= 310 && px <= 560) {
+      document.documentElement.style.setProperty('--ai-pane-w', `${Math.round(px)}px`);
+      try { localStorage.setItem(WIDTH_KEY, String(Math.round(px))); } catch {}
+    }
   }
 
   function sanitizeRenderedHtml(html) {
@@ -168,7 +188,7 @@ window.StudyAiTutor = (() => {
         const parts = payload?.candidates?.[0]?.content?.parts || [];
         const replyText = parts.map((p) => (typeof p.text === 'string' ? p.text : '')).join('').trim();
         if (replyText) {
-          return { reply: replyText, provider: 'byok', modelLabel: `${model.label} (Your Key)` };
+          return { reply: replyText, provider: 'byok', modelLabel: `${model.label} · Your Key` };
         }
         lastErr = 'Empty response from Gemini.';
       } catch (err) {
@@ -195,80 +215,181 @@ window.StudyAiTutor = (() => {
     return threadsByQuestion.get(key);
   }
 
-  function ensureDialog() {
-    let dialog = document.getElementById('ai-tutor-sheet');
-    if (dialog) return dialog;
-    dialog = document.createElement('dialog');
-    dialog.id = 'ai-tutor-sheet';
-    dialog.className = 'member-dialog ai-tutor-sheet';
-    dialog.tabIndex = -1;
-    dialog.setAttribute('aria-labelledby', 'ai-tutor-sheet-title');
-    dialog.addEventListener('click', (ev) => {
-      if (ev.target === dialog) dialog.close();
-    });
-    document.body.appendChild(dialog);
-    return dialog;
+  function syncBodyClasses() {
+    const side = getDockSide();
+    document.body.classList.toggle('ai-pane-open', isOpen);
+    document.body.classList.toggle('ai-pane-left', isOpen && side === 'left');
+    document.body.classList.toggle('ai-pane-right', isOpen && side !== 'left');
+    const pill = document.getElementById('btn-ai-tutor-pill');
+    if (pill) {
+      pill.classList.toggle('active', isOpen);
+      pill.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    }
   }
 
-  function engineBadgeText() {
+  function ensurePane() {
+    let backdrop = document.getElementById('ai-tutor-backdrop');
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.id = 'ai-tutor-backdrop';
+      backdrop.className = 'ai-tutor-backdrop';
+      backdrop.hidden = true;
+      backdrop.addEventListener('click', () => close());
+      document.body.appendChild(backdrop);
+    }
+
+    let pane = document.getElementById('ai-tutor-pane');
+    if (pane) return pane;
+
+    const savedW = getSavedWidth();
+    if (savedW) document.documentElement.style.setProperty('--ai-pane-w', `${savedW}px`);
+
+    pane = document.createElement('aside');
+    pane.id = 'ai-tutor-pane';
+    pane.className = 'ai-tutor-pane';
+    pane.hidden = true;
+    pane.setAttribute('role', 'complementary');
+    pane.setAttribute('aria-label', 'AI Tutor');
+    pane.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') {
+        ev.stopPropagation();
+        if (configOpen) {
+          configOpen = false;
+          renderPane();
+        } else {
+          close();
+        }
+      }
+    });
+    document.body.appendChild(pane);
+    return pane;
+  }
+
+  function compactModelLabel() {
     const byok = getByokKey();
     if (byok) {
       const m = BYOK_MODELS.find((x) => x.id === getByokModel());
-      return `Your Key · ${m && m.id !== 'auto' ? m.label : 'Gemini Auto'}`;
+      return m && m.id !== 'auto' ? `${m.label} (Key)` : 'Gemini Auto (Key)';
     }
     if (serverStatus?.available) {
-      const rem = Number.isFinite(serverStatus.remaining) ? ` · ${serverStatus.remaining}/${serverStatus.limit} left` : '';
-      return `${serverStatus.modelLabel || 'Study-OS AI'}${rem}`;
+      return serverStatus.modelLabel || 'Study-OS AI';
     }
-    if (window.StudyCommunity?.isSignedIn?.()) return 'Study-OS Free AI';
-    return 'Sign in or add your free Gemini key';
+    if (window.StudyCommunity?.isSignedIn?.()) return 'Gemini 4 Hydrogen';
+    return 'Connect AI';
   }
 
-  function renderSheet() {
-    const dialog = ensureDialog();
+  function quotaSuffix() {
+    if (getByokKey()) return 'Your free key';
+    if (serverStatus?.available && Number.isFinite(serverStatus.remaining)) {
+      return `${serverStatus.remaining}/${serverStatus.limit} left today`;
+    }
+    return '';
+  }
+
+  function shortContextTag(snap) {
+    if (snap.mode !== 'practice') return '';
+    const raw = String(snap.title || snap.questionId || '').trim();
+    if (!raw) return String(snap.course || '').trim();
+    return raw.length > 34 ? `${raw.slice(0, 33)}…` : raw;
+  }
+
+  function bindResizeHandle(pane) {
+    const handle = pane.querySelector('#ai-pane-resize');
+    if (!handle) return;
+    handle.addEventListener('pointerdown', (startEv) => {
+      if (window.innerWidth < 960) return;
+      startEv.preventDefault();
+      handle.setPointerCapture?.(startEv.pointerId);
+      document.body.classList.add('ai-pane-resizing');
+      const side = getDockSide();
+      const onMove = (ev) => {
+        const nextW = side === 'left' ? ev.clientX : window.innerWidth - ev.clientX;
+        const clamped = Math.max(310, Math.min(540, nextW));
+        applyPaneWidth(clamped);
+      };
+      const onUp = () => {
+        document.body.classList.remove('ai-pane-resizing');
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    });
+  }
+
+  function autoSizeTextarea(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(160, Math.max(24, el.scrollHeight))}px`;
+  }
+
+  function renderPane(opts = {}) {
+    const pane = ensurePane();
+    const prevInput = pane.querySelector('#ai-tutor-input');
+    if (prevInput) draftByKey.set(activeKey, prevInput.value);
+
     const snap = currentExerciseSnapshot(false);
     const hasQuestion = snap.mode === 'practice';
-    activeKey = hasQuestion ? `${snap.courseId}:${snap.questionId}` : 'general';
+    const nextKey = hasQuestion ? `${snap.courseId}:${snap.questionId}` : 'general';
+    activeKey = nextKey;
+
     const messages = threadFor(activeKey);
     const byok = getByokKey();
     const signedIn = Boolean(window.StudyCommunity?.isSignedIn?.());
     const canAsk = Boolean(byok || signedIn);
-
-    const subtitle = hasQuestion
+    const side = getDockSide();
+    const ctxTag = shortContextTag(snap);
+    const ctxFull = hasQuestion
       ? `${snap.course || 'Practice'} · ${snap.title || 'Current question'}`
-      : snap.mode === 'blind'
-        ? 'Disabled during blind timed exams'
-        : 'Open any practice question for context-aware tutoring';
+      : '';
+    const draft = draftByKey.get(activeKey) || '';
 
     const messagesHtml = messages.length
-      ? messages.map((m) => `
-          <div class="ai-msg ai-msg-${m.role === 'user' ? 'user' : 'assistant'}">
-            <div class="ai-msg-bubble">
-              ${m.role === 'user' ? `<p>${esc(m.text)}</p>` : renderSafeMd(m.text)}
-            </div>
-            ${m.meta ? `<span class="ai-msg-meta">${esc(m.meta)}</span>` : ''}
-          </div>
-        `).join('')
-      : `<div class="ai-empty-state">
-           <div class="ai-empty-orb" aria-hidden="true">✨</div>
-           <strong>Socratic Study Tutor</strong>
+      ? messages.map((m, idx) => {
+          if (m.role === 'user') {
+            return `
+              <div class="ai-turn ai-turn-user">
+                <div class="ai-user-bubble">${esc(m.text).replace(/\n/g, '<br>')}</div>
+              </div>`;
+          }
+          return `
+            <div class="ai-turn ai-turn-assistant">
+              <div class="ai-assistant-prose">${renderSafeMd(m.text)}</div>
+              <div class="ai-turn-actions">
+                <button type="button" class="ai-icon-micro" data-copy-msg="${idx}" title="Copy response" aria-label="Copy response">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>Copy</span>
+                </button>
+                ${m.meta ? `<span class="ai-turn-model">${esc(m.meta)}</span>` : ''}
+              </div>
+            </div>`;
+        }).join('')
+      : `<div class="ai-empty-canvas">
+           <div class="ai-empty-mark" aria-hidden="true">
+             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+               <path d="M12 3l1.9 5.3L19 10l-5.1 1.7L12 17l-1.9-5.3L5 10l5.1-1.7L12 3z"></path>
+               <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"></path>
+             </svg>
+           </div>
+           <h3>${snap.mode === 'blind' ? 'Paused for blind exam' : 'How can I help?'}</h3>
            <p class="muted">${
              snap.mode === 'blind'
-               ? 'AI Tutor pauses during blind exam sits so your timed exam stays authentic.'
+               ? 'AI Tutor turns off automatically during blind timed exams.'
                : hasQuestion
-                 ? 'Pick a quick chip above or ask about any step — I see this question and your current working automatically.'
-                 : 'Start any practice question, or ask a general concept question below.'
+                 ? 'Ask about any step, formula, or mistake — I can see this question and your current working.'
+                 : 'Ask any study question, or open a practice problem for live context.'
            }</p>
          </div>`;
 
-    const configHtml = configOpen ? `
-      <div class="ai-byok-card">
-        <div class="row-between" style="margin:0 0 6px">
-          <strong style="font-size:13.5px">Personal Free Gemini Key (Optional)</strong>
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="font-size:12px;font-weight:600">Get free key ↗</a>
+    const configPopoverHtml = configOpen ? `
+      <div class="ai-settings-popover" role="dialog" aria-label="AI model and key settings">
+        <div class="ai-pop-head">
+          <strong>AI Engine &amp; Gemini Key</strong>
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get free key ↗</a>
         </div>
-        <p class="muted" style="margin:0 0 10px;font-size:12px;line-height:1.45">
-          Spend your own free Google AI Studio quota (<b>Gemini 4 Hydrogen</b>, <b>3.8 Flash</b>, <b>3.5 Flash-Lite</b>) with no shared daily cap. Saved <b>only on this device</b> — never sent to Study-OS servers.
+        ${quotaSuffix() ? `<p class="ai-pop-quota">${esc(quotaSuffix())}</p>` : ''}
+        <p class="ai-pop-desc">
+          Optionally use your own free Google AI Studio key (<b>Gemini 4 Hydrogen</b>, <b>3.8 Flash</b>, <b>3.5 Flash-Lite</b>). Stored only in this browser.
         </p>
         <div class="ai-byok-fields">
           <input type="password" id="ai-byok-input" value="${esc(byok)}" placeholder="AIzaSy…" autocomplete="off" spellcheck="false" aria-label="Personal Gemini API key">
@@ -276,144 +397,185 @@ window.StudyAiTutor = (() => {
             ${BYOK_MODELS.map((m) => `<option value="${esc(m.id)}" ${getByokModel() === m.id ? 'selected' : ''}>${esc(m.label)}</option>`).join('')}
           </select>
         </div>
-        <div class="row-actions" style="margin-top:8px">
-          <button type="button" class="primary-btn" id="ai-byok-save" style="padding:6px 14px;font-size:12.5px">Save key</button>
-          ${byok ? '<button type="button" class="ghost-btn" id="ai-byok-clear" style="padding:6px 12px;font-size:12.5px">Remove key</button>' : ''}
-          <button type="button" class="ghost-btn" id="ai-byok-close" style="padding:6px 12px;font-size:12.5px">Hide</button>
+        <div class="ai-pop-actions">
+          <div class="ai-pop-actions-left">
+            <button type="button" class="primary-btn ai-pop-btn" id="ai-byok-save">Save</button>
+            ${byok ? '<button type="button" class="ghost-btn ai-pop-btn" id="ai-byok-clear">Remove</button>' : ''}
+          </div>
+          <button type="button" class="ai-text-link" id="ai-open-mcp">Desktop MCP ↗</button>
         </div>
       </div>
     ` : '';
 
-    dialog.innerHTML = `
-      <div class="ai-tutor-head">
-        <div class="ai-tutor-head-copy">
-          <div class="ai-tutor-title-row">
-            <h2 id="ai-tutor-sheet-title">✨ AI Tutor</h2>
-            <button type="button" class="ai-engine-pill" id="ai-engine-toggle" title="Configure personal Gemini API key (Hydrogen / 3.8 Flash)">
-              <span>${esc(engineBadgeText())}</span>
-              <span aria-hidden="true">⚙</span>
-            </button>
-          </div>
-          <small class="muted ai-tutor-sub">${esc(subtitle)}</small>
-        </div>
-        <div class="ai-tutor-head-btns">
-          ${messages.length ? '<button type="button" class="ghost-btn ai-head-sm" id="ai-tutor-clear" title="Clear conversation">Clear</button>' : ''}
-          <button type="button" class="ios-done-btn" id="ai-tutor-done">Done</button>
-        </div>
-      </div>
+    const dockIconSvg = side === 'left'
+      ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="15" y1="4" x2="15" y2="20"></line></svg>'
+      : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="9" y1="4" x2="9" y2="20"></line></svg>';
 
-      ${configHtml}
+    pane.innerHTML = `
+      <div class="ai-pane-resize-handle" id="ai-pane-resize" title="Drag to resize"></div>
+      <div class="ai-mobile-grabber" aria-hidden="true"><span></span></div>
 
-      ${snap.mode !== 'blind' ? `
-        <div class="ai-quick-chips" role="group" aria-label="Quick tutor actions">
-          ${QUICK_ACTIONS.map((a) => `
-            <button type="button" class="ai-chip-btn" data-ai-action="${a.action}" ${busy || !canAsk ? 'disabled' : ''}>
-              <span>${a.icon}</span><span>${esc(a.label)}</span>
-            </button>
-          `).join('')}
+      <header class="ai-pane-head">
+        <div class="ai-pane-head-left">
+          <span class="ai-pane-title">Tutor</span>
+          ${ctxTag ? `<span class="ai-pane-ctx-chip" title="${esc(ctxFull)}">${esc(ctxTag)}</span>` : ''}
         </div>
-      ` : ''}
+        <div class="ai-pane-head-actions">
+          ${messages.length ? `
+            <button type="button" class="ai-head-icon-btn" id="ai-tutor-clear" title="New chat" aria-label="New chat">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+            </button>` : ''}
+          <button type="button" class="ai-head-icon-btn ai-dock-flip-btn" id="ai-dock-flip" title="${side === 'left' ? 'Dock to right side' : 'Dock to left side'}" aria-label="${side === 'left' ? 'Dock to right side' : 'Dock to left side'}">
+            ${dockIconSvg}
+          </button>
+          <button type="button" class="ai-head-icon-btn" id="ai-tutor-close" title="Close (Esc)" aria-label="Close AI Tutor">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </header>
 
       <div class="ai-thread" id="ai-tutor-thread">
         ${messagesHtml}
-        ${busy ? '<div class="ai-msg ai-msg-assistant"><div class="ai-msg-bubble ai-typing"><span></span><span></span><span></span></div></div>' : ''}
+        ${busy ? '<div class="ai-turn ai-turn-assistant"><div class="ai-typing" aria-label="Thinking"><span></span><span></span><span></span></div></div>' : ''}
       </div>
 
-      ${!canAsk && snap.mode !== 'blind' ? `
-        <div class="ai-signin-callout">
-          <span>Sign in for free built-in AI tutoring, or plug in your own free Google AI Studio key.</span>
-          <div class="row-actions">
-            ${window.StudyCommunity?.enabled ? '<button type="button" class="primary-btn" id="ai-tutor-signin" style="padding:6px 14px;font-size:12.5px">Sign in</button>' : ''}
-            <button type="button" class="ghost-btn" id="ai-tutor-open-byok" style="padding:6px 12px;font-size:12.5px">Use free Gemini key</button>
+      <div class="ai-composer-zone">
+        ${configPopoverHtml}
+
+        ${!canAsk && snap.mode !== 'blind' ? `
+          <div class="ai-signin-bar">
+            <span>Sign in for free AI tutoring or add your own Gemini key.</span>
+            <div class="ai-signin-bar-btns">
+              ${window.StudyCommunity?.enabled ? '<button type="button" class="primary-btn ai-pop-btn" id="ai-tutor-signin">Sign in</button>' : ''}
+              <button type="button" class="ghost-btn ai-pop-btn" id="ai-tutor-open-byok">Gemini key</button>
+            </div>
           </div>
-        </div>
-      ` : ''}
+        ` : ''}
 
-      <form class="ai-composer" id="ai-tutor-form">
-        <textarea id="ai-tutor-input" rows="1" placeholder="${snap.mode === 'blind' ? 'Unavailable during blind exam…' : 'Ask about any step, formula, or mistake…'}" ${busy || !canAsk || snap.mode === 'blind' ? 'disabled' : ''}></textarea>
-        <button type="submit" class="primary-btn ai-send-btn" ${busy || !canAsk || snap.mode === 'blind' ? 'disabled' : ''} aria-label="Send message">Send</button>
-      </form>
-
-      <div class="ai-tutor-foot">
-        <button type="button" class="ai-foot-link" id="ai-open-mcp">Desktop MCP / External AI</button>
-        <span class="muted">·</span>
-        <button type="button" class="ai-foot-link" id="ai-open-byok-foot">${byok ? 'Manage my Gemini key' : 'Use my own Gemini key (Hydrogen)'}</button>
+        <form class="ai-composer-card" id="ai-tutor-form">
+          <textarea
+            id="ai-tutor-input"
+            rows="1"
+            placeholder="${snap.mode === 'blind' ? 'Unavailable during blind exam…' : 'Message Tutor…'}"
+            ${busy || !canAsk || snap.mode === 'blind' ? 'disabled' : ''}
+          >${esc(draft)}</textarea>
+          <div class="ai-composer-bar">
+            <button type="button" class="ai-model-trigger ${configOpen ? 'active' : ''}" id="ai-engine-toggle" title="Choose model or personal Gemini API key">
+              <span>${esc(compactModelLabel())}</span>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <button
+              type="submit"
+              class="ai-send-circle"
+              id="ai-send-btn"
+              ${busy || !canAsk || snap.mode === 'blind' || !draft.trim() ? 'disabled' : ''}
+              aria-label="Send message"
+              title="Send (Enter)"
+            >
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+            </button>
+          </div>
+        </form>
       </div>
     `;
 
-    const threadEl = dialog.querySelector('#ai-tutor-thread');
+    bindResizeHandle(pane);
+
+    const threadEl = pane.querySelector('#ai-tutor-thread');
     if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
 
-    dialog.querySelector('#ai-tutor-done')?.addEventListener('click', () => dialog.close());
-    dialog.querySelector('#ai-tutor-clear')?.addEventListener('click', () => {
+    pane.querySelector('#ai-tutor-close')?.addEventListener('click', () => close());
+    pane.querySelector('#ai-dock-flip')?.addEventListener('click', () => {
+      setDockSide(getDockSide() === 'left' ? 'right' : 'left');
+      renderPane();
+    });
+    pane.querySelector('#ai-tutor-clear')?.addEventListener('click', () => {
       threadsByQuestion.set(activeKey, []);
-      renderSheet();
+      draftByKey.set(activeKey, '');
+      renderPane({ focusInput: true });
     });
-    dialog.querySelector('#ai-engine-toggle')?.addEventListener('click', () => {
+    pane.querySelector('#ai-engine-toggle')?.addEventListener('click', () => {
       configOpen = !configOpen;
-      renderSheet();
+      renderPane();
     });
-    dialog.querySelector('#ai-open-byok-foot')?.addEventListener('click', () => {
-      configOpen = !configOpen;
-      renderSheet();
-    });
-    dialog.querySelector('#ai-tutor-open-byok')?.addEventListener('click', () => {
+    pane.querySelector('#ai-tutor-open-byok')?.addEventListener('click', () => {
       configOpen = true;
-      renderSheet();
+      renderPane();
     });
-    dialog.querySelector('#ai-open-mcp')?.addEventListener('click', () => {
-      dialog.close();
+    pane.querySelector('#ai-open-mcp')?.addEventListener('click', () => {
+      configOpen = false;
+      renderPane();
       window.StudyTutor?.open?.();
     });
-    dialog.querySelector('#ai-tutor-signin')?.addEventListener('click', async () => {
-      dialog.close();
+    pane.querySelector('#ai-tutor-signin')?.addEventListener('click', async () => {
       await window.StudyCommunity?.requireProfile?.({ allowDemo: true, forcePrompt: true });
-      if (window.StudyCommunity?.isSignedIn?.()) open();
+      if (window.StudyCommunity?.isSignedIn?.()) {
+        refreshStatus();
+        renderPane({ focusInput: true });
+      }
     });
 
-    dialog.querySelector('#ai-byok-save')?.addEventListener('click', () => {
-      const val = dialog.querySelector('#ai-byok-input')?.value.trim() || '';
-      const mod = dialog.querySelector('#ai-byok-model')?.value || 'auto';
+    pane.querySelector('#ai-byok-save')?.addEventListener('click', () => {
+      const val = pane.querySelector('#ai-byok-input')?.value.trim() || '';
+      const mod = pane.querySelector('#ai-byok-model')?.value || 'auto';
       setByokKey(val);
       setByokModel(mod);
       configOpen = false;
       toast(val ? 'Personal Gemini key saved on this device.' : 'Switched back to Study-OS AI.');
-      renderSheet();
+      renderPane({ focusInput: true });
     });
-    dialog.querySelector('#ai-byok-clear')?.addEventListener('click', () => {
+    pane.querySelector('#ai-byok-clear')?.addEventListener('click', () => {
       setByokKey('');
       configOpen = false;
       toast('Removed personal Gemini key.');
-      renderSheet();
-    });
-    dialog.querySelector('#ai-byok-close')?.addEventListener('click', () => {
-      configOpen = false;
-      renderSheet();
+      renderPane({ focusInput: true });
     });
 
-    dialog.querySelectorAll('[data-ai-action]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const act = btn.dataset.aiAction;
-        const label = QUICK_ACTIONS.find((a) => a.action === act)?.label || act;
-        sendTurn(act, '', label);
+    pane.querySelectorAll('[data-copy-msg]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const idx = Number(btn.dataset.copyMsg);
+        const msg = messages[idx];
+        if (!msg?.text) return;
+        try {
+          await navigator.clipboard.writeText(msg.text);
+          const span = btn.querySelector('span');
+          if (span) {
+            span.textContent = 'Copied';
+            setTimeout(() => { span.textContent = 'Copy'; }, 1400);
+          }
+        } catch {
+          toast('Could not copy response.');
+        }
       });
     });
 
-    const inputEl = dialog.querySelector('#ai-tutor-input');
-    const formEl = dialog.querySelector('#ai-tutor-form');
+    const inputEl = pane.querySelector('#ai-tutor-input');
+    const sendBtn = pane.querySelector('#ai-send-btn');
+    const formEl = pane.querySelector('#ai-tutor-form');
     if (inputEl) {
+      autoSizeTextarea(inputEl);
+      inputEl.addEventListener('input', () => {
+        draftByKey.set(activeKey, inputEl.value);
+        autoSizeTextarea(inputEl);
+        if (sendBtn) sendBtn.disabled = busy || !canAsk || snap.mode === 'blind' || !inputEl.value.trim();
+      });
       inputEl.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter' && !ev.shiftKey) {
           ev.preventDefault();
-          formEl?.requestSubmit();
+          if (inputEl.value.trim()) formEl?.requestSubmit();
         }
       });
+      if (opts.focusInput && !inputEl.disabled && window.innerWidth >= 960) {
+        inputEl.focus({ preventScroll: true });
+      }
     }
     formEl?.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const text = inputEl?.value.trim() || '';
       if (!text || busy) return;
+      draftByKey.set(activeKey, '');
       inputEl.value = '';
+      autoSizeTextarea(inputEl);
       sendTurn('chat', text, text);
     });
   }
@@ -438,8 +600,9 @@ window.StudyAiTutor = (() => {
     const priorHistory = thread.slice(-8).map((m) => ({ role: m.role, text: m.text }));
     const visibleUser = displayBubble || userMessage || defaultActionPrompt(action);
     thread.push({ role: 'user', text: visibleUser });
+    configOpen = false;
     busy = true;
-    renderSheet();
+    renderPane();
 
     try {
       const prompt = userMessage || defaultActionPrompt(action);
@@ -476,7 +639,7 @@ window.StudyAiTutor = (() => {
       });
     } finally {
       busy = false;
-      renderSheet();
+      renderPane({ focusInput: true });
     }
   }
 
@@ -484,23 +647,42 @@ window.StudyAiTutor = (() => {
     if (!window.StudyCommunity?.isSignedIn?.() || !window.StudyCommunity?.aiRequest) return;
     try {
       serverStatus = await window.StudyCommunity.aiRequest('/status');
-      if (document.getElementById('ai-tutor-sheet')?.open) renderSheet();
+      if (isOpen) renderPane();
     } catch {}
+  }
+
+  function showPane() {
+    const pane = ensurePane();
+    const backdrop = document.getElementById('ai-tutor-backdrop');
+    isOpen = true;
+    pane.hidden = false;
+    if (backdrop) backdrop.hidden = false;
+    syncBodyClasses();
+    renderPane({ focusInput: true });
+    refreshStatus();
+  }
+
+  function close() {
+    const pane = document.getElementById('ai-tutor-pane');
+    const backdrop = document.getElementById('ai-tutor-backdrop');
+    isOpen = false;
+    configOpen = false;
+    if (pane) pane.hidden = true;
+    if (backdrop) backdrop.hidden = true;
+    syncBodyClasses();
   }
 
   function open(initialAction = '') {
     customCourseContext = null;
-    const dialog = ensureDialog();
-    renderSheet();
-    if (!dialog.open) {
-      dialog.showModal();
-      dialog.focus({ preventScroll: true });
-    }
-    refreshStatus();
+    showPane();
     if (initialAction && !busy) {
-      const label = QUICK_ACTIONS.find((a) => a.action === initialAction)?.label || '';
-      sendTurn(initialAction, '', label);
+      sendTurn(initialAction, '', defaultActionPrompt(initialAction));
     }
+  }
+
+  function toggle() {
+    if (isOpen) close();
+    else open();
   }
 
   function openForCourse(course) {
@@ -516,14 +698,24 @@ window.StudyAiTutor = (() => {
       title: course.title || 'Course study',
       context: `Course: ${course.code ? course.code + ' · ' : ''}${course.title || ''}${topics}\n\nThe student wants to study concepts, build practice drills, or review topics from this course.`,
     };
-    const dialog = ensureDialog();
-    renderSheet();
-    if (!dialog.open) {
-      dialog.showModal();
-      dialog.focus({ preventScroll: true });
-    }
-    refreshStatus();
+    showPane();
   }
 
-  return { open, openForCourse, refreshStatus };
+  function syncContext() {
+    if (!isOpen) return;
+    const snap = currentExerciseSnapshot(false);
+    if (snap.mode === 'practice') customCourseContext = null;
+    syncBodyClasses();
+    renderPane();
+  }
+
+  return {
+    open,
+    close,
+    toggle,
+    openForCourse,
+    syncContext,
+    refreshStatus,
+    isOpen: () => isOpen,
+  };
 })();

@@ -1451,7 +1451,7 @@ window.StudyRunner = (() => {
         </div>
         <div class="runner-meta-actions" role="group" aria-label="Question actions">
           ${!isBlindUnfinished
-            ? '<button type="button" class="st-btn runner-pill-tool runner-ai-pill" id="btn-ai-tutor-pill" title="Open built-in AI Tutor (T)">✨ AI</button>' : ''}
+            ? `<button type="button" class="st-btn runner-pill-tool runner-ai-pill ${window.StudyAiTutor?.isOpen?.() ? 'active' : ''}" id="btn-ai-tutor-pill" aria-expanded="${window.StudyAiTutor?.isOpen?.() ? 'true' : 'false'}" title="Toggle AI Tutor side panel (T)">✨ AI</button>` : ''}
           ${!isBlindUnfinished && (q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference)
             ? '<button type="button" class="st-btn runner-pill-tool" id="btn-question-notes" title="Open course notes (O)">Notes</button>' : ''}
           ${
@@ -1626,7 +1626,7 @@ window.StudyRunner = (() => {
       sources: sourcePdfs.filter((source) => source.isPdf && promptSourceKeys.has(source.key)),
     });
     card.querySelector('#btn-open-tutor')?.addEventListener('click', window.StudyTutor.open);
-    card.querySelector('#btn-ai-tutor-pill')?.addEventListener('click', () => window.StudyAiTutor?.open?.());
+    card.querySelector('#btn-ai-tutor-pill')?.addEventListener('click', () => window.StudyAiTutor?.toggle?.());
     if (inlinePdf) {
       const view = st.pdfViews[inlinePdf.key] ||= { page: inlinePdf.page, zoom: 100, trim: false };
       window.StudyPdf.mount(card.querySelector('#source-pdf-reader'), inlinePdf, view);
@@ -2453,7 +2453,7 @@ window.StudyRunner = (() => {
     document.addEventListener('keydown', (e) => {
       if (document.querySelector('dialog[open]')) return;
       if (!activeRun || document.getElementById('view-runner').hidden || !document.getElementById('checkin-modal').hidden) return;
-      if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-page-tools, .pdf-zoom-tools')) return;
+      if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-page-tools, .pdf-zoom-tools, #ai-tutor-pane')) return;
       if (!document.getElementById('img-lightbox')?.hidden) return;
 
       // Cmd/Ctrl + Enter works even while typing inside the answer textarea:
@@ -2521,7 +2521,7 @@ window.StudyRunner = (() => {
         const isBlind = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
         if (!isBlind) {
           e.preventDefault();
-          window.StudyAiTutor?.open?.();
+          window.StudyAiTutor?.toggle?.();
         }
       } else if (key === 's') {
         document.getElementById('btn-reveal-sol')?.click();

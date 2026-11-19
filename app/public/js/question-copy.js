@@ -104,6 +104,7 @@ window.StudyQuestionCopy = (() => {
     current = context;
     card.querySelector('#btn-copy-for-ai').onclick = () => copyAsync(textForCopy(context));
     window.StudyTutor.changed();
+    window.StudyAiTutor?.syncContext?.();
   }
 
   function tutorContext() {

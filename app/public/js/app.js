@@ -959,6 +959,7 @@ window.StudyApp = (() => {
       else b.removeAttribute('aria-current');
     });
     window.StudyTutor.changed();
+    window.StudyAiTutor?.syncContext?.();
   }
 
   async function navigate(viewName, opts = {}) {
