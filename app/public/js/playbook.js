@@ -30,18 +30,18 @@ window.StudyPlaybook = (() => {
       ],
     },
     {
-      badge: 'Upcoming · Shad’s List',
+      badge: 'Upcoming',
       badgeClass: 'gold',
       title: 'Habit Anchors: Same Time, Same Place',
       summary: 'Curated habit playbook coming soon — building automaticity so starting your first block costs zero willpower.',
       points: [
         'Anchor your first High-DLPFC block to the exact same wake-up time and desk setup every study day.',
         'Use Schedule Studio (TimeEdit + sleep & work hours) to export a repeatable weekly rhythm straight to Google or Apple Calendar.',
-        '<i>More notes, research links, and Shad’s curated study list will be added here soon.</i>',
+        '<i>More notes, research links, and curated study guides will be added here soon.</i>',
       ],
     },
     {
-      badge: 'Upcoming · Shad’s List',
+      badge: 'Upcoming',
       badgeClass: 'gold',
       title: 'Active Recall, AI Par & Honest Scoring',
       summary: 'How to use realistic AI Par timers and the Socratic ✨ AI Tutor without fooling yourself into passive rereading.',

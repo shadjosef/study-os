@@ -1161,12 +1161,10 @@ window.StudyApp = (() => {
           <div class="row-actions">
             <button type="button" class="primary-btn" id="btn-web-refs">Course notes</button>
             <button type="button" class="ghost-btn" id="btn-web-exams">Mock exams</button>
-            <button type="button" class="ghost-btn" id="btn-web-playbook">Study Playbook</button>
           </div>
         </div>`;
       document.getElementById('btn-web-refs').onclick = () => navigate('references');
       document.getElementById('btn-web-exams').onclick = () => navigate('exams');
-      document.getElementById('btn-web-playbook').onclick = () => window.StudyPlaybook?.open?.();
       if (nextExam) {
         document.getElementById('btn-hero-next-exam').onclick = () => navigate('exams', { focusCourseId: nextExam.c.courseId });
       }
@@ -4309,6 +4307,13 @@ window.StudyApp = (() => {
         });
       }
       out.push(
+        {
+          group: 'Actions',
+          title: 'Study Playbook',
+          sub: 'DLPFC energy routing, working blocks & study habits',
+          keywords: 'study playbook habits dlpfc guide reading method',
+          run: () => window.StudyPlaybook?.open?.(),
+        },
         {
           group: 'Actions',
           title: 'Open Settings',

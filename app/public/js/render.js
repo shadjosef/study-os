@@ -1643,6 +1643,10 @@ window.StudyUI = (() => {
       soundDrawerExpanded = !soundDrawerExpanded;
       setSoundDrawerExpanded(soundDrawerExpanded);
     });
+    document.getElementById('settings-playbook-btn')?.addEventListener('click', () => {
+      closeSettings();
+      window.StudyPlaybook?.open?.();
+    });
     document.getElementById('settings-layout-btn')?.addEventListener('click', () => {
       if (!workClock.canUseBreakTools()) {
         toast('Layout presets open during breaks or after 20:00 Oslo.');

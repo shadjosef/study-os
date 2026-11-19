@@ -432,7 +432,7 @@ window.StudyCommunity = (() => {
           </div>
 
           <form id="community-join" class="auth-form" data-auth-pane="join">
-            <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Shad" required></label>
+            <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Alex" required></label>
             <label class="field-label" data-join-invite hidden>Community invite code <input name="invite" type="password" disabled autocomplete="off" placeholder="Enter your invite code"></label>
             ${passkeyReady ? '<label class="check-row"><input name="withPasskey" type="checkbox" checked> Set up a passkey after signup</label>' : ''}
             <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Create profile</button>
