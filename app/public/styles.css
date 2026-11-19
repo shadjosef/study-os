@@ -4376,7 +4376,8 @@ body.ai-pane-left .ai-pane-resize-handle {
   .settings-trigger-label {
     display: none !important;
   }
-  #global-work-action-btn {
+  #global-work-action-btn,
+  #global-dev-mode-btn {
     padding: 6px 11px !important;
     font-size: 12.5px !important;
     white-space: nowrap;
@@ -4481,7 +4482,8 @@ body.ai-pane-left .ai-pane-resize-handle {
     display: none !important;
   }
   #run-live-pill,
-  #run-break-btn {
+  #run-break-btn,
+  #run-dev-mode-btn {
     padding: 5px 9px !important;
     font-size: 12px !important;
     white-space: nowrap;
@@ -4553,6 +4555,29 @@ body.ai-pane-left .ai-pane-resize-handle {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Personal Admin / Local Dev Mode Sandbox Indicator */
+.dev-mode-btn {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.dev-mode-btn.active {
+  background: color-mix(in srgb, var(--warn) 18%, var(--panel)) !important;
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--line)) !important;
+  color: var(--warn) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 16%, transparent);
+}
+body.dev-mode-active::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 120;
+  pointer-events: none;
+  background: linear-gradient(90deg, var(--warn), color-mix(in srgb, var(--warn) 55%, var(--accent)), var(--warn));
 }
 
 /* Study Playbook Liquid Glass Sheet */

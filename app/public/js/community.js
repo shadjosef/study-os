@@ -289,7 +289,7 @@ window.StudyCommunity = (() => {
   }
 
   async function syncStats() {
-    if (!api || !token) return;
+    if (!api || !token || window.StudyUI?.devMode?.isActive?.()) return;
     const key = token;
     const stats = window.StudyApp.communityStats();
     const snapshot = JSON.stringify(stats);
@@ -299,7 +299,7 @@ window.StudyCommunity = (() => {
   }
 
   function queueStatsSync() {
-    if (!api || !token) return;
+    if (!api || !token || window.StudyUI?.devMode?.isActive?.()) return;
     clearTimeout(syncTimer);
     syncTimer = setTimeout(() => syncStats().catch(() => {}), 800);
   }
@@ -317,7 +317,7 @@ window.StudyCommunity = (() => {
   }
 
   function syncPresence(status = timerStatus()) {
-    if (!api || !token) return Promise.resolve();
+    if (!api || !token || window.StudyUI?.devMode?.isActive?.()) return Promise.resolve();
     const marker = status.mode + (status.breakEndsAt || '');
     if (marker === lastPresence && (status.mode === 'idle' || Date.now() - lastPresenceAt < 60_000)) {
       return presenceSync;
@@ -1753,6 +1753,7 @@ window.StudyCommunity = (() => {
     enabled: Boolean(api),
     hasProfile: () => !api || Boolean(token),
     isSignedIn: () => Boolean(api && token),
+    isAdmin: () => Boolean(currentProfile?.isAdmin),
     getCurrentProfile: () => currentProfile,
     avatarHtml,
     render,

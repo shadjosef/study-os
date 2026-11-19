@@ -737,7 +737,13 @@ window.StudyApp = (() => {
     };
   }
 
+  const isDevSandbox = () => Boolean(window.StudyUI?.devMode?.isActive?.());
+
   async function syncCloudProgress({ interactive = false, pushOnly = false } = {}) {
+    if (isDevSandbox()) {
+      if (interactive) toast('Dev Mode ON — cloud sync is paused.');
+      return false;
+    }
     if (!isStaticWeb || !window.StudyCommunity?.isSignedIn?.()) return;
     if (cloudSyncInFlight) return;
     cloudSyncInFlight = true;
@@ -809,6 +815,7 @@ window.StudyApp = (() => {
   }
 
   function queueCloudSync() {
+    if (isDevSandbox()) return;
     if (!isStaticWeb || !window.StudyCommunity?.isSignedIn?.()) return;
     clearTimeout(cloudSyncTimer);
     cloudSyncTimer = setTimeout(() => {
@@ -817,6 +824,7 @@ window.StudyApp = (() => {
   }
 
   function syncSettingsRows() {
+    window.StudyUI?.devMode?.syncUi?.();
     const communityOn = Boolean(window.StudyCommunity?.enabled);
     const signedIn = Boolean(window.StudyCommunity?.isSignedIn?.());
     const prof = window.StudyCommunity?.getCurrentProfile?.() || null;
@@ -4037,6 +4045,7 @@ window.StudyApp = (() => {
   // STATE MUTATIONS (Local Python Server + Static Web Browser Fallback)
   // ---------------------------------------------------------------------------
   async function setQuestionStatus(questionIds, status, resetWork = false) {
+    if (isDevSandbox()) return;
     const ws = isStaticWeb ? loadWebState() : null;
     const records = ws ? ws.records : boot.progress.records;
     const updatedAt = new Date().toISOString();
@@ -4064,6 +4073,7 @@ window.StudyApp = (() => {
   }
 
   async function saveDraft(questionId, fields) {
+    if (isDevSandbox()) return;
     const ws = isStaticWeb ? loadWebState() : null;
     const records = ws ? ws.records : boot.progress.records;
     const rec = (records[questionId] = records[questionId] || {});
@@ -4083,6 +4093,7 @@ window.StudyApp = (() => {
   }
 
   function debouncedSaveDraft(questionId, fields) {
+    if (isDevSandbox()) return;
     const pending = pendingDrafts.get(questionId);
     if (pending) clearTimeout(pending.timer);
     const next = { fields: { ...pending?.fields, ...fields } };
@@ -4102,6 +4113,19 @@ window.StudyApp = (() => {
   }
 
   async function logAttempt(payload) {
+    if (isDevSandbox()) {
+      const qAcc = Number(payload.qualityAccuracy || 0);
+      const effSec = Number(payload.activeSec || 1) + Number(payload.hintsUsed || 0) * Number(payload.hintHandicapSec || 30);
+      const aiSec = Number(payload.aiParSec || 120);
+      const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !payload.assisted && effSec <= aiSec;
+      const autoGraded = isAutoGradedAttempt(payload);
+      const maxPr = autoGraded ? 1.5 : 1.0;
+      const paceRatio = qAcc < 0.6 ? 0.35 : Math.min(maxPr, aiSec / Math.max(1, effSec));
+      const timestamp = new Date().toISOString();
+      const attempt = { ...payload, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio, devMode: true };
+      const record = { status: payload.explicitStatus || (qAcc >= 0.75 ? 'done' : 'revisit'), devMode: true };
+      return { ok: true, devMode: true, attempt, record, analytics: boot.analytics };
+    }
     if (isStaticWeb) {
       const ws = loadWebState();
       const qAcc = Number(payload.qualityAccuracy || 0);
@@ -4149,6 +4173,9 @@ window.StudyApp = (() => {
   }
 
   async function setQuestionDifficulty(questionId, fsrsGrade) {
+    if (isDevSandbox()) {
+      return { ok: true, devMode: true, analytics: boot.analytics };
+    }
     if (isStaticWeb) {
       const ws = loadWebState();
       const rec = (ws.records[questionId] = ws.records[questionId] || {});
@@ -4169,6 +4196,9 @@ window.StudyApp = (() => {
   }
 
   async function logSession(payload) {
+    if (isDevSandbox()) {
+      return { ok: true, devMode: true, analytics: boot.analytics };
+    }
     if (isStaticWeb) {
       const ws = loadWebState();
       ws.sessions.push({ ...payload, endedAt: new Date().toISOString() });
@@ -4267,6 +4297,15 @@ window.StudyApp = (() => {
           sub: `Go to ${label}`,
           keywords: `${label} ${kw}`,
           run: () => { leaveRunner(); navigate(viewId); },
+        });
+      }
+      if (window.StudyUI?.devMode?.isAllowed?.()) {
+        out.push({
+          group: 'Actions',
+          title: window.StudyUI.devMode.isActive() ? 'Exit Dev Mode (Restore Real Tracking)' : 'Enter Dev Mode (Sandbox)',
+          sub: 'Freeze scores, UPI, break timer & cloud sync while testing',
+          keywords: 'dev mode sandbox test debug freeze score break',
+          run: () => window.StudyUI.devMode.toggle(),
         });
       }
       out.push(
@@ -4645,6 +4684,20 @@ window.StudyApp = (() => {
 
   document.addEventListener('DOMContentLoaded', init);
 
+  function onDevModeChange(active) {
+    if (!active) {
+      if (isStaticWeb) {
+        recomputeWebAnalytics();
+        updateHeaderStats();
+      } else {
+        refreshBootstrap().catch(() => {});
+      }
+      if (currentView === 'home') renderHome();
+      else if (currentView === 'analytics') renderAnalytics();
+    }
+    syncSettingsRows();
+  }
+
   return {
     isStaticMode,
     communityStats,
@@ -4658,6 +4711,7 @@ window.StudyApp = (() => {
     refreshBootstrap,
     syncSettingsRows,
     syncCloudProgress,
+    onDevModeChange,
     navigate,
     renderHome,
     showRawView,

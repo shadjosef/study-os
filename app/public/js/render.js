@@ -402,6 +402,83 @@ window.StudyUI = (() => {
     }
   }
 
+  // Personal Dev Mode (Admin / Local Sandbox: freezes scores, break timer, drafts & cloud sync)
+  const DEV_MODE_KEY = 'study-os-dev-mode-v1';
+  let devModeActive = false;
+  try {
+    const devParam = new URLSearchParams(location.search).get('dev');
+    if (devParam === '1') sessionStorage.setItem(DEV_MODE_KEY, '1');
+    else if (devParam === '0') sessionStorage.removeItem(DEV_MODE_KEY);
+    devModeActive = sessionStorage.getItem(DEV_MODE_KEY) === '1';
+  } catch {}
+
+  function isLocalHost() {
+    try {
+      return ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
+    } catch {
+      return false;
+    }
+  }
+
+  const devMode = {
+    isActive() {
+      return devModeActive;
+    },
+    isAllowed() {
+      if (devModeActive) return true;
+      if (window.StudyCommunity?.isAdmin?.()) return true;
+      if (window.StudyApp?.isStaticMode?.() === false) return true;
+      if (document.documentElement.dataset.studyMode !== 'web' && isLocalHost()) return true;
+      return false;
+    },
+    syncUi() {
+      const allowed = this.isAllowed();
+      document.body.classList.toggle('dev-mode-active', devModeActive);
+      ['global-dev-mode-btn', 'run-dev-mode-btn'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.hidden = !allowed;
+        btn.classList.toggle('active', devModeActive);
+        btn.setAttribute('aria-pressed', devModeActive ? 'true' : 'false');
+        btn.textContent = devModeActive ? '● Dev' : 'Dev';
+        btn.title = devModeActive
+          ? 'Dev Mode ON · Scores, UPI, break timer & cloud sync are paused (click to exit)'
+          : 'Dev Mode: sandbox without affecting your real score, UPI, break timer, or cloud sync';
+      });
+    },
+    setActive(enabled) {
+      const next = Boolean(enabled);
+      if (next === devModeActive) {
+        this.syncUi();
+        return;
+      }
+      if (next && !this.isAllowed()) return;
+      devModeActive = next;
+      try {
+        if (next) sessionStorage.setItem(DEV_MODE_KEY, '1');
+        else sessionStorage.removeItem(DEV_MODE_KEY);
+      } catch {}
+      if (!next) {
+        workState = loadWorkState();
+        lastScreenTickMs = Date.now();
+      } else {
+        document.getElementById('break-modal')?.close?.();
+      }
+      this.syncUi();
+      renderWorkClockDom();
+      window.StudyApp?.onDevModeChange?.(next);
+      toast(
+        next
+          ? 'Dev Mode ON · Scores, break timer & cloud sync paused.'
+          : 'Dev Mode OFF · Real progress & timers restored.'
+      );
+    },
+    toggle() {
+      this.setActive(!devModeActive);
+      return devModeActive;
+    },
+  };
+
   let workState = loadWorkState();
   let expiredBreakShown = null;
   let lastEveningAccess = false;
@@ -409,6 +486,7 @@ window.StudyUI = (() => {
   let lastScreenSaveMs = 0;
 
   function saveWorkState() {
+    if (devModeActive) return;
     try {
       localStorage.setItem(WORK_WAVE_KEY, JSON.stringify(workState));
       lastScreenSaveMs = Date.now();
@@ -494,6 +572,7 @@ window.StudyUI = (() => {
   const workClock = {
     MAX_SEC: WORK_CAP_SEC,
     canUseBreakTools(now = Date.now()) {
+      if (devModeActive) return true;
       return eveningBreakAccess(now) || (workState.mode === 'break' && workState.breakEndsAtMs > now);
     },
     getState() {
@@ -504,6 +583,10 @@ window.StudyUI = (() => {
       };
     },
     ensureWorking() {
+      if (devModeActive) {
+        renderWorkClockDom();
+        return;
+      }
       if (workState.mode === 'working' && workState.waveStartedAtMs) {
         if (workState.wavePausedSinceMs && workState.wavePauseReason !== 'manual') {
           this.setPaused(false);
@@ -524,6 +607,7 @@ window.StudyUI = (() => {
       renderWorkClockDom();
     },
     setPaused(paused, reason = 'auto') {
+      if (devModeActive) return;
       if (workState.mode !== 'working' || !workState.waveStartedAtMs) return;
       const now = Date.now();
       if (paused) {
@@ -543,6 +627,10 @@ window.StudyUI = (() => {
       }
     },
     triggerBreak(isAutoCap = false) {
+      if (devModeActive) {
+        toast('Dev Mode ON — break timer & break score are frozen.');
+        return;
+      }
       const now = Date.now();
       if (workState.mode === 'break') settleActiveBreak(now);
       const elapsed = workState.mode === 'working' ? (isAutoCap ? WORK_CAP_SEC : currentWaveElapsedSec(now)) : 0;
@@ -572,6 +660,10 @@ window.StudyUI = (() => {
       showBreakModalUi();
     },
     startNextInterval() {
+      if (devModeActive) {
+        document.getElementById('break-modal')?.close?.();
+        return;
+      }
       const now = Date.now();
       settleActiveBreak(now);
       workState.dayKey = localDayKey();
@@ -591,6 +683,10 @@ window.StudyUI = (() => {
       renderWorkClockDom();
     },
     endSession() {
+      if (devModeActive) {
+        document.getElementById('break-modal')?.close?.();
+        return;
+      }
       const now = Date.now();
       settleActiveBreak(now);
       if (workState.mode === 'working' && workState.waveStartedAtMs) {
@@ -616,7 +712,7 @@ window.StudyUI = (() => {
       renderWorkClockDom();
     },
     addBreakSeconds(sec = 60) {
-      if (workState.mode !== 'break') return;
+      if (devModeActive || workState.mode !== 'break') return;
       const now = Date.now();
       const base = Math.max(now, workState.breakEndsAtMs || now);
       workState.breakEndsAtMs = base + sec * 1000;
@@ -627,6 +723,7 @@ window.StudyUI = (() => {
       renderWorkClockDom();
     },
     syncBackendToday(todayActiveMin = 0, todayAwayMin = 0) {
+      if (devModeActive) return;
       workState.backendActiveFloorSec = Math.max(
         Number(workState.backendActiveFloorSec) || 0,
         Math.round(Math.max(0, Number(todayActiveMin) || 0) * 60)
@@ -651,6 +748,23 @@ window.StudyUI = (() => {
 
   function renderWorkClockDom() {
     const now = Date.now();
+    devMode.syncUi();
+    if (devModeActive) {
+      lastScreenTickMs = now;
+      const gPill = document.getElementById('global-work-pill');
+      const rPill = document.getElementById('run-work-pill');
+      const frozenTip = 'Dev Mode ON · Real work timer, break score, UPI & cloud sync are frozen.';
+      [gPill, rPill].forEach((p) => {
+        if (!p) return;
+        p.className = 'live-clock-pill non-interactive flow-pill-warn';
+        p.textContent = 'Dev Sandbox';
+        p.title = frozenTip;
+      });
+      document.querySelector('main').inert = false;
+      document.getElementById('global-header').inert = false;
+      document.getElementById('runner-header').inert = false;
+      return;
+    }
     const todayKey = localDayKey();
     if (workState.dayKey !== todayKey) {
       workState.dayKey = todayKey;
@@ -1570,8 +1684,18 @@ window.StudyUI = (() => {
       soundMasker.setMuteOnBreak(ev.target.checked);
     });
 
+    // Personal Dev Mode toggle (Admin / Local Sandbox)
+    ['global-dev-mode-btn', 'run-dev-mode-btn'].forEach((id) => {
+      document.getElementById(id)?.addEventListener('click', () => devMode.toggle());
+    });
+    devMode.syncUi();
+
     // Universal 75m Session + 1:5 Break controls
     const onWorkActionClick = () => {
+      if (devModeActive) {
+        toast('Dev Mode ON — real work & break timers are frozen.');
+        return;
+      }
       if (workState.mode === 'working') {
         workClock.triggerBreak(false);
       } else if (workState.mode === 'break') {
@@ -1696,6 +1820,7 @@ window.StudyUI = (() => {
     closeReferenceDrawer,
     bindGlobalChrome,
     workClock,
+    devMode,
     soundMasker,
   };
 })();

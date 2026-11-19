@@ -51,6 +51,7 @@
 
       <div class="topbar-stats">
         <span class="live-clock-pill" id="global-work-pill" title="Universal non-pausable working interval (capped at 75:00 · 1:5 recovery break)">0:00 / 75m</span>
+        <button type="button" class="ghost-btn topbar-action-btn dev-mode-btn" id="global-dev-mode-btn" hidden title="Dev Mode: sandbox without affecting score, UPI, break timer, or cloud sync" aria-pressed="false">Dev</button>
         <button type="button" class="ghost-btn topbar-action-btn" id="global-work-action-btn" title="Start 75m working interval or take scaled 1:5 recovery break">Start 75m</button>
         <button type="button" class="ghost-btn topbar-action-btn" id="evening-break-tools-btn" hidden>Break tools</button>
         <button type="button" class="ghost-btn settings-trigger-btn" id="hdr-settings-btn" title="Settings (,)" aria-label="Open Settings">
@@ -78,6 +79,7 @@
         <button type="button" class="primary-btn" id="run-submit-exam-btn" hidden style="padding:6px 13px;font-size:13px">Submit Paper</button>
         <button type="button" class="live-clock-pill item-clock-pill" id="run-live-pill" title="Click or press P to pause/resume timer">Q 0:00</button>
         <span class="live-clock-pill" id="run-work-pill" title="Universal working interval (capped at 75:00)">0:00 / 75m</span>
+        <button type="button" class="ghost-btn dev-mode-btn" id="run-dev-mode-btn" hidden title="Dev Mode: sandbox without affecting score, UPI, or break timer" aria-pressed="false">Dev</button>
         <button type="button" class="ghost-btn" id="run-break-btn" title="Take scaled 1:5 off-screen recovery break (B)">Break (3m)</button>
         <button type="button" class="ghost-btn" id="runner-room-btn" hidden>Room</button>
         <button type="button" class="ghost-btn" id="run-layout-btn" title="Foveal Focus Column (default) — click or press V for Side-by-Side Split View">Focus</button>
