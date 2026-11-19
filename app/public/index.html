@@ -1,10 +1,26 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-pdf-dark="1">
+<html lang="en" data-pdf-dark="1">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Study by subject with course notes, guided practice and mock exams.">
-  <meta name="theme-color" content="#1f6b58">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+  <script>
+    (function () {
+      try {
+        var raw = JSON.parse(localStorage.getItem('study-os-theme-v2') || 'null');
+        var mode = raw && (raw.theme === 'light' || raw.theme === 'dark') ? raw.theme : 'system';
+        var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var effective = mode === 'system' ? (sysDark ? 'dark' : 'light') : mode;
+        var root = document.documentElement;
+        root.dataset.theme = effective;
+        root.dataset.themeMode = mode;
+        if (raw && raw.pdfDark === false) root.dataset.pdfDark = '0';
+        var m = document.getElementById('meta-theme-color');
+        if (m) m.setAttribute('content', effective === 'dark' ? '#090d0c' : '#f3f5f7');
+      } catch (e) {}
+    })();
+  </script>
   <link rel="icon" href="./pwa/study-os-192.png">
   <link rel="apple-touch-icon" href="./pwa/study-os-192.png">
   <title>Study-OS · Universal Practice, Reference Hub &amp; Adaptive Scheduler</title>
@@ -627,20 +643,23 @@
       <section class="ios-section" data-settings-group>
         <h3 class="ios-group-title">Appearance</h3>
         <div class="ios-group">
-          <label class="ios-row ios-row-switch" data-settings-item="dark mode light theme appearance colors">
+          <div class="ios-row ios-row-stackable" data-settings-item="system automatic dark mode light bright theme appearance colors">
             <span class="ios-icon ios-icon-indigo" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"></path>
               </svg>
             </span>
             <span class="ios-row-copy">
-              <span class="ios-row-label">Dark Mode</span>
-              <small class="ios-row-sub" id="settings-theme-sub">Easy on the eyes in low light</small>
+              <span class="ios-row-label">Appearance</span>
+              <small class="ios-row-sub" id="settings-theme-sub">Following system appearance</small>
             </span>
-            <span class="ios-switch-wrap">
-              <input type="checkbox" id="settings-dark-toggle" class="ios-switch" role="switch" aria-label="Dark Mode">
-            </span>
-          </label>
+            <div class="ios-segmented" id="settings-theme-seg" role="group" aria-label="Appearance theme">
+              <button type="button" data-theme-val="system" class="active" aria-pressed="true">System</button>
+              <button type="button" data-theme-val="light" aria-pressed="false">Light</button>
+              <button type="button" data-theme-val="dark" aria-pressed="false">Dark</button>
+            </div>
+          </div>
 
           <label class="ios-row ios-row-switch" id="settings-pdf-dark-row" data-settings-item="pdf dark invert night reading crops">
             <span class="ios-icon ios-icon-amber" aria-hidden="true">

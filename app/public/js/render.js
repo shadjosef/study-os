@@ -101,61 +101,107 @@ window.StudyUI = (() => {
     }, ms);
   }
 
-  // Theme & PDF Dark Mode
-  const THEME_KEY = 'study-os-theme-v1';
+  // Theme & PDF Dark Mode (defaults to System Light/Dark)
+  const THEME_KEY = 'study-os-theme-v2';
+  const LEGACY_THEME_KEY = 'study-os-theme-v1';
+  let systemThemeListenerBound = false;
+
+  function getSystemTheme() {
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function normalizeThemeMode(raw) {
+    return raw === 'light' || raw === 'dark' ? raw : 'system';
+  }
+
   function getThemePrefs() {
     try {
-      return JSON.parse(localStorage.getItem(THEME_KEY)) || {};
-    } catch {
-      return {};
-    }
+      const saved = JSON.parse(localStorage.getItem(THEME_KEY));
+      if (saved && typeof saved === 'object') return saved;
+    } catch {}
+    // Preserve prior PDF inversion preference while defaulting appearance to System.
+    try {
+      const legacy = JSON.parse(localStorage.getItem(LEGACY_THEME_KEY));
+      if (legacy && typeof legacy === 'object' && legacy.pdfDark !== undefined) {
+        return { theme: 'system', pdfDark: !!legacy.pdfDark };
+      }
+    } catch {}
+    return { theme: 'system' };
+  }
+
+  function saveThemePrefs(prefs) {
+    try {
+      localStorage.setItem(THEME_KEY, JSON.stringify(prefs));
+    } catch {}
   }
 
   function applyTheme(prefs = getThemePrefs()) {
-    const theme = prefs.theme || (window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    const mode = normalizeThemeMode(prefs.theme);
+    const effective = mode === 'system' ? getSystemTheme() : mode;
     const pdfDark = prefs.pdfDark !== undefined ? !!prefs.pdfDark : true;
-    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.theme = effective;
+    document.documentElement.dataset.themeMode = mode;
     document.documentElement.dataset.pdfDark = pdfDark ? '1' : '0';
 
-    const darkToggle = document.getElementById('settings-dark-toggle');
-    if (darkToggle) darkToggle.checked = theme === 'dark';
+    const metaTheme = document.getElementById('meta-theme-color');
+    if (metaTheme) metaTheme.setAttribute('content', effective === 'dark' ? '#090d0c' : '#f3f5f7');
+
+    document.querySelectorAll('#settings-theme-seg [data-theme-val]').forEach((btn) => {
+      const active = btn.dataset.themeVal === mode;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
     const themeSub = document.getElementById('settings-theme-sub');
-    if (themeSub) themeSub.textContent = theme === 'dark' ? 'Dark appearance active' : 'Light appearance active';
+    if (themeSub) {
+      if (mode === 'system') {
+        themeSub.textContent = `Following system (${effective === 'dark' ? 'Dark' : 'Light'})`;
+      } else {
+        themeSub.textContent = mode === 'dark' ? 'Always dark appearance' : 'Always light appearance';
+      }
+    }
 
     const pdfToggle = document.getElementById('settings-pdf-dark-toggle');
     if (pdfToggle) pdfToggle.checked = pdfDark;
     const pdfRow = document.getElementById('settings-pdf-dark-row');
-    if (pdfRow) pdfRow.classList.toggle('ios-row-muted', theme !== 'dark');
+    if (pdfRow) pdfRow.classList.toggle('ios-row-muted', effective !== 'dark');
     const pdfSub = document.getElementById('settings-pdf-dark-sub');
     if (pdfSub) {
-      pdfSub.textContent = theme === 'dark'
+      pdfSub.textContent = effective === 'dark'
         ? 'Turns white exam excerpts dark'
-        : 'Applies automatically when Dark Mode is on';
+        : 'Applies automatically when Dark appearance is active';
     }
   }
 
   function setTheme(theme) {
     const p = getThemePrefs();
-    p.theme = theme === 'dark' ? 'dark' : 'light';
+    p.theme = normalizeThemeMode(theme);
     if (p.pdfDark === undefined) p.pdfDark = true;
-    try {
-      localStorage.setItem(THEME_KEY, JSON.stringify(p));
-    } catch {}
+    saveThemePrefs(p);
     applyTheme(p);
   }
 
   function setPdfDark(enabled) {
     const p = getThemePrefs();
-    p.theme = document.documentElement.dataset.theme || 'dark';
+    p.theme = normalizeThemeMode(p.theme);
     p.pdfDark = Boolean(enabled);
-    try {
-      localStorage.setItem(THEME_KEY, JSON.stringify(p));
-    } catch {}
+    saveThemePrefs(p);
     applyTheme(p);
   }
 
+  function getThemeMode() {
+    return normalizeThemeMode(getThemePrefs().theme);
+  }
+
   function toggleTheme() {
-    setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+    const mode = getThemeMode();
+    const next = mode === 'system'
+      ? (getSystemTheme() === 'dark' ? 'light' : 'dark')
+      : mode === 'dark'
+        ? 'light'
+        : 'system';
+    setTheme(next);
+    return next;
   }
 
   function togglePdfDark() {
@@ -1438,9 +1484,27 @@ window.StudyUI = (() => {
 
   function bindGlobalChrome() {
     applyTheme();
-    document.getElementById('settings-dark-toggle')?.addEventListener('change', (ev) => {
-      setTheme(ev.target.checked ? 'dark' : 'light');
+    document.querySelectorAll('#settings-theme-seg [data-theme-val]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const next = btn.dataset.themeVal || 'system';
+        setTheme(next);
+        toast(
+          next === 'system'
+            ? `Appearance: System (${getSystemTheme() === 'dark' ? 'Dark' : 'Light'})`
+            : `Appearance: ${next === 'dark' ? 'Dark' : 'Light'}`
+        );
+      });
     });
+    if (!systemThemeListenerBound && window.matchMedia) {
+      systemThemeListenerBound = true;
+      const mql = window.matchMedia('(prefers-color-scheme: dark)');
+      const onSystemThemeChange = () => {
+        const p = getThemePrefs();
+        if (normalizeThemeMode(p.theme) === 'system') applyTheme(p);
+      };
+      if (mql.addEventListener) mql.addEventListener('change', onSystemThemeChange);
+      else if (mql.addListener) mql.addListener(onSystemThemeChange);
+    }
     document.getElementById('settings-pdf-dark-toggle')?.addEventListener('change', (ev) => {
       setPdfDark(ev.target.checked);
     });
@@ -1621,6 +1685,8 @@ window.StudyUI = (() => {
     renderMarkdownWithMath,
     toast,
     applyTheme,
+    setTheme,
+    getThemeMode,
     toggleTheme,
     togglePdfDark,
     openSettings,

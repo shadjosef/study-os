@@ -4278,10 +4278,23 @@ window.StudyApp = (() => {
         },
         {
           group: 'Actions',
-          title: 'Toggle Dark / Light Mode',
-          sub: 'Switch color appearance',
-          keywords: 'dark light theme appearance mode',
-          run: () => window.StudyUI.toggleTheme?.(),
+          title: 'Cycle Appearance (System / Light / Dark)',
+          sub: 'Switch color theme or follow OS',
+          keywords: 'dark light bright system auto theme appearance mode',
+          run: () => {
+            const next = window.StudyUI.toggleTheme?.();
+            if (next) toast(`Appearance: ${next[0].toUpperCase()}${next.slice(1)}`);
+          },
+        },
+        {
+          group: 'Actions',
+          title: 'Use System Appearance',
+          sub: 'Follow OS Light / Dark mode automatically',
+          keywords: 'system auto default theme appearance bright dark light',
+          run: () => {
+            window.StudyUI.setTheme?.('system');
+            toast('Appearance: System');
+          },
         },
         {
           group: 'Actions',

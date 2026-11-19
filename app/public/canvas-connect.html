@@ -3,6 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+  <script>
+    (function () {
+      function syncTheme() {
+        try {
+          var raw = JSON.parse(localStorage.getItem('study-os-theme-v2') || 'null');
+          var mode = raw && (raw.theme === 'light' || raw.theme === 'dark') ? raw.theme : 'system';
+          var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var effective = mode === 'system' ? (sysDark ? 'dark' : 'light') : mode;
+          document.documentElement.dataset.theme = effective;
+          document.documentElement.dataset.themeMode = mode;
+          var m = document.getElementById('meta-theme-color');
+          if (m) m.setAttribute('content', effective === 'dark' ? '#090d0c' : '#f3f5f7');
+        } catch (e) {}
+      }
+      syncTheme();
+      if (window.matchMedia) {
+        var mql = window.matchMedia('(prefers-color-scheme: dark)');
+        if (mql.addEventListener) mql.addEventListener('change', syncTheme);
+        else if (mql.addListener) mql.addListener(syncTheme);
+      }
+    })();
+  </script>
   <title>Canvas Browser Sync · Study-OS</title>
   <link rel="icon" href="./pwa/study-os-192.png">
   <link rel="stylesheet" href="./styles.css">
