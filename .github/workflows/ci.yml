@@ -41,6 +41,7 @@ jobs:
           node --check app/public/js/layouts.js
           node --check app/public/js/runner.js
           node --check app/public/js/pdf-reader.js
+          node --check app/public/js/question-copy.js
           node --check app/public/js/rooms.js
           node --check app/public/js/app.js
           node --check app/public/js/members.js

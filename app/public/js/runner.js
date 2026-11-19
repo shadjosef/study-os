@@ -7,7 +7,7 @@
 'use strict';
 
 window.StudyRunner = (() => {
-  const { esc, clockSec, minLabel, renderMarkdownWithMath, toast, openReferenceDrawer, workClock } = window.StudyUI;
+  const { esc, examLabel, clockSec, minLabel, renderMarkdownWithMath, toast, openReferenceDrawer, workClock } = window.StudyUI;
 
   let activeRun = null;
   let tickInterval = null;
@@ -772,7 +772,7 @@ window.StudyRunner = (() => {
                } else if (g.passed) {
                  const tolNote = g.exact
                    ? 'Exact match'
-                   : `Accepted within ±2% margin (Δ ${g.pctDiff.toFixed(2)}%, exact: ${formatWfNum(g.expected)})`;
+                   : `Accepted · Expected: ${formatWfNum(g.expected)}`;
                  fbHtml = `<div class="wf-feedback good">${esc(tolNote)} · +${g.points} pts</div>`;
                } else if (g.parensError) {
                  fbHtml = `<div class="wf-feedback bad">Use a leading minus sign (e.g. -50), never parentheses, in BI WISEflow. Expected: ${formatWfNum(
@@ -783,12 +783,10 @@ window.StudyRunner = (() => {
                    g.expected
                  )}</div>`;
                } else {
-                const lo = formatWfNum(g.expected - g.band);
-                const hi = formatWfNum(g.expected + g.band);
                 const enteredTxt = g.empty ? 'blank' : g.invalidFormat ? 'invalid' : formatWfNum(g.userValue);
                 fbHtml = `<div class="wf-feedback bad">Entered: ${esc(enteredTxt)} · Expected: ${formatWfNum(
                   g.expected
-                )} (±2%: ${lo} to ${hi})</div>`;
+                )}</div>`;
               }
             }
 
@@ -811,7 +809,7 @@ window.StudyRunner = (() => {
       .join('');
 
     return `
-      <section class="wf-sheet" aria-label="WISEflow Answer Fields">
+      <section class="wf-sheet" aria-label="Answer worksheet">
         ${scoreBarHtml}
         ${groupsHtml}
       </section>
@@ -940,7 +938,7 @@ window.StudyRunner = (() => {
     document.getElementById('run-header-title').textContent = `${activeRun.courseMeta.shortTitle} · ${q.title}`;
     const ptsBadge = q.points ? ` · ${q.points} pts` : '';
     document.getElementById('run-header-sub').textContent = `Question ${activeRun.index + 1} of ${activeRun.questionIds.length} · ${
-      hasWf ? 'FLOWmulti ±2%' : q.kind.toUpperCase()
+      hasWf ? 'Worksheet' : q.kind.toUpperCase()
     }${ptsBadge}`;
     document.getElementById('run-obsidian-app-link').href = makeObsidianDeepLink(q);
 
@@ -1205,7 +1203,7 @@ window.StudyRunner = (() => {
       const monoStyle = q.kind === 'coding' ? 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;' : '';
       const numCheckHtml = q.numericCheck
         ? `<div class="row-actions" style="margin-bottom:10px">
-            <label style="font-size:13px;font-weight:600">Numeric Answer (${esc(q.numericCheck.unit || 'value')}, ±2% tolerance):
+            <label style="font-size:13px;font-weight:600">Numeric Answer (${esc(q.numericCheck.unit || 'value')}):
               <input type="text" id="inp-numeric-ans" value="${esc(st.numericInput)}" placeholder="Enter number" style="width:140px;margin-left:6px">
             </label>
           </div>`
@@ -1406,11 +1404,12 @@ window.StudyRunner = (() => {
     const statusBarHtml = `
       <div class="row-between" style="margin:0 0 8px">
         <div class="row-actions" style="gap:6px">
-          ${questionCollection ? `<span class="badge">${esc(questionCollection.title)}</span>` : ''}
+          ${questionCollection ? `<span class="badge">${esc(examLabel(questionCollection.title))}</span>` : ''}
           <span class="badge">${esc(questionTopic?.title || 'Topic ' + q.topicId)}</span>
           ${diffBadgeHtml}
           ${!isBlindUnfinished && (q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference)
             ? '<button type="button" class="ghost-btn" id="btn-question-notes">Study notes</button>' : ''}
+          <button type="button" class="ghost-btn" id="btn-copy-for-ai">Copy for AI</button>
           ${q.points ? `<span class="badge gold">${q.points} pts</span>` : ''}
         </div>
         <div class="status-group" role="group" aria-label="Task completion state">
@@ -1590,6 +1589,13 @@ window.StudyRunner = (() => {
       .join('');
 
     bindQuestionCardEvents(q, st, sourcePdfs);
+    const promptSourceKeys = new Set([...(q.contextAssets || []), ...(q.promptAssets || [])]
+      .map((figure) => resolveSourceEntry(sourcesMap[figure?.sourceId], figure?.page)?.key));
+    window.StudyQuestionCopy.bind(card, {
+      question: q, state: st, course: activeRun.courseMeta.title, topic: questionTopic?.title,
+      revealed: st.revealed && !isBlindUnfinished,
+      sources: sourcePdfs.filter((source) => source.isPdf && promptSourceKeys.has(source.key)),
+    });
     if (inlinePdf) {
       const view = st.pdfViews[inlinePdf.key] ||= { page: inlinePdf.page, zoom: 100, trim: false };
       window.StudyPdf.mount(card.querySelector('#source-pdf-reader'), inlinePdf, view);
@@ -1893,7 +1899,7 @@ window.StudyRunner = (() => {
         if (parsed.ok && Math.abs(parsed.value - exp) <= tol) {
           const totalChecks = (q.rubricChecks || []).length || 3;
           st.checkedRubrics = Array.from({ length: totalChecks }, (_, i) => i);
-          toast('Numeric answer matched within ±2% tolerance! Verify steps below.');
+          toast('Numeric answer accepted. Verify your steps below.');
         }
       }
       renderRunner();

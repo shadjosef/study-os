@@ -1160,80 +1160,96 @@ html[data-theme="dark"] .preset-chip.active {
 /* --------------------------------------------------------------------------
    Side-by-Side Split Workspace + Embedded Source PDF / Vault Reader
    -------------------------------------------------------------------------- */
-@media (min-width: 1020px) {
-  body.runner-split-wide .container {
-    max-width: 1340px;
-    padding-top: 14px;
-    padding-bottom: 48px;
-  }
-  body.runner-split-wide.runner-split-pdf .container {
-    max-width: 1500px;
-  }
-  .question-card.split-card {
-    padding: 0;
-    margin-bottom: 16px;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-  }
-  .runner-split-grid {
-    display: grid;
-    grid-template-columns: minmax(0, var(--task-share, 52fr)) 14px minmax(0, var(--answer-share, 48fr));
-    align-items: start;
-  }
-  .runner-divider {
-    position: sticky;
-    top: var(--runner-sticky-top, 85px);
-    height: min(60vh, 540px);
-    cursor: col-resize;
-    touch-action: none;
-    display: grid;
-    justify-items: center;
-    align-items: center;
-  }
-  .runner-divider::before {
-    content: '';
-    width: 4px;
-    height: 48px;
-    border-radius: 4px;
-    background: var(--line);
-  }
-  .runner-divider:is(:hover, :focus-visible)::before { background: var(--accent); }
-  .runner-pane-left {
-    position: sticky;
-    top: var(--runner-sticky-top, 66px);
-    max-height: calc(100dvh - var(--runner-sticky-top, 66px) - 24px);
-    display: flex;
-    flex-direction: column;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-  }
-  .runner-pane-left-scroll {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px 20px 24px;
-  }
-  .runner-pane-right {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 18px 20px 26px;
-    box-shadow: var(--shadow);
-    min-width: 0;
-  }
+body.runner-split-wide .container {
+  max-width: 1340px;
+  padding-top: 14px;
+  padding-bottom: 48px;
+}
+body.runner-split-wide.runner-split-pdf .container {
+  max-width: 1500px;
+}
+.question-card.split-card {
+  padding: 0;
+  margin-bottom: 16px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.runner-split-grid {
+  display: grid;
+  grid-template-columns: minmax(0, var(--task-share, 52fr)) 14px minmax(0, var(--answer-share, 48fr));
+  align-items: start;
+}
+.runner-divider {
+  position: sticky;
+  top: var(--runner-sticky-top, 85px);
+  height: min(60vh, 540px);
+  cursor: col-resize;
+  touch-action: none;
+  display: grid;
+  justify-items: center;
+  align-items: center;
+}
+.runner-divider::before {
+  content: '';
+  width: 4px;
+  height: 48px;
+  border-radius: 4px;
+  background: var(--line);
+}
+.runner-divider:is(:hover, :focus-visible)::before { background: var(--accent); }
+.runner-pane-left {
+  position: sticky;
+  top: var(--runner-sticky-top, 66px);
+  max-height: max(14rem, calc(100dvh - var(--runner-sticky-top, 66px) - 24px));
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.runner-pane-left-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 16px 20px 24px;
+}
+.runner-pane-right {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px 20px 26px;
+  box-shadow: var(--shadow);
+  min-width: 0;
 }
 
 @media (max-width: 1019px) {
-  .runner-divider { display: none; }
-  .runner-pane-left, .runner-pane-right {
-    margin-bottom: 14px;
+  .runner-pane-left-scroll, .runner-pane-right {
+    padding: clamp(8px, 1.5vw, 16px);
+    overflow-wrap: anywhere;
   }
-  .runner-pane-left-scroll {
-    padding-top: 10px;
+  .runner-split-grid {
+    grid-template-columns: minmax(0, var(--task-share, 52fr)) 10px minmax(0, var(--answer-share, 48fr));
   }
+  .runner-pane-right .bar-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 5px;
+  }
+  .runner-pane-right .wf-label-col { min-width: min(12rem, 100%); }
+  .runner-pane-right .wf-input-col,
+  .runner-pane-right .wf-num-wrap,
+  .runner-pane-right :is(input, select, button) { max-width: 100%; }
+  .runner-pane-right .wf-num-wrap input { min-width: 0; }
+}
+
+@media (max-width: 560px) {
+  .runner-split-grid :is(.wf-row, .wf-group, .ghost-race-box, .reader-tabbar) { padding-inline: 6px; }
+  .runner-split-grid :is(.reader-tab-btn, .wf-choice-btn) { padding-inline: 5px; }
+  .runner-split-grid .bar-row { grid-template-columns: 1fr auto; }
+  .runner-split-grid .bar-track { display: none; }
+  .runner-split-grid .wf-unit { padding-inline: 4px; }
+  .runner-split-grid .markdown-body { overflow-x: auto; }
 }
 
 .reader-tabbar {
@@ -1357,6 +1373,7 @@ html[data-theme="dark"][data-pdf-dark="1"] .pdf-figure-scroll {
 .pdf-zoom-page .textLayer ::selection { background: #5688b75c; }
 .room-players { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 6px; }
 .room-players li { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; }
+#question-copy-preview textarea { width: 100%; box-sizing: border-box; margin-bottom: 12px; }
 
 /* Quiet 1-Tap Perceived Difficulty & Similar Drill Bar */
 .difficulty-rate-bar {

@@ -7,7 +7,7 @@
 'use strict';
 
 window.StudyApp = (() => {
-  const { esc, clockSec, minLabel, toast, openReferenceDrawer, bindGlobalChrome } = window.StudyUI;
+  const { esc, examLabel, clockSec, minLabel, toast, openReferenceDrawer, bindGlobalChrome } = window.StudyUI;
 
   let boot = {
     mode: 'local',
@@ -780,15 +780,12 @@ window.StudyApp = (() => {
               daysLeft !== null && daysLeft >= 0 ? ` (${daysLeft}d)` : ''
             }</span>`
           : '';
-        const wfBadge = c.flowmultiCount
-          ? `<span class="badge live" title="WISEflow FLOWmulti ±2% auto-graded exercises">${c.flowmultiCount} FLOWmulti</span>`
-          : '';
 
         return `<article class="course-card">
           <div>
             <div class="row-between" style="margin:0 0 4px">
               <span class="eyebrow" style="color:${esc(c.color)}">${esc(c.code)}${semesters.length > 1 && c.semester ? ` · ${esc(c.semester)}` : ''}</span>
-              <div class="row-actions">${wfBadge}${examBadge}</div>
+              <div class="row-actions">${examBadge}</div>
             </div>
             <h3>${esc(c.title)}</h3>
             <div class="course-bar"><div class="course-bar-fill" style="width:${pct}%;background:${esc(c.color)}"></div></div>
@@ -1125,13 +1122,13 @@ window.StudyApp = (() => {
               const colDur = Number(col.durationMinutes || durMin);
               return `<div class="exam-pack-card">
               <div>
-                <strong>${esc(col.title)}</strong>
+                <strong>${esc(examLabel(col.title))}</strong>
                 <small class="muted">${colDur} min${col.description ? ` · ${esc(col.description)}` : ''}</small>
               </div>
               <div class="row-actions">
                 <button type="button" class="primary-btn" style="flex:1" data-sit-course="${esc(c.courseId)}" data-sit-coll="${esc(
               col.id
-            )}" data-sit-dur="${colDur}" data-sit-title="${esc(col.title)}">
+            )}" data-sit-dur="${colDur}" data-sit-title="${esc(examLabel(col.title))}">
                   ${members.isUnlocked() && col.kind === 'exam' ? 'Review paper' : 'Start paper'}
                 </button>
               </div>
@@ -1142,7 +1139,7 @@ window.StudyApp = (() => {
 
         const customDesc =
           c.courseId === 'acct-2527'
-            ? '10 random MCQs (40 pts) + 4 multi-box WISEflow ±2% exercises across Ch 2/3, Ch 5, Ch 7 & Ch 8/10 (140 pts).'
+            ? '10 random MCQs (40 pts) + 4 worksheets across Ch 2/3, Ch 5, Ch 7 & Ch 8/10 (140 pts).'
             : c.courseId === 'econ-2522'
             ? 'Official BI 3-part structure: 10 MCQs + 3 Short Answers + 1 Multi-Part Analytical Case (180m).'
             : c.courseId === 'math-2588'
@@ -1597,7 +1594,7 @@ window.StudyApp = (() => {
 
     const collOptions =
       `<option value="all">All Sources &amp; Past Papers</option>` +
-      (bank.collections || []).map((c) => `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join('');
+      (bank.collections || []).map((c) => `<option value="${esc(c.id)}">${esc(examLabel(c.title))}</option>`).join('');
 
     const topicCounts = new Map();
     for (const question of bank.questions || []) {
@@ -1655,7 +1652,7 @@ window.StudyApp = (() => {
           <button type="button" class="preset-chip" data-exp-preset="med_dlpfc" data-layout-tier="2">${window.StudyLayout.label(2)}</button>
           <button type="button" class="preset-chip" data-exp-preset="low_dlpfc" data-layout-tier="1">${window.StudyLayout.label(1)}</button>
           <button type="button" class="preset-chip" data-exp-preset="long_horizon">Long Horizon (10m+)</button>
-          ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-exp-preset="wiseflow_only">FLOWmulti ±2%</button>' : ''}
+          ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-exp-preset="wiseflow_only">Worksheets</button>' : ''}
           <button type="button" class="preset-chip active" data-exp-preset="reset">All Tasks</button>
         </div>
 
@@ -1670,7 +1667,7 @@ window.StudyApp = (() => {
             <select id="flt-kind">
               <option value="all">All Formats</option>
               <option value="no_mcq">No Multiple Choice (Deep Work)</option>
-              <option value="wiseflow">FLOWmulti ±2% Boxes</option>
+              <option value="wiseflow">Worksheets</option>
               <option value="calculation">Calculation / Problem</option>
               <option value="written">Written / Analytical Case</option>
               <option value="coding">Coding</option>
@@ -1985,7 +1982,7 @@ window.StudyApp = (() => {
           const pb = rec?.pbEffectiveSec ? `${clockSec(rec.pbEffectiveSec)}${rec.beatAiCount ? ' · Par' : ''}` : '—';
           const hasWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
           const kindBadge = hasWf
-            ? `<span class="badge live" style="font-size:11px">FLOWmulti</span>`
+            ? `<span class="badge live" style="font-size:11px">Worksheet</span>`
             : `<small>${esc(q.kind)}</small>`;
           const dlpfc = effectiveDlpfc(q, rec);
           const diffBadge = `<span class="diff-badge diff-${dlpfc.tier}" data-layout-tier="${dlpfc.tier}"${dlpfc.chunked

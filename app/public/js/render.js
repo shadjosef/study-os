@@ -5,6 +5,10 @@ window.StudyUI = (() => {
   const esc = (s) =>
     String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  const examLabel = (label) => String(label ?? '')
+    .replace(/,\s*(?:WISEflow\s+)?±2%\s+auto-graded/gi, '')
+    .replace(/\s+FLOWmulti\s*±2%/gi, '');
+
   function clockSec(sec) {
     const s = Math.max(0, Math.round(Number(sec) || 0));
     const m = Math.floor(s / 60);
@@ -1427,6 +1431,7 @@ window.StudyUI = (() => {
 
   return {
     esc,
+    examLabel,
     clockSec,
     minLabel,
     renderMarkdownWithMath,

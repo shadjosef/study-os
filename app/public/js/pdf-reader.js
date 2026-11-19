@@ -5,6 +5,7 @@ window.StudyPdf = (() => {
   let engine;
   let active;
   const geometry = new WeakMap();
+  const pageText = new Map();
 
   function pdfEngine() {
     if (!engine) {
@@ -14,6 +15,63 @@ window.StudyPdf = (() => {
       });
     }
     return engine;
+  }
+
+  async function documentOptions(source) {
+    const input = source.memberAsset
+      ? { data: new Uint8Array(await window.StudyMembers.pdfBytes(source.memberAsset.id)) }
+      : { url: source.rawUrl };
+    return {
+      ...input,
+      cMapUrl: new URL('cmaps/', vendor).href, cMapPacked: true,
+      standardFontDataUrl: new URL('standard_fonts/', vendor).href,
+      wasmUrl: new URL('wasm/', vendor).href,
+      isEvalSupported: false,
+    };
+  }
+
+  async function readPageText(source) {
+    const pdf = await pdfEngine();
+    const task = pdf.getDocument(await documentOptions(source));
+    try {
+      const doc = await task.promise;
+      const page = await doc.getPage(source.page);
+      const { items } = await page.getTextContent();
+      const lines = [];
+      let line = '';
+      let previousY;
+      for (const item of items) {
+        if (typeof item.str !== 'string') continue;
+        const y = item.transform[5];
+        if (line && Math.abs(previousY - y) > 3) {
+          lines.push(line.trim());
+          line = '';
+        }
+        const part = item.str.trim();
+        if (part) line += (line ? ' ' : '') + part;
+        if (item.hasEOL && line) {
+          lines.push(line.trim());
+          line = '';
+        }
+        previousY = y;
+      }
+      if (line) lines.push(line.trim());
+      return lines.join('\n');
+    } finally {
+      await task.destroy().catch(() => {});
+    }
+  }
+
+  function textForPage(source) {
+    if (!pageText.has(source.key)) {
+      const pending = readPageText(source).catch((error) => {
+        if (pageText.get(source.key) === pending) pageText.delete(source.key);
+        throw error;
+      });
+      pageText.set(source.key, pending);
+      if (pageText.size > 20) pageText.delete(pageText.keys().next().value);
+    }
+    return pageText.get(source.key);
   }
 
   function boundsOf(surface, width, height) {
@@ -83,7 +141,7 @@ window.StudyPdf = (() => {
         width: `${width * scale}px`, height: `${height * scale}px`,
         maxWidth: 'none', left: `${-box.x * scale}px`, top: `${-box.y * scale}px`,
       });
-      root.querySelector('[data-pdf-level]').textContent = state.zoom + '%';
+      root.querySelector('[data-pdf-level]').textContent = Math.round(state.zoom) + '%';
       for (const button of root.querySelectorAll('[data-pdf-fit]')) {
         const selected = (button.dataset.pdfFit === 'content') === Boolean(state.trim);
         button.setAttribute('aria-pressed', String(selected));
@@ -91,14 +149,20 @@ window.StudyPdf = (() => {
       }
     }
 
-    function zoomBy(amount) {
+    function setZoom(level, clientX, clientY) {
       const old = state.zoom;
-      const x = scroller.scrollLeft + scroller.clientWidth / 2;
-      const y = scroller.scrollTop + scroller.clientHeight / 2;
-      state.zoom = Math.max(60, Math.min(300, old + amount));
+      const next = Math.max(60, Math.min(300, level));
+      if (next === old || !paper.offsetWidth) return;
+      const box = scroller.getBoundingClientRect();
+      const x = Number.isFinite(clientX) ? clientX - box.left : scroller.clientWidth / 2;
+      const y = Number.isFinite(clientY) ? clientY - box.top : scroller.clientHeight / 2;
+      const inset = () => Math.max(0, (scroller.clientWidth - paper.offsetWidth) / 2);
+      const pageX = scroller.scrollLeft + x - inset();
+      const pageY = scroller.scrollTop + y;
+      state.zoom = next;
       paint();
-      scroller.scrollLeft = x * state.zoom / old - scroller.clientWidth / 2;
-      scroller.scrollTop = y * state.zoom / old - scroller.clientHeight / 2;
+      scroller.scrollLeft = pageX * next / old + inset() - x;
+      scroller.scrollTop = pageY * next / old - y;
     }
 
     for (const button of root.querySelectorAll('[data-pdf-scale], [data-pdf-fit]')) {
@@ -108,13 +172,31 @@ window.StudyPdf = (() => {
           state.zoom = 100;
           paint();
           scroller.scrollTo(0, 0);
-        } else zoomBy(button.dataset.pdfScale === '+' ? 25 : -25);
+        } else setZoom(Math.round(state.zoom) + (button.dataset.pdfScale === '+' ? 25 : -25));
       });
     }
     scroller.addEventListener('wheel', (event) => {
       if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
-      zoomBy(event.deltaY < 0 ? 10 : -10);
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroller.clientHeight : 1;
+      setZoom(state.zoom * Math.exp(-event.deltaY * unit / 100), event.clientX, event.clientY);
+    }, { passive: false });
+
+    // Safari exposes trackpad pinch as a cumulative scale instead of a wheel delta.
+    let gestureZoom;
+    scroller.addEventListener('gesturestart', (event) => {
+      event.preventDefault();
+      gestureZoom = state.zoom;
+    }, { passive: false });
+    scroller.addEventListener('gesturechange', (event) => {
+      if (gestureZoom == null || !Number.isFinite(event.scale)) return;
+      event.preventDefault();
+      setZoom(gestureZoom * event.scale, event.clientX, event.clientY);
+    }, { passive: false });
+    scroller.addEventListener('gestureend', (event) => {
+      if (gestureZoom == null) return;
+      event.preventDefault();
+      gestureZoom = undefined;
     }, { passive: false });
 
     const observer = new ResizeObserver(() => {
@@ -161,17 +243,9 @@ window.StudyPdf = (() => {
     try {
       const pdf = await pdfEngine();
       if (active !== session || !root.isConnected) return;
-      const input = source.memberAsset
-        ? { data: new Uint8Array(await window.StudyMembers.pdfBytes(source.memberAsset.id)) }
-        : { url: source.rawUrl };
+      const options = await documentOptions(source);
       if (active !== session || !root.isConnected) return;
-      session.task = pdf.getDocument({
-        ...input,
-        cMapUrl: new URL('cmaps/', vendor).href, cMapPacked: true,
-        standardFontDataUrl: new URL('standard_fonts/', vendor).href,
-        wasmUrl: new URL('wasm/', vendor).href,
-        isEvalSupported: false,
-      });
+      session.task = pdf.getDocument(options);
       const doc = await session.task.promise;
       if (active !== session || !root.isConnected) return;
       pageField.max = doc.numPages;
@@ -232,5 +306,5 @@ window.StudyPdf = (() => {
     }
   }
 
-  return { toolbar, bindExcerpts, mount, dispose };
+  return { toolbar, bindExcerpts, mount, dispose, textForPage, clearText: () => pageText.clear() };
 })();

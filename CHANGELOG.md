@@ -12,8 +12,12 @@
 - Added the option to remember the full-library key on this browser.
 - Added inline zoom and margin trimming for task excerpts and source PDFs. Drag the split divider to change the pane widths.
 - Added the 4 December Mathematics for Data Science exam date and countdown.
+- Copy the full exercise, or choose **Copy for AI**, to get the question text, your answers, and any revealed solution without the surrounding controls.
+- Split keeps the task and answers side by side in narrow browser windows.
+- Pinch over a PDF or exam excerpt to zoom the document in place.
+- Simplified worksheet labels and grading feedback.
 
-## Community awaiting deployment
+## Community
 
 - Every Community profile appears on the members-only leaderboard with hours, completed questions, attempts and practice accuracy.
 - The leaderboard, global chat and direct messages open during a timed Study-OS break. The leaderboard also shows the current timer status of active Community members.

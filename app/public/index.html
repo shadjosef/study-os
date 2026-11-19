@@ -77,6 +77,12 @@
   </header>
 
   <dialog id="profile-gate" class="member-dialog" aria-label="Study-OS profile"></dialog>
+  <dialog id="question-copy-preview" class="member-dialog" aria-label="Copy question and answers">
+    <h2>Copy question and answers</h2>
+    <p>Select and copy the text below.</p>
+    <textarea readonly rows="14" aria-label="Question and answers"></textarea>
+    <form method="dialog"><button type="submit" class="ghost-btn">Close</button></form>
+  </dialog>
   <main class="container">
     <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
     <dialog id="member-dialog" class="member-dialog" aria-labelledby="member-title">
@@ -359,6 +365,7 @@
   <script src="./vendor/auto-render.min.js"></script>
   <script src="./js/render.js"></script>
   <script src="./js/pdf-reader.js"></script>
+  <script src="./js/question-copy.js"></script>
   <script src="./js/layouts.js"></script>
   <script src="./js/runner.js"></script>
   <script src="./js/members.js"></script>
