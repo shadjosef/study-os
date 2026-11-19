@@ -242,6 +242,16 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
         community_marker = f' data-community-api="{escape(endpoint, quote=True)}"'
     html = html.replace("<html ", f'<html data-study-mode="web"{member_marker}{community_marker} ', 1)
     html = html.replace("</head>", '  <link rel="manifest" href="./app.webmanifest">\n</head>', 1)
+
+    def _stamp_asset(match: re.Match[str]) -> str:
+        attr, rel = match.group(1), match.group(2)
+        target = out_dir / rel
+        if not target.is_file():
+            return match.group(0)
+        digest = hashlib.sha256(target.read_bytes()).hexdigest()[:8]
+        return f'{attr}="./{rel}?v={digest}"'
+
+    html = re.sub(r'(href|src)="\./((?:styles\.css|js/[A-Za-z0-9._-]+\.js))"', _stamp_asset, html)
     index.write_text(html, encoding="utf-8")
 
     template = (ROOT_DIR / "tools" / "offline-worker.js").read_bytes()

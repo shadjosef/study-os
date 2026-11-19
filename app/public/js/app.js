@@ -739,19 +739,34 @@ window.StudyApp = (() => {
       });
     } else if (isStaticWeb) {
       const questionCount = boot.catalog.reduce((count, c) => count + c.questionCount, 0);
+      const nextExam = [...boot.catalog]
+        .map((c) => ({ c, days: daysUntilDateStr(c.examInfo?.date) }))
+        .filter((x) => x.days !== null && x.days >= 0)
+        .sort((x, y) => x.days - y.days)[0];
+      const nextExamChip = nextExam
+        ? `<button type="button" class="hero-exam-chip" id="btn-hero-next-exam">
+             <span class="hero-exam-dot" style="background:${esc(nextExam.c.color)}"></span>
+             <span>Next exam · <b>${esc(nextExam.c.code)}</b> in ${nextExam.days === 0 ? 'today' : `${nextExam.days}d`}</span>
+             <span aria-hidden="true">→</span>
+           </button>`
+        : '';
       heroEl.innerHTML = `
         <div class="hero-top">
-          <div>
+          <div style="flex:1;min-width:240px">
+            ${nextExamChip}
             <h1 class="hero-title">Study by subject</h1>
-            <p class="muted">${boot.catalog.length} subjects and ${questionCount} practice questions with hints, worked answers and course notes.</p>
+            <p class="muted" style="margin:0">${boot.catalog.length} subjects · ${questionCount} questions · ${(boot.references || []).length} course notes</p>
           </div>
           <div class="row-actions">
-            <button type="button" class="primary-btn" id="btn-web-refs">Browse course notes</button>
+            <button type="button" class="primary-btn" id="btn-web-refs">Course notes</button>
             <button type="button" class="ghost-btn" id="btn-web-exams">Mock exams</button>
           </div>
         </div>`;
       document.getElementById('btn-web-refs').onclick = () => navigate('references');
       document.getElementById('btn-web-exams').onclick = () => navigate('exams');
+      if (nextExam) {
+        document.getElementById('btn-hero-next-exam').onclick = () => navigate('exams', { focusCourseId: nextExam.c.courseId });
+      }
     } else {
       heroEl.innerHTML = `
         ${focusBarHtml}
@@ -859,16 +874,19 @@ window.StudyApp = (() => {
             }</span>`
           : '';
 
-        return `<article class="course-card">
+        return `<article class="course-card" style="--course-accent:${esc(c.color)}">
           <div>
-            <div class="row-between" style="margin:0 0 4px">
-              <span class="eyebrow" style="color:${esc(c.color)}">${esc(c.code)}${semesters.length > 1 && c.semester ? ` · ${esc(c.semester)}` : ''}</span>
+            <div class="row-between" style="margin:0 0 8px">
+              <span class="course-code-pill" style="--pill-color:${esc(c.color)}">${esc(c.code)}${semesters.length > 1 && c.semester ? ` · ${esc(c.semester)}` : ''}</span>
               <div class="row-actions">${examBadge}</div>
             </div>
-            <h3>${esc(c.title)}</h3>
-            <div class="course-bar"><div class="course-bar-fill" style="width:${pct}%;background:${esc(c.color)}"></div></div>
+            <h3 class="course-card-title" data-open-course="${esc(c.courseId)}" role="button" tabindex="0">${esc(c.title)}</h3>
+            <div class="course-progress-wrap">
+              <div class="course-bar"><div class="course-bar-fill" style="width:${pct}%;background:${esc(c.color)}"></div></div>
+              <span class="course-pct">${pct}%</span>
+            </div>
             <div class="course-stats-row">
-              <span><b>${cp.done}</b>/${cp.total} done (${pct}%)</span>
+              <span><b>${cp.done}</b>/${cp.total} done</span>
               ${isStaticWeb ? '' : `<span>· <b>${c.highDlpfcCount ?? c.writtenOrCalcCount ?? 0}</b> Hard</span>`}
               <span>· <b>${cp.revisit}</b> revisit</span>
               <span>· UPI <b>${cm.upi ?? '—'}</b></span>
@@ -908,6 +926,14 @@ window.StudyApp = (() => {
     });
     grid.querySelectorAll('[data-open-course]').forEach((b) => {
       b.addEventListener('click', () => navigate('course', { courseId: b.dataset.openCourse }));
+      if (b.tagName !== 'BUTTON') {
+        b.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            navigate('course', { courseId: b.dataset.openCourse });
+          }
+        });
+      }
     });
     grid.querySelectorAll('[data-ref-course]').forEach((b) => {
       b.addEventListener('click', () => {
@@ -3549,11 +3575,199 @@ window.StudyApp = (() => {
     setTimeout(() => URL.revokeObjectURL(a.href), 30000);
   }
 
+  function bindCommandPalette() {
+    const dialog = document.getElementById('cmd-palette-dialog');
+    const input = document.getElementById('cmd-palette-input');
+    const list = document.getElementById('cmd-palette-results');
+    if (!dialog || !input || !list) return;
+    let items = [];
+    let selectedIdx = 0;
+
+    function buildItems() {
+      const out = [];
+      const leaveRunner = () => {
+        if (!document.getElementById('view-runner')?.hidden) {
+          document.getElementById('run-exit-btn')?.click();
+        }
+      };
+      for (const c of boot.catalog || []) {
+        out.push({
+          group: 'Courses',
+          title: `${c.code} · ${c.title}`,
+          sub: `${c.questionCount} questions · Topics & practice`,
+          keywords: `${c.code} ${c.title} ${c.shortTitle} course topics practice`,
+          run: () => { leaveRunner(); navigate('course', { courseId: c.courseId }); },
+        });
+        out.push({
+          group: 'Exams',
+          title: `${c.code} Mock Exams`,
+          sub: c.examInfo?.date ? `Exam ${c.examInfo.date}` : c.shortTitle,
+          keywords: `${c.code} ${c.title} exam mock paper`,
+          run: () => { leaveRunner(); navigate('exams', { focusCourseId: c.courseId }); },
+        });
+      }
+      for (const r of boot.references || []) {
+        out.push({
+          group: 'Course Notes',
+          title: r.title,
+          sub: `${r.code} · ${r.semester || 'Reference'}`,
+          keywords: `${r.code} ${r.title} notes reference formula`,
+          run: () => { leaveRunner(); navigate('references', { refFile: r.file }); },
+        });
+      }
+      const views = [
+        ['Home', 'home', 'courses dashboard'],
+        ['Notes', 'references', 'reference sheets formulas'],
+        ['Exams', 'exams', 'mock exams past papers'],
+        ['Courses', 'course', 'topics explorer filter'],
+        ['Schedule', 'schedule', 'timeedit calendar planner'],
+        ['Metrics', 'analytics', 'upi telemetry analytics ai brief'],
+      ];
+      if (window.StudyCommunity?.enabled) views.push(['Community', 'community', 'leaderboard chat rooms profile']);
+      for (const [label, viewId, kw] of views) {
+        out.push({
+          group: 'Views',
+          title: label,
+          sub: `Go to ${label}`,
+          keywords: `${label} ${kw}`,
+          run: () => { leaveRunner(); navigate(viewId); },
+        });
+      }
+      out.push(
+        {
+          group: 'Actions',
+          title: 'Open Settings',
+          sub: 'Appearance, sound, AI tutor & backup (,)',
+          keywords: 'settings preferences theme sound backup',
+          run: () => window.StudyUI.openSettings?.(),
+        },
+        {
+          group: 'Actions',
+          title: 'Toggle Dark / Light Mode',
+          sub: 'Switch color appearance',
+          keywords: 'dark light theme appearance mode',
+          run: () => window.StudyUI.toggleTheme?.(),
+        },
+        {
+          group: 'Actions',
+          title: 'Toggle Background Sound',
+          sub: 'Play or mute focus soundscape (M)',
+          keywords: 'sound noise brown pink rain focus audio mute',
+          run: () => {
+            const on = window.StudyUI.soundMasker?.toggle?.();
+            toast(on ? `Sound: ${window.StudyUI.soundMasker.getSummaryLabel()}` : 'Sound off');
+          },
+        },
+        {
+          group: 'Actions',
+          title: 'AI Tutor',
+          sub: 'Live MCP exercise sharing & tutor prompt',
+          keywords: 'ai tutor mcp claude codex prompt',
+          run: () => window.StudyTutor?.open?.(),
+        },
+        {
+          group: 'Actions',
+          title: 'Export Backup',
+          sub: 'Download study progress as JSON',
+          keywords: 'export backup json download save',
+          run: () => { exportBackupFile(); toast('Exported Study-OS backup.'); },
+        }
+      );
+      return out;
+    }
+
+    function renderList() {
+      const q = input.value.trim().toLowerCase();
+      const all = buildItems();
+      items = q
+        ? all.filter((it) => `${it.title} ${it.sub} ${it.keywords}`.toLowerCase().includes(q)).slice(0, 14)
+        : all.slice(0, 12);
+      selectedIdx = Math.min(selectedIdx, Math.max(0, items.length - 1));
+      if (!items.length) {
+        list.innerHTML = '<p class="cmd-empty muted">No matching courses, notes, or actions.</p>';
+        return;
+      }
+      list.innerHTML = items.map((it, idx) => `
+        <button type="button" class="cmd-item ${idx === selectedIdx ? 'active' : ''}" data-cmd-idx="${idx}" role="option" aria-selected="${idx === selectedIdx ? 'true' : 'false'}">
+          <span class="cmd-item-copy">
+            <strong>${esc(it.title)}</strong>
+            <small class="muted">${esc(it.sub)}</small>
+          </span>
+          <span class="cmd-group-pill">${esc(it.group)}</span>
+        </button>
+      `).join('');
+      list.querySelectorAll('[data-cmd-idx]').forEach((btn) => {
+        btn.addEventListener('click', () => runItem(Number(btn.dataset.cmdIdx)));
+        btn.addEventListener('mouseenter', () => {
+          selectedIdx = Number(btn.dataset.cmdIdx);
+          updateActive();
+        });
+      });
+    }
+
+    function updateActive() {
+      list.querySelectorAll('[data-cmd-idx]').forEach((btn, idx) => {
+        const active = idx === selectedIdx;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        if (active) btn.scrollIntoView({ block: 'nearest' });
+      });
+    }
+
+    function runItem(idx) {
+      const chosen = items[idx];
+      if (!chosen) return;
+      dialog.close();
+      chosen.run();
+    }
+
+    function openPalette() {
+      if (document.getElementById('break-modal')?.open) return;
+      window.StudyUI.closeSettings?.();
+      input.value = '';
+      selectedIdx = 0;
+      renderList();
+      if (!dialog.open) dialog.showModal();
+      input.focus();
+    }
+
+    input.addEventListener('input', () => {
+      selectedIdx = 0;
+      renderList();
+    });
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        if (items.length) { selectedIdx = (selectedIdx + 1) % items.length; updateActive(); }
+      } else if (ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        if (items.length) { selectedIdx = (selectedIdx - 1 + items.length) % items.length; updateActive(); }
+      } else if (ev.key === 'Enter') {
+        ev.preventDefault();
+        runItem(selectedIdx);
+      }
+    });
+    dialog.addEventListener('click', (ev) => {
+      if (ev.target === dialog) dialog.close();
+    });
+    document.addEventListener('keydown', (ev) => {
+      if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && ev.key.toLowerCase() === 'k') {
+        ev.preventDefault();
+        if (dialog.open) dialog.close();
+        else openPalette();
+      }
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // INITIALIZATION & DEEP-LINK URL ROUTING
   // ---------------------------------------------------------------------------
   async function init() {
     bindGlobalChrome();
+    bindCommandPalette();
+    if (isStaticWeb && navigator.serviceWorker) {
+      navigator.serviceWorker.getRegistration?.().then((reg) => reg?.update?.()).catch(() => {});
+    }
     const globalHeader = document.getElementById('global-header');
     new ResizeObserver(() => {
       document.documentElement.style.setProperty('--notes-header-height', `${globalHeader.offsetHeight}px`);

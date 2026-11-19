@@ -1397,38 +1397,62 @@ window.StudyRunner = (() => {
     const diffBadgeHtml = `<span class="diff-badge diff-${dlpfcInfo.tier}" data-layout-tier="${dlpfcInfo.tier}"${dlpfcInfo.chunked
       ? ' title="Previously mastered problem with fewer new steps"' : ''}>${window.StudyLayout.label(dlpfcInfo.tier)}</span>`;
 
-    // Compact Low-Clutter Status Bar
+    // Ultra-Clean Single-Line Card Metadata & Collapsible Tools Popover
     const questionTopic = activeRun.bank.topics?.find((topic) => String(topic.id) === String(q.topicId));
     const questionCollection = activeRun.bank.collections?.find((collection) => collection.id === q.collectionId);
+    const instantMcqToggleHtml =
+      !isBlindUnfinished && q.kind === 'mcq'
+        ? `<button type="button" class="runner-menu-item ${instantMcq ? 'active' : ''}" id="btn-toggle-instant-mcq" title="Check MCQs in 1 tap">
+             <span>1-Tap MCQ Check</span>
+             <small>${instantMcq ? 'ON' : 'Off'}</small>
+           </button>`
+        : '';
+
+    const toolsMenuHtml = isBlindUnfinished
+      ? `<details class="runner-tools-menu">
+           <summary class="st-btn runner-more-btn" title="Question tools" aria-label="More question tools">•••</summary>
+           <div class="runner-tools-popover">
+             <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for AI</span></button>
+           </div>
+         </details>`
+      : `<details class="runner-tools-menu">
+           <summary class="st-btn runner-more-btn" title="Question tools" aria-label="More question tools">•••</summary>
+           <div class="runner-tools-popover">
+             <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for AI</span></button>
+             <button type="button" class="runner-menu-item" id="btn-open-tutor"><span>AI Tutor</span></button>
+             ${instantMcqToggleHtml}
+             <div class="runner-menu-divider"></div>
+             <label class="runner-menu-select-row">
+               <span>Status</span>
+               <select id="sel-card-status" class="st-select st-select-${esc(status)}" aria-label="Task status">
+                 <option value="not_started" ${status === 'not_started' ? 'selected' : ''}>Uncomplete</option>
+                 <option value="in_progress" ${status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                 <option value="done" ${status === 'done' ? 'selected' : ''}>Done</option>
+                 <option value="revisit" ${status === 'revisit' ? 'selected' : ''}>Revisit</option>
+               </select>
+             </label>
+             <button type="button" class="runner-menu-item" id="btn-retry-fresh"><span>Retry fresh</span></button>
+           </div>
+         </details>`;
+
     const statusBarHtml = `
-      <div class="row-between" style="margin:0 0 8px">
-        <div class="row-actions" style="gap:6px">
-          ${questionCollection ? `<span class="badge">${esc(examLabel(questionCollection.title))}</span>` : ''}
-          <span class="badge">${esc(questionTopic?.title || 'Topic ' + q.topicId)}</span>
+      <div class="runner-card-meta-bar">
+        <div class="runner-meta-crumb" ${questionCollection ? `title="${esc(examLabel(questionCollection.title))}"` : ''}>
+          <span class="runner-topic-label">${esc(questionTopic?.title || 'Topic ' + q.topicId)}</span>
           ${diffBadgeHtml}
-          ${!isBlindUnfinished && (q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference)
-            ? '<button type="button" class="ghost-btn" id="btn-question-notes">Study notes</button>' : ''}
-          <button type="button" class="ghost-btn" id="btn-copy-for-ai">Copy for AI</button>
-          ${!isBlindUnfinished ? '<button type="button" class="ghost-btn" id="btn-open-tutor">AI tutor</button>' : ''}
           ${q.points ? `<span class="badge gold">${q.points} pts</span>` : ''}
         </div>
-        <div class="status-group" role="group" aria-label="Task completion state">
+        <div class="runner-meta-actions" role="group" aria-label="Question actions">
+          ${!isBlindUnfinished && (q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference)
+            ? '<button type="button" class="st-btn runner-pill-tool" id="btn-question-notes" title="Open course notes (O)">Notes</button>' : ''}
           ${
             isBlindUnfinished
-              ? `<button type="button" class="st-btn ${st.flagged ? 'active-revisit' : ''}" id="btn-flag-exam" title="Flag question to review before submitting paper (F)">
-                   ${st.flagged ? 'Flagged' : 'Flag (F)'}
+              ? `<button type="button" class="st-btn runner-pill-tool ${st.flagged ? 'active-revisit' : ''}" id="btn-flag-exam" title="Flag question for review (F)">
+                   ${st.flagged ? 'Flagged' : 'Flag'}
                  </button>`
-              : `
-                <select id="sel-card-status" class="st-select st-select-${esc(status)}" aria-label="Task status" title="Change task status">
-                  <option value="not_started" ${status === 'not_started' ? 'selected' : ''}>Uncomplete</option>
-                  <option value="in_progress" ${status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-                  <option value="done" ${status === 'done' ? 'selected' : ''}>Done</option>
-                  <option value="revisit" ${status === 'revisit' ? 'selected' : ''}>Revisit</option>
-                </select>
-                <button type="button" class="st-btn ${status === 'revisit' ? 'active-revisit' : ''}" data-set-status="revisit" title="Flag for Revisit (F)">Flag</button>
-                <button type="button" class="st-btn" id="btn-retry-fresh" title="Clear current attempt &amp; restart timer">Retry</button>
-              `
+              : `<button type="button" class="st-btn runner-pill-tool ${status === 'revisit' ? 'active-revisit' : ''}" data-set-status="revisit" title="Flag for Revisit (F)">${status === 'revisit' ? 'Flagged' : 'Flag'}</button>`
           }
+          ${toolsMenuHtml}
         </div>
       </div>
     `;
@@ -1442,28 +1466,21 @@ window.StudyRunner = (() => {
         : `<button type="button" class="primary-btn" id="btn-submit-paper-bottom">Submit Paper</button>`;
     } else if (q.kind === 'mcq') {
       primaryActionBtn = !st.revealed
-        ? `<button type="button" class="primary-btn" id="btn-check-mcq" ${st.choice === null ? 'disabled' : ''}>Check Answer (Enter)</button>`
+        ? `<button type="button" class="primary-btn" id="btn-check-mcq" ${st.choice === null ? 'disabled' : ''}>Check Answer</button>`
         : `<button type="button" class="primary-btn" id="btn-next-q">${nextFullLbl}</button>`;
     } else if (hasWf) {
       primaryActionBtn = !st.revealed
-        ? `<button type="button" class="primary-btn" id="btn-check-wf">Check Answers (Enter)</button>`
+        ? `<button type="button" class="primary-btn" id="btn-check-wf">Check Answers</button>`
         : `<button type="button" class="primary-btn" id="btn-next-q">${nextFullLbl}</button>`;
     } else {
       primaryActionBtn = !st.revealed
-        ? `<button type="button" class="primary-btn" id="btn-reveal-sol" title="Shortcut: S or Cmd/Ctrl+Enter">Reveal Solution (S)</button>`
-        : `<button type="button" class="primary-btn btn-got-it-next" title="Confirm 100% right &amp; jump to next question (Shortcut: G)">✓ Got It &amp; ${nextShortLbl} (G)</button>`;
+        ? `<button type="button" class="primary-btn" id="btn-reveal-sol" title="Shortcut: S or Cmd/Ctrl+Enter">Reveal Solution</button>`
+        : `<button type="button" class="primary-btn btn-got-it-next" title="Confirm 100% right &amp; jump to next question (Shortcut: G)">✓ Got It &amp; ${nextShortLbl}</button>`;
     }
-
-    const instantMcqToggleHtml =
-      !isBlindUnfinished && q.kind === 'mcq'
-        ? `<button type="button" class="mini-tool-btn ${instantMcq ? 'active' : ''}" id="btn-toggle-instant-mcq" title="When ON, clicking an option or pressing A–D checks MCQs in 1 tap (minimal cursor &amp; eye movement)">1-Tap Check${
-            instantMcq ? ': ON' : ''
-          }</button>`
-        : '';
 
     const secondaryNextBtn =
       !isBlindUnfinished && st.revealed && q.kind !== 'mcq' && !hasWf
-        ? `<button type="button" class="ghost-btn" id="btn-next-q" title="Advance to next question (Shortcut: N or Enter)">${nextShortLbl} (N)</button>`
+        ? `<button type="button" class="ghost-btn" id="btn-next-q" title="Advance to next question (Shortcut: N or Enter)">${nextShortLbl}</button>`
         : '';
 
     const fovealActionBarHtml = `
@@ -1471,13 +1488,12 @@ window.StudyRunner = (() => {
         <div class="row-actions" style="gap:7px">
           ${primaryActionBtn}
           ${secondaryNextBtn}
-          ${canHint ? `<button type="button" class="ghost-btn" id="btn-hint">Hint ${st.hintsUsed + 1}/${hintsArr.length} (H)</button>` : ''}
+          ${canHint ? `<button type="button" class="ghost-btn" id="btn-hint" title="Show hint (H)">Hint ${st.hintsUsed + 1}/${hintsArr.length}</button>` : ''}
           ${
             !isBlindUnfinished && !st.revealed && (q.kind === 'mcq' || hasWf)
-              ? `<button type="button" class="ghost-btn" id="btn-reveal-sol">Solution (S)</button>`
+              ? `<button type="button" class="ghost-btn" id="btn-reveal-sol" title="Reveal worked solution (S)">Solution</button>`
               : ''
           }
-          ${instantMcqToggleHtml}
         </div>
         <div class="row-actions" style="gap:6px">
           <button type="button" class="ghost-btn" id="btn-prev-q" ${activeRun.index === 0 ? 'disabled' : ''}>← Prev</button>
@@ -1486,7 +1502,6 @@ window.StudyRunner = (() => {
               ? `<button type="button" class="ghost-btn" id="btn-bottom-pdf" title="Open embedded Source PDF side-by-side">PDF</button>`
               : ''
           }
-          ${!isSplit && !isBlindUnfinished ? `<button type="button" class="ghost-btn" id="btn-inline-ref" title="Open Vault Reference (O)">Ref</button>` : ''}
           <button type="button" class="ghost-btn" id="btn-end-run">${isBlindUnfinished ? 'Submit…' : 'End Run'}</button>
         </div>
       </div>
@@ -2344,6 +2359,13 @@ window.StudyRunner = (() => {
     document.getElementById('run-layout-btn')?.addEventListener('click', toggleSplitWorkspace);
     document.getElementById('run-submit-exam-btn')?.addEventListener('click', () => promptSubmitFullExam());
     document.getElementById('run-live-pill')?.addEventListener('click', toggleManualPause);
+    document.addEventListener('click', (ev) => {
+      document.querySelectorAll('.runner-tools-menu[open]').forEach((menu) => {
+        if (!menu.contains(ev.target) || ev.target.closest('.runner-menu-item')) {
+          menu.open = false;
+        }
+      });
+    });
 
     // Automatic Display / Window / Tab Focus-Loss Pause & Resume
     document.addEventListener('visibilitychange', () => {

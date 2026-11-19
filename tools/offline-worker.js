@@ -16,6 +16,7 @@ self.addEventListener('install', (event) => {
       await caches.delete(cacheName);
       throw error;
     }
+    await self.skipWaiting();
   })());
 });
 
@@ -28,6 +29,10 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
+function isAppShellAsset(key) {
+  return key === index.href || /\/(?:styles\.css|js\/[^/]+\.js)$/.test(key);
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -35,8 +40,26 @@ self.addEventListener('fetch', (event) => {
   const isHome = request.mode === 'navigate'
     && url.origin === scope.origin
     && (url.pathname === scope.pathname || url.pathname === index.pathname);
-  const key = isHome ? index.href : url.href;
-  if (assets.has(key)) {
-    event.respondWith(caches.open(cacheName).then(async (cache) => (await cache.match(key)) || fetch(request)));
+  const key = isHome ? index.href : `${url.origin}${url.pathname}`;
+  if (!assets.has(key)) return;
+
+  if (isAppShellAsset(key)) {
+    event.respondWith((async () => {
+      const cache = await caches.open(cacheName);
+      try {
+        const fresh = await fetch(request);
+        if (fresh && fresh.ok) {
+          cache.put(key, fresh.clone()).catch(() => {});
+        }
+        return fresh;
+      } catch {
+        const cached = await cache.match(key);
+        if (cached) return cached;
+        throw new Error('Offline and asset not cached');
+      }
+    })());
+    return;
   }
+
+  event.respondWith(caches.open(cacheName).then(async (cache) => (await cache.match(key)) || fetch(request)));
 });
