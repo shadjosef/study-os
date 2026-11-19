@@ -1,5 +1,7 @@
 import { handleRooms, runningStudyRoom } from './rooms.mjs';
 import { verifyJoinProof, consumeInviteUse, handleAdmin } from './admin.mjs';
+import { handlePublicAuth, handleAuthedAuth } from './auth.mjs';
+import { handleSync } from './sync.mjs';
 
 const encoder = new TextEncoder();
 const hex = (bytes) => [...bytes].map((n) => n.toString(16).padStart(2, '0')).join('');
@@ -12,6 +14,8 @@ const avatarDataPattern = /^data:image\/(?:webp|jpeg|png);base64,[A-Za-z0-9+/=]{
 const avatarPresets = new Set(['owl', 'fox', 'cat', 'penguin', 'rocket', 'book', 'coffee', 'spark', 'mountain', 'cactus']);
 const nicknameCooldownMs = 30 * 86_400_000;
 const maxInputBytes = 65_536;
+const maxSyncBytes = 524_288;
+const publicAuthPaths = new Set(['/auth/passkey/login/options', '/auth/passkey/login/verify', '/auth/link-redeem']);
 const breakRequired = new Set(['/dashboard', '/message', '/chat', '/block', '/sets']);
 const osloHour = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Oslo', hour: 'numeric', hourCycle: 'h23',
@@ -65,7 +69,7 @@ function equalProof(expected, supplied) {
   return different === 0;
 }
 
-async function readJson(request) {
+async function readJson(request, limitBytes = maxInputBytes) {
   const reader = request.body?.getReader();
   if (!reader) throw new Error('Missing request body');
   const chunks = [];
@@ -74,7 +78,7 @@ async function readJson(request) {
     const { value, done } = await reader.read();
     if (done) break;
     size += value.length;
-    if (size > maxInputBytes) {
+    if (size > limitBytes) {
       await reader.cancel();
       throw new Error('Request too large');
     }
@@ -117,8 +121,12 @@ export default {
     const db = env.DB;
     let data = {};
     if (request.method === 'POST') {
-      try { data = await readJson(request); }
+      try { data = await readJson(request, path === '/sync' ? maxSyncBytes : maxInputBytes); }
       catch { return reply({ error: 'Invalid request.' }, 400); }
+    }
+
+    if (publicAuthPaths.has(path)) {
+      return handlePublicAuth({ request, path, db, env, now: Date.now(), data, reply, digest, hex });
     }
 
     if (path === '/join' && request.method === 'POST') {
@@ -144,15 +152,37 @@ export default {
     const token = (request.headers.get('Authorization') || '').replace(/^Bearer /, '');
     if (!tokenPattern.test(token)) return reply({ error: 'Enter your profile key.' }, 401);
     const tokenHash = await digest(token);
-    const me = await db.prepare(`
+    const now = Date.now();
+    let me = await db.prepare(`
       SELECT profiles.id, nickname, avatar, bio, nickname_changed_at,
         study_minutes, break_minutes, break_count, last_break_at,
         completed, attempts, accuracy, break_ends_at, expires_at
       FROM profiles LEFT JOIN presence ON presence.profile = profiles.id WHERE token_hash = ?
     `).bind(tokenHash).first();
+    if (!me) {
+      me = await db.prepare(`
+        SELECT profiles.id, nickname, avatar, bio, nickname_changed_at,
+          study_minutes, break_minutes, break_count, last_break_at,
+          completed, attempts, accuracy, break_ends_at, expires_at,
+          profile_sessions.last_used_at AS session_last_used_at
+        FROM profile_sessions
+        JOIN profiles ON profiles.id = profile_sessions.profile_id
+        LEFT JOIN presence ON presence.profile = profiles.id
+        WHERE profile_sessions.token_hash = ?
+      `).bind(tokenHash).first();
+      if (me && now - Number(me.session_last_used_at || 0) > 300_000) {
+        await db.prepare('UPDATE profile_sessions SET last_used_at = ? WHERE token_hash = ?')
+          .bind(now, tokenHash).run();
+      }
+    }
     if (!me) return reply({ error: 'That profile key is invalid.' }, 401);
-    const now = Date.now();
     const isAdmin = isAdminMember(env, me, tokenHash);
+    if (path.startsWith('/auth/')) {
+      return handleAuthedAuth({ request, path, db, env, me, tokenHash, now, data, reply, digest });
+    }
+    if (path === '/sync') {
+      return handleSync({ request, db, me, now, data, reply });
+    }
     if (path.startsWith('/admin/')) {
       return handleAdmin({ request, url, db, env, me, isAdmin, now, data, reply, digest, nicknamePattern });
     }

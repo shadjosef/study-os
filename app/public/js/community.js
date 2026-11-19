@@ -6,6 +6,7 @@ window.StudyCommunity = (() => {
   const demoKey = 'study-os-demo';
   const { esc, toast, clockSec, workClock } = window.StudyUI;
   let token = '';
+  let currentProfile = null;
   let lastSync = '';
   let syncTimer;
   let lastPresence = '';
@@ -20,10 +21,122 @@ window.StudyCommunity = (() => {
   function useProfile(key) {
     localStorage.setItem(keyName, key);
     token = key;
+    if (!key) currentProfile = null;
     lastSync = '';
     lastPresence = '';
     lastPresenceAt = 0;
     clearTimeout(syncTimer);
+    window.StudyApp?.syncSettingsRows?.();
+  }
+
+  function toBase64Url(buf) {
+    const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function fromBase64Url(str) {
+    const pad = str.length % 4 === 0 ? '' : '='.repeat(4 - (str.length % 4));
+    const bin = atob(str.replace(/-/g, '+').replace(/_/g, '/') + pad);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function detectDeviceLabel() {
+    const ua = navigator.userAgent || '';
+    const os = /iPhone/.test(ua) ? 'iPhone'
+      : /iPad/.test(ua) ? 'iPad'
+      : /Macintosh|Mac OS/.test(ua) ? 'Mac'
+      : /Windows/.test(ua) ? 'Windows'
+      : /Android/.test(ua) ? 'Android'
+      : 'Device';
+    const browser = /Vivaldi/.test(ua) ? 'Vivaldi'
+      : /Edg\//.test(ua) ? 'Edge'
+      : /Chrome\//.test(ua) ? 'Chrome'
+      : /Firefox\//.test(ua) ? 'Firefox'
+      : /Safari\//.test(ua) ? 'Safari'
+      : 'Browser';
+    return `${os} · ${browser}`;
+  }
+
+  function supportsPasskeys() {
+    return Boolean(window.PublicKeyCredential && navigator.credentials?.create && navigator.credentials?.get && window.isSecureContext);
+  }
+
+  async function signInWithPasskey() {
+    if (!supportsPasskeys()) throw new Error('Passkeys require a modern browser over HTTPS.');
+    const opts = await request('/auth/passkey/login/options', {}, '');
+    const publicKey = {
+      challenge: fromBase64Url(opts.challenge),
+      rpId: opts.rpId,
+      timeout: opts.timeout || 60000,
+      userVerification: opts.userVerification || 'preferred',
+    };
+    const assertion = await navigator.credentials.get({ publicKey });
+    if (!assertion) throw new Error('Passkey sign-in was cancelled.');
+    const res = await request('/auth/passkey/login/verify', {
+      credentialId: assertion.id,
+      clientDataJSON: toBase64Url(assertion.response.clientDataJSON),
+      authenticatorData: toBase64Url(assertion.response.authenticatorData),
+      signature: toBase64Url(assertion.response.signature),
+      label: detectDeviceLabel(),
+    }, '');
+    useProfile(res.token);
+    const prof = await request('/profile').catch(() => null);
+    if (prof) currentProfile = prof;
+    return res;
+  }
+
+  async function registerPasskey() {
+    if (!supportsPasskeys()) throw new Error('Passkeys require a modern browser over HTTPS.');
+    const opts = await request('/auth/passkey/register/options', {});
+    const publicKey = {
+      ...opts,
+      challenge: fromBase64Url(opts.challenge),
+      user: { ...opts.user, id: fromBase64Url(opts.user.id) },
+      excludeCredentials: (opts.excludeCredentials || []).map((c) => ({
+        ...c,
+        id: fromBase64Url(c.id),
+      })),
+    };
+    const cred = await navigator.credentials.create({ publicKey });
+    if (!cred) throw new Error('Passkey setup was cancelled.');
+    const spki = cred.response.getPublicKey?.();
+    const authData = cred.response.getAuthenticatorData?.();
+    const alg = cred.response.getPublicKeyAlgorithm?.() ?? -7;
+    if (!spki || !authData) {
+      throw new Error('This browser does not support passkey key export. Use a 6-character device code instead.');
+    }
+    return request('/auth/passkey/register/verify', {
+      credentialId: cred.id,
+      publicKeySpki: toBase64Url(spki),
+      algorithm: alg,
+      clientDataJSON: toBase64Url(cred.response.clientDataJSON),
+      authenticatorData: toBase64Url(authData),
+      label: detectDeviceLabel(),
+    });
+  }
+
+  async function signOut() {
+    if (api && token) {
+      await request('/auth/logout', {}).catch(() => {});
+    }
+    useProfile('');
+    window.StudyRooms?.reset?.();
+    try { sessionStorage.setItem(demoKey, '1'); } catch {}
+    window.StudyApp?.syncSettingsRows?.();
+  }
+
+  async function fetchCloudBackup() {
+    if (!api || !token) return { hasBackup: false };
+    return request('/sync');
+  }
+
+  async function pushCloudBackup(payload) {
+    if (!api || !token) return { ok: false };
+    return request('/sync', payload);
   }
 
   async function request(path, data, key = token) {
@@ -125,46 +238,144 @@ window.StudyCommunity = (() => {
   }
 
   const privacyNote = `
-    <details class="panel">
-      <summary>Community privacy and rules</summary>
-      <p>Study-OS Community is run by the Study-OS project, independently of BI. Use a nickname. Keep private information, restricted course files and material from active assessments out of messages.</p>
-      <p>Cloudflare stores your display name, study totals, room results, duel rating, chat posts, direct messages, shared study sets and block list. Only the sender and recipient see each direct message in the app.</p>
-      <p>Study-OS keeps your most recent timer status, which expires when updates stop. Delete your profile to remove your leaderboard entry and message history from the active database. Cloudflare may retain database backups for a limited period.</p>
+    <details class="auth-privacy-note">
+      <summary>Community privacy &amp; rules</summary>
+      <p>Study-OS Community is run by the Study-OS project, independently of BI. Use a nickname and keep private info, restricted course files, and active assessment material out of messages.</p>
+      <p>Cloudflare (EU) stores your display name, optional avatar &amp; bio, study and break totals, synced progress backup, passkey public keys, room results, duel rating, chat posts, direct messages, shared study sets, and block list. Only the sender and recipient see direct messages.</p>
+      <p>Delete your profile anytime to erase your account, passkeys, synced backup, and message history from the active database. Cloudflare may retain rolling backups briefly.</p>
     </details>`;
 
   function renderEntry(root, error = '', onSignedIn = render, onDemo) {
+    const passkeyReady = supportsPasskeys();
     root.innerHTML = `
-      <section class="panel">
-        ${onDemo ? '<div class="row-actions" style="margin-bottom:8px"><button type="button" class="primary-btn" id="community-demo">Try demo (no code needed)</button></div><p class="muted" style="margin-top:0">Explore practice questions and study notes without an invite code.</p>' : ''}
-        <h1>Create your Study-OS profile</h1>
-        <p id="community-stats-notice">Your display name, study hours, completed questions, attempts, accuracy and current study timer are visible to members during break access.</p>
-        <form id="community-join" class="row-actions">
-          <label class="field-label">Name on leaderboard <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
-          <label class="field-label">Community invite code <input name="invite" type="password" required autocomplete="off"></label>
+      <div class="auth-card">
+        <div class="auth-head">
+          <div class="auth-emblem" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </div>
+          <div>
+            <h1 class="auth-title">Sign in to Study-OS</h1>
+            <p class="muted auth-sub">Sync progress across devices, join study rooms, and unlock Community.</p>
+          </div>
+        </div>
+
+        ${passkeyReady ? `
+          <button type="button" class="primary-btn auth-passkey-btn" id="community-passkey-login">
+            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="8" cy="15" r="4"></circle>
+              <path d="M10.85 12.15L19 4"></path>
+              <path d="M18 5l2 2"></path>
+              <path d="M15 8l2 2"></path>
+            </svg>
+            <span>Sign in with Passkey (Face ID / Touch ID)</span>
+          </button>
+          <div class="auth-or"><span>or</span></div>
+        ` : ''}
+
+        <div class="ios-segmented auth-tabs" role="tablist" aria-label="Sign in method">
+          <button type="button" role="tab" class="active" data-auth-tab="join" aria-selected="true">Create profile</button>
+          <button type="button" role="tab" data-auth-tab="code" aria-selected="false">Device code</button>
+          <button type="button" role="tab" data-auth-tab="key" aria-selected="false">Profile key</button>
+        </div>
+
+        <form id="community-join" class="auth-form" data-auth-pane="join">
+          <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Shad" required></label>
+          <label class="field-label">Community invite code <input name="invite" type="password" required autocomplete="off" placeholder="Enter your invite code"></label>
           <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Create profile</button>
+          <small class="muted" id="community-stats-notice">Your nickname, study hours, breaks, and practice totals appear on the members leaderboard.</small>
         </form>
-        <form id="community-sign-in" class="row-actions">
-          <label class="field-label">Personal profile key <input name="key" type="password" required autocomplete="off"></label>
-          <button type="submit" class="ghost-btn">Use my profile</button>
+
+        <form id="community-link-redeem" class="auth-form" data-auth-pane="code" hidden>
+          <label class="field-label">6-character device code
+            <input name="code" type="text" maxlength="7" autocomplete="off" spellcheck="false" placeholder="K7M-9P2" style="text-transform:uppercase;letter-spacing:0.12em;font-family:ui-monospace,monospace;font-weight:700" required>
+          </label>
+          <button type="submit" class="primary-btn">Link this device</button>
+          <small class="muted">On a signed-in device, open <b>Settings → Passkeys &amp; Linked Devices</b> to generate a 5-minute code.</small>
         </form>
-        <p id="community-status" role="status">${esc(error)}</p>
-      </section>${privacyNote}`;
+
+        <form id="community-sign-in" class="auth-form" data-auth-pane="key" hidden>
+          <label class="field-label">Personal profile key <input name="key" type="password" required autocomplete="off" placeholder="soc1_…"></label>
+          <button type="submit" class="primary-btn">Use my profile</button>
+        </form>
+
+        <p id="community-status" class="auth-status" role="status">${esc(error)}</p>
+
+        ${onDemo ? `
+          <div class="auth-demo-bar">
+            <button type="button" class="ghost-btn" id="community-demo">Try demo (no code needed)</button>
+          </div>
+        ` : ''}
+        ${privacyNote}
+      </div>`;
+
     const status = root.querySelector('#community-status');
     if (onDemo) root.querySelector('#community-demo').onclick = onDemo;
-    const join = root.querySelector('#community-join');
-    action(join, async (form) => {
+
+    root.querySelectorAll('[data-auth-tab]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const mode = tab.dataset.authTab;
+        root.querySelectorAll('[data-auth-tab]').forEach((t) => {
+          const active = t.dataset.authTab === mode;
+          t.classList.toggle('active', active);
+          t.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        root.querySelectorAll('[data-auth-pane]').forEach((pane) => {
+          pane.hidden = pane.dataset.authPane !== mode;
+        });
+        status.textContent = '';
+      });
+    });
+
+    const passkeyBtn = root.querySelector('#community-passkey-login');
+    if (passkeyBtn) {
+      passkeyBtn.onclick = async () => {
+        passkeyBtn.disabled = true;
+        status.textContent = 'Waiting for Face ID / Touch ID…';
+        try {
+          const res = await signInWithPasskey();
+          toast(`Welcome back, ${res.nickname}!`);
+          await onSignedIn();
+        } catch (err) {
+          status.textContent = err?.name === 'NotAllowedError'
+            ? 'Passkey sign-in was cancelled.'
+            : err?.message || 'Could not sign in with Passkey.';
+        } finally {
+          passkeyBtn.disabled = false;
+        }
+      };
+    }
+
+    action(root.querySelector('#community-join'), async (form) => {
       const invite = form.get('invite').trim();
       if (!/^\S{6,120}$/.test(invite)) throw new Error('Enter a valid Community invite code.');
       const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invite)));
       const proof = [...hash].map((value) => value.toString(16).padStart(2, '0')).join('');
       const result = await request('/join', { nickname: form.get('nickname'), proof }, '');
       useProfile(result.token);
+      currentProfile = await request('/profile').catch(() => null);
+      toast('Profile created! Tip: add a Passkey in Settings for 1-tap sign-in.');
       await onSignedIn();
     }, status);
+
+    action(root.querySelector('#community-link-redeem'), async (form) => {
+      const res = await request('/auth/link-redeem', {
+        code: form.get('code'),
+        label: detectDeviceLabel(),
+      }, '');
+      useProfile(res.token);
+      currentProfile = await request('/profile').catch(() => null);
+      toast(`Linked as ${res.nickname}!`);
+      await onSignedIn();
+    }, status);
+
     action(root.querySelector('#community-sign-in'), async (form) => {
       const key = form.get('key').trim();
-      await request('/profile', null, key);
+      const prof = await request('/profile', null, key);
       useProfile(key);
+      currentProfile = prof;
       await onSignedIn();
     }, status);
   }
@@ -173,7 +384,8 @@ window.StudyCommunity = (() => {
     if (!api) return true;
     if (token) {
       try {
-        await request('/profile');
+        currentProfile = await request('/profile');
+        window.StudyApp?.syncSettingsRows?.();
         return true;
       } catch (error) {
         if (error.status !== 401) return true;
@@ -188,26 +400,163 @@ window.StudyCommunity = (() => {
       const tryDemo = () => {
         try { sessionStorage.setItem(demoKey, '1'); } catch {}
         gate.close();
+        window.StudyApp?.syncSettingsRows?.();
         resolve(false);
       };
       renderEntry(gate, '', () => {
         gate.close();
         try { sessionStorage.removeItem(demoKey); } catch {}
         queueStatsSync();
+        window.StudyApp?.syncSettingsRows?.();
+        window.StudyApp?.syncCloudProgress?.().catch(() => {});
         resolve(true);
       }, allowDemo ? tryDemo : undefined);
       gate.oncancel = (event) => {
         event.preventDefault();
         if (allowDemo) tryDemo();
       };
-      if (!gate.open) gate.showModal();
+      if (!gate.open) {
+        gate.showModal();
+        gate.focus({ preventScroll: true });
+      }
     });
+  }
+
+  async function openSecuritySheet() {
+    const dialog = document.getElementById('account-security-dialog');
+    if (!dialog || !api || !token) return;
+    let activeCode = null;
+
+    async function paint() {
+      dialog.innerHTML = `
+        <div class="row-between" style="margin:0 0 12px">
+          <h2 id="security-sheet-title" style="margin:0">Passkeys &amp; Devices</h2>
+          <button type="button" class="ios-done-btn" id="security-sheet-close">Done</button>
+        </div>
+        <p class="muted" style="margin:0 0 14px;font-size:13.5px">Sign in with Face ID / Touch ID across devices, or generate a 5-minute code to link another phone or computer.</p>
+        <div class="row-actions" style="margin-bottom:12px">
+          ${supportsPasskeys() ? '<button type="button" class="primary-btn" id="sec-add-passkey">+ Add Passkey</button>' : ''}
+          <button type="button" class="ghost-btn" id="sec-gen-link-code">Generate 5-min device code</button>
+        </div>
+        <div id="sec-link-code-box" class="admin-created-code" hidden></div>
+        <p id="sec-status" role="status" class="muted" style="font-size:13px"></p>
+        <div id="sec-lists"><p class="muted">Loading devices…</p></div>
+      `;
+      dialog.querySelector('#security-sheet-close').onclick = () => dialog.close();
+      const statusEl = dialog.querySelector('#sec-status');
+      const codeBox = dialog.querySelector('#sec-link-code-box');
+      const listsEl = dialog.querySelector('#sec-lists');
+
+      const renderCodeBox = () => {
+        if (!activeCode) { codeBox.hidden = true; return; }
+        const mins = Math.max(1, Math.ceil((activeCode.expiresAt - Date.now()) / 60000));
+        codeBox.hidden = false;
+        codeBox.innerHTML = `
+          <div>
+            <small style="display:block">Enter this code on your other device (expires in ~${mins} min):</small>
+            <code style="font-size:22px;font-weight:800;letter-spacing:0.14em">${esc(activeCode.code)}</code>
+          </div>
+          <button type="button" class="ghost-btn" id="sec-copy-link-code">Copy</button>
+        `;
+        codeBox.querySelector('#sec-copy-link-code').onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(activeCode.code);
+            toast('Copied device code!');
+          } catch {}
+        };
+      };
+      renderCodeBox();
+
+      dialog.querySelector('#sec-add-passkey')?.addEventListener('click', async (ev) => {
+        const btn = ev.currentTarget;
+        btn.disabled = true;
+        statusEl.textContent = 'Follow your device prompt to save a passkey…';
+        try {
+          await registerPasskey();
+          toast('Passkey added! You can now sign in with Face ID / Touch ID.');
+          await paint();
+        } catch (err) {
+          statusEl.textContent = err?.name === 'NotAllowedError'
+            ? 'Passkey setup was cancelled.'
+            : err?.message || 'Could not register passkey.';
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      dialog.querySelector('#sec-gen-link-code').onclick = async (ev) => {
+        const btn = ev.currentTarget;
+        btn.disabled = true;
+        statusEl.textContent = 'Generating code…';
+        try {
+          activeCode = await request('/auth/link-code', {});
+          statusEl.textContent = '';
+          renderCodeBox();
+        } catch (err) {
+          statusEl.textContent = err.message || 'Could not generate code.';
+        } finally {
+          btn.disabled = false;
+        }
+      };
+
+      try {
+        const { passkeys, sessions } = await request('/auth/devices');
+        const fmt = (ms) => ms ? new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Never';
+        listsEl.innerHTML = `
+          <div class="sec-section">
+            <h3 class="ios-group-title" style="margin-left:2px">Passkeys (${passkeys.length})</h3>
+            ${passkeys.length ? `<div class="ios-group">${passkeys.map((k) => `
+              <div class="ios-row">
+                <span class="ios-row-copy">
+                  <span class="ios-row-label">${esc(k.label || 'Passkey')}</span>
+                  <small class="ios-row-sub">Added ${fmt(k.createdAt)} · Last used ${fmt(k.lastUsedAt)}</small>
+                </span>
+                <button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" data-del-passkey="${esc(k.id)}">Remove</button>
+              </div>`).join('')}</div>`
+              : '<p class="muted" style="font-size:13px;margin:4px 0 0">No passkeys saved yet. Tap <b>+ Add Passkey</b> for 1-tap Face ID / Touch ID sign-in.</p>'}
+          </div>
+          <div class="sec-section">
+            <h3 class="ios-group-title" style="margin-left:2px">Linked Device Sessions (${sessions.length})</h3>
+            ${sessions.length ? `<div class="ios-group">${sessions.map((s) => `
+              <div class="ios-row">
+                <span class="ios-row-copy">
+                  <span class="ios-row-label">${esc(s.label || 'Browser')}${s.current ? ' <span class="badge live">This device</span>' : ''}</span>
+                  <small class="ios-row-sub">Active ${fmt(s.lastUsedAt)}</small>
+                </span>
+                ${s.current ? '' : `<button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" data-revoke-session="${esc(s.id)}">Revoke</button>`}
+              </div>`).join('')}</div>`
+              : '<p class="muted" style="font-size:13px;margin:4px 0 0">Signed in with primary personal profile key.</p>'}
+          </div>
+        `;
+        listsEl.querySelectorAll('[data-del-passkey]').forEach((b) => {
+          b.onclick = async () => {
+            if (!window.confirm('Remove this passkey from your profile?')) return;
+            b.disabled = true;
+            await request('/auth/passkey/delete', { id: b.dataset.delPasskey }).catch(() => {});
+            toast('Passkey removed.');
+            await paint();
+          };
+        });
+        listsEl.querySelectorAll('[data-revoke-session]').forEach((b) => {
+          b.onclick = async () => {
+            b.disabled = true;
+            await request('/auth/session/revoke', { id: b.dataset.revokeSession }).catch(() => {});
+            toast('Device session revoked.');
+            await paint();
+          };
+        });
+      } catch (err) {
+        listsEl.innerHTML = `<p class="muted">${esc(err.message || 'Could not load devices.')}</p>`;
+      }
+    }
+
+    if (!dialog.open) dialog.showModal();
+    await paint();
   }
 
   function profileActions(root) {
     root.querySelector('#community-logout').onclick = async () => {
-      useProfile('');
-      window.StudyRooms?.reset();
+      await signOut();
       await requireProfile({ allowDemo: true, forcePrompt: true });
       await window.StudyRooms?.restore();
       await render();
@@ -985,6 +1334,8 @@ window.StudyCommunity = (() => {
       const state = timerStatus();
       if (!canUse()) {
         const profile = await request('/profile');
+        currentProfile = profile;
+        window.StudyApp?.syncSettingsRows?.();
         renderLocked(root, profile);
         return;
       }
@@ -992,6 +1343,8 @@ window.StudyCommunity = (() => {
       await syncPresence(state);
       const result = await request('/dashboard?offset=' + offset);
       if (generation !== token) return;
+      currentProfile = result.me;
+      window.StudyApp?.syncSettingsRows?.();
       if (canUse()) renderDashboard(root, result, offset);
       else renderLocked(root, result.me);
     } catch (error) {
@@ -1001,6 +1354,8 @@ window.StudyCommunity = (() => {
         await render(offset);
       } else if (error.status === 423) {
         const profile = await request('/profile');
+        currentProfile = profile;
+        window.StudyApp?.syncSettingsRows?.();
         renderLocked(root, profile);
       } else {
         root.innerHTML = '<section class="panel"><h1>Study community</h1><p>Community is unavailable. Open the Community tab to retry.</p></section>';
@@ -1020,6 +1375,22 @@ window.StudyCommunity = (() => {
     return request('/rooms' + path, data);
   }
 
-  return { enabled: Boolean(api), hasProfile: () => !api || Boolean(token), avatarHtml, render, queueStatsSync, clockTick,
-    canShareSet, shareSet, requireProfile, roomRequest };
+  return {
+    enabled: Boolean(api),
+    hasProfile: () => !api || Boolean(token),
+    isSignedIn: () => Boolean(api && token),
+    getCurrentProfile: () => currentProfile,
+    avatarHtml,
+    render,
+    queueStatsSync,
+    clockTick,
+    canShareSet,
+    shareSet,
+    requireProfile,
+    roomRequest,
+    openSecuritySheet,
+    signOut,
+    fetchCloudBackup,
+    pushCloudBackup,
+  };
 })();

@@ -76,7 +76,8 @@
     </div>
   </header>
 
-  <dialog id="profile-gate" class="member-dialog" aria-label="Study-OS profile"></dialog>
+  <dialog id="profile-gate" class="member-dialog auth-sheet" tabindex="-1" aria-label="Sign in to Study-OS"></dialog>
+  <dialog id="account-security-dialog" class="member-dialog security-sheet" tabindex="-1" aria-labelledby="security-sheet-title"></dialog>
   <dialog id="tutor-dialog" class="member-dialog" aria-labelledby="tutor-title">
     <h2 id="tutor-title">AI tutor</h2>
     <p>Connect Study-OS to your AI client once. Live sharing sends the current practice question, your working, and readable source text to the local bridge.</p>
@@ -445,8 +446,8 @@
     <div class="ios-settings-body" id="settings-body">
       <!-- Top Summary Card (iOS Account-Style Card) -->
       <div class="ios-group ios-profile-group" data-settings-group>
-        <button type="button" class="ios-row ios-row-btn ios-profile-card" id="settings-profile-card" data-settings-item="profile account stats upi streak xp screen">
-          <span class="ios-profile-emblem" aria-hidden="true">
+        <button type="button" class="ios-row ios-row-btn ios-profile-card" id="settings-profile-card" data-settings-item="profile account stats upi streak xp screen sign in">
+          <span class="ios-profile-emblem" id="settings-profile-avatar" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
@@ -464,6 +465,81 @@
           </span>
         </button>
       </div>
+
+      <!-- GROUP 0: ACCOUNT, PASSKEYS & CLOUD SYNC (Web Community) -->
+      <section class="ios-section" id="settings-account-section" data-settings-group>
+        <h3 class="ios-group-title">Account &amp; Sync</h3>
+        <div class="ios-group">
+          <button type="button" class="ios-row ios-row-btn" id="settings-signin-btn" hidden data-settings-item="sign in login passkey face id touch id account device code">
+            <span class="ios-icon ios-icon-blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                <polyline points="10 17 15 12 10 7"></polyline>
+                <line x1="15" y1="12" x2="3" y2="12"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Sign In or Create Profile</span>
+              <small class="ios-row-sub">Use Face ID / Touch ID passkey, device code, or invite</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="settings-passkeys-btn" hidden data-settings-item="passkey face id touch id security devices link code login">
+            <span class="ios-icon ios-icon-green" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="8" cy="15" r="4"></circle>
+                <path d="M10.85 12.15L19 4"></path>
+                <path d="M18 5l2 2"></path>
+                <path d="M15 8l2 2"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Passkeys &amp; Linked Devices</span>
+              <small class="ios-row-sub">Face ID / Touch ID sign-in &amp; 6-digit device codes</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-row-value" id="settings-passkey-value">Manage</span>
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="settings-cloud-sync-btn" hidden data-settings-item="cloud sync progress backup devices mac iphone ipad">
+            <span class="ios-icon ios-icon-sky" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Cloud Progress Sync</span>
+              <small class="ios-row-sub" id="settings-sync-sub">Syncs answers, FSRS &amp; schedule across your devices</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-row-value" id="settings-sync-value">Sync</span>
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="settings-signout-btn" hidden data-settings-item="sign out log out disconnect account">
+            <span class="ios-icon ios-icon-rose" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Sign Out</span>
+              <small class="ios-row-sub">Keep local practice progress on this browser</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+        </div>
+      </section>
 
       <!-- GROUP 1: APPEARANCE -->
       <section class="ios-section" data-settings-group>
