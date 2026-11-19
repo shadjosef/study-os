@@ -1692,6 +1692,14 @@ body.runner-foveal-compact .runner-topbar-inner {
 
 .member-dialog::backdrop { background: rgba(4, 13, 10, .68); }
 .member-dialog input { width: 100%; }
+#canvas-sync-log {
+  max-height: 14rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--panel-alt);
+  padding: 10px;
+}
 .course-document-group { margin: 10px 0; }
 .course-document-group ul { list-style: none; padding: 0; }
 .member-file {

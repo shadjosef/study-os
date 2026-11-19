@@ -4,7 +4,7 @@ Allows any student who syncs their Canvas courses via a `canvas_session` cookie
 in `Canvas-Archive` (`Canvas Resync.app` / `OPEN_RESYNC.cmd` / `canvas_sync.py`)
 to:
   1. Auto-discover or configure their local `Canvas-Archive` directory.
-  2. Launch the local `Canvas Resync` cookie-session window in 1 click.
+  2. Start and monitor the installed Canvas Sync worker from Study-OS.
   3. Read live TimeEdit / Canvas timetable events (`ASSISTANT_CONTEXT/CURRENT.json`)
      automatically even without Google Calendar CLI setup.
   4. Import / scaffold ready-to-practice `Study-OS` course banks (`bank.json`)
@@ -24,12 +24,17 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 from zoneinfo import ZoneInfo
 
 from dlpfc import classify_intrinsic_dlpfc
 
 OSLO_TZ = ZoneInfo("Europe/Oslo")
+_RESYNC_URLS: dict[Path, str] = {}
+_RESYNC_LOCK = threading.Lock()
 
 COURSE_COLORS = [
     "#28654d",
@@ -382,22 +387,31 @@ def inspect_canvas_archive(
     }
 
 
-def launch_canvas_resync(archive_dir: Path) -> dict[str, Any]:
-    """Open the local `Canvas Resync` cookie-session window without touching archive files."""
-    resync_py = archive_dir / "canvas-sync" / "resync_app.py"
-    clean_env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONDONTWRITEBITE="1", PYTHONUTF8="1")
-    for secret_key in ("CANVAS_SESSION", "CANVAS_TOKEN", "ED_API_TOKEN", "CANVAS_OAUTH_SESSION"):
+def _resync_environment() -> dict[str, str]:
+    clean_env = dict(os.environ, PYTHONUNBUFFERED="1", PYTHONDONTWRITEBYTECODE="1", PYTHONUTF8="1")
+    for secret_key in ("CANVAS_SESSION", "CANVAS_TOKEN", "ED_API_TOKEN", "CANVAS_OAUTH_SESSION", "CANVAS_OAUTH_CONFIG"):
         clean_env.pop(secret_key, None)
+    return clean_env
+
+
+def _resync_python(archive_dir: Path) -> str:
+    tool = archive_dir / "canvas-sync"
+    candidates = [
+        tool / ".venv-macos" / "bin" / "python3",
+        tool / ".venv" / "Scripts" / "python.exe",
+        tool / ".venv" / "bin" / "python3",
+        Path(sys.executable),
+    ]
+    return next((str(path) for path in candidates if path.is_file()), sys.executable)
+
+
+def launch_canvas_resync(archive_dir: Path) -> dict[str, Any]:
+    """Open the standalone Canvas Sync app."""
+    resync_py = archive_dir / "canvas-sync" / "resync_app.py"
+    clean_env = _resync_environment()
 
     if resync_py.is_file():
-        # Prefer the archive's own venv python if installed, else current python3
-        venv_candidates = [
-            archive_dir / "canvas-sync" / ".venv-macos" / "bin" / "python3",
-            archive_dir / "canvas-sync" / ".venv" / "Scripts" / "python.exe",
-            archive_dir / "canvas-sync" / ".venv" / "bin" / "python3",
-            Path(sys.executable),
-        ]
-        py_bin = next((str(p) for p in venv_candidates if p.is_file()), sys.executable)
+        py_bin = _resync_python(archive_dir)
         popen_kwargs: dict[str, Any] = {
             "cwd": str(archive_dir),
             "env": clean_env,
@@ -429,6 +443,94 @@ def launch_canvas_resync(archive_dir: Path) -> dict[str, Any]:
         "ok": False,
         "error": "Could not find canvas-sync/resync_app.py inside Canvas-Archive.",
     }
+
+
+_RESYNC_WITHOUT_BROWSER = """
+import contextlib
+from pathlib import Path
+import sys
+sys.path.insert(0, sys.argv[1])
+from resync_app import find_window, instance_folder, launch
+root = Path(sys.argv[2])
+with contextlib.redirect_stdout(sys.stderr):
+    if launch(root, open_browser=False):
+        raise SystemExit(1)
+url = find_window(root, instance_folder(root))
+if not url:
+    raise SystemExit(1)
+print(url)
+"""
+
+
+def _resync_url(archive_dir: Path) -> str:
+    with _RESYNC_LOCK:
+        url = _RESYNC_URLS.get(archive_dir)
+        if url:
+            return url
+        tool = archive_dir / "canvas-sync"
+        if not (tool / "resync_app.py").is_file():
+            raise ValueError("Install Canvas Sync in your Canvas-Archive folder first.")
+        run = subprocess.run(
+            [_resync_python(archive_dir), "-B", "-c", _RESYNC_WITHOUT_BROWSER, str(tool), str(archive_dir)],
+            cwd=tool, env=_resync_environment(), stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=25,
+        )
+        url = run.stdout.strip()
+        match = re.fullmatch(r"http://127\.0\.0\.1:([0-9]{1,5})/[A-Za-z0-9_-]{43}/", url)
+        if run.returncode or not match or not 1 <= int(match[1]) <= 65535:
+            raise ValueError("Canvas Sync could not start here. Open the standalone app to check its setup.")
+        _RESYNC_URLS[archive_dir] = url
+        return url
+
+
+class _RejectRedirects(HTTPRedirectHandler):
+    def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+def canvas_resync(archive_dir: Path, session: str | None = None) -> tuple[int, dict[str, Any]]:
+    """Use the installed, loopback-only Canvas Sync process for status and start."""
+    try:
+        url = _resync_url(archive_dir)
+    except ValueError as exc:
+        return 503, {"error": str(exc)}
+    except (OSError, subprocess.SubprocessError):
+        return 503, {"error": "Canvas Sync could not start. Try again or open the standalone app."}
+
+    origin, key = url.rstrip("/").rsplit("/", 1)
+    req = Request(url + "status")
+    if session is not None:
+        req = Request(url + "start", json.dumps({"session": session}).encode("utf-8"), headers={
+            "Origin": origin, "X-Canvas-Client": key, "Content-Type": "application/json",
+        })
+    try:
+        # The broker follows only its validated loopback URL. In particular, a
+        # redirect must never forward the session or engine authorization key.
+        opener = build_opener(ProxyHandler({}), _RejectRedirects())
+        with opener.open(req, timeout=8) as response:
+            result = json.load(response)
+        if session is not None:
+            return 202, {"started": True}
+        if not isinstance(result, dict) or result.get("archive") != str(archive_dir.resolve()):
+            raise ValueError("Canvas Sync archive mismatch")
+        return 200, {
+            "phase": result.get("phase"), "message": result.get("message"),
+            "started": result.get("started"), "finished": result.get("finished"),
+            "estimated_remaining_seconds": result.get("estimated_remaining_seconds"),
+            "log": (result.get("log") or "")[-16000:],
+        }
+    except HTTPError as exc:
+        if session is not None and exc.code == 409:
+            return 409, {"error": "A Canvas sync is already running. Reopen the dialog to see its progress."}
+        if session is not None and exc.code == 400:
+            return 400, {"error": "Enter the canvas_session value from your signed-in Canvas browser."}
+    except (URLError, TimeoutError, ValueError):
+        pass
+
+    with _RESYNC_LOCK:
+        if _RESYNC_URLS.get(archive_dir) == url:
+            _RESYNC_URLS.pop(archive_dir)
+    return 502, {"error": "Lost the connection to Canvas Sync. Reopen the dialog to reconnect."}
 
 
 def _strip_id_prefix(filename: str) -> str:

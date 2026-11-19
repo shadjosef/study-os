@@ -43,8 +43,9 @@ from calendar_sync import (  # noqa: E402
     refresh_calendar_cache,
 )
 from canvas_bridge import (  # noqa: E402
+    canvas_resync,
     import_courses_from_canvas_archive,
-     inspect_canvas_archive,
+    inspect_canvas_archive,
     install_demo_course,
     launch_canvas_resync,
     resolve_canvas_archive,
@@ -329,9 +330,10 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
 
     def end_headers(self) -> None:
         # Allow local Obsidian Desktop plugin (`app://obsidian.md`) & localhost access
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        if self.path.partition("?")[0] != "/api/canvas/sync":
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
@@ -503,9 +505,45 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         # Serve SPA static files (fallback to index.html for client-side routes)
         super().do_GET()
 
+    def handle_canvas_sync(self) -> None:
+        port = self.server.server_address[1]
+        host = self.headers.get("Host")
+        if (
+            self.client_address[0] != "127.0.0.1"
+            or host not in {f"127.0.0.1:{port}", f"localhost:{port}"}
+            or self.headers.get("Origin") != f"http://{host}"
+        ):
+            self.send_json({"error": "Open Canvas Sync from the local Study-OS app."}, status=403)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 16384 or self.headers.get_content_type() != "application/json":
+                raise ValueError
+            body = self.read_json_body()
+            if not isinstance(body, dict) or body.get("action") not in ("status", "start"):
+                raise ValueError
+            session = None
+            if body["action"] == "start":
+                session = body.get("session")
+                if not isinstance(session, str) or not session.strip():
+                    raise ValueError
+        except ValueError:
+            self.send_json({"error": "Invalid Canvas Sync request."}, status=400)
+            return
+        archive = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
+        if archive is None:
+            self.send_json({"error": "Connect your Canvas-Archive folder first."}, status=404)
+            return
+        status, result = canvas_resync(archive, session)
+        self.send_json(result, status=status)
+
     def do_POST(self) -> None:
         parsed = urllib.parse.urlsplit(self.path)
         route = parsed.path
+
+        if route == "/api/canvas/sync":
+            self.handle_canvas_sync()
+            return
 
         try:
             body = self.read_json_body()

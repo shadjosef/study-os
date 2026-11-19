@@ -1,5 +1,9 @@
 # Study-OS changelog
 
+## 19 November 2026
+
+- Start Canvas Sync, follow sync progress, and import new courses from the desktop Study-OS hub.
+
 ## 18 November 2026
 
 - Added a 12-problem mock for the Autumn 2026 Mathematics exam.

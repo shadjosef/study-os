@@ -28,6 +28,7 @@ window.StudyApp = (() => {
   let offlineStatus = navigator.serviceWorker?.controller ? 'Saved for offline' : '';
 
   let currentView = 'home';
+  let openCanvasSync;
   let selectedCourseId = '';
   let selectedSemester = 'all';
   let selectedRefFile = '';
@@ -870,13 +871,13 @@ window.StudyApp = (() => {
       strip.innerHTML = `
         <div class="panel" style="margin-bottom:18px">
           <span class="eyebrow">Plug-and-Play Student Setup</span>
-          <h2 style="margin:4px 0 6px">Connect Canvas-Archive (Cookie Session) or Try the Demo Pack</h2>
-          <p class="muted" style="margin:0">Sync your Canvas courses once using your <code>canvas_session</code> cookie in <strong>Canvas-Archive</strong>, then click Import below to generate your timed practice workspace automatically.</p>
+          <h2 style="margin:4px 0 6px">Connect Canvas or try the demo</h2>
+          <p class="muted" style="margin:0">Sync your courses and import them from Canvas-Archive to practice with your own course files.</p>
           <div class="onboarding-grid">
             <div class="onboarding-step">
               <div>
                 <span class="badge ${ca.connected ? 'live' : ''}">${ca.connected ? 'Connected' : 'Step 1'}</span>
-                <h4 style="margin:8px 0 4px">1. Sync Canvas via Cookie Session</h4>
+                <h4 style="margin:8px 0 4px">1. Sync Canvas</h4>
                 <small class="muted">${
                   ca.connected
                     ? `Found <code>${esc(ca.archivePath)}</code> (${(ca.courses || []).length} folders · last sync ${esc(syncTime)}).`
@@ -884,7 +885,7 @@ window.StudyApp = (() => {
                 }</small>
               </div>
               <div class="row-actions">
-                ${ca.hasResyncApp ? '<button type="button" class="primary-btn" id="btn-open-canvas-resync">Open Canvas Resync (Cookie Login) ↗</button>' : '<a class="ghost-btn" href="https://github.com/shadjosef/canvas-study-sync" target="_blank" rel="noopener">Get canvas-study-sync ↗</a>'}
+                ${ca.hasResyncApp ? '<button type="button" class="primary-btn" id="btn-open-canvas-resync">Sync Canvas</button>' : '<a class="ghost-btn" href="https://github.com/shadjosef/canvas-study-sync" target="_blank" rel="noopener">Get Canvas Sync ↗</a>'}
                 <button type="button" class="ghost-btn" id="btn-set-archive-path">Set Folder Path</button>
               </div>
             </div>
@@ -919,14 +920,14 @@ window.StudyApp = (() => {
             <span class="badge ${ca.connected ? 'live' : ''}">${ca.connected ? 'Canvas-Archive Linked' : 'Canvas-Archive'}</span>
             <small class="muted" style="margin-left:8px">${
               ca.connected
-                ? `Last cookie sync: <b>${esc(syncTime)}</b> · ${(ca.courses || []).filter((c) => !c.isProgramHub).length} courses${
+                ? `Last sync: <b>${esc(syncTime)}</b> · ${(ca.courses || []).filter((c) => !c.isProgramHub).length} courses${
                     unimported ? ` (<b>${unimported}</b> ready to import)` : ''
                   }`
                 : 'Connect a sibling Canvas-Archive folder to sync PDFs &amp; TimeEdit via cookie session.'
             }</small>
           </div>
           <div class="row-actions">
-            ${ca.hasResyncApp ? '<button type="button" class="ghost-btn" style="padding:5px 11px;font-size:12.5px" id="btn-open-canvas-resync">Canvas Resync (Cookie Session) ↗</button>' : ''}
+            ${ca.hasResyncApp ? '<button type="button" class="ghost-btn" style="padding:5px 11px;font-size:12.5px" id="btn-open-canvas-resync">Sync Canvas</button>' : ''}
             ${
               unimported > 0
                 ? `<button type="button" class="primary-btn" style="padding:5px 11px;font-size:12.5px" id="btn-import-canvas-courses">Import ${unimported} New Course${unimported > 1 ? 's' : ''} →</button>`
@@ -938,14 +939,7 @@ window.StudyApp = (() => {
       `;
     }
 
-    document.getElementById('btn-open-canvas-resync')?.addEventListener('click', async () => {
-      try {
-        const res = await apiPost('/api/canvas/open-resync', {});
-        toast(res.message || 'Opened Canvas Resync window!');
-      } catch {
-        toast('Could not launch Canvas Resync — open Canvas Resync.app or OPEN_RESYNC.cmd directly.');
-      }
-    });
+    document.getElementById('btn-open-canvas-resync')?.addEventListener('click', openCanvasSync);
 
     document.getElementById('btn-set-archive-path')?.addEventListener('click', async () => {
       const p = prompt('Enter full path to your local Canvas-Archive folder:', ca.configuredPath || ca.archivePath || '');
@@ -955,16 +949,8 @@ window.StudyApp = (() => {
       renderHome();
     });
 
-    document.getElementById('btn-import-canvas-courses')?.addEventListener('click', async () => {
-      toast('Importing courses from Canvas-Archive…');
-      try {
-        const res = await apiPost('/api/canvas/import', {});
-        if (res.bootstrap) boot = res.bootstrap;
-        toast(`Imported ${(res.imported || []).length} course(s) from Canvas-Archive!`);
-        renderHome();
-      } catch {
-        toast('Could not import courses — check Canvas-Archive path.');
-      }
+    document.getElementById('btn-import-canvas-courses')?.addEventListener('click', () => {
+      importCanvasCourses().catch(() => toast('Could not import courses. Check your Canvas-Archive folder.'));
     });
 
     document.getElementById('btn-install-demo')?.addEventListener('click', async () => {
@@ -975,6 +961,121 @@ window.StudyApp = (() => {
     });
 
     document.getElementById('btn-onboard-sched')?.addEventListener('click', () => navigate('schedule'));
+  }
+
+  async function importCanvasCourses() {
+    toast('Importing courses from Canvas-Archive…');
+    const result = await apiPost('/api/canvas/import', {});
+    if (result.bootstrap) boot = result.bootstrap;
+    if (currentView === 'home') renderHome();
+    const count = result.imported?.length || 0;
+    toast(count ? `Imported ${count} Canvas course${count === 1 ? '' : 's'}.` : 'No new courses to import.');
+    return count;
+  }
+
+  function bindCanvasSync() {
+    const dialog = document.getElementById('canvas-sync-dialog');
+    const form = document.getElementById('canvas-sync-form');
+    const submit = form.querySelector('button[type="submit"]');
+    const status = document.getElementById('canvas-sync-status');
+    const log = document.getElementById('canvas-sync-log');
+    const details = document.getElementById('canvas-sync-details');
+    const importBtn = document.getElementById('canvas-sync-import');
+    let pollTimer;
+    let checking = false;
+    let submitting = false;
+    let refreshedRun;
+
+    async function request(action, session) {
+      const response = await fetch('/api/canvas/sync', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, session }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      return result;
+    }
+
+    async function readStatus() {
+      if (checking || submitting) return;
+      clearTimeout(pollTimer);
+      checking = true;
+      try {
+        const state = await request('status');
+        const running = ['preparing', 'syncing'].includes(state.phase);
+        const minutes = Math.ceil(state.estimated_remaining_seconds / 60);
+        status.textContent = (state.message || 'Canvas Sync is ready.')
+          + (running && minutes > 0 ? ` About ${minutes} min remaining.` : '');
+        log.textContent = state.log || '';
+        details.hidden = !log.textContent;
+        submit.disabled = running;
+        importBtn.hidden = running || !boot.canvasArchive?.unimportedCount;
+        if (running) {
+          pollTimer = setTimeout(readStatus, 1800);
+        } else if (state.finished && state.finished !== refreshedRun && ['done', 'notices'].includes(state.phase)) {
+          for (const id of Object.keys(bankCache)) delete bankCache[id];
+          await refreshBootstrap();
+          refreshedRun = state.finished;
+          importBtn.hidden = !boot.canvasArchive?.unimportedCount;
+        }
+      } catch (error) {
+        status.textContent = error.message || 'Could not reach Canvas Sync. Reopen this dialog to retry.';
+      } finally {
+        checking = false;
+      }
+    }
+
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      if (checking || submitting || submit.disabled) return;
+      submitting = true;
+      submit.disabled = true;
+      importBtn.hidden = true;
+      status.textContent = 'Starting Canvas Sync…';
+      const session = form.elements.session.value.trim();
+      form.reset();
+      let started = false;
+      try {
+        await request('start', session);
+        started = true;
+      } catch (error) {
+        status.textContent = error.message;
+        submit.disabled = false;
+      } finally {
+        submitting = false;
+      }
+      if (started) await readStatus();
+    };
+
+    importBtn.onclick = async () => {
+      importBtn.disabled = true;
+      try {
+        const count = await importCanvasCourses();
+        importBtn.hidden = !boot.canvasArchive?.unimportedCount;
+        status.textContent = count ? `Imported ${count} Canvas course${count === 1 ? '' : 's'}.` : 'No new courses to import.';
+      } catch {
+        status.textContent = 'Could not import courses. Check your Canvas-Archive folder.';
+      } finally {
+        importBtn.disabled = false;
+      }
+    };
+    document.getElementById('canvas-sync-standalone').onclick = async () => {
+      try {
+        const result = await apiPost('/api/canvas/open-resync', {});
+        status.textContent = result.message || 'Opened the standalone Canvas Sync app.';
+      } catch {
+        status.textContent = 'Could not launch the standalone app. Open it from Canvas-Archive.';
+      }
+    };
+    dialog.addEventListener('close', () => form.reset());
+    return () => {
+      if (!dialog.open) dialog.showModal();
+      if (!submitting && !checking) {
+        status.textContent = 'Connecting to Canvas Sync…';
+        submit.disabled = true;
+        readStatus();
+      }
+    };
   }
 
   async function saveForOffline(event) {
@@ -3086,6 +3187,7 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   async function init() {
     bindGlobalChrome();
+    if (!isStaticWeb) openCanvasSync = bindCanvasSync();
     window.StudyRunner.bindRunnerGlobals();
     document.querySelector('[data-nav="community"]').hidden = !window.StudyCommunity.enabled;
     document.getElementById('runner-room-btn').onclick = () => {

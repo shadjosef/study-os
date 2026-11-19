@@ -31,9 +31,9 @@ Use the desktop edition to study from your own Canvas Archive and Obsidian Vault
 1. **Sync your Canvas courses once via cookie session ([`canvas-study-sync`](https://github.com/shadjosef/canvas-study-sync))**:
    - Clone or unzip [`canvas-study-sync`](https://github.com/shadjosef/canvas-study-sync) into `Canvas-Archive/` and place `Study-OS/` right next to it (e.g. inside `Documents` or OneDrive).
    - Double-click **`Study OS.app`** / **`OPEN_STUDY_OS.command`** (macOS) or **`OPEN_STUDY_OS.cmd`** (Windows) — requires only **Python 3.9+ stdlib** (`0` pip packages).
-   - Click **`Canvas Resync (Cookie Session)`** right inside Study-OS's Command Center, paste your `canvas_session` cookie in the private local window, and let `Canvas-Archive` download your PDFs, notebooks, and TimeEdit timetable.
+   - In the desktop Study-OS hub, click **Sync Canvas** and paste the `canvas_session` value from your signed-in browser. The installed Canvas Sync worker downloads your course files and timetable locally. Study-OS shows progress and clears the session field when you start.
 2. **Plug `Canvas-Archive` into `Study-OS` in 1 click**:
-   - Click **`Import Courses from Canvas-Archive`** in Study-OS (or run `python3 tools/cli.py sync-canvas --import-new`).
+   - Use **Import new courses** after the sync, or run `python3 tools/cli.py sync-canvas --import-new`. Existing question banks are preserved. **Open standalone sync** opens Canvas Sync's advanced options.
    - Study-OS automatically pairs past exam PDFs, solution guides, problem sets, and `.ipynb` notebooks into Study-OS's **Side-by-Side Split PDF Reader**!
 3. **Build Your Adaptive Schedule (`Schedule Studio` Tab)**:
    - **Option 1 (Instant Auto-Scheduler)**: Paste your **TimeEdit `.ics` link** (or upload `.ics`) + enter your **weekly part-time job hours** (`0–45h/wk`). Study-OS automatically estimates sustainable self-study hours, adjusts for lectures + work, and slots `High-dlPFC (<15:00)` / `Med-dlPFC (15–18)` / `Low-dlPFC (18+)` blocks into open gaps (exportable back to `.ics`!).

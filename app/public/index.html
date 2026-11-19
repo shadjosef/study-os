@@ -77,6 +77,29 @@
   </header>
 
   <dialog id="profile-gate" class="member-dialog" aria-label="Study-OS profile"></dialog>
+  <dialog id="canvas-sync-dialog" class="member-dialog" aria-labelledby="canvas-sync-title">
+    <h2 id="canvas-sync-title">Sync Canvas</h2>
+    <form method="dialog" id="canvas-sync-form">
+      <label class="field-label">Canvas session
+        <input name="session" type="password" required autocomplete="off" spellcheck="false">
+      </label>
+      <p class="muted">Paste the <code>canvas_session</code> value from your signed-in Canvas browser. This sync runs on your device.</p>
+      <div class="row-actions">
+        <button type="submit" class="primary-btn" disabled>Start sync</button>
+        <a class="ghost-btn" href="https://github.com/shadjosef/canvas-study-sync#option-b-run-the-python-sync-with-your-own-session" target="_blank" rel="noopener">Find my Canvas session</a>
+      </div>
+    </form>
+    <p id="canvas-sync-status" role="status"></p>
+    <details id="canvas-sync-details" hidden>
+      <summary>Sync log</summary>
+      <pre id="canvas-sync-log"></pre>
+    </details>
+    <form method="dialog" class="row-actions">
+      <button type="button" id="canvas-sync-import" class="primary-btn" hidden>Import new courses</button>
+      <button type="button" id="canvas-sync-standalone" class="ghost-btn">Open standalone sync</button>
+      <button type="submit" class="ghost-btn">Close</button>
+    </form>
+  </dialog>
   <dialog id="question-copy-preview" class="member-dialog" aria-label="Copy question and answers">
     <h2>Copy question and answers</h2>
     <p>Select and copy the text below.</p>
