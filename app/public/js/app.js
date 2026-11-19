@@ -3430,9 +3430,9 @@ window.StudyApp = (() => {
         <!-- PANEL A: TIMEEDIT + WORK HOURS AUTO-SCHEDULER -->
         <section class="panel" style="margin:0">
           <h2>Plan around TimeEdit</h2>
-          <p class="muted">In TimeEdit, choose Subscribe and copy the .ics link.</p>
+          <p class="muted">Open your timetable in TimeEdit, choose Subscribe (Abonnér), and copy the .ics link.</p>
           <div class="row-actions timetable-links">
-            <a class="ghost-btn" href="https://cloud.timeedit.net/bi/web/" target="_blank" rel="noopener">Open BI TimeEdit ↗</a>
+            <a class="ghost-btn" href="https://cloud.timeedit.net/bi/web/public/ri1Q7.html" target="_blank" rel="noopener">Open BI TimeEdit ↗</a>
           </div>
 
           <label class="field-label">TimeEdit subscription link
