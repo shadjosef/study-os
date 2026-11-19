@@ -96,9 +96,26 @@ window.StudyQuestionCopy = (() => {
     const context = { card, model, transcript: model.sources.length ? null : [] };
     context.reading = Promise.all(
       model.sources.map((source) => window.StudyPdf.textForPage(source).catch(() => ''))
-    ).then((transcript) => { context.transcript = transcript; return transcript; });
+    ).then((transcript) => {
+      context.transcript = transcript;
+      if (current === context) window.StudyTutor.changed();
+      return transcript;
+    });
     current = context;
     card.querySelector('#btn-copy-for-ai').onclick = () => copyAsync(textForCopy(context));
+    window.StudyTutor.changed();
+  }
+
+  function tutorContext() {
+    if (!current?.card.isConnected || document.getElementById('view-runner').hidden) return { mode: 'waiting' };
+    const { model, transcript } = current;
+    if (model.blind) return { mode: 'blind' };
+    return {
+      mode: 'practice', courseId: model.courseId, questionId: model.question.id,
+      course: model.course, title: model.question.title,
+      noteFile: model.noteFile || '', noteHeading: model.question.obsidianLink?.heading || '',
+      context: compose({ ...model, revealed: false, transcript: transcript || [] }).slice(0, 90_000),
+    };
   }
 
   function textForCopy(context) {
@@ -133,5 +150,5 @@ window.StudyQuestionCopy = (() => {
     }
   });
 
-  return { bind };
+  return { bind, tutorContext };
 })();

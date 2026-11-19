@@ -6,11 +6,56 @@ const digest = async (value) => hex(new Uint8Array(await crypto.subtle.digest('S
 const tokenPattern = /^soc1_[0-9a-f]{64}$/;
 const proofPattern = /^[0-9a-f]{64}$/;
 const idPattern = /^[0-9a-f-]{36}$/;
+const nicknamePattern = /^[\p{L}\p{N}][\p{L}\p{N} ._-]{1,23}$/u;
+const avatarDataPattern = /^data:image\/(?:webp|jpeg|png);base64,[A-Za-z0-9+/=]{16,28000}$/;
+const avatarPresets = new Set(['owl', 'fox', 'cat', 'penguin', 'rocket', 'book', 'coffee', 'spark', 'mountain', 'cactus']);
+const nicknameCooldownMs = 30 * 86_400_000;
 const maxInputBytes = 65_536;
 const breakRequired = new Set(['/dashboard', '/message', '/chat', '/block', '/sets']);
 const osloHour = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Oslo', hour: 'numeric', hourCycle: 'h23',
 });
+
+function isAdminMember(env, me, tokenHash) {
+  const adminHash = typeof env.ADMIN_TOKEN_HASH === 'string' ? env.ADMIN_TOKEN_HASH.trim().toLowerCase() : '';
+  if (adminHash && equalProof(adminHash, tokenHash)) return true;
+  const adminIds = typeof env.ADMIN_PROFILE_IDS === 'string'
+    ? env.ADMIN_PROFILE_IDS.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+  return adminIds.includes(me.id);
+}
+
+function validateAvatar(value) {
+  if (value === '') return '';
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('preset:')) {
+    const key = trimmed.slice(7);
+    return avatarPresets.has(key) ? `preset:${key}` : null;
+  }
+  return avatarDataPattern.test(trimmed) ? trimmed : null;
+}
+
+function profileSummary(me, isAdmin, now) {
+  const changedAt = Number(me.nickname_changed_at || 0);
+  const nextAt = !isAdmin && changedAt > 0 && changedAt + nicknameCooldownMs > now
+    ? changedAt + nicknameCooldownMs
+    : 0;
+  return {
+    id: me.id,
+    nickname: me.nickname,
+    avatar: me.avatar || '',
+    bio: me.bio || '',
+    study_minutes: Number(me.study_minutes || 0),
+    break_minutes: Number(me.break_minutes || 0),
+    break_count: Number(me.break_count || 0),
+    last_break_at: Number(me.last_break_at || 0),
+    nicknameChangedAt: changedAt,
+    nextNicknameChangeAt: nextAt,
+    isAdmin,
+  };
+}
 
 function equalProof(expected, supplied) {
   if (!proofPattern.test(expected || '') || !proofPattern.test(supplied || '')) return false;
@@ -78,7 +123,7 @@ export default {
     if (path === '/join' && request.method === 'POST') {
       if (!equalProof(env.JOIN_PROOF, data.proof)) return reply({ error: 'Enter a valid Community invite code.' }, 403);
       const nickname = typeof data.nickname === 'string' ? data.nickname.trim().normalize('NFC') : '';
-      if (!/^[\p{L}\p{N}][\p{L}\p{N} ._-]{1,23}$/u.test(nickname)) {
+      if (!nicknamePattern.test(nickname)) {
         return reply({ error: 'Choose a nickname of 2–24 letters, numbers or spaces.' }, 400);
       }
       const token = 'soc1_' + hex(crypto.getRandomValues(new Uint8Array(32)));
@@ -90,12 +135,16 @@ export default {
 
     const token = (request.headers.get('Authorization') || '').replace(/^Bearer /, '');
     if (!tokenPattern.test(token)) return reply({ error: 'Enter your profile key.' }, 401);
+    const tokenHash = await digest(token);
     const me = await db.prepare(`
-      SELECT profiles.id, nickname, study_minutes, completed, attempts, accuracy, break_ends_at, expires_at
+      SELECT profiles.id, nickname, avatar, bio, nickname_changed_at,
+        study_minutes, break_minutes, break_count, last_break_at,
+        completed, attempts, accuracy, break_ends_at, expires_at
       FROM profiles LEFT JOIN presence ON presence.profile = profiles.id WHERE token_hash = ?
-    `).bind(await digest(token)).first();
+    `).bind(tokenHash).first();
     if (!me) return reply({ error: 'That profile key is invalid.' }, 401);
     const now = Date.now();
+    const isAdmin = isAdminMember(env, me, tokenHash);
     if (breakRequired.has(path) || path === '/rooms' || path.startsWith('/rooms/')) {
       const breakAccess = Number(osloHour.format(now)) >= 20 || (me.break_ends_at > now && me.expires_at > now);
       const canUseCommunity = breakAccess && !await runningStudyRoom(db, me.id, now);
@@ -107,8 +156,63 @@ export default {
       }
     }
 
-    if (path === '/profile' && request.method === 'GET') {
-      return reply({ nickname: me.nickname });
+    if (path === '/profile') {
+      if (request.method === 'GET') {
+        return reply(profileSummary(me, isAdmin, now));
+      }
+      if (request.method === 'POST') {
+        let nextNickname = me.nickname;
+        let nextChangedAt = Number(me.nickname_changed_at || 0);
+        let nextAvatar = me.avatar || '';
+        let nextBio = me.bio || '';
+
+        if (Object.prototype.hasOwnProperty.call(data, 'nickname')) {
+          const candidate = typeof data.nickname === 'string' ? data.nickname.trim().normalize('NFC') : '';
+          if (!nicknamePattern.test(candidate)) {
+            return reply({ error: 'Choose a nickname of 2–24 letters, numbers or spaces.' }, 400);
+          }
+          const changedWord = candidate.toLowerCase() !== String(me.nickname).toLowerCase();
+          if (changedWord && !isAdmin && nextChangedAt > 0 && now - nextChangedAt < nicknameCooldownMs) {
+            const unlockDate = new Date(nextChangedAt + nicknameCooldownMs).toLocaleDateString('en-GB', {
+              day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Oslo',
+            });
+            return reply({ error: `You can change your nickname once every 30 days. Next change available on ${unlockDate}.` }, 429);
+          }
+          if (changedWord) {
+            const conflict = await db.prepare('SELECT 1 FROM profiles WHERE nickname = ? AND id <> ?')
+              .bind(candidate, me.id).first();
+            if (conflict) return reply({ error: 'That nickname is taken.' }, 409);
+            nextChangedAt = now;
+          }
+          nextNickname = candidate;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(data, 'avatar')) {
+          const checked = validateAvatar(data.avatar);
+          if (checked === null) {
+            return reply({ error: 'Choose a preset avatar or upload a small PNG, JPEG, or WebP image.' }, 400);
+          }
+          nextAvatar = checked;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(data, 'bio')) {
+          if (typeof data.bio !== 'string') return reply({ error: 'Invalid bio.' }, 400);
+          const cleaned = data.bio.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();
+          if (cleaned.length > 140) return reply({ error: 'Keep your bio to 140 characters or fewer.' }, 400);
+          nextBio = cleaned;
+        }
+
+        try {
+          await db.prepare(
+            'UPDATE profiles SET nickname = ?, avatar = ?, bio = ?, nickname_changed_at = ? WHERE id = ?'
+          ).bind(nextNickname, nextAvatar, nextBio, nextChangedAt, me.id).run();
+        } catch {
+          return reply({ error: 'That nickname is taken.' }, 409);
+        }
+
+        const updated = { ...me, nickname: nextNickname, avatar: nextAvatar, bio: nextBio, nickname_changed_at: nextChangedAt };
+        return reply({ ok: true, profile: profileSummary(updated, isAdmin, now) });
+      }
     }
 
     if (path === '/presence' && request.method === 'POST') {
@@ -130,19 +234,21 @@ export default {
       const offset = Number(url.searchParams.get('offset') || 0);
       if (!boundedInt(offset, 1_000_000)) return reply({ error: 'Invalid leaderboard page.' }, 400);
       const ranks = await db.prepare(`
-        SELECT nickname, study_minutes, completed, attempts, accuracy, presence.mode,
+        SELECT profiles.id, nickname, avatar, bio, study_minutes, break_minutes, break_count, last_break_at,
+          completed, attempts, accuracy, presence.mode,
           presence.elapsed_seconds, presence.updated_at, presence.break_ends_at
         FROM profiles LEFT JOIN presence ON presence.profile = profiles.id AND presence.expires_at > ?
           AND (presence.mode <> 'break' OR presence.break_ends_at > ?)
         ORDER BY completed DESC, study_minutes DESC, nickname LIMIT 51 OFFSET ?
       `).bind(now, now, offset).all();
       const contacts = await db.prepare(`
-        SELECT id, nickname FROM profiles WHERE id <> ?
+        SELECT id, nickname, avatar FROM profiles WHERE id <> ?
         AND NOT EXISTS (SELECT 1 FROM blocks WHERE (owner = ? AND blocked = profiles.id)
           OR (blocked = ? AND owner = profiles.id)) ORDER BY nickname LIMIT 200
       `).bind(me.id, me.id, me.id).all();
       const messages = await db.prepare(`
-        SELECT m.id, m.sender, m.recipient, a.nickname AS senderName, b.nickname AS recipientName,
+        SELECT m.id, m.sender, m.recipient, a.nickname AS senderName, a.avatar AS senderAvatar,
+          b.nickname AS recipientName, b.avatar AS recipientAvatar,
           m.message, m.created_at AS createdAt
         FROM messages m JOIN profiles a ON a.id = m.sender JOIN profiles b ON b.id = m.recipient
         WHERE (m.sender = ? OR m.recipient = ?)
@@ -152,14 +258,15 @@ export default {
       const blocked = await db.prepare(`
         SELECT p.id, p.nickname FROM blocks b JOIN profiles p ON p.id = b.blocked WHERE b.owner = ?
       `).bind(me.id).all();
-      return reply({ me, ranks: ranks.results.slice(0, 50), hasMoreRanks: ranks.results.length > 50,
+      const mePayload = { ...me, ...profileSummary(me, isAdmin, now) };
+      return reply({ me: mePayload, ranks: ranks.results.slice(0, 50), hasMoreRanks: ranks.results.length > 50,
         contacts: contacts.results, messages: messages.results, blocked: blocked.results, now });
     }
 
     if (path === '/chat') {
       if (request.method === 'GET') {
         const { results } = await db.prepare(`
-          SELECT p.nickname, c.message, c.created_at AS createdAt
+          SELECT p.nickname, p.avatar, c.message, c.created_at AS createdAt
           FROM chat_messages c JOIN profiles p ON p.id = c.sender
           WHERE c.created_at >= ? AND NOT EXISTS (
             SELECT 1 FROM blocks WHERE (owner = ? AND blocked = c.sender) OR (blocked = ? AND owner = c.sender)
@@ -194,7 +301,7 @@ export default {
           return set ? reply({ ...set, cards: JSON.parse(set.cards) }) : reply({ error: 'That set is unavailable.' }, 404);
         }
         const { results } = await db.prepare(`
-          SELECT s.id, s.title, s.card_count, s.owner, p.nickname FROM study_sets s JOIN profiles p ON p.id = s.owner
+          SELECT s.id, s.title, s.card_count, s.owner, p.nickname, p.avatar FROM study_sets s JOIN profiles p ON p.id = s.owner
           WHERE NOT EXISTS (
             SELECT 1 FROM blocks WHERE (owner = ? AND blocked = s.owner) OR (blocked = ? AND owner = s.owner)
           )
@@ -223,13 +330,25 @@ export default {
     }
 
     if (path === '/stats' && request.method === 'POST') {
+      const breakMinutes = data.breakMinutes === undefined ? 0 : data.breakMinutes;
+      const breakCount = data.breakCount === undefined ? 0 : data.breakCount;
+      const lastBreakAt = data.lastBreakAt === undefined ? 0 : data.lastBreakAt;
       if (!boundedInt(data.minutes, 600_000) || !boundedInt(data.completed, 100_000)
-        || !boundedInt(data.attempts, 1_000_000) || !boundedInt(data.accuracy, 100)) {
+        || !boundedInt(data.attempts, 1_000_000) || !boundedInt(data.accuracy, 100)
+        || !boundedInt(breakMinutes, 600_000) || !boundedInt(breakCount, 100_000)
+        || !boundedInt(lastBreakAt, now + 300_000)) {
         return reply({ error: 'Invalid study totals.' }, 400);
       }
       await db.prepare(`
         UPDATE profiles SET study_minutes = ?, completed = ?, attempts = ?, accuracy = ? WHERE id = ? AND attempts <= ?
       `).bind(data.minutes, data.completed, data.attempts, data.accuracy, me.id, data.attempts).run();
+      await db.prepare(`
+        UPDATE profiles
+        SET break_minutes = MAX(break_minutes, ?),
+            break_count = MAX(break_count, ?),
+            last_break_at = MAX(last_break_at, ?)
+        WHERE id = ?
+      `).bind(breakMinutes, breakCount, lastBreakAt, me.id).run();
       return reply({ ok: true });
     }
 

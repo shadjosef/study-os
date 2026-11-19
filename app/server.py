@@ -77,6 +77,7 @@ from timetable_planner import (  # noqa: E402
     parse_universal_schedule_payload,
     save_custom_schedule,
 )
+from tutor_bridge import LiveTutor, with_source_links  # noqa: E402
 
 OSLO_TZ = ZoneInfo("Europe/Oslo")
 STATE_LOCK = threading.RLock()
@@ -322,6 +323,18 @@ class StudyStore:
 
 
 STORE = StudyStore(ROOT_DIR)
+LIVE_TUTOR = LiveTutor()
+
+
+def read_source_links() -> dict:
+    path = STORE.data_dir / "state" / "question-source-links.json"
+    try:
+        links = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    if not isinstance(links, dict):
+        raise ValueError("Could not read the saved question source links.")
+    return links
 
 
 class StudyOSHandler(SimpleHTTPRequestHandler):
@@ -335,7 +348,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
 
     def end_headers(self) -> None:
         # Allow local Obsidian Desktop plugin (`app://obsidian.md`) & localhost access
-        if self.path.partition("?")[0] not in {
+        if not self.path.startswith("/api/tutor/") and self.path.partition("?")[0] not in {
             "/api/canvas/sync", "/api/canvas/add-file", "/api/canvas/documents", "/api/canvas-file"
         }:
             self.send_header("Access-Control-Allow-Origin", "*")
@@ -417,6 +430,17 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             self.send_json({"ok": True, "service": "study-os", "version": "1.0.0"})
             return
 
+        if route in ("/api/tutor/live", "/api/tutor/config"):
+            if not self.is_local_canvas_request(require_origin=False):
+                self.send_json({"error": "Connect from the desktop Study-OS app."}, status=403)
+                return
+            if route.endswith("/live"):
+                self.send_json(LIVE_TUTOR.current())
+            else:
+                self.send_json({"script": str(ROOT_DIR / "tools" / "study_os_mcp.py"),
+                                "port": self.server.server_address[1]})
+            return
+
         if route == "/api/bootstrap":
             force_cal = (qs.get("refresh_calendar") or ["0"])[0] == "1"
             self.send_json(STORE.build_bootstrap(force_calendar=force_cal))
@@ -428,7 +452,11 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             if not bank:
                 self.send_json({"error": f"Course '{cid}' not found"}, status=404)
                 return
-            self.send_json(bank)
+            try:
+                links = read_source_links()
+            except (OSError, ValueError):
+                links = {}
+            self.send_json(with_source_links(bank, links))
             return
 
         if route.startswith("/api/course-asset/"):
@@ -631,9 +659,59 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         status, result = add_canvas_document(archive, canvas_id, encoded_name, self.rfile, size)
         self.send_json(result, status=status)
 
+    def handle_tutor(self, route: str) -> None:
+        if not self.is_local_canvas_request():
+            self.send_json({"error": "Open the local Study-OS app first."}, status=403)
+            return
+        try:
+            size = int(self.headers.get("Content-Length", "0"))
+            if not 0 < size <= 420_000 or self.headers.get_content_type() != "application/json":
+                raise ValueError("Invalid tutor request.")
+            body = self.read_json_body()
+            if not isinstance(body, dict):
+                raise ValueError("Invalid tutor request.")
+            if route.endswith("/live"):
+                LIVE_TUTOR.update(body)
+            else:
+                self.save_source_link(body)
+        except (OSError, ValueError) as error:
+            self.send_json({"error": str(error) if isinstance(error, ValueError) else "Could not save the source link."},
+                           status=400)
+            return
+        self.send_json({"ok": True})
+
+    def save_source_link(self, body: dict) -> None:
+        course_id, question_id = body.get("courseId"), body.get("questionId")
+        if not isinstance(course_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", course_id):
+            raise ValueError("Choose a course.")
+        bank = STORE.load_course_bank(course_id) or {}
+        if not any(q["id"] == question_id for q in bank.get("questions", [])):
+            raise ValueError("Choose an exercise in this course.")
+        path = body.get("path", "")
+        archive = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
+        if path:
+            page = body.get("page")
+            if type(page) is not int or not 1 <= page <= 50_000 or not archive:
+                raise ValueError("Choose a PDF and enter its page number.")
+            files = canvas_course_documents(archive, str(bank.get("canvasId") or ""))
+            source = next((file for file in files if file["path"] == path and file["kind"] == "pdf"), None)
+            if not source:
+                raise ValueError("Choose a PDF already in this course's local library.")
+        with STATE_LOCK:
+            links = read_source_links()
+            if path:
+                links[question_id] = {"path": source["path"], "title": source["name"], "page": page}
+            else:
+                links.pop(question_id, None)
+            atomic_write_json(STORE.data_dir / "state" / "question-source-links.json", links)
+
     def do_POST(self) -> None:
         parsed = urllib.parse.urlsplit(self.path)
         route = parsed.path
+
+        if route in ("/api/tutor/live", "/api/tutor/source-link"):
+            self.handle_tutor(route)
+            return
 
         if route == "/api/canvas/sync":
             self.handle_canvas_sync()

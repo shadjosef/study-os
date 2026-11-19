@@ -342,6 +342,7 @@ window.StudyApp = (() => {
   function communityStats() {
     const state = loadWebState();
     const attempts = state.attempts;
+    const brk = window.StudyUI.workClock?.getBreakStats?.() || { totalBreakMinutes: 0, totalBreaks: 0, lastBreakAtMs: 0 };
     return {
       minutes: Math.round(attempts.reduce((total, attempt) => total + (Number(attempt.activeSec) || 0), 0) / 60),
       completed: Object.values(state.records).filter((record) => record.status === 'done').length,
@@ -349,6 +350,9 @@ window.StudyApp = (() => {
       accuracy: attempts.length
         ? Math.round(100 * attempts.reduce((total, attempt) => total + (Number(attempt.qualityAccuracy) || 0), 0) / attempts.length)
         : 0,
+      breakMinutes: Math.max(0, Math.round(Number(brk.totalBreakMinutes) || 0)),
+      breakCount: Math.max(0, Math.round(Number(brk.totalBreaks) || 0)),
+      lastBreakAt: Math.max(0, Math.round(Number(brk.lastBreakAtMs) || 0)),
     };
   }
 
@@ -488,6 +492,7 @@ window.StudyApp = (() => {
       if (b.dataset.nav === name) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
     });
+    window.StudyTutor.changed();
   }
 
   async function navigate(viewName, opts = {}) {
@@ -1072,6 +1077,124 @@ window.StudyApp = (() => {
     window.StudyPdf.mount(reader, { rawUrl, page: 1 }, { page: 1, zoom: 100, trim: false });
   }
 
+  function bindStudyAdmin() {
+    const button = document.getElementById('btn-study-admin');
+    const dialog = document.getElementById('study-admin-dialog');
+    const form = document.getElementById('study-admin-source');
+    const status = document.getElementById('study-admin-status');
+    const clearBtn = document.getElementById('admin-clear-link');
+    const { course, filter, exercise, file, page } = form.elements;
+    const submit = form.querySelector('button[type=submit]');
+    let questions = [];
+
+    function renderExerciseOptions(keepId = '') {
+      const qTerm = String(filter?.value || '').trim().toLowerCase();
+      const visible = qTerm
+        ? questions.filter((q) => `${q.title} ${q.id} ${q.localId || ''}`.toLowerCase().includes(qTerm))
+        : questions;
+      exercise.innerHTML = visible.length
+        ? visible.map((q) => {
+            const linked = q.extraReference ? ' [PDF linked]' : '';
+            return `<option value="${esc(q.id)}">${esc(q.title)}${linked}</option>`;
+          }).join('')
+        : '<option value="">No matching exercises</option>';
+      if (keepId && visible.some((q) => q.id === keepId)) exercise.value = keepId;
+      submit.disabled = !visible.length;
+      showSavedLink();
+    }
+
+    function showSavedLink() {
+      const ref = questions.find((question) => question.id === exercise.value)?.extraReference;
+      file.value = ref?.path || '';
+      page.value = ref?.page || 1;
+      if (clearBtn) clearBtn.hidden = !ref?.path;
+    }
+
+    async function loadCourse(keepId = '') {
+      const courseId = course.value;
+      submit.disabled = true;
+      if (!courseId) return;
+      status.textContent = 'Loading exercises and course files…';
+      try {
+        const bank = await ensureCourseBank(courseId);
+        const docs = await apiGet(`/api/canvas/documents?course=${encodeURIComponent(bank.canvasId || '')}`);
+        if (course.value !== courseId) return;
+        questions = bank.questions.filter((question) => question.available !== false);
+        const pdfs = (docs.files || []).filter((doc) => doc.kind === 'pdf');
+        file.innerHTML = '<option value="">No additional PDF</option>'
+          + pdfs.map((doc) => `<option value="${esc(doc.path)}">${esc(doc.name)}</option>`).join('');
+        renderExerciseOptions(keepId);
+        const linkedCount = questions.filter((q) => q.extraReference).length;
+        status.textContent = pdfs.length
+          ? `${pdfs.length} PDFs available · ${linkedCount} exercise link${linkedCount === 1 ? '' : 's'} saved.`
+          : 'Add a PDF to this course to link a source.';
+      } catch {
+        status.textContent = 'Restart your desktop Study-OS server to open course admin.';
+      }
+    }
+
+    button.hidden = false;
+    button.onclick = () => {
+      course.innerHTML = boot.catalog.map((entry) =>
+        `<option value="${esc(entry.courseId)}">${esc(entry.title)}</option>`).join('');
+      if (selectedCourseId) course.value = selectedCourseId;
+      if (filter) filter.value = '';
+      document.getElementById('admin-add-files').disabled =
+        !boot.canvasArchive?.hasResyncApp || !boot.canvasArchive.courses?.length;
+      dialog.showModal();
+      loadCourse();
+    };
+    course.onchange = () => {
+      if (filter) filter.value = '';
+      loadCourse();
+    };
+    if (filter) filter.oninput = () => renderExerciseOptions(exercise.value);
+    exercise.onchange = showSavedLink;
+
+    async function submitSourceLink(selectionFile) {
+      submit.disabled = true;
+      const selection = exercise.value;
+      const courseId = course.value;
+      try {
+        const response = await fetch('/api/tutor/source-link', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ courseId, questionId: selection, path: selectionFile, page: Number(page.value) }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error);
+        delete bankCache[courseId];
+        await loadCourse(selection);
+        if (course.value === courseId) {
+          status.textContent = selectionFile ? 'PDF page linked to this exercise.' : 'Extra PDF link removed.';
+        }
+      } catch (error) {
+        status.textContent = error.message || 'Could not save the source link.';
+        submit.disabled = false;
+      }
+    }
+
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      await submitSourceLink(file.value);
+    };
+    if (clearBtn) {
+      clearBtn.onclick = () => submitSourceLink('');
+    }
+    document.getElementById('admin-open-sync').onclick = () => {
+      dialog.close();
+      openCanvasSync('canvas');
+    };
+    document.getElementById('admin-add-files').onclick = () => {
+      const entry = boot.catalog.find((item) => item.courseId === course.value);
+      dialog.close();
+      openCanvasFiles(String(entry?.canvasId || ''));
+    };
+    document.getElementById('admin-open-tutor').onclick = () => {
+      dialog.close();
+      window.StudyTutor.open();
+    };
+  }
+
   function bindCanvasSync() {
     const dialog = document.getElementById('canvas-sync-dialog');
     const form = document.getElementById('canvas-sync-form');
@@ -1287,7 +1410,13 @@ window.StudyApp = (() => {
         for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
         await refreshBootstrap();
         show();
-      } else show();
+      } else {
+        if (!window.StudyCommunity.hasProfile()
+            && !await window.StudyCommunity.requireProfile({ allowDemo: true, forcePrompt: true })) return;
+        await members.restore();
+        if (members.isUnlocked()) await refreshBootstrap();
+        else show();
+      }
     };
     form.onsubmit = async (event) => {
       event.preventDefault();
@@ -3372,6 +3501,7 @@ window.StudyApp = (() => {
     if (!isStaticWeb) {
       openCanvasSync = bindCanvasSync();
       openCanvasFiles = bindCanvasFiles();
+      bindStudyAdmin();
       document.getElementById('local-book-dialog').addEventListener('close', () => window.StudyPdf.dispose());
     }
     window.StudyRunner.bindRunnerGlobals();
@@ -3389,6 +3519,7 @@ window.StudyApp = (() => {
     document.getElementById('nav-brand')?.addEventListener('click', () => navigate('home'));
     document.getElementById('btn-open-schedule-studio')?.addEventListener('click', () => navigate('schedule'));
     document.getElementById('btn-export-backup')?.addEventListener('click', exportBackupFile);
+    document.getElementById('btn-home-tutor')?.addEventListener('click', window.StudyTutor.open);
 
     document.getElementById('btn-refresh-cal')?.addEventListener('click', async () => {
       if (isStaticWeb) {
@@ -3428,12 +3559,12 @@ window.StudyApp = (() => {
     });
 
     try {
-      await window.StudyCommunity.requireProfile();
+      const signedIn = await window.StudyCommunity.requireProfile({ allowDemo: true });
       await window.StudyRooms.restore();
-      await members.restore();
+      if (signedIn) await members.restore();
       await refreshBootstrap(false);
       const openedStudySet = await window.StudySets.activateDraft();
-      bindMemberAccess(!openedStudySet);
+      bindMemberAccess(signedIn && !openedStudySet);
     } catch {
       const hero = document.getElementById('up-next-hero');
       hero.innerHTML = '<h1>Could not load Study-OS</h1><p>Check your connection and try again.</p><button type="button" class="primary-btn">Retry</button>';

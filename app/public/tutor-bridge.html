@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Study-OS tutor connection</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="container">
+    <section class="panel">
+      <h1>Connect your tutor</h1>
+      <p>Allow this Study-OS browser tab to share its current practice exercise and your working with your local AI client. Keep this window open while studying.</p>
+      <button id="bridge-connect" class="primary-btn" disabled>Share current exercise</button>
+      <p id="bridge-status" role="status">Checking the desktop app…</p>
+      <details>
+        <summary>Set up your AI client</summary>
+        <p>Install uv and add the copied settings in your client. Restart or reconnect the MCP server after saving.</p>
+        <div class="row-actions">
+          <button id="bridge-codex" class="ghost-btn" disabled>Copy Codex settings</button>
+          <button id="bridge-json" class="ghost-btn" disabled>Copy MCP JSON</button>
+        </div>
+        <textarea id="bridge-copy" aria-label="MCP settings to copy" readonly hidden></textarea>
+      </details>
+    </section>
+  </main>
+  <script src="./js/tutor-bridge.js"></script>
+</body>
+</html>

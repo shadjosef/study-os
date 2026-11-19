@@ -77,6 +77,48 @@
   </header>
 
   <dialog id="profile-gate" class="member-dialog" aria-label="Study-OS profile"></dialog>
+  <dialog id="tutor-dialog" class="member-dialog" aria-labelledby="tutor-title">
+    <h2 id="tutor-title">AI tutor</h2>
+    <p>Connect Study-OS to your AI client once. Live sharing sends the current practice question, your working, and readable source text to the local bridge.</p>
+    <div class="row-actions">
+      <button type="button" class="primary-btn" id="tutor-pair" hidden>Connect desktop app</button>
+      <button type="button" class="ghost-btn" id="tutor-copy-prompt">Copy tutor prompt</button>
+    </div>
+    <div id="tutor-local-controls" class="row-actions" hidden>
+      <button type="button" class="primary-btn" id="tutor-enable">Share current exercise</button>
+      <button type="button" class="ghost-btn" id="tutor-copy-codex">Copy Codex settings</button>
+      <button type="button" class="ghost-btn" id="tutor-copy-config">Copy MCP JSON</button>
+    </div>
+    <p id="tutor-status" role="status"></p>
+    <textarea readonly hidden id="tutor-copy-text" aria-label="Text to copy"></textarea>
+    <form method="dialog" class="row-actions">
+      <button type="button" class="ghost-btn" id="tutor-disable">Stop sharing</button>
+      <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/ai-tutor.md" target="_blank" rel="noopener">Setup guide</a>
+      <button type="submit" class="ghost-btn">Close</button>
+    </form>
+  </dialog>
+  <dialog id="study-admin-dialog" class="member-dialog" aria-labelledby="study-admin-title">
+    <h2 id="study-admin-title">Study-OS admin</h2>
+    <div class="row-actions">
+      <button type="button" class="ghost-btn" id="admin-open-sync">Sync Canvas or Ed</button>
+      <button type="button" class="ghost-btn" id="admin-add-files">Add course files</button>
+      <button type="button" class="ghost-btn" id="admin-open-tutor">Tutor settings</button>
+    </div>
+    <h3>Link a PDF page to an exercise</h3>
+    <form id="study-admin-source" method="dialog">
+      <label class="field-label">Course <select name="course" required></select></label>
+      <label class="field-label">Filter exercises <input name="filter" type="search" placeholder="Filter by title or ID…"></label>
+      <label class="field-label">Exercise <select name="exercise" required></select></label>
+      <label class="field-label">PDF from this course <select name="file"></select></label>
+      <label class="field-label">PDF page number <input name="page" type="number" min="1" max="50000" value="1"></label>
+      <div class="row-actions">
+        <button type="submit" class="primary-btn">Save source link</button>
+        <button type="button" class="ghost-btn" id="admin-clear-link" hidden>Remove link</button>
+      </div>
+    </form>
+    <p id="study-admin-status" role="status"></p>
+    <form method="dialog"><button type="submit" class="ghost-btn">Close</button></form>
+  </dialog>
   <dialog id="canvas-sync-dialog" class="member-dialog" aria-labelledby="canvas-sync-title">
     <h2 id="canvas-sync-title">Sync course materials</h2>
     <form method="dialog" id="canvas-sync-form">
@@ -205,6 +247,8 @@
           <button type="button" class="ghost-btn" id="btn-import-json">Import Backup</button>
           <input type="file" id="file-import-json" accept="application/json,.json" hidden>
           <button type="button" class="ghost-btn" id="btn-export-backup">Export Backup</button>
+          <button type="button" class="ghost-btn" id="btn-home-tutor">AI tutor</button>
+          <button type="button" class="ghost-btn" id="btn-study-admin" hidden>Admin</button>
           <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/CHANGELOG.md">What’s new</a>
         </div>
       </div>
@@ -444,6 +488,7 @@
   <script src="./js/render.js"></script>
   <script src="./js/pdf-reader.js"></script>
   <script src="./js/question-copy.js"></script>
+  <script src="./js/study-tutor.js"></script>
   <script src="./js/layouts.js"></script>
   <script src="./js/runner.js"></script>
   <script src="./js/members.js"></script>

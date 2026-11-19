@@ -2,6 +2,9 @@
 
 ## 19 November 2026
 
+- Added **Edit profile & PFP** and **Break tracking** in Community: upload a cropped profile photo or choose a preset avatar, set an optional short bio, update your nickname once every 30 days (unlimited for Admin), and track total break time, break count, average break length, and break frequency per study hour on profiles and the leaderboard. Avatars also appear across global chat, direct messages, study rooms, and duel Elo rankings.
+- Added a live **AI tutor** MCP bridge (`get_current_exercise`, `list_course_files`, default Socratic tutoring instructions, hosted-site desktop bridge, and `docs/ai-tutor.md`) plus a desktop **Admin** panel for linking local PDF pages to exercises.
+- Added **Try demo (no code needed)** mode so visitors can explore practice questions and study notes without a Community invite code.
 - Start Canvas Sync, follow sync progress, and import new courses from the desktop Study-OS hub.
 - Paste credentials from the clipboard and sync Ed alone or alongside Canvas. Reuse an Ed token saved in the computer's secure store.
 - Add your own books and slides to a course through Canvas Sync. Open local PDFs in the course library.

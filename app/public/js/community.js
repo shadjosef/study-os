@@ -3,6 +3,7 @@
 window.StudyCommunity = (() => {
   const api = document.documentElement.dataset.communityApi;
   const keyName = 'study-os-community-profile';
+  const demoKey = 'study-os-demo';
   const { esc, toast, clockSec, workClock } = window.StudyUI;
   let token = '';
   let lastSync = '';
@@ -131,9 +132,10 @@ window.StudyCommunity = (() => {
       <p>Study-OS keeps your most recent timer status, which expires when updates stop. Delete your profile to remove your leaderboard entry and message history from the active database. Cloudflare may retain database backups for a limited period.</p>
     </details>`;
 
-  function renderEntry(root, error = '', onSignedIn = render) {
+  function renderEntry(root, error = '', onSignedIn = render, onDemo) {
     root.innerHTML = `
       <section class="panel">
+        ${onDemo ? '<div class="row-actions" style="margin-bottom:8px"><button type="button" class="primary-btn" id="community-demo">Try demo (no code needed)</button></div><p class="muted" style="margin-top:0">Explore practice questions and study notes without an invite code.</p>' : ''}
         <h1>Create your Study-OS profile</h1>
         <p id="community-stats-notice">Your display name, study hours, completed questions, attempts, accuracy and current study timer are visible to members during break access.</p>
         <form id="community-join" class="row-actions">
@@ -148,6 +150,7 @@ window.StudyCommunity = (() => {
         <p id="community-status" role="status">${esc(error)}</p>
       </section>${privacyNote}`;
     const status = root.querySelector('#community-status');
+    if (onDemo) root.querySelector('#community-demo').onclick = onDemo;
     const join = root.querySelector('#community-join');
     action(join, async (form) => {
       const invite = form.get('invite').trim();
@@ -166,25 +169,37 @@ window.StudyCommunity = (() => {
     }, status);
   }
 
-  async function requireProfile() {
-    if (!api) return;
+  async function requireProfile({ allowDemo = false, forcePrompt = false } = {}) {
+    if (!api) return true;
     if (token) {
       try {
         await request('/profile');
-        return;
+        return true;
       } catch (error) {
-        if (error.status !== 401) return;
+        if (error.status !== 401) return true;
         useProfile('');
       }
     }
+    if (allowDemo && !forcePrompt) {
+      try { if (sessionStorage.getItem(demoKey)) return false; } catch {}
+    }
     const gate = document.getElementById('profile-gate');
     return new Promise((resolve) => {
+      const tryDemo = () => {
+        try { sessionStorage.setItem(demoKey, '1'); } catch {}
+        gate.close();
+        resolve(false);
+      };
       renderEntry(gate, '', () => {
         gate.close();
+        try { sessionStorage.removeItem(demoKey); } catch {}
         queueStatsSync();
-        resolve();
-      });
-      gate.oncancel = (event) => event.preventDefault();
+        resolve(true);
+      }, allowDemo ? tryDemo : undefined);
+      gate.oncancel = (event) => {
+        event.preventDefault();
+        if (allowDemo) tryDemo();
+      };
       if (!gate.open) gate.showModal();
     });
   }
@@ -193,7 +208,7 @@ window.StudyCommunity = (() => {
     root.querySelector('#community-logout').onclick = async () => {
       useProfile('');
       window.StudyRooms?.reset();
-      await requireProfile();
+      await requireProfile({ allowDemo: true, forcePrompt: true });
       await window.StudyRooms?.restore();
       await render();
     };
@@ -203,7 +218,7 @@ window.StudyCommunity = (() => {
         await request('/delete-profile', { confirm: true });
         useProfile('');
         window.StudyRooms?.reset();
-        await requireProfile();
+        await requireProfile({ allowDemo: true, forcePrompt: true });
         await window.StudyRooms?.restore();
         await render();
         toast('Community profile deleted.');
@@ -213,18 +228,303 @@ window.StudyCommunity = (() => {
     };
   }
 
-  function renderLocked(root, nickname) {
+  const AVATAR_PRESETS = [
+    { id: 'owl', glyph: '🦉', bg: '#2c4c6e' },
+    { id: 'fox', glyph: '🦊', bg: '#9a4c28' },
+    { id: 'cat', glyph: '🐱', bg: '#6d3b8e' },
+    { id: 'penguin', glyph: '🐧', bg: '#285e6b' },
+    { id: 'rocket', glyph: '🚀', bg: '#29487d' },
+    { id: 'book', glyph: '📚', bg: '#1f6b58' },
+    { id: 'coffee', glyph: '☕', bg: '#704b31' },
+    { id: 'spark', glyph: '⚡', bg: '#8a6116' },
+    { id: 'mountain', glyph: '🏔️', bg: '#375c4b' },
+    { id: 'cactus', glyph: '🌵', bg: '#2e6f40' },
+  ];
+  const AVATAR_DATA_RE = /^data:image\/(?:webp|jpeg|png);base64,[A-Za-z0-9+/=]{16,28000}$/;
+  const INITIAL_COLORS = ['#1f6b58', '#29577a', '#6d3b8e', '#8a5a19', '#943c4c', '#2e655f', '#4e4c8a', '#6f4e37'];
+
+  function avatarInitials(name) {
+    const parts = String(name || '?').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  function avatarColor(name) {
+    let hash = 0;
+    const str = String(name || '');
+    for (let i = 0; i < str.length; i++) hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+    return INITIAL_COLORS[Math.abs(hash) % INITIAL_COLORS.length];
+  }
+
+  function avatarHtml(nickname, avatar = '', size = 30) {
+    const safeSize = Math.max(20, Math.min(96, Number(size) || 30));
+    const val = String(avatar || '').trim();
+    if (AVATAR_DATA_RE.test(val)) {
+      return `<img class="community-avatar" src="${esc(val)}" alt="" width="${safeSize}" height="${safeSize}" style="width:${safeSize}px;height:${safeSize}px" loading="lazy" decoding="async">`;
+    }
+    if (val.startsWith('preset:')) {
+      const preset = AVATAR_PRESETS.find((item) => item.id === val.slice(7));
+      if (preset) {
+        const fontSize = Math.round(safeSize * 0.54);
+        return `<span class="community-avatar community-avatar-preset" aria-hidden="true" style="width:${safeSize}px;height:${safeSize}px;background:${preset.bg};font-size:${fontSize}px">${preset.glyph}</span>`;
+      }
+    }
+    const fontSize = Math.round(safeSize * 0.4);
+    return `<span class="community-avatar community-avatar-initials" aria-hidden="true" style="width:${safeSize}px;height:${safeSize}px;background:${avatarColor(nickname)};font-size:${fontSize}px">${esc(avatarInitials(nickname))}</span>`;
+  }
+
+  function resizeAvatarFile(file) {
+    return new Promise((resolve, reject) => {
+      if (!file || !/^image\/(?:png|jpeg|webp|gif)$/i.test(file.type || '')) {
+        reject(new Error('Choose a PNG, JPEG, WebP, or GIF image.'));
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        reject(new Error('Choose an image smaller than 10 MB.'));
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const side = Math.min(img.naturalWidth || img.width, img.naturalHeight || img.height);
+        const sx = Math.floor(((img.naturalWidth || img.width) - side) / 2);
+        const sy = Math.floor(((img.naturalHeight || img.height) - side) / 2);
+        const canvas = document.createElement('canvas');
+        canvas.width = 96;
+        canvas.height = 96;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, 96, 96);
+        let out = '';
+        for (const [mime, q] of [['image/webp', 0.82], ['image/webp', 0.65], ['image/jpeg', 0.82], ['image/jpeg', 0.62]]) {
+          const candidate = canvas.toDataURL(mime, q);
+          if (AVATAR_DATA_RE.test(candidate)) {
+            out = candidate;
+            break;
+          }
+        }
+        if (!out) reject(new Error('Could not compress that image small enough. Try a simpler image.'));
+        else resolve(out);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Could not read that image file.'));
+      };
+      img.src = url;
+    });
+  }
+
+  function formatOsloDate(ms) {
+    return new Date(ms).toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Oslo',
+    });
+  }
+
+  function profileEditorHtml(profile) {
+    const lockedUntil = !profile.isAdmin && profile.nextNicknameChangeAt > Date.now()
+      ? formatOsloDate(profile.nextNicknameChangeAt)
+      : '';
+    const nickHint = profile.isAdmin
+      ? '<span class="badge admin-badge">Admin · unlimited nickname edits</span>'
+      : lockedUntil
+      ? `<span class="badge warn">Nickname locked until ${esc(lockedUntil)} (once per 30 days)</span>`
+      : '<small class="muted">You can change your nickname once every 30 days. Avatar and bio can be updated anytime.</small>';
+
+    return `
+      <details class="community-profile-editor" id="community-profile-editor">
+        <summary class="ghost-btn" style="display:inline-flex">Edit profile &amp; PFP</summary>
+        <form id="community-profile-form" class="community-profile-form">
+          <div class="community-profile-preview-row">
+            <div id="community-avatar-preview">${avatarHtml(profile.nickname, profile.avatar, 60)}</div>
+            <div style="flex:1;min-width:200px">
+              <div class="row-actions">
+                <label class="ghost-btn" style="cursor:pointer">
+                  Upload photo
+                  <input type="file" id="community-avatar-file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+                </label>
+                <button type="button" class="ghost-btn" id="community-avatar-reset">Use initials</button>
+              </div>
+              <small class="muted" style="display:block;margin-top:4px">Auto-cropped to a 96×96 circle. Or pick a preset below:</small>
+            </div>
+          </div>
+          <div class="avatar-preset-grid" role="group" aria-label="Preset avatars">
+            ${AVATAR_PRESETS.map((p) => `
+              <button type="button" class="avatar-preset-btn ${profile.avatar === 'preset:' + p.id ? 'active' : ''}"
+                data-avatar-preset="preset:${p.id}" title="${esc(p.id)}" style="background:${p.bg}">${p.glyph}</button>
+            `).join('')}
+          </div>
+          <label class="field-label">Nickname
+            <input name="nickname" value="${esc(profile.nickname)}" minlength="2" maxlength="24" required
+              ${lockedUntil ? 'readonly aria-readonly="true"' : ''}>
+          </label>
+          <div style="margin:-4px 0 8px">${nickHint}</div>
+          <label class="field-label">Short bio / study focus <small class="muted">(optional, up to 140 chars)</small>
+            <input name="bio" value="${esc(profile.bio || '')}" maxlength="140" placeholder="e.g. BSc Data Science · Grinding OB &amp; Maths">
+          </label>
+          <div class="row-actions">
+            <button type="submit" class="primary-btn">Save profile</button>
+          </div>
+          <p id="community-profile-status" class="muted" role="status"></p>
+        </form>
+      </details>`;
+  }
+
+  function bindProfileEditor(root, profile, onSaved) {
+    const form = root.querySelector('#community-profile-form');
+    if (!form) return;
+    const status = root.querySelector('#community-profile-status');
+    const preview = root.querySelector('#community-avatar-preview');
+    const fileInput = root.querySelector('#community-avatar-file');
+    const nickInput = form.elements.nickname;
+    let draftAvatar = profile.avatar || '';
+
+    const refreshPreview = () => {
+      preview.innerHTML = avatarHtml(nickInput.value.trim() || profile.nickname, draftAvatar, 60);
+      for (const btn of form.querySelectorAll('[data-avatar-preset]')) {
+        btn.classList.toggle('active', btn.dataset.avatarPreset === draftAvatar);
+      }
+    };
+
+    nickInput.addEventListener('input', refreshPreview);
+    for (const btn of form.querySelectorAll('[data-avatar-preset]')) {
+      btn.onclick = () => {
+        draftAvatar = btn.dataset.avatarPreset;
+        status.textContent = '';
+        refreshPreview();
+      };
+    }
+    root.querySelector('#community-avatar-reset').onclick = () => {
+      draftAvatar = '';
+      if (fileInput) fileInput.value = '';
+      status.textContent = '';
+      refreshPreview();
+    };
+    fileInput?.addEventListener('change', async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      status.textContent = 'Preparing avatar…';
+      try {
+        draftAvatar = await resizeAvatarFile(file);
+        status.textContent = 'Photo ready — click Save profile to apply.';
+        refreshPreview();
+      } catch (err) {
+        status.textContent = err.message;
+      }
+      fileInput.value = '';
+    });
+
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      const submit = form.querySelector('button[type=submit]');
+      submit.disabled = true;
+      status.textContent = 'Saving profile…';
+      try {
+        const payload = {
+          avatar: draftAvatar,
+          bio: String(form.elements.bio.value || '').trim(),
+        };
+        const candidateNick = String(nickInput.value || '').trim();
+        if (candidateNick && candidateNick !== profile.nickname) {
+          payload.nickname = candidateNick;
+        }
+        await request('/profile', payload);
+        toast('Profile updated.');
+        await onSaved();
+      } catch (error) {
+        status.textContent = error.message || 'Could not update profile.';
+        submit.disabled = false;
+      }
+    };
+  }
+
+  function formatBreakDuration(minutes) {
+    const m = Math.max(0, Math.round(Number(minutes) || 0));
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    const rem = m % 60;
+    return rem ? `${h}h ${rem}m` : `${h}h`;
+  }
+
+  function breakSummaryData(row) {
+    const breakMin = Math.max(0, Number(row.break_minutes) || 0);
+    const breakCount = Math.max(0, Number(row.break_count) || 0);
+    const studyMin = Math.max(0, Number(row.study_minutes) || 0);
+    const avgMin = breakCount ? Math.round((breakMin / breakCount) * 10) / 10 : 0;
+    const perHour = studyMin >= 15 && breakCount
+      ? Math.round((breakCount / (studyMin / 60)) * 10) / 10
+      : null;
+    const ratioPct = studyMin >= 15 && breakMin
+      ? Math.round((100 * breakMin) / studyMin)
+      : null;
+    return { breakMin, breakCount, studyMin, avgMin, perHour, ratioPct };
+  }
+
+  function breakCellHtml(row) {
+    const b = breakSummaryData(row);
+    if (!b.breakCount && !b.breakMin) return '<span class="muted">—</span>';
+    const subParts = [];
+    if (b.avgMin) subParts.push(`${b.avgMin}m avg`);
+    if (b.perHour !== null) subParts.push(`${b.perHour}/hr`);
+    else if (b.ratioPct !== null) subParts.push(`${b.ratioPct}% ratio`);
+    return `<div class="community-break-cell">
+      <strong>${esc(formatBreakDuration(b.breakMin))} · ${b.breakCount}×</strong>
+      ${subParts.length ? `<small class="muted">${esc(subParts.join(' · '))}</small>` : ''}
+    </div>`;
+  }
+
+  function profileBreakStripHtml(me) {
+    const localBrk = workClock.getBreakStats?.() || { totalBreakMinutes: 0, totalBreaks: 0, dayBreaks: 0, dayBreakMinutes: 0 };
+    const merged = {
+      study_minutes: Math.max(Number(me.study_minutes) || 0, 0),
+      break_minutes: Math.max(Number(me.break_minutes) || 0, Number(localBrk.totalBreakMinutes) || 0),
+      break_count: Math.max(Number(me.break_count) || 0, Number(localBrk.totalBreaks) || 0),
+    };
+    const b = breakSummaryData(merged);
+    const freqLabel = b.perHour !== null
+      ? `${b.perHour} breaks / study hr`
+      : b.breakCount
+      ? `${b.breakCount} total`
+      : 'No breaks yet';
+    const avgLabel = b.avgMin ? `${b.avgMin}m avg` : '—';
+    const todayLabel = localBrk.dayBreaks
+      ? `${localBrk.dayBreaks} today (${formatBreakDuration(localBrk.dayBreakMinutes)})`
+      : '0 today';
+    return `
+      <div class="community-break-strip" aria-label="Break tracking summary">
+        <span class="kpi-pill"><small>Break time</small> <b>${esc(formatBreakDuration(b.breakMin))}</b></span>
+        <span class="kpi-pill"><small>Breaks</small> <b>${b.breakCount}</b></span>
+        <span class="kpi-pill"><small>Frequency</small> <b>${esc(freqLabel)}</b></span>
+        <span class="kpi-pill"><small>Avg break</small> <b>${esc(avgLabel)}</b></span>
+        ${b.ratioPct !== null ? `<span class="kpi-pill"><small>Break / study</small> <b>${b.ratioPct}%</b></span>` : ''}
+        <span class="kpi-pill"><small>Today</small> <b>${esc(todayLabel)}</b></span>
+      </div>`;
+  }
+
+  function renderLocked(root, profile) {
+    const me = typeof profile === 'string' ? { nickname: profile, avatar: '', bio: '', isAdmin: false, nextNicknameChangeAt: 0 } : profile;
     root.innerHTML = `
       <section class="panel" id="community-locked">
-        <h1>Study community</h1>
-        <p id="community-signed-in">Signed in as ${esc(nickname)}</p>
-        <p>Community opens during a timed break and from 20:00 to midnight Oslo time.</p>
-        <div class="row-actions">
+        <div class="community-identity">
+          ${avatarHtml(me.nickname, me.avatar, 48)}
+          <div>
+            <h1 style="margin-bottom:2px">Study community</h1>
+            <p class="muted" style="margin:0" id="community-signed-in">
+              Signed in as <strong>${esc(me.nickname)}</strong>${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}
+            </p>
+            ${me.bio ? `<p class="community-bio-sub">${esc(me.bio)}</p>` : ''}
+          </div>
+        </div>
+        ${profileBreakStripHtml(me)}
+        <p>Community opens during a timed break and from 20:00 to midnight Oslo time. You can still edit your profile and avatar anytime:</p>
+        ${profileEditorHtml(me)}
+        <div class="row-actions" style="margin-top:12px">
           <button type="button" class="ghost-btn" id="community-logout">Sign out</button>
           <button type="button" class="ghost-btn" id="community-delete">Delete my profile</button>
         </div>
       </section>${privacyNote}`;
     profileActions(root);
+    bindProfileEditor(root, me, () => render());
   }
 
   function presenceLabel(row, now) {
@@ -242,7 +542,7 @@ window.StudyCommunity = (() => {
     try {
       const { messages } = await request('/chat');
       if (list.isConnected) list.innerHTML = messages.map((message) => `
-        <li><div class="row-between"><strong>${esc(message.nickname)}</strong>
+        <li><div class="row-between"><span class="community-member-inline">${avatarHtml(message.nickname, message.avatar, 24)}<strong>${esc(message.nickname)}</strong></span>
           <small>${esc(new Date(message.createdAt).toLocaleString())}</small></div>
           <p>${esc(message.message)}</p></li>`).join('') || '<li>No messages yet.</li>';
     } finally {
@@ -258,7 +558,7 @@ window.StudyCommunity = (() => {
       <p>Open a Study-OS link from your AI to share a new set. Practice here earns no leaderboard or Elo points.</p>
       <p id="community-set-status" role="status"></p>
       <ul class="community-messages">${sets.map((set) => `
-        <li><strong>${esc(set.title)}</strong> <small>${set.card_count} cards · ${esc(set.nickname)}</small>
+        <li><div class="community-member-inline">${avatarHtml(set.nickname, set.avatar, 22)}<strong>${esc(set.title)}</strong> <small>${set.card_count} cards · ${esc(set.nickname)}</small></div>
           <div class="row-actions">
             <button type="button" class="ghost-btn" data-save-community-set="${esc(set.id)}">Save to my sets</button>
             ${set.owner === me.id ? `<button type="button" class="ghost-btn" data-remove-community-set="${esc(set.id)}">Remove from Community</button>` : ''}
@@ -286,38 +586,61 @@ window.StudyCommunity = (() => {
   }
 
   function renderDashboard(root, { me, ranks, hasMoreRanks, contacts, messages, blocked, now }, offset) {
-    const leaderRows = ranks.map((row, index) => `<tr>
-      <td>${offset + index + 1}</td><td>${esc(row.nickname)}</td><td>${(row.study_minutes / 60).toFixed(1)}</td>
-      <td>${row.completed}</td><td>${row.attempts}</td><td>${row.attempts ? row.accuracy + '%' : '—'}</td><td>${presenceLabel(row, now)}</td>
+    const leaderRows = ranks.map((row, index) => `<tr class="${row.id === me.id ? 'community-row-me' : ''}">
+      <td>${offset + index + 1}</td>
+      <td>
+        <div class="community-member-cell">
+          ${avatarHtml(row.nickname, row.avatar, 32)}
+          <div class="community-member-meta">
+            <strong>${esc(row.nickname)}${row.id === me.id ? ' <span class="badge">You</span>' : ''}</strong>
+            ${row.bio ? `<small class="community-bio-sub">${esc(row.bio)}</small>` : ''}
+          </div>
+        </div>
+      </td>
+      <td>${(row.study_minutes / 60).toFixed(1)}</td>
+      <td>${row.completed}</td><td>${row.attempts}</td><td>${row.attempts ? row.accuracy + '%' : '—'}</td><td>${breakCellHtml(row)}</td><td>${presenceLabel(row, now)}</td>
     </tr>`).join('');
-    const messageRows = messages.map((row) => `
+    const messageRows = messages.map((row) => {
+      const peerName = row.sender === me.id ? row.recipientName : row.senderName;
+      const peerAvatar = row.sender === me.id ? row.recipientAvatar : row.senderAvatar;
+      return `
       <li>
-        <div class="row-between"><strong>${row.sender === me.id ? 'To ' + esc(row.recipientName) : 'From ' + esc(row.senderName)}</strong>
+        <div class="row-between"><span class="community-member-inline">${avatarHtml(peerName, peerAvatar, 24)}<strong>${row.sender === me.id ? 'To ' + esc(row.recipientName) : 'From ' + esc(row.senderName)}</strong></span>
         <small>${esc(new Date(row.createdAt).toLocaleString())}</small></div>
         <p>${esc(row.message)}</p>
         ${row.sender === me.id ? '' : `<button type="button" class="ghost-btn" data-block-profile="${esc(row.sender)}">Block sender</button>`}
-      </li>`).join('');
+      </li>`;
+    }).join('');
     root.innerHTML = `
       <section class="panel" id="community-social">
         <div class="row-between">
-          <div><h1>Study community</h1><p class="muted">Signed in as <span id="community-signed-in">${esc(me.nickname)}</span></p></div>
+          <div class="community-identity">
+            ${avatarHtml(me.nickname, me.avatar, 48)}
+            <div>
+              <h1 style="margin-bottom:2px">Study community</h1>
+              <p class="muted" style="margin:0">Signed in as <strong id="community-signed-in">${esc(me.nickname)}</strong>${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}</p>
+              ${me.bio ? `<p class="community-bio-sub">${esc(me.bio)}</p>` : ''}
+            </div>
+          </div>
           <div class="row-actions">
             <button type="button" class="ghost-btn" id="community-copy-key">Copy profile key</button>
             <button type="button" class="ghost-btn" id="community-logout">Sign out</button>
           </div>
         </div>
-        <p class="muted">Keep your profile key to use your account on another device.</p>
+        ${profileBreakStripHtml(me)}
+        ${profileEditorHtml(me)}
+        <p class="muted" style="margin-top:8px">Keep your profile key to use your account on another device.</p>
         <p id="community-status" role="status"></p>
       </section>
       ${window.StudyRooms.lobbyHtml()}
       <section class="panel">
         <h2>Leaderboard</h2>
-        <p class="muted">All Community profiles appear here. Practice stats use the browser with the most recorded attempts and update while you’re signed in.</p>
+        <p class="muted">All Community profiles appear here with avatar, nickname, bio, study totals, break habits, and live timer.</p>
         <div class="row-actions">
           <button type="button" class="ghost-btn" id="community-stats">Refresh totals</button>
         </div>
         ${leaderRows ? `<div class="community-table"><table>
-          <thead><tr><th>Rank</th><th>Nickname</th><th>Hours</th><th>Completed</th><th>Attempts</th><th>Accuracy</th><th>Current timer</th></tr></thead>
+          <thead><tr><th>Rank</th><th>Member</th><th>Hours</th><th>Completed</th><th>Attempts</th><th>Accuracy</th><th>Breaks</th><th>Current timer</th></tr></thead>
           <tbody>${leaderRows}</tbody></table></div>` : ''}
         ${offset || hasMoreRanks ? `<div class="row-actions">
           <button type="button" class="ghost-btn" id="community-ranks-prev" ${offset ? '' : 'disabled'}>Previous</button>
@@ -364,6 +687,7 @@ window.StudyCommunity = (() => {
       status.textContent = 'Profile key copied. Keep it somewhere private.';
     });
     profileActions(root);
+    bindProfileEditor(root, me, () => render(offset));
     window.StudyRooms.bindLobby(root);
     doAction(root.querySelector('#community-refresh'), () => render(offset));
     doAction(root.querySelector('#community-stats'), () => render(offset));
@@ -408,8 +732,8 @@ window.StudyCommunity = (() => {
       await syncStats().catch(() => {});
       const state = timerStatus();
       if (!canUse()) {
-        const { nickname } = await request('/profile');
-        renderLocked(root, nickname);
+        const profile = await request('/profile');
+        renderLocked(root, profile);
         return;
       }
       const generation = token;
@@ -417,15 +741,15 @@ window.StudyCommunity = (() => {
       const result = await request('/dashboard?offset=' + offset);
       if (generation !== token) return;
       if (canUse()) renderDashboard(root, result, offset);
-      else renderLocked(root, result.me.nickname);
+      else renderLocked(root, result.me);
     } catch (error) {
       if (error.status === 401) {
         useProfile('');
-        await requireProfile();
+        await requireProfile({ allowDemo: true, forcePrompt: true });
         await render(offset);
       } else if (error.status === 423) {
-        const { nickname } = await request('/profile');
-        renderLocked(root, nickname);
+        const profile = await request('/profile');
+        renderLocked(root, profile);
       } else {
         root.innerHTML = '<section class="panel"><h1>Study community</h1><p>Community is unavailable. Open the Community tab to retry.</p></section>';
       }
@@ -444,5 +768,6 @@ window.StudyCommunity = (() => {
     return request('/rooms' + path, data);
   }
 
-  return { enabled: Boolean(api), render, queueStatsSync, clockTick, canShareSet, shareSet, requireProfile, roomRequest };
+  return { enabled: Boolean(api), hasProfile: () => !api || Boolean(token), avatarHtml, render, queueStatsSync, clockTick,
+    canShareSet, shareSet, requireProfile, roomRequest };
 })();

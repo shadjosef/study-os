@@ -595,6 +595,14 @@ window.StudyRunner = (() => {
 
     for (const a of q.contextAssets || []) addFromAsset(a, false);
     for (const a of q.promptAssets || []) addFromAsset(a, false);
+    if (q.extraReference && !isBlindUnfinished) {
+      const ref = q.extraReference;
+      const entry = resolveSourceEntry({ title: ref.title, canvasPath: ref.path }, ref.page);
+      if (entry && !seen.has(entry.key)) {
+        seen.add(entry.key);
+        out.push(entry);
+      }
+    }
     if (q.sourceId && sourcesMap?.[q.sourceId]) {
       addFromAsset({ sourceId: q.sourceId, page: 1, caption: sourcesMap[q.sourceId].title || '' }, false);
     }
@@ -1396,6 +1404,7 @@ window.StudyRunner = (() => {
           ${!isBlindUnfinished && (q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference)
             ? '<button type="button" class="ghost-btn" id="btn-question-notes">Study notes</button>' : ''}
           <button type="button" class="ghost-btn" id="btn-copy-for-ai">Copy for AI</button>
+          ${!isBlindUnfinished ? '<button type="button" class="ghost-btn" id="btn-open-tutor">AI tutor</button>' : ''}
           ${q.points ? `<span class="badge gold">${q.points} pts</span>` : ''}
         </div>
         <div class="status-group" role="group" aria-label="Task completion state">
@@ -1577,11 +1586,17 @@ window.StudyRunner = (() => {
     bindQuestionCardEvents(q, st, sourcePdfs);
     const promptSourceKeys = new Set([...(q.contextAssets || []), ...(q.promptAssets || [])]
       .map((figure) => resolveSourceEntry(sourcesMap[figure?.sourceId], figure?.page)?.key));
+    if (q.extraReference) {
+      promptSourceKeys.add(resolveSourceEntry({ canvasPath: q.extraReference.path }, q.extraReference.page)?.key);
+    }
     window.StudyQuestionCopy.bind(card, {
       question: q, state: st, course: activeRun.courseMeta.title, topic: questionTopic?.title,
+      courseId: activeRun.courseMeta.courseId, blind: isBlindUnfinished,
+      noteFile: q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference,
       revealed: st.revealed && !isBlindUnfinished,
       sources: sourcePdfs.filter((source) => source.isPdf && promptSourceKeys.has(source.key)),
     });
+    card.querySelector('#btn-open-tutor')?.addEventListener('click', window.StudyTutor.open);
     if (inlinePdf) {
       const view = st.pdfViews[inlinePdf.key] ||= { page: inlinePdf.page, zoom: 100, trim: false };
       window.StudyPdf.mount(card.querySelector('#source-pdf-reader'), inlinePdf, view);

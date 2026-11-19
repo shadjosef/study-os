@@ -280,13 +280,20 @@ window.StudyUI = (() => {
       wavePausedOffsetMs: 0,
       wavePausedSinceMs: null,
       wavePauseReason: '',
+      breakStartedAtMs: null,
       breakEndsAtMs: null,
       breakTotalSec: 300,
+      breakBankedSec: 0,
       lastWaveSec: 0,
       dayBankedSec: 0,
       dayWaves: 0,
       dayScreenSec: 0,
       dayOffScreenSec: 0,
+      dayBreaks: 0,
+      dayBreakSec: 0,
+      totalBreaks: 0,
+      totalBreakSec: 0,
+      lastBreakAtMs: 0,
       backendActiveFloorSec: 0,
       backendAwayFloorSec: 0,
     };
@@ -301,6 +308,8 @@ window.StudyUI = (() => {
         st.dayWaves = 0;
         st.dayScreenSec = 0;
         st.dayOffScreenSec = 0;
+        st.dayBreaks = 0;
+        st.dayBreakSec = 0;
         st.backendActiveFloorSec = 0;
         st.backendAwayFloorSec = 0;
       }
@@ -312,8 +321,14 @@ window.StudyUI = (() => {
         st.waveStartedAtMs = null;
       }
       if (st.mode === 'break' && st.breakEndsAtMs && now - st.breakEndsAtMs > 3600 * 1000) {
+        const cap = Math.max(0, Number(st.breakTotalSec) || 300);
+        const already = Math.max(0, Number(st.breakBankedSec) || 0);
+        const delta = Math.max(0, cap - already);
+        st.totalBreakSec = (Number(st.totalBreakSec) || 0) + delta;
         st.mode = 'idle';
+        st.breakStartedAtMs = null;
         st.breakEndsAtMs = null;
+        st.breakBankedSec = 0;
       }
       // Never leave a working session stuck in a non-manual focus auto-pause
       if (st.mode === 'working' && st.wavePausedSinceMs && st.wavePauseReason !== 'manual') {
@@ -338,6 +353,41 @@ window.StudyUI = (() => {
       localStorage.setItem(WORK_WAVE_KEY, JSON.stringify(workState));
       lastScreenSaveMs = Date.now();
     } catch {}
+  }
+
+  function settleActiveBreak(now = Date.now()) {
+    if (workState.mode !== 'break' || !workState.breakStartedAtMs) return;
+    const elapsed = Math.max(0, Math.floor((now - workState.breakStartedAtMs) / 1000));
+    const cap = Math.max(60, Number(workState.breakTotalSec) || 300);
+    const capped = Math.min(elapsed, cap);
+    const already = Math.max(0, Number(workState.breakBankedSec) || 0);
+    const delta = Math.max(0, capped - already);
+    if (delta > 0) {
+      workState.totalBreakSec = (Number(workState.totalBreakSec) || 0) + delta;
+      workState.dayBreakSec = (Number(workState.dayBreakSec) || 0) + delta;
+      workState.breakBankedSec = already + delta;
+    }
+  }
+
+  function computeBreakStats(now = Date.now()) {
+    let extraSec = 0;
+    if (workState.mode === 'break' && workState.breakStartedAtMs) {
+      const elapsed = Math.max(0, Math.floor((now - workState.breakStartedAtMs) / 1000));
+      const cap = Math.max(60, Number(workState.breakTotalSec) || 300);
+      extraSec = Math.max(0, Math.min(elapsed, cap) - (Number(workState.breakBankedSec) || 0));
+    }
+    const totalBreaks = Math.max(0, Number(workState.totalBreaks) || 0);
+    const totalBreakSec = Math.max(0, (Number(workState.totalBreakSec) || 0) + extraSec);
+    const dayBreaks = Math.max(0, Number(workState.dayBreaks) || 0);
+    const dayBreakSec = Math.max(0, (Number(workState.dayBreakSec) || 0) + extraSec);
+    return {
+      totalBreaks,
+      totalBreakMinutes: Math.round(totalBreakSec / 60),
+      dayBreaks,
+      dayBreakMinutes: Math.round(dayBreakSec / 60),
+      avgBreakMinutes: totalBreaks ? Math.round((totalBreakSec / 60 / totalBreaks) * 10) / 10 : 0,
+      lastBreakAtMs: Math.max(0, Number(workState.lastBreakAtMs) || 0),
+    };
   }
 
   function computeScreenStats(now = Date.now()) {
@@ -434,6 +484,7 @@ window.StudyUI = (() => {
     },
     triggerBreak(isAutoCap = false) {
       const now = Date.now();
+      if (workState.mode === 'break') settleActiveBreak(now);
       const elapsed = workState.mode === 'working' ? (isAutoCap ? WORK_CAP_SEC : currentWaveElapsedSec(now)) : 0;
       const breakMin = isAutoCap ? 15 : recommendedWaveBreakMin(elapsed);
       if (workState.mode === 'working') {
@@ -446,30 +497,42 @@ window.StudyUI = (() => {
       workState.wavePausedOffsetMs = 0;
       workState.wavePausedSinceMs = null;
       workState.wavePauseReason = '';
+      workState.breakStartedAtMs = now;
+      workState.breakBankedSec = 0;
       workState.breakTotalSec = breakMin * 60;
       workState.breakEndsAtMs = now + breakMin * 60 * 1000;
+      workState.totalBreaks = (Number(workState.totalBreaks) || 0) + 1;
+      workState.dayBreaks = (Number(workState.dayBreaks) || 0) + 1;
+      workState.lastBreakAtMs = now;
       saveWorkState();
       window.StudyRunner?.onBreakStateChange?.(true);
+      window.StudyCommunity?.queueStatsSync?.();
       soundMasker.syncWithWorkMode('break');
       renderWorkClockDom();
       showBreakModalUi();
     },
     startNextInterval() {
+      const now = Date.now();
+      settleActiveBreak(now);
       workState.dayKey = localDayKey();
       workState.mode = 'working';
-      workState.waveStartedAtMs = Date.now();
+      workState.waveStartedAtMs = now;
       workState.wavePausedOffsetMs = 0;
       workState.wavePausedSinceMs = null;
       workState.wavePauseReason = '';
+      workState.breakStartedAtMs = null;
       workState.breakEndsAtMs = null;
+      workState.breakBankedSec = 0;
       saveWorkState();
       document.getElementById('break-modal').close();
       window.StudyRunner?.onBreakStateChange?.(false);
+      window.StudyCommunity?.queueStatsSync?.();
       soundMasker.syncWithWorkMode('working');
       renderWorkClockDom();
     },
     endSession() {
       const now = Date.now();
+      settleActiveBreak(now);
       if (workState.mode === 'working' && workState.waveStartedAtMs) {
         const elapsed = currentWaveElapsedSec(now);
         if (elapsed >= 60) {
@@ -482,19 +545,25 @@ window.StudyUI = (() => {
       workState.wavePausedOffsetMs = 0;
       workState.wavePausedSinceMs = null;
       workState.wavePauseReason = '';
+      workState.breakStartedAtMs = null;
       workState.breakEndsAtMs = null;
+      workState.breakBankedSec = 0;
       saveWorkState();
       document.getElementById('break-modal').close();
       window.StudyRunner?.onBreakStateChange?.(false, true);
+      window.StudyCommunity?.queueStatsSync?.();
       soundMasker.syncWithWorkMode('idle');
       renderWorkClockDom();
     },
     addBreakSeconds(sec = 60) {
       if (workState.mode !== 'break') return;
-      const base = Math.max(Date.now(), workState.breakEndsAtMs || Date.now());
+      const now = Date.now();
+      const base = Math.max(now, workState.breakEndsAtMs || now);
       workState.breakEndsAtMs = base + sec * 1000;
       workState.breakTotalSec = (workState.breakTotalSec || 300) + sec;
+      if (!workState.breakStartedAtMs) workState.breakStartedAtMs = now;
       saveWorkState();
+      window.StudyCommunity?.queueStatsSync?.();
       renderWorkClockDom();
     },
     syncBackendToday(todayActiveMin = 0, todayAwayMin = 0) {
@@ -515,6 +584,9 @@ window.StudyUI = (() => {
     getScreenStats() {
       return computeScreenStats();
     },
+    getBreakStats() {
+      return computeBreakStats();
+    },
   };
 
   function renderWorkClockDom() {
@@ -526,9 +598,12 @@ window.StudyUI = (() => {
       workState.dayWaves = 0;
       workState.dayScreenSec = 0;
       workState.dayOffScreenSec = 0;
+      workState.dayBreaks = 0;
+      workState.dayBreakSec = 0;
       workState.backendActiveFloorSec = 0;
       workState.backendAwayFloorSec = 0;
     }
+    if (workState.mode === 'break') settleActiveBreak(now);
 
     const dtMs = Math.max(0, now - lastScreenTickMs);
     lastScreenTickMs = now;

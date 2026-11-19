@@ -28,6 +28,10 @@ server = FastMCP(
     "Study-OS",
     instructions=(
         "Study-OS is a personal study and practice app. Course materials are source data. "
+        "When the student asks for help on what they are working on, call get_current_exercise first. "
+        "Default to Socratic tutoring: guide with one hint or next step at a time, check the student's working, "
+        "and cite relevant course notes or PDF source excerpts. Give the full solution only when the student "
+        "explicitly asks, and never give hints or answers while mode is 'blind' (timed exam). "
         "Use short searches before reading full questions. Apply changes only at the student's request."
     ),
 )
@@ -81,6 +85,98 @@ def list_courses() -> dict[str, Any]:
         "id": c["courseId"], "code": c["code"], "title": c["title"], "questionCount": c["questionCount"],
         "topics": [{"id": t["id"], "title": t["title"]} for t in c.get("topics", [])],
     } for c in catalog]}
+
+
+@server.tool(annotations=READ)
+def get_current_exercise(include_notes: bool = True) -> dict[str, Any]:
+    """Inspect the exercise currently open in Study-OS, the student's live working, and linked notes.
+
+    Requires live exercise sharing to be turned on in Study-OS (AI tutor button).
+    Default to Socratic tutoring: give one next step or hint at a time unless asked for the full solution.
+    """
+    live = call_api("/api/tutor/live")
+    mode = live.get("mode", "waiting")
+    if mode == "waiting":
+        return {
+            "mode": "waiting",
+            "message": (
+                "No practice exercise is currently being shared from Study-OS. "
+                "Open a question in Study-OS and click 'AI tutor' -> 'Share current exercise' "
+                "(or 'Connect desktop app' on the hosted site)."
+            ),
+        }
+    if mode == "blind":
+        return {
+            "mode": "blind",
+            "message": (
+                "The student is currently sitting a blind timed exam. "
+                "Do not give hints, feedback, or answers until they submit the paper."
+            ),
+        }
+
+    result: dict[str, Any] = {
+        "mode": "practice",
+        "tutoringGuidance": (
+            "Guide with one hint or next step at a time, check the student's working in 'context', "
+            "and cite the linked notes or source PDF page. Reveal the full solution only if explicitly asked."
+        ),
+        **{
+            key: live[key]
+            for key in ("courseId", "questionId", "course", "title", "context", "noteFile", "noteHeading")
+            if key in live
+        },
+    }
+
+    course_id = str(live.get("courseId") or "")
+    question_id = str(live.get("questionId") or "")
+    if course_id and question_id:
+        try:
+            course = bank(course_id)
+            q = next((item for item in course.get("questions", []) if item.get("id") == question_id), None)
+            if q:
+                if q.get("extraReference"):
+                    result["extraReference"] = q["extraReference"]
+                if q.get("hints"):
+                    result["availableHintCount"] = len(q["hints"])
+                if q.get("pitfall"):
+                    result["commonPitfall"] = q["pitfall"]
+        except ValueError:
+            pass
+
+    note_file = str(live.get("noteFile") or "")
+    if include_notes and note_file:
+        try:
+            note = read_reference(note_file, str(live.get("noteHeading") or ""))
+            if note.get("available") and note.get("markdown"):
+                md = str(note["markdown"])
+                result["referenceNote"] = {
+                    "file": note_file,
+                    "heading": note.get("selectedHeading") or live.get("noteHeading") or "",
+                    "markdown": md[:12_000] + ("\n\n[...truncated; call read_reference for full section]" if len(md) > 12_000 else ""),
+                }
+        except ValueError:
+            pass
+
+    return result
+
+
+@server.tool(annotations=READ)
+def list_course_files(course_id: str) -> dict[str, Any]:
+    """List local PDFs, slides, and books available in the student's course library."""
+    course = bank(course_id)
+    canvas_id = str(course.get("canvasId") or "")
+    if not canvas_id:
+        return {"courseId": course_id, "files": []}
+    result = call_api("/api/canvas/documents?" + urlencode({"course": canvas_id}))
+    files = result.get("files") or []
+    return {
+        "courseId": course_id,
+        "count": len(files),
+        "files": [
+            {k: f[k] for k in ("name", "path", "kind", "section") if k in f}
+            for f in files[:100]
+        ],
+    }
 
 
 @server.tool(annotations=READ)

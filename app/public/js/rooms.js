@@ -2,7 +2,7 @@
 
 window.StudyRooms = (() => {
   const { esc, clockSec, toast, workClock } = window.StudyUI;
-  const { enabled, roomRequest } = window.StudyCommunity;
+  const { enabled, avatarHtml, roomRequest } = window.StudyCommunity;
   const root = document.getElementById('study-room-root');
   const sessionKey = 'study-os-room';
   let code = '';
@@ -95,7 +95,7 @@ window.StudyRooms = (() => {
       try {
         const { ratings } = await roomRequest('/ratings');
         panel.querySelector('#duel-ratings-list').innerHTML = ratings.map((row) =>
-          `<li>${esc(row.nickname)} · ${row.rating} Elo · ${row.matches} played</li>`).join('') || '<li>No rated duels yet.</li>';
+          `<li><span class="community-member-inline">${avatarHtml(row.nickname, row.avatar, 24)}<strong>${esc(row.nickname)}</strong> · ${row.rating} Elo · ${row.matches} played</span></li>`).join('') || '<li>No rated duels yet.</li>';
       } catch (error) {
         status.textContent = error.message;
       }
@@ -112,7 +112,7 @@ window.StudyRooms = (() => {
         detail = `${player.score}/${state.questions.length} correct`;
         if (player.ratingChange !== null) detail += ` · ${player.ratingChange > 0 ? '+' : ''}${player.ratingChange} Elo`;
       }
-      return `<li><strong>${esc(player.name)}${player.current ? ' (you)' : ''}</strong> <span>${detail}${player.finished && running() ? ' · Finished' : ''}</span></li>`;
+      return `<li><span class="community-member-inline">${avatarHtml(player.name, player.avatar, 26)}<strong>${esc(player.name)}${player.current ? ' (you)' : ''}</strong></span> <span>${detail}${player.finished && running() ? ' · Finished' : ''}</span></li>`;
     }).join('');
     const start = root.querySelector('#room-start');
     if (start) start.disabled = state.players.length < 2 || state.players.some((player) => !player.ready);

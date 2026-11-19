@@ -36,7 +36,7 @@ export async function runningStudyRoom(db, profile, now) {
 
 async function membersOf(db, code) {
   const { results } = await db.prepare(`
-    SELECT m.profile, m.ready, m.finished, m.completed, p.nickname,
+    SELECT m.profile, m.ready, m.finished, m.completed, p.nickname, p.avatar,
       COUNT(a.question) AS submitted, COALESCE(SUM(a.correct), 0) AS score,
       COALESCE(r.rating, 1200) AS rating, COALESCE(r.matches, 0) AS matches
     FROM room_members m JOIN profiles p ON p.id = m.profile
@@ -91,7 +91,7 @@ async function roomState(db, code, me, now, canUseCommunity, reply) {
     code, mode: room.mode, host: room.owner === me.id, now,
     phase: ended ? 'finished' : current.starts_at ? 'running' : 'lobby', endsAt: current.ends_at,
     players: players.map((player) => ({
-      name: player.nickname, current: player.profile === me.id, ready: Boolean(player.ready), finished: Boolean(player.finished),
+      name: player.nickname, avatar: player.avatar || '', current: player.profile === me.id, ready: Boolean(player.ready), finished: Boolean(player.finished),
       progress: room.mode === 'duel' ? player.submitted : player.completed,
       ...(ended && room.mode === 'duel' ? { score: player.score,
         ratingChange: result ? result.first_change * (result.first_player === player.profile ? 1 : -1) : null } : {}),
@@ -107,7 +107,7 @@ export async function handleRooms({ request, url, db, me, now, data, canUseCommu
   if (code === 'ratings' && !action && request.method === 'GET') {
     if (!canUseCommunity) return reply({ error: 'Ratings open during break access.' }, 423);
     const { results } = await db.prepare(`
-      SELECT p.nickname, r.rating, r.matches FROM duel_ratings r JOIN profiles p ON p.id = r.profile
+      SELECT p.nickname, p.avatar, r.rating, r.matches FROM duel_ratings r JOIN profiles p ON p.id = r.profile
       WHERE r.matches > 0 ORDER BY r.rating DESC, p.nickname LIMIT 50
     `).all();
     return reply({ ratings: results });

@@ -23,3 +23,15 @@ Use the [Study-OS MCP tool](../docs/study-sets-mcp.md) to create a study set lin
 4. Save `{"api":"https://study-os-community.YOUR-SUBDOMAIN.workers.dev"}` in `site-pack/community.json` and push it. GitHub Pages adds the Community tab to its next build.
 
 To rotate the Community invite code, update its digest. Existing personal profile keys retain access to their own stats and messages.
+
+## Profile editing, avatars (PFPs) & admin nickname override
+
+- Members can edit their **profile picture (PFP)** (upload a square-cropped photo or pick a built-in preset) and short **bio** anytime via **Edit profile** on the Community tab.
+- Regular members can change their **nickname** once every **30 days** (enforced server-side on `POST /profile`).
+- **Admin override (unlimited nickname edits):** Set the `ADMIN_TOKEN_HASH` Worker secret to the SHA-256 hex digest of your personal `soc1_...` profile key (or set `ADMIN_PROFILE_IDS` to a comma-separated list of profile UUIDs):
+
+  ```sh
+  printf '%s' 'soc1_YOUR_PROFILE_KEY' | shasum -a 256 | awk '{print $1}' | npx wrangler secret put ADMIN_TOKEN_HASH
+  ```
+
+- **Upgrading an existing D1 database:** Run `npx wrangler d1 execute study-os-community --remote --file migrate_profiles.sql` once before deploying the updated Worker (`npx wrangler deploy`).
