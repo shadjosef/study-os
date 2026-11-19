@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Study-OS Privacy Policy — how local study data, optional sign-in, and browser sync are handled.">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+  <script>
+    (function () {
+      function syncTheme() {
+        try {
+          var raw = JSON.parse(localStorage.getItem('study-os-theme-v2') || 'null');
+          var mode = raw && (raw.theme === 'light' || raw.theme === 'dark') ? raw.theme : 'system';
+          var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var effective = mode === 'system' ? (sysDark ? 'dark' : 'light') : mode;
+          document.documentElement.dataset.theme = effective;
+          document.documentElement.dataset.themeMode = mode;
+          var m = document.getElementById('meta-theme-color');
+          if (m) m.setAttribute('content', effective === 'dark' ? '#090d0c' : '#f3f5f7');
+        } catch (e) {}
+      }
+      syncTheme();
+      if (window.matchMedia) {
+        var mql = window.matchMedia('(prefers-color-scheme: dark)');
+        if (mql.addEventListener) mql.addEventListener('change', syncTheme);
+        else if (mql.addListener) mql.addListener(syncTheme);
+      }
+    })();
+  </script>
+  <title>Privacy · Study-OS</title>
+  <link rel="icon" href="./pwa/study-os-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .legal-shell { max-width: 760px; margin: 0 auto; padding: clamp(16px, 4vw, 36px) 16px 48px; }
+    .legal-card { margin-top: 16px; padding: clamp(20px, 4vw, 32px); }
+    .legal-card h1 { margin: 0 0 6px; }
+    .legal-card h2 { margin: 22px 0 6px; font-size: 16px; }
+    .legal-card p, .legal-card li { line-height: 1.6; color: var(--ink); }
+    .legal-card ul { padding-left: 20px; margin: 6px 0 0; }
+    .legal-meta { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+  </style>
+</head>
+<body>
+  <main class="legal-shell">
+    <a href="./" class="ghost-btn">← Back to Study-OS</a>
+    <article class="panel legal-card">
+      <span class="eyebrow">Study-OS</span>
+      <h1>Privacy Policy</h1>
+      <p class="legal-meta">Independent student project · Last updated November 2026</p>
+
+      <p>Study-OS is a free, independent student study workspace built with privacy by default. You can practice directly in your browser without creating an account.</p>
+
+      <h2>1. Data stored locally on your device</h2>
+      <p>Practice answers, timers, theme preferences, study schedules, and optional API keys (if you enter your own Google Gemini key) are stored locally in your browser's <code>localStorage</code> and stay on your device unless you sign in to sync them.</p>
+
+      <h2>2. Optional accounts &amp; Google Sign-In</h2>
+      <ul>
+        <li>If you choose to sign in with Google, Passkey, or a study profile, Study-OS stores your display name, account identifier, and synced study progress on Cloudflare Workers / D1 (EU region).</li>
+        <li>Google Sign-In only verifies your identity (basic OpenID profile / email). Study-OS does not sell your data or access your Gmail, Drive, or other Google services.</li>
+        <li>Study-OS's use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.</li>
+      </ul>
+
+      <h2>3. Optional Browser Sync &amp; AI Tutor</h2>
+      <ul>
+        <li>The optional Study-OS Chrome extension only runs when you click it on a signed-in BI Canvas, TimeEdit, or Ed Discussion tab. Course names, module titles, and deadlines you choose to sync are saved to your account; community course directories only merge public course codes, titles, and topic outlines—never private grades, submissions, or copyrighted files.</li>
+        <li>When you use the built-in AI Tutor, your prompt and the current question context are sent to the configured AI provider (Cloudflare Workers AI or Google Gemini) solely to generate your tutor response.</li>
+      </ul>
+
+      <h2>4. Cookies &amp; tracking</h2>
+      <p>Study-OS uses no advertising networks, no third-party analytics trackers, and no cross-site tracking cookies. Only strictly necessary browser storage is used to keep your session and local preferences working.</p>
+
+      <h2>5. Your rights &amp; contact</h2>
+      <p>Under GDPR (Norway / EEA), you can export your data, sign out and clear local storage at any time, disconnect Study-OS from your Google Account, or request deletion of your synced account data via the project repository at <a href="https://github.com/shadjosef/study-os/issues" target="_blank" rel="noopener">github.com/shadjosef/study-os</a>.</p>
+    </article>
+  </main>
+</body>
+</html>

@@ -2364,12 +2364,27 @@ html:not([data-show-screen]) [data-layout-screen] { display: none; }
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 10px;
+  align-items: center;
+  gap: 10px 16px;
   color: var(--muted);
-  padding: 18px 0 calc(18px + env(safe-area-inset-bottom));
+  padding: 16px 0 calc(16px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   margin-top: 24px;
-  font-size: 13px;
+  font-size: 12.5px;
+}
+.site-footer-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+.site-footer a {
+  color: var(--muted);
+}
+.site-footer a:hover {
+  color: var(--ink);
+}
+body.in-runner .site-footer {
+  display: none;
 }
 
 .device-setup-card h2,

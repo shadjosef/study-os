@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Study-OS Terms of Use for this independent student study platform.">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+  <script>
+    (function () {
+      function syncTheme() {
+        try {
+          var raw = JSON.parse(localStorage.getItem('study-os-theme-v2') || 'null');
+          var mode = raw && (raw.theme === 'light' || raw.theme === 'dark') ? raw.theme : 'system';
+          var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var effective = mode === 'system' ? (sysDark ? 'dark' : 'light') : mode;
+          document.documentElement.dataset.theme = effective;
+          document.documentElement.dataset.themeMode = mode;
+          var m = document.getElementById('meta-theme-color');
+          if (m) m.setAttribute('content', effective === 'dark' ? '#090d0c' : '#f3f5f7');
+        } catch (e) {}
+      }
+      syncTheme();
+      if (window.matchMedia) {
+        var mql = window.matchMedia('(prefers-color-scheme: dark)');
+        if (mql.addEventListener) mql.addEventListener('change', syncTheme);
+        else if (mql.addListener) mql.addListener(syncTheme);
+      }
+    })();
+  </script>
+  <title>Terms · Study-OS</title>
+  <link rel="icon" href="./pwa/study-os-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    .legal-shell { max-width: 760px; margin: 0 auto; padding: clamp(16px, 4vw, 36px) 16px 48px; }
+    .legal-card { margin-top: 16px; padding: clamp(20px, 4vw, 32px); }
+    .legal-card h1 { margin: 0 0 6px; }
+    .legal-card h2 { margin: 22px 0 6px; font-size: 16px; }
+    .legal-card p, .legal-card li { line-height: 1.6; color: var(--ink); }
+    .legal-card ul { padding-left: 20px; margin: 6px 0 0; }
+    .legal-meta { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+  </style>
+</head>
+<body>
+  <main class="legal-shell">
+    <a href="./" class="ghost-btn">← Back to Study-OS</a>
+    <article class="panel legal-card">
+      <span class="eyebrow">Study-OS</span>
+      <h1>Terms of Use</h1>
+      <p class="legal-meta">Independent student project · Last updated November 2026</p>
+
+      <h2>1. Independent student project</h2>
+      <p>Study-OS (<code>studyos.no</code>) is an independent, non-commercial student study tool and is not officially affiliated with, endorsed by, or operated by BI Norwegian Business School or Instructure / Canvas.</p>
+
+      <h2>2. Copyright &amp; student-synced materials</h2>
+      <ul>
+        <li>Public practice drills and summaries included in Study-OS are original study aids.</li>
+        <li>If you connect your own institutional Canvas, TimeEdit, or Ed Discussion account using the local desktop app or browser extension, you are responsible for ensuring you only import materials you are authorized to access and for never uploading copyrighted textbooks, slides, or exam PDFs to public community sets.</li>
+      </ul>
+
+      <h2>3. Fair use &amp; community</h2>
+      <p>Do not abuse the hosted AI Tutor, spam community courses, attempt to bypass authentication/rate limits, or impersonate other students. Accounts violating these rules may be restricted.</p>
+
+      <h2>4. As-is disclaimer</h2>
+      <p>Study-OS, AI Tutor hints, and study schedules are provided "as is" for personal study support without warranty of accuracy, uninterrupted availability, or exam outcomes. Always verify official deadlines and syllabus rules on your university's official portal.</p>
+
+      <h2>5. Contact</h2>
+      <p>Questions, takedown notices, or feedback can be submitted at <a href="https://github.com/shadjosef/study-os/issues" target="_blank" rel="noopener">github.com/shadjosef/study-os</a>.</p>
+    </article>
+  </main>
+</body>
+</html>
