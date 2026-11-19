@@ -6,6 +6,7 @@ on:
     paths:
       - app/public/**
       - app/*.py
+      - canvas-sync-extension/**
       - examples/**
       - site-pack/**
       - tools/build_public_site.py
