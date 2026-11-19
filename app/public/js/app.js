@@ -3560,8 +3560,10 @@ window.StudyApp = (() => {
 
     try {
       const signedIn = await window.StudyCommunity.requireProfile({ allowDemo: true });
-      await window.StudyRooms.restore();
-      if (signedIn) await members.restore();
+      if (signedIn) {
+        await window.StudyRooms.restore();
+        await members.restore();
+      }
       await refreshBootstrap(false);
       const openedStudySet = await window.StudySets.activateDraft();
       bindMemberAccess(signedIn && !openedStudySet);
