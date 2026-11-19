@@ -2,30 +2,201 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Study-OS Canvas Sync</title>
+<title>Study-OS Sync</title>
 <style>
-  :root { color-scheme: light dark; font: 14px system-ui, sans-serif; }
-  body { box-sizing: border-box; width: 310px; margin: 0; padding: 16px; }
-  h1 { font-size: 16px; margin: 0 0 12px; }
-  p { line-height: 1.45; }
-  label { display: grid; gap: 5px; }
-  input, button { box-sizing: border-box; min-height: 34px; font: inherit; }
-  button { margin-top: 8px; cursor: pointer; }
-  .links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+  :root {
+    color-scheme: light dark;
+    font: 13.5px -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    --bg: #f5f7f8;
+    --card: #ffffff;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --line: rgba(15, 23, 42, 0.10);
+    --accent: #0f766e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1419;
+      --card: #171f27;
+      --ink: #f1f5f9;
+      --muted: #94a3b8;
+      --line: rgba(255, 255, 255, 0.11);
+      --accent: #10b981;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    width: 332px;
+    margin: 0;
+    padding: 14px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  h1 {
+    font-size: 15px;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+  .pill {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    color: var(--muted);
+  }
+  .pill.live {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  p { margin: 0; line-height: 1.45; }
+  .muted { color: var(--muted); font-size: 12px; }
+  label.field { display: grid; gap: 5px; font-weight: 600; font-size: 12.5px; }
+  input[type="text"] {
+    width: 100%;
+    padding: 9px 11px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    font: 600 14px ui-monospace, SFMono-Regular, monospace;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .check-row input { margin-top: 2px; }
+  .btn {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font: 600 13.5px inherit;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-ghost {
+    background: transparent;
+    border-color: var(--line);
+    color: var(--ink);
+  }
+  .btn:disabled { opacity: 0.5; cursor: wait; }
+  .sites {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .site-link {
+    display: block;
+    text-align: center;
+    text-decoration: none;
+    padding: 7px 6px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .foot a, .foot button {
+    color: var(--accent);
+    background: none;
+    border: none;
+    padding: 0;
+    font: 600 12px inherit;
+    cursor: pointer;
+    text-decoration: none;
+  }
   [hidden] { display: none !important; }
 </style>
-<h1>Study-OS Canvas Sync</h1>
-<p id="status" role="status">Checking your connection…</p>
-<form id="pair" hidden>
-  <label>Study-OS connection code
-    <input id="code" type="text" required minlength="24" maxlength="24" autocomplete="off" spellcheck="false">
-  </label>
-  <button type="submit">Connect browser</button>
-</form>
-<button type="button" id="retry" hidden>Sync again</button>
-<div class="links">
-  <a id="study" href="http://127.0.0.1:8765/canvas-connect.html" rel="noopener" target="_blank">Open Study-OS setup</a>
-  <a id="canvas" href="https://canvas.bi.no/" rel="noopener" target="_blank" hidden>Open BI Canvas</a>
-</div>
-<script src="popup.js"></script>
+<body>
+  <div class="head">
+    <div class="brand">
+      <span class="dot"></span>
+      <h1>Study-OS Sync</h1>
+    </div>
+    <span class="pill" id="site-pill">Checking…</span>
+  </div>
+
+  <div class="card">
+    <p id="status" role="status">Checking your connection…</p>
+
+    <form id="pair" hidden style="margin-top:10px">
+      <label class="field">6-character device code (from studyos.no)
+        <input id="code" type="text" required minlength="6" maxlength="64" placeholder="K7M-9P2" autocomplete="off" spellcheck="false">
+      </label>
+      <p class="muted" style="margin-top:5px">In Study-OS, open <b>Settings → Passkeys &amp; Linked Devices</b> and tap <b>Generate 6-char code</b>.</p>
+      <button type="submit" class="btn btn-primary">Connect to Study-OS</button>
+    </form>
+
+    <label class="check-row" id="share-wrap" hidden>
+      <input type="checkbox" id="share-public" checked>
+      <span>
+        <b>Share course catalog to Community</b><br>
+        <span class="muted">Adds course codes &amp; module titles without duplicating existing courses. Your deadlines &amp; TimeEdit stay private.</span>
+      </span>
+    </label>
+
+    <button type="button" class="btn btn-primary" id="sync-btn" hidden>Sync this tab now</button>
+  </div>
+
+  <div class="sites" id="quick-sites">
+    <a class="site-link" href="https://canvas.bi.no/" target="_blank" rel="noopener">BI Canvas ↗</a>
+    <a class="site-link" href="https://cloud.timeedit.net/bi/web/public/" target="_blank" rel="noopener">TimeEdit ↗</a>
+    <a class="site-link" href="https://eu.edstem.org/" target="_blank" rel="noopener">Ed ↗</a>
+  </div>
+
+  <div class="foot">
+    <a href="https://studyos.no/" target="_blank" rel="noopener">Open studyos.no ↗</a>
+    <button type="button" id="disconnect-btn" hidden>Disconnect</button>
+  </div>
+  <script src="popup.js"></script>
+</body>
 </html>

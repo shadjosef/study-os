@@ -1,31 +1,23 @@
-# Canvas Browser Sync
+# Study-OS Browser Sync Extension (Canvas · TimeEdit · Ed Discussion)
 
-Update your active BI Canvas courses and assignment deadlines from Chrome using desktop Study-OS on port 8765.
+One lightweight in-house Chrome extension syncs your **BI Canvas** courses & personal deadlines, **BI TimeEdit** timetable, and **Ed Discussion** courses directly to your **studyos.no** account — with zero token copying and zero local Python server required.
 
-## Get started
+## Install once (30 seconds)
+1. Download or clone the `canvas-sync-extension/` folder from this repository.
+2. Open Chrome → go to `chrome://extensions` → toggle **Developer mode** ON.
+3. Click **Load unpacked** and select the `canvas-sync-extension` folder.
+4. Pin **Study-OS Sync** to your Chrome toolbar.
 
-1. Download the latest [Study-OS source ZIP](https://github.com/shadjosef/study-os/archive/refs/heads/main.zip), extract it, and launch desktop Study-OS. If you already use Study-OS, update your existing copy and restart it.
-2. In Chrome, open `chrome://extensions`, turn on **Developer mode**, select **Load unpacked**, and choose the `canvas-sync-extension` folder in Study-OS. Pin **Study-OS Canvas Sync** from Chrome’s Extensions menu.
-3. Open [Canvas Browser Sync](http://127.0.0.1:8765/canvas-connect.html) in desktop Study-OS and select **Get connection code**. Paste the code into the extension and select **Connect browser**. The Study-OS code expires in five minutes.
+## Pair once with studyos.no
+1. Sign in at **https://studyos.no/** (with Google, Passkey, or nickname).
+2. Open **Settings → Passkeys & Linked Devices** (or **Schedule → Get 6-char pairing code**) and click **Generate 6-char code** (e.g. `K7M-9P2`).
+3. Click the **Study-OS Sync** extension icon, paste the 6-char code, and click **Connect to Study-OS**.
+   - *(Optional: Desktop Study-OS users can still paste a 24-character desktop code from `http://127.0.0.1:8765/canvas-connect.html`.)*
 
-## Sync again
-
-Open [BI Canvas](https://canvas.bi.no/) and sign in. Click the pinned **Study-OS Canvas Sync** extension. It starts syncing immediately. Select **View in Study-OS** to see upcoming deadlines or open the assignments by course. You can also find this page in **Schedule → Canvas deadlines**.
-
-Leave desktop Study-OS running while syncing. If Canvas signs you out, sign back in and click the extension again. Repeated syncs replace the previous course and deadline list, including assignments that were removed or moved. Failed syncs preserve the last successful list.
-
-## See your plan on a phone
-
-In desktop Study-OS, open **Schedule → Send to phone**. In the tab that opens, select **Save to my profile**. Sign into that same profile at [studyos.no](https://studyos.no/) on your phone and open **Schedule**. Repeat the transfer after you refresh Canvas or rebuild the desktop schedule.
-
-The **Suggest new course names and codes for admin review** checkbox lets you contribute missing courses to the public directory. Clear it to keep the courses out of the directory. Approvals create Canvas course links. Assignment names, deadlines and materials are private.
-
-Build a study plan from your TimeEdit subscription link or an .ics file. Set paid work and study hours, wake-up time, bedtime and rest days. The **Download calendar (.ics)** button exports study blocks for import into [Google Calendar](https://support.google.com/calendar/answer/37118) or [Apple Calendar](https://support.apple.com/guide/calendar/icl1023/mac).
-
-## Access and data
-
-The extension uses Chrome’s [active tab permission](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab) when you click its icon on BI Canvas. Canvas handles your browser sign-in. The extension passes course and assignment names, IDs and assigned due dates to desktop Study-OS. Study-OS builds the source links and saves the list under `data/state/canvas-browser.json`. If you keep Study-OS data in OneDrive, that file follows your OneDrive settings.
-
-Select **Disconnect browser** in Study-OS to revoke the connection. The saved deadlines remain visible. One browser can be connected to each Study-OS data folder at a time.
-
-This is a desktop pilot distributed as source. Use the existing [Canvas Archive workflow](../README.md#desktop-setup) for slides, PDFs, notebooks and Ed Discussion. For a shared sign-in integration, ask your institution about a scoped [Canvas OAuth developer key](https://developerdocs.instructure.com/services/canvas/oauth2/file.developer_keys).
+## One-click recurring sync
+Click the **Study-OS Sync** icon while on any of these signed-in tabs:
+- **BI Canvas (`https://canvas.bi.no`):** Syncs your active courses, module/syllabus topic headings, and personal assignment deadlines.
+  - **Default-public deduplicated Community Courses:** By default, course codes, titles, and copyright-safe module headings are added/merged directly into the **Community Courses** catalog on `studyos.no` (deduplicated by course code — when another student refreshes the same course, it contributes to the existing course without creating duplicates). Uncheck *"Share course catalog to Community"* in the popup anytime to keep your courses private.
+  - **Personal & copyright safety:** Your personal assignment deadlines stay private to your own account, and copyrighted course PDFs/books are **never** uploaded to public servers.
+- **BI TimeEdit (`https://cloud.timeedit.net`):** Open your schedule view in TimeEdit and click **Study-OS Sync** — your timetable automatically syncs to **Schedule** on both desktop and phone so Study-OS plans study blocks around your real lectures, work hours, and sleep.
+- **Ed Discussion (`https://eu.edstem.org` / `https://edstem.org`):** Links your active Ed Discussion courses directly onto matching Community courses by course code (no duplicate courses, no private posts uploaded).

@@ -4225,3 +4225,28 @@ dialog.ai-tutor-sheet:focus {
     bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* Community-synced course module chips */
+.course-contrib-meta {
+  margin: 4px 0 8px;
+  font-size: 12.5px;
+}
+.community-course-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+.topic-mini-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

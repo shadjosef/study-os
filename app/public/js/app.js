@@ -3452,9 +3452,14 @@ window.StudyApp = (() => {
         </section>` : ''}
 
       <section class="panel device-setup-card">
-        <h2>Canvas and phone setup</h2>
+        <h2>One-click browser sync (Canvas · TimeEdit · Ed)</h2>
         ${isStaticWeb
-          ? '<p class="muted">Use the Chrome extension on your computer to sync a signed-in BI Canvas tab. In desktop Study-OS, open Schedule and choose Send to phone.</p><a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Set up Canvas on a computer ↗</a>'
+          ? `<p class="muted">Install the Study-OS Chrome extension once, pair it with a 6-char device code, then click the extension while on <b>BI Canvas</b>, <b>TimeEdit</b>, or <b>Ed Discussion</b> to sync automatically across desktop and phone.</p>
+             <div class="row-actions" style="flex-wrap:wrap">
+               <button type="button" class="primary-btn" id="btn-pair-sync-ext">Get 6-char pairing code</button>
+               <button type="button" class="ghost-btn" id="btn-pull-ext-timeedit">Import synced TimeEdit</button>
+               <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Extension guide ↗</a>
+             </div>`
           : '<p class="muted">After syncing your courses in Chrome, send your plan and Canvas deadlines to your online profile.</p><button type="button" class="ghost-btn" id="btn-send-desktop-setup">Send to phone ↗</button>'}
         ${personalCanvas ? '<h3>Canvas deadlines</h3>' + (due.length ? '<ul class="mobile-deadline-list">' +
           due.map(task => `<li><a href="${esc(task.url)}" target="_blank" rel="noopener">${esc(task.name)}</a><small>${esc(task.course)} · ${esc(new Date(task.dueAt).toLocaleString())}</small></li>`).join('') + '</ul>'
@@ -3767,6 +3772,52 @@ window.StudyApp = (() => {
       renderScheduleStudio();
     });
 
+    document.getElementById('btn-pair-sync-ext')?.addEventListener('click', async () => {
+      if (!window.StudyCommunity?.isSignedIn?.()) {
+        const ok = await window.StudyCommunity?.requireProfile?.({ allowDemo: true, forcePrompt: true });
+        if (!ok) return;
+      }
+      window.StudyCommunity.openSecuritySheet();
+    });
+
+    async function applyExtensionTimeEdit(silent = false) {
+      if (!isStaticWeb || !window.StudyCommunity?.isSignedIn?.()) {
+        if (!silent) toast('Sign in to your Study-OS profile first.');
+        return;
+      }
+      try {
+        const feed = await window.StudyCommunity.fetchExtensionTimeEdit();
+        if (!feed?.hasFeed || !feed.calendar) {
+          if (!silent) toast('No TimeEdit timetable synced from the extension yet. Open BI TimeEdit in Chrome and click Study-OS Sync.');
+          return;
+        }
+        const lastApplied = Number(localStorage.getItem('study-os-ext-te-ts') || 0);
+        if (silent && feed.updatedAt <= lastApplied) return;
+        const formPrefs = collectFormPrefs();
+        const fixed = await window.StudySchedule.readCalendar(feed.calendar);
+        const plan = window.StudySchedule.plan(fixed, formPrefs, boot.catalog, boot.analytics?.courseProgress || {}, computeClientStudyEstimate);
+        if (!plan.blocks.length) return;
+        const ws = loadWebState();
+        ws.customSchedule = {
+          enabled: true, source: 'timeedit_extension_sync', prefs: formPrefs, blocks: plan.blocks,
+          estimate: plan.estimate, updatedAt: new Date(feed.updatedAt || Date.now()).toISOString(),
+        };
+        saveWebState(ws);
+        try { localStorage.setItem('study-os-ext-te-ts', String(feed.updatedAt || Date.now())); } catch {}
+        recomputeWebAnalytics();
+        syncCloudProgress().catch(() => {});
+        toast(`Synced TimeEdit from extension (${plan.studyCount} blocks around ${fixed.length} classes).`);
+        renderScheduleStudio();
+      } catch (err) {
+        if (!silent) toast(err.message || 'Could not import TimeEdit from extension.');
+      }
+    }
+
+    document.getElementById('btn-pull-ext-timeedit')?.addEventListener('click', () => applyExtensionTimeEdit(false));
+    if (isStaticWeb && window.StudyCommunity?.isSignedIn?.()) {
+      applyExtensionTimeEdit(true);
+    }
+
     root.querySelectorAll('[data-sched-start]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const blk = (boot.calendar?.blocks || []).find((b) => b.eventId === btn.dataset.schedStart);
@@ -3783,13 +3834,44 @@ window.StudyApp = (() => {
       const grid = root.querySelector('.courses-grid');
       const currentIds = new Set(boot.catalog.map(course => String(course.canvasId || course.courseId?.split('-').pop() || '')));
       const currentCodes = new Set(boot.catalog.map(course => (course.code || '').toUpperCase().replace(/\s/g, '')));
-      const shown = items.filter(course => /^[1-9][0-9]{0,19}$/.test(course.canvasId) &&
-        !currentIds.has(course.canvasId) && !currentCodes.has(course.code || '--'));
-      grid.innerHTML = shown.map(course => `<article class="course-card">
-        ${course.code ? `<small class="muted">${esc(course.code)}</small>` : ''}
-        <h3>${esc(course.title)}</h3>
-        <a class="ghost-btn" target="_blank" rel="noopener" href="https://canvas.bi.no/courses/${course.canvasId}">Open in BI Canvas ↗</a>
-      </article>`).join('');
+      const shown = items.filter(course => {
+        const hasCanvas = /^[1-9][0-9]{0,19}$/.test(course.canvasId || '');
+        const hasEd = /^[1-9][0-9]{0,19}$/.test(course.edCourseId || '');
+        if (!hasCanvas && !hasEd) return false;
+        if (hasCanvas && currentIds.has(course.canvasId)) return false;
+        if (course.code && currentCodes.has(course.code.toUpperCase().replace(/\s/g, ''))) return false;
+        return true;
+      });
+      grid.innerHTML = shown.map((course, idx) => {
+        const topics = Array.isArray(course.topics) ? course.topics : [];
+        const contrib = Number(course.contributorCount || 1);
+        const topicsHtml = topics.length
+          ? `<div class="community-course-topics">${topics.slice(0, 5).map(t => `<span class="topic-mini-chip">${esc(t)}</span>`).join('')}${topics.length > 5 ? `<span class="topic-mini-chip">+${topics.length - 5}</span>` : ''}</div>`
+          : '';
+        const edHost = /^(?:[a-z]{2}\.)?edstem\.org$/.test(course.edHost || '') ? course.edHost : 'eu.edstem.org';
+        return `<article class="course-card">
+          <div>
+            <div class="row-between" style="margin:0 0 8px">
+              <span class="course-code-pill">${esc(course.code || 'BI Course')}</span>
+              <span class="badge ${course.verified ? 'good' : ''}">${course.verified ? 'Verified' : 'Community'}</span>
+            </div>
+            <h3 class="course-card-title" style="cursor:default">${esc(course.title)}</h3>
+            <p class="muted course-contrib-meta">${contrib} student${contrib === 1 ? '' : 's'} synced${topics.length ? ` · ${topics.length} module${topics.length === 1 ? '' : 's'}` : ''}</p>
+            ${topicsHtml}
+          </div>
+          <div class="course-actions">
+            <button type="button" class="primary-btn" data-comm-ai="${idx}">✨ AI Study</button>
+            ${/^[1-9][0-9]{0,19}$/.test(course.canvasId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="https://canvas.bi.no/courses/${course.canvasId}">Canvas ↗</a>` : ''}
+            ${/^[1-9][0-9]{0,19}$/.test(course.edCourseId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="https://${edHost}/courses/${course.edCourseId}">Ed ↗</a>` : ''}
+          </div>
+        </article>`;
+      }).join('');
+      grid.querySelectorAll('[data-comm-ai]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const course = shown[Number(btn.dataset.commAi)];
+          if (course && window.StudyAiTutor?.openForCourse) window.StudyAiTutor.openForCourse(course);
+        });
+      });
       root.hidden = !shown.length;
     } catch {}
   }

@@ -258,6 +258,11 @@ window.StudyCommunity = (() => {
     return result.calendar;
   }
 
+  async function fetchExtensionTimeEdit() {
+    if (!api || !token) return { hasFeed: false };
+    return request('/schedule/timeedit-feed');
+  }
+
   async function approvedCourses() {
     return api ? (await request('/courses', null, '')).courses : [];
   }
@@ -1199,16 +1204,34 @@ window.StudyCommunity = (() => {
         renderAdminBody(body, overview);
         const courses = document.createElement('section');
         courses.className = 'panel course-review';
-        courses.innerHTML = `<h3>Canvas course suggestions</h3>${courseList.courses.length
-          ? courseList.courses.map(course => `<div class="row-between">
-            <span><strong>${esc(course.title)}</strong> · ${esc(course.code || 'BI Canvas')} · ${esc(course.status)}</span>
+        courses.innerHTML = `<h3>Community-synced courses (${courseList.courses.length})</h3>${courseList.courses.length
+          ? courseList.courses.map(course => `<div class="row-between" style="gap:8px;padding:6px 0;border-bottom:1px solid var(--line)">
+            <span>
+              <strong>${esc(course.code || 'BI')} · ${esc(course.title)}</strong>
+              ${course.verified ? '<span class="badge good" style="margin-left:4px">Verified</span>' : ''}
+              ${course.status === 'rejected' ? '<span class="badge bad" style="margin-left:4px">Hidden</span>' : ''}
+              <br><small class="muted">${course.contributorCount || 1} student${(course.contributorCount || 1) === 1 ? '' : 's'} · ${course.syncCount || 1} sync${(course.syncCount || 1) === 1 ? '' : 's'}${course.topicCount ? ` · ${course.topicCount} topics` : ''}${course.edCourseId ? ' · Ed linked' : ''}</small>
+            </span>
             <div class="row-actions">
-              ${course.status !== 'approved' ? `<button type="button" class="ghost-btn" data-course-review="approved" data-id="${esc(course.id)}">Approve</button>` : ''}
-              ${course.status !== 'rejected' ? `<button type="button" class="ghost-btn" data-course-review="rejected" data-id="${esc(course.id)}">${course.status === 'approved' ? 'Unpublish' : 'Reject'}</button>` : ''}
+              <button type="button" class="ghost-btn" data-course-verify="${course.verified ? '0' : '1'}" data-id="${esc(course.id)}">${course.verified ? 'Unverify' : 'Verify'}</button>
+              ${course.status !== 'approved' ? `<button type="button" class="ghost-btn" data-course-review="approved" data-id="${esc(course.id)}">Show</button>` : ''}
+              ${course.status !== 'rejected' ? `<button type="button" class="ghost-btn" data-course-review="rejected" data-id="${esc(course.id)}">Hide</button>` : ''}
             </div>
           </div>`).join('')
-          : '<p class="muted">No courses have been suggested yet.</p>'}`;
+          : '<p class="muted">No community courses synced from Canvas or Ed yet.</p>'}`;
         body.prepend(courses);
+        courses.querySelectorAll('[data-course-verify]').forEach(button => {
+          button.onclick = async () => {
+            button.disabled = true;
+            try {
+              await request('/admin/courses', { id: button.dataset.id, verified: button.dataset.courseVerify === '1' });
+              await loadAdmin();
+            } catch (error) {
+              toast(error.message || 'Could not update course verification.');
+              button.disabled = false;
+            }
+          };
+        });
         courses.querySelectorAll('[data-course-review]').forEach(button => {
           button.onclick = async () => {
             button.disabled = true;
@@ -1745,6 +1768,7 @@ window.StudyCommunity = (() => {
     fetchCloudBackup,
     pushCloudBackup,
     fetchTimeEdit,
+    fetchExtensionTimeEdit,
     approvedCourses,
     proposeCourses,
   };

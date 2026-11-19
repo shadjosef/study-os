@@ -35,6 +35,7 @@ window.StudyAiTutor = (() => {
 
   const threadsByQuestion = new Map(); // questionId -> [{ role, text, meta? }]
   let activeKey = 'general';
+  let customCourseContext = null;
   let busy = false;
   let serverStatus = null;
   let configOpen = false;
@@ -179,11 +180,13 @@ window.StudyAiTutor = (() => {
 
   function currentExerciseSnapshot(includeSolution = false) {
     if (window.StudyQuestionCopy?.tutorPayload) {
-      return window.StudyQuestionCopy.tutorPayload({ includeSolution });
+      const p = window.StudyQuestionCopy.tutorPayload({ includeSolution });
+      if (p.mode !== 'waiting') return p;
+    } else if (window.StudyQuestionCopy?.tutorContext) {
+      const p = window.StudyQuestionCopy.tutorContext();
+      if (p.mode !== 'waiting') return p;
     }
-    if (window.StudyQuestionCopy?.tutorContext) {
-      return window.StudyQuestionCopy.tutorContext();
-    }
+    if (customCourseContext) return customCourseContext;
     return { mode: 'waiting' };
   }
 
@@ -486,6 +489,7 @@ window.StudyAiTutor = (() => {
   }
 
   function open(initialAction = '') {
+    customCourseContext = null;
     const dialog = ensureDialog();
     renderSheet();
     if (!dialog.open) {
@@ -499,5 +503,27 @@ window.StudyAiTutor = (() => {
     }
   }
 
-  return { open, refreshStatus };
+  function openForCourse(course) {
+    if (!course) return open();
+    const topics = Array.isArray(course.topics) && course.topics.length
+      ? `\n\nCourse modules / syllabus topics:\n${course.topics.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
+      : '';
+    customCourseContext = {
+      mode: 'practice',
+      courseId: course.id || course.code || 'community',
+      questionId: 'course-overview',
+      course: course.code || 'Community Course',
+      title: course.title || 'Course study',
+      context: `Course: ${course.code ? course.code + ' · ' : ''}${course.title || ''}${topics}\n\nThe student wants to study concepts, build practice drills, or review topics from this course.`,
+    };
+    const dialog = ensureDialog();
+    renderSheet();
+    if (!dialog.open) {
+      dialog.showModal();
+      dialog.focus({ preventScroll: true });
+    }
+    refreshStatus();
+  }
+
+  return { open, openForCourse, refreshStatus };
 })();

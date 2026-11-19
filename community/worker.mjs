@@ -3,7 +3,7 @@ import { verifyJoinProof, consumeInviteUse, handleAdmin } from './admin.mjs';
 import { handlePublicAuth, handleAuthedAuth } from './auth.mjs';
 import { handleSync } from './sync.mjs';
 import { checkHuman } from './human.mjs';
-import { readTimeEdit } from './timeedit.mjs';
+import { readTimeEdit, pushTimeEditFeed, getTimeEditFeed } from './timeedit.mjs';
 import { handleCourses } from './courses.mjs';
 import { handleAi } from './ai.mjs';
 
@@ -19,6 +19,15 @@ const avatarPresets = new Set(['owl', 'fox', 'cat', 'penguin', 'rocket', 'book',
 const nicknameCooldownMs = 30 * 86_400_000;
 const maxInputBytes = 65_536;
 const maxSyncBytes = 524_288;
+const maxIcsBytes = 2_100_000;
+const chromeExtOriginPattern = /^chrome-extension:\/\/[a-p]{32}$/;
+const extensionAllowedPaths = new Set([
+  '/auth/extension-link',
+  '/courses/sync',
+  '/schedule/timeedit-push',
+  '/schedule/timeedit-feed',
+  '/profile',
+]);
 const publicAuthPaths = new Set([
   '/auth/config',
   '/auth/google',
@@ -26,6 +35,7 @@ const publicAuthPaths = new Set([
   '/auth/passkey/login/options',
   '/auth/passkey/login/verify',
   '/auth/link-redeem',
+  '/auth/extension-link',
   '/auth/recovery',
 ]);
 const breakRequired = new Set(['/dashboard', '/message', '/chat', '/block', '/sets']);
@@ -114,27 +124,39 @@ export default {
       'X-Content-Type-Options': 'nosniff',
       'Vary': 'Origin',
     };
+    const url = new URL(request.url);
+    const path = url.pathname;
     const webOrigin = request.headers.get('Origin');
-    if (webOrigin && (webOrigin === env.WEB_ORIGIN || webOrigin === env.WEB_ADDITIONAL_ORIGIN)) {
+    const isAllowedWeb = Boolean(webOrigin && (webOrigin === env.WEB_ORIGIN || webOrigin === env.WEB_ADDITIONAL_ORIGIN));
+    const isAllowedExt = Boolean(
+      extensionAllowedPaths.has(path) && (
+        (webOrigin && chromeExtOriginPattern.test(webOrigin)) ||
+        (!webOrigin && request.headers.get('X-Study-OS-Client') === 'extension')
+      )
+    );
+    if (isAllowedWeb) {
+      headers['Access-Control-Allow-Origin'] = webOrigin;
+    } else if (isAllowedExt && webOrigin) {
       headers['Access-Control-Allow-Origin'] = webOrigin;
     }
     const reply = (data, status = 200) => Response.json(data, { status, headers });
-    if (!headers['Access-Control-Allow-Origin']) return reply({ error: 'Origin not allowed.' }, 403);
+    if (!isAllowedWeb && !isAllowedExt) return reply({ error: 'Origin not allowed.' }, 403);
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: {
         ...headers,
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Study-OS-Client',
         'Access-Control-Max-Age': '3600',
       } });
     }
 
-    const url = new URL(request.url);
-    const path = url.pathname;
     const db = env.DB;
     let data = {};
     if (request.method === 'POST') {
-      try { data = await readJson(request, path === '/sync' ? maxSyncBytes : maxInputBytes); }
+      const limit = path === '/schedule/timeedit-push'
+        ? maxIcsBytes
+        : (path === '/sync' || path === '/courses/sync') ? maxSyncBytes : maxInputBytes;
+      try { data = await readJson(request, limit); }
       catch { return reply({ error: 'Invalid request.' }, 400); }
     }
     const humanError = await checkHuman(request, env, path, data, reply);
@@ -196,8 +218,10 @@ export default {
     }
     if (!me) return reply({ error: 'That profile key is invalid.' }, 401);
     if (path === '/schedule/timeedit' && request.method === 'POST') return readTimeEdit(data, reply);
+    if (path === '/schedule/timeedit-push' && request.method === 'POST') return pushTimeEditFeed(db, me.id, data, now, reply);
+    if (path === '/schedule/timeedit-feed' && request.method === 'GET') return getTimeEditFeed(db, me.id, reply);
     const isAdmin = isAdminMember(env, me, tokenHash);
-    if (path === '/courses/propose' || path === '/admin/courses') {
+    if (path === '/courses/sync' || path === '/courses/propose' || path === '/admin/courses') {
       return handleCourses({ path, request, db, data, me, isAdmin, now, reply });
     }
     if (path.startsWith('/auth/')) {

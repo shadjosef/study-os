@@ -11,7 +11,7 @@ export function turnstileSiteKey(env) {
 
 export async function checkHuman(request, env, path, data, reply) {
   const action = checks.get(path);
-  const rateAction = action || (path === '/auth/google' ? 'google' : '');
+  const rateAction = action || (path === '/auth/google' ? 'google' : path === '/auth/extension-link' ? 'extlink' : '');
   if (!rateAction || request.method !== 'POST') return null;
   const client = request.headers.get('CF-Connecting-IP');
   if (client && env.AUTH_RATE_LIMIT) {

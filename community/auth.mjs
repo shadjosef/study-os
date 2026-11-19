@@ -464,7 +464,7 @@ export async function handlePublicAuth({
     return reply({ token, profileId: row.profile_id, nickname: row.nickname });
   }
 
-  if (path === '/auth/link-redeem') {
+  if (path === '/auth/link-redeem' || path === '/auth/extension-link') {
     const rawCode = typeof data.code === 'string' ? data.code.toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
     if (!/^[A-Z2-9]{6}$/.test(rawCode)) {
       return reply({ error: 'Enter a valid 6-character device code (e.g. K7M-9P2).' }, 400);

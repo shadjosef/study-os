@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Study-OS Canvas Sync",
-  "version": "1.1.0",
-  "description": "Sync courses and assignment deadlines from your open BI Canvas tab to desktop Study-OS.",
+  "name": "Study-OS Sync",
+  "version": "1.2.0",
+  "description": "One-click sync for BI Canvas courses & deadlines, TimeEdit schedules, and Ed Discussion courses directly to Study-OS.",
   "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["http://127.0.0.1/*"],
+  "host_permissions": [
+    "https://shadjosef-study-os.shadjosef-study-os.workers.dev/*",
+    "http://127.0.0.1/*"
+  ],
   "action": {
-    "default_title": "Sync Canvas to Study-OS",
+    "default_title": "Sync Canvas, TimeEdit or Ed to Study-OS",
     "default_popup": "popup.html"
   },
   "background": {
