@@ -52,6 +52,7 @@ jobs:
           node --check app/public/js/community.js
           node --check community/worker.mjs
           node --check community/rooms.mjs
+          node --check community/admin.mjs
           node --check obsidian-plugin/main.js
 
       - name: Fresh-clone CLI & HTTP smoke test (zero data/)

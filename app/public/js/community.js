@@ -154,7 +154,7 @@ window.StudyCommunity = (() => {
     const join = root.querySelector('#community-join');
     action(join, async (form) => {
       const invite = form.get('invite').trim();
-      if (!/^soci1_[A-Za-z0-9_-]{43}$/.test(invite)) throw new Error('Enter a valid Community invite code.');
+      if (!/^\S{6,120}$/.test(invite)) throw new Error('Enter a valid Community invite code.');
       const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invite)));
       const proof = [...hash].map((value) => value.toString(16).padStart(2, '0')).join('');
       const result = await request('/join', { nickname: form.get('nickname'), proof }, '');
@@ -501,6 +501,253 @@ window.StudyCommunity = (() => {
       </div>`;
   }
 
+  function adminPanelHtml(me) {
+    if (!me?.isAdmin) return '';
+    return `
+      <details class="panel community-admin-panel" id="community-admin-panel">
+        <summary><strong>Admin · Join strings, access &amp; members</strong> <span class="badge admin-badge">Admin only</span></summary>
+        <div id="community-admin-body" style="margin-top:12px">
+          <p class="muted">Open to load invite codes, signup settings, and member controls…</p>
+        </div>
+      </details>`;
+  }
+
+  function bindAdminPanel(root, me) {
+    const panel = root.querySelector('#community-admin-panel');
+    if (!panel || !me?.isAdmin) return;
+    let lastCreatedCode = '';
+
+    async function loadAdmin() {
+      const body = panel.querySelector('#community-admin-body');
+      if (!body) return;
+      body.innerHTML = '<p class="muted">Loading admin controls…</p>';
+      try {
+        const overview = await request('/admin/overview');
+        if (!body.isConnected) return;
+        renderAdminBody(body, overview);
+      } catch (err) {
+        body.innerHTML = `<p class="muted">${esc(err.message || 'Could not load admin controls.')}</p>`;
+      }
+    }
+
+    function renderAdminBody(body, { settings, invites, members, now }) {
+      const inviteRows = (invites || []).map((inv) => {
+        const expired = inv.expiresAt > 0 && inv.expiresAt <= now;
+        const full = inv.maxUses > 0 && inv.uses >= inv.maxUses;
+        const badge = inv.revoked
+          ? '<span class="badge bad">Revoked</span>'
+          : expired
+          ? '<span class="badge warn">Expired</span>'
+          : full
+          ? '<span class="badge warn">Full</span>'
+          : '<span class="badge good">Active</span>';
+        const usesLabel = inv.maxUses > 0 ? `${inv.uses} / ${inv.maxUses}` : `${inv.uses} / ∞`;
+        const expLabel = inv.expiresAt > 0 ? formatOsloDate(inv.expiresAt) : 'Never';
+        return `<tr>
+          <td><strong>${esc(inv.label || 'Invite')}</strong><br><small class="muted"><code>${esc(inv.hint)}</code></small></td>
+          <td>${usesLabel}</td>
+          <td>${esc(expLabel)}</td>
+          <td>${badge}</td>
+          <td>
+            <div class="row-actions">
+              <button type="button" class="ghost-btn" data-inv-act="${inv.revoked ? 'restore' : 'revoke'}" data-inv-id="${esc(inv.id)}" style="padding:4px 9px;font-size:12px">${inv.revoked ? 'Restore' : 'Revoke'}</button>
+              <button type="button" class="ghost-btn" data-inv-act="delete" data-inv-id="${esc(inv.id)}" style="padding:4px 9px;font-size:12px">Delete</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      const memberRows = (members || []).map((m) => {
+        const isSelf = m.id === me.id;
+        const locked = !isSelf && m.nicknameChangedAt > 0 && m.nicknameChangedAt + 30 * 86_400_000 > now;
+        return `<tr>
+          <td><span class="community-member-inline">${avatarHtml(m.nickname, m.avatar, 26)}<strong>${esc(m.nickname)}</strong>${isSelf ? ' <span class="badge admin-badge">You</span>' : ''}</span></td>
+          <td>${(m.studyMinutes / 60).toFixed(1)}h · ${m.completed} Qs</td>
+          <td>${m.breakCount ? `${formatBreakDuration(m.breakMinutes)} · ${m.breakCount}×` : '—'}</td>
+          <td>${locked ? `<span class="badge warn">Locked until ${esc(formatOsloDate(m.nicknameChangedAt + 30 * 86_400_000))}</span>` : '<span class="badge good">Unlocked</span>'}</td>
+          <td>
+            <div class="row-actions">
+              <button type="button" class="ghost-btn" data-mem-rename="${esc(m.id)}" data-mem-name="${esc(m.nickname)}" style="padding:4px 9px;font-size:12px">Rename</button>
+              ${locked ? `<button type="button" class="ghost-btn" data-mem-reset="${esc(m.id)}" style="padding:4px 9px;font-size:12px">Reset 30d lock</button>` : ''}
+              ${isSelf ? '' : `<button type="button" class="ghost-btn" data-mem-remove="${esc(m.id)}" data-mem-name="${esc(m.nickname)}" style="padding:4px 9px;font-size:12px">Remove</button>`}
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      body.innerHTML = `
+        <div class="admin-section">
+          <div class="row-between">
+            <h3>Joining access</h3>
+            <button type="button" class="ghost-btn" id="admin-refresh-btn" style="padding:4px 10px;font-size:12.5px">Refresh</button>
+          </div>
+          <div class="admin-toggles">
+            <label class="check-row">
+              <input type="checkbox" id="admin-toggle-signups" ${settings.signupsOpen ? 'checked' : ''}>
+              <span><strong>Allow new signups</strong> <small class="muted">(uncheck to pause all new Community joins immediately)</small></span>
+            </label>
+            ${settings.hasEnvJoinProof ? `
+              <label class="check-row">
+                <input type="checkbox" id="admin-toggle-env-join" ${settings.envJoinEnabled ? 'checked' : ''}>
+                <span><strong>Allow original Wrangler env invite code</strong> <small class="muted">(uncheck to rely only on invite codes created below)</small></span>
+              </label>` : ''}
+          </div>
+          <p id="admin-action-status" class="muted" role="status"></p>
+        </div>
+
+        <div class="admin-section">
+          <h3>Create join string / invite code</h3>
+          <form id="admin-create-invite" class="admin-invite-form">
+            <label class="field-label">Label <input name="label" maxlength="60" placeholder="e.g. OB Class Nov 2026"></label>
+            <label class="field-label">Max uses <small class="muted">(0 = unlimited)</small> <input name="maxUses" type="number" min="0" max="10000" value="0"></label>
+            <label class="field-label">Expires in days <small class="muted">(0 = never)</small> <input name="expiresInDays" type="number" min="0" max="365" value="0"></label>
+            <label class="field-label">Custom join string <small class="muted">(optional, 6–120 chars, no spaces — leave blank to auto-generate secure <code>soci1_…</code>)</small>
+              <input name="customCode" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Leave blank for random soci1_... code">
+            </label>
+            <div class="row-actions">
+              <button type="submit" class="primary-btn">Create join string</button>
+            </div>
+          </form>
+          ${lastCreatedCode ? `
+            <div class="admin-created-code">
+              <div>
+                <strong>New join string (shown once — copy it now):</strong>
+                <code id="admin-new-code-text" style="display:block;margin-top:4px;word-break:break-all">${esc(lastCreatedCode)}</code>
+              </div>
+              <button type="button" class="primary-btn" id="admin-copy-new-code">Copy join string</button>
+            </div>` : ''}
+          ${inviteRows ? `<div class="community-table" style="margin-top:10px"><table>
+            <thead><tr><th>Invite</th><th>Uses</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody>${inviteRows}</tbody></table></div>` : '<p class="muted" style="margin-top:8px">No custom invite codes created yet.</p>'}
+        </div>
+
+        <div class="admin-section">
+          <h3>Members (${(members || []).length})</h3>
+          ${memberRows ? `<div class="community-table"><table>
+            <thead><tr><th>Member</th><th>Study</th><th>Breaks</th><th>Nickname lock</th><th>Actions</th></tr></thead>
+            <tbody>${memberRows}</tbody></table></div>` : ''}
+        </div>
+      `;
+
+      const status = body.querySelector('#admin-action-status');
+      body.querySelector('#admin-refresh-btn').onclick = () => loadAdmin();
+
+      const updateSetting = async (payload, msg) => {
+        status.textContent = 'Saving…';
+        try {
+          await request('/admin/settings', payload);
+          status.textContent = msg;
+          toast(msg);
+        } catch (err) {
+          status.textContent = err.message;
+          await loadAdmin();
+        }
+      };
+
+      body.querySelector('#admin-toggle-signups').onchange = (ev) =>
+        updateSetting({ signupsOpen: ev.currentTarget.checked }, ev.currentTarget.checked ? 'Signups opened.' : 'Signups paused.');
+      body.querySelector('#admin-toggle-env-join')?.addEventListener('change', (ev) =>
+        updateSetting({ envJoinEnabled: ev.currentTarget.checked }, ev.currentTarget.checked ? 'Legacy env invite enabled.' : 'Legacy env invite disabled.'));
+
+      body.querySelector('#admin-copy-new-code')?.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(lastCreatedCode);
+          toast('Join string copied.');
+        } catch {
+          status.textContent = 'Select and copy the join string shown above.';
+        }
+      });
+
+      const createForm = body.querySelector('#admin-create-invite');
+      createForm.onsubmit = async (ev) => {
+        ev.preventDefault();
+        const btn = createForm.querySelector('button[type=submit]');
+        btn.disabled = true;
+        status.textContent = 'Creating invite code…';
+        try {
+          const fd = new FormData(createForm);
+          const res = await request('/admin/invites', {
+            action: 'create',
+            label: String(fd.get('label') || '').trim(),
+            maxUses: Number(fd.get('maxUses') || 0),
+            expiresInDays: Number(fd.get('expiresInDays') || 0),
+            customCode: String(fd.get('customCode') || '').trim(),
+          });
+          lastCreatedCode = res.code || '';
+          toast('Join string created — copy it below.');
+          await loadAdmin();
+        } catch (err) {
+          status.textContent = err.message || 'Could not create join string.';
+          btn.disabled = false;
+        }
+      };
+
+      for (const btn of body.querySelectorAll('[data-inv-act]')) {
+        btn.onclick = async () => {
+          const act = btn.dataset.invAct;
+          if (act === 'delete' && !window.confirm('Permanently delete this invite code?')) return;
+          btn.disabled = true;
+          try {
+            await request('/admin/invites', { action: act, id: btn.dataset.invId });
+            await loadAdmin();
+          } catch (err) {
+            status.textContent = err.message;
+            btn.disabled = false;
+          }
+        };
+      }
+
+      for (const btn of body.querySelectorAll('[data-mem-rename]')) {
+        btn.onclick = async () => {
+          const next = window.prompt('Enter new nickname (2–24 characters):', btn.dataset.memName || '');
+          if (!next || next.trim() === btn.dataset.memName) return;
+          btn.disabled = true;
+          try {
+            await request('/admin/members', { action: 'rename', id: btn.dataset.memRename, nickname: next.trim() });
+            toast('Member renamed.');
+            await loadAdmin();
+          } catch (err) {
+            status.textContent = err.message;
+            btn.disabled = false;
+          }
+        };
+      }
+
+      for (const btn of body.querySelectorAll('[data-mem-reset]')) {
+        btn.onclick = async () => {
+          btn.disabled = true;
+          try {
+            await request('/admin/members', { action: 'reset_cooldown', id: btn.dataset.memReset });
+            toast('30-day nickname lock cleared.');
+            await loadAdmin();
+          } catch (err) {
+            status.textContent = err.message;
+            btn.disabled = false;
+          }
+        };
+      }
+
+      for (const btn of body.querySelectorAll('[data-mem-remove]')) {
+        btn.onclick = async () => {
+          if (!window.confirm(`Remove member "${btn.dataset.memName}" and delete their profile & messages?`)) return;
+          btn.disabled = true;
+          try {
+            await request('/admin/members', { action: 'remove', id: btn.dataset.memRemove });
+            toast('Member removed.');
+            await loadAdmin();
+          } catch (err) {
+            status.textContent = err.message;
+            btn.disabled = false;
+          }
+        };
+      }
+    }
+
+    panel.ontoggle = () => {
+      if (panel.open) loadAdmin();
+    };
+  }
+
   function renderLocked(root, profile) {
     const me = typeof profile === 'string' ? { nickname: profile, avatar: '', bio: '', isAdmin: false, nextNicknameChangeAt: 0 } : profile;
     root.innerHTML = `
@@ -522,9 +769,12 @@ window.StudyCommunity = (() => {
           <button type="button" class="ghost-btn" id="community-logout">Sign out</button>
           <button type="button" class="ghost-btn" id="community-delete">Delete my profile</button>
         </div>
-      </section>${privacyNote}`;
+      </section>
+      ${adminPanelHtml(me)}
+      ${privacyNote}`;
     profileActions(root);
     bindProfileEditor(root, me, () => render());
+    bindAdminPanel(root, me);
   }
 
   function presenceLabel(row, now) {
@@ -632,6 +882,7 @@ window.StudyCommunity = (() => {
         <p class="muted" style="margin-top:8px">Keep your profile key to use your account on another device.</p>
         <p id="community-status" role="status"></p>
       </section>
+      ${adminPanelHtml(me)}
       ${window.StudyRooms.lobbyHtml()}
       <section class="panel">
         <h2>Leaderboard</h2>
@@ -688,6 +939,7 @@ window.StudyCommunity = (() => {
     });
     profileActions(root);
     bindProfileEditor(root, me, () => render(offset));
+    bindAdminPanel(root, me);
     window.StudyRooms.bindLobby(root);
     doAction(root.querySelector('#community-refresh'), () => render(offset));
     doAction(root.querySelector('#community-stats'), () => render(offset));

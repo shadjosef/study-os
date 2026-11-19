@@ -1,4 +1,5 @@
 import { handleRooms, runningStudyRoom } from './rooms.mjs';
+import { verifyJoinProof, consumeInviteUse, handleAdmin } from './admin.mjs';
 
 const encoder = new TextEncoder();
 const hex = (bytes) => [...bytes].map((n) => n.toString(16).padStart(2, '0')).join('');
@@ -121,15 +122,22 @@ export default {
     }
 
     if (path === '/join' && request.method === 'POST') {
-      if (!equalProof(env.JOIN_PROOF, data.proof)) return reply({ error: 'Enter a valid Community invite code.' }, 403);
+      const nowJoin = Date.now();
+      const check = await verifyJoinProof(db, env, data.proof, nowJoin, equalProof);
+      if (!check.ok) return reply({ error: check.error }, 403);
       const nickname = typeof data.nickname === 'string' ? data.nickname.trim().normalize('NFC') : '';
       if (!nicknamePattern.test(nickname)) {
         return reply({ error: 'Choose a nickname of 2–24 letters, numbers or spaces.' }, 400);
       }
+      const id = crypto.randomUUID();
       const token = 'soc1_' + hex(crypto.getRandomValues(new Uint8Array(32)));
       const result = await db.prepare('INSERT OR IGNORE INTO profiles(id, token_hash, nickname) VALUES (?, ?, ?)')
-        .bind(crypto.randomUUID(), await digest(token), nickname).run();
+        .bind(id, await digest(token), nickname).run();
       if (!result.meta.changes) return reply({ error: 'That nickname is taken.' }, 409);
+      if (check.inviteId && !await consumeInviteUse(db, check.inviteId, nowJoin)) {
+        await db.prepare('DELETE FROM profiles WHERE id = ?').bind(id).run();
+        return reply({ error: 'That invite code is no longer available.' }, 403);
+      }
       return reply({ token }, 201);
     }
 
@@ -145,6 +153,9 @@ export default {
     if (!me) return reply({ error: 'That profile key is invalid.' }, 401);
     const now = Date.now();
     const isAdmin = isAdminMember(env, me, tokenHash);
+    if (path.startsWith('/admin/')) {
+      return handleAdmin({ request, url, db, env, me, isAdmin, now, data, reply, digest, nicknamePattern });
+    }
     if (breakRequired.has(path) || path === '/rooms' || path.startsWith('/rooms/')) {
       const breakAccess = Number(osloHour.format(now)) >= 20 || (me.break_ends_at > now && me.expires_at > now);
       const canUseCommunity = breakAccess && !await runningStudyRoom(db, me.id, now);

@@ -2,6 +2,7 @@
 
 ## 19 November 2026
 
+- Added a **Community Admin** panel (available anytime to Admin profiles on the Community tab) to pause/open signups, create/revoke/delete hashed invite codes and custom join strings (with optional max uses & expiry), disable the legacy env invite code, and manage members (rename, reset 30-day nickname lock, remove).
 - Added **Edit profile & PFP** and **Break tracking** in Community: upload a cropped profile photo or choose a preset avatar, set an optional short bio, update your nickname once every 30 days (unlimited for Admin), and track total break time, break count, average break length, and break frequency per study hour on profiles and the leaderboard. Avatars also appear across global chat, direct messages, study rooms, and duel Elo rankings.
 - Added a live **AI tutor** MCP bridge (`get_current_exercise`, `list_course_files`, default Socratic tutoring instructions, hosted-site desktop bridge, and `docs/ai-tutor.md`) plus a desktop **Admin** panel for linking local PDF pages to exercises.
 - Added **Try demo (no code needed)** mode so visitors can explore practice questions and study notes without a Community invite code.
