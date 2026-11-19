@@ -476,21 +476,29 @@ def generate_adaptive_schedule(
             c_code = c_bank.get("code") or chosen_cid.upper()
             c_short = c_bank.get("shortTitle") or c_bank.get("title") or chosen_cid
 
-            hour = cursor.hour
-            if hour < 15:
-                phase_tag = "Hard · Multi-step"
+            hours_awake = max(0.0, (cursor - day_start).total_seconds() / 3600.0 + 0.5)
+            today_high_min = sum(
+                int(b.get("focusMinutes") or 0)
+                for b in generated_blocks
+                if b.get("date") == cur_day.isoformat() and b.get("dlpfcMode") == "high_dlpfc"
+            )
+            if hours_awake < 7.0 and today_high_min + block_min <= 270:
+                dlpfc_mode = "high_dlpfc"
+                phase_tag = "High DLPFC · Synthesis"
                 b_type = "deep_50_10"
-            elif hour < 18:
-                phase_tag = "Medium practice"
+            elif hours_awake < 11.0:
+                dlpfc_mode = "med_dlpfc"
+                phase_tag = "Med DLPFC · Procedural"
                 b_type = "deep_50_10"
             else:
-                phase_tag = "Easy · Recall"
+                dlpfc_mode = "low_dlpfc"
+                phase_tag = "Low DLPFC · Recall"
                 b_type = "sprint_20"
 
             generated_blocks.append(
                 {
                     "eventId": f"auto-{cur_day.isoformat()}-{cursor.strftime('%H%M')}-{chosen_cid}",
-                    "summary": f"{c_code} {c_short} — {phase_tag} ({block_min}/{break_min})",
+                    "summary": f"[{phase_tag.split(' · ')[0]}] {c_code} {c_short} · {phase_tag.split(' · ')[1]} ({block_min}/{break_min})",
                     "date": cur_day.isoformat(),
                     "start": cursor.isoformat(),
                     "end": cand_end.isoformat(),
@@ -504,8 +512,9 @@ def generate_adaptive_schedule(
                     "attemptBudgetMinutes": max(18, int(round(block_min * 0.85))),
                     "courseId": chosen_cid,
                     "topicIds": [],
-                    "blockKind": "recall_sprint" if hour >= 18 else "study_block",
+                    "blockKind": "recall_sprint" if dlpfc_mode == "low_dlpfc" else "study_block",
                     "blockType": b_type,
+                    "dlpfcMode": dlpfc_mode,
                     "recommendedProfile": "learning",
                     "origin": "auto_scheduler",
                 }
@@ -683,7 +692,9 @@ def export_blocks_to_ics(blocks: list[dict[str, Any]], cal_name: str = "Study-OS
         uid = re.sub(r"[^A-Za-z0-9._@-]", "-", str(b.get("eventId") or "block")) + "@study-os.local"
         summary = str(b.get("summary") or "Study Block").replace(",", "\\,").replace(";", "\\;")
         cid = str(b.get("courseId") or "")
-        desc = f"Course: {cid} | Profile: {b.get('recommendedProfile', 'learning')}".replace(",", "\\,")
+        mode = str(b.get("dlpfcMode") or ("low_dlpfc" if b.get("blockKind") == "recall_sprint" else "med_dlpfc"))
+        launch = f"https://studyos.no/?course={cid}&autostart=1&dlpfc={mode}" if cid else "https://studyos.no/"
+        desc = f"DLPFC Tier: {mode} | Course: {cid} | Profile: {b.get('recommendedProfile', 'learning')}\\nOpen in Study-OS: {launch}".replace(",", "\\,")
         lines.extend(
             [
                 "BEGIN:VEVENT",

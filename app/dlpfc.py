@@ -64,8 +64,10 @@ def classify_intrinsic_dlpfc(q: dict[str, Any]) -> tuple[int, str]:
         return 1, "recall"
 
     if cid == "math-2588":
-        if diff >= 3 or target >= 20.0:
+        if diff >= 3 or target >= 15.0:
             return 3, "synthesis"
+        if diff <= 1 or target <= 4.0:
+            return 1, "recall"
         return 2, "procedural"
 
     if cid == "ob-2537":

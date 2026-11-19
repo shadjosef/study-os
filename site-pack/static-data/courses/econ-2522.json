@@ -268,7 +268,7 @@
       "collectionId": "SYN-MCQ",
       "origin": "synthetic_drill",
       "kind": "mcq",
-      "difficulty": 2,
+      "difficulty": 1,
       "title": "M002 · Reading a Lorenz point",
       "promptMarkdown": "A Lorenz curve contains (60%, 25%). What does this mean?",
       "promptAssets": [],
@@ -318,7 +318,7 @@
         "topic-1",
         "t7"
       ],
-      "dlpfcBase": 2,
+      "dlpfcBase": 1,
       "cognitiveType": "procedural",
       "sources": {}
     },
@@ -392,7 +392,7 @@
       "collectionId": "SYN-MCQ",
       "origin": "synthetic_drill",
       "kind": "mcq",
-      "difficulty": 1,
+      "difficulty": 2,
       "title": "M004 · Diminishing average product",
       "promptMarkdown": "Farm output rises from 600 to 720 when labour rises from 10 to 15 workers. Which conclusion is justified?",
       "promptAssets": [],
@@ -442,7 +442,7 @@
         "topic-1",
         "t1"
       ],
-      "dlpfcBase": 1,
+      "dlpfcBase": 2,
       "cognitiveType": "recall",
       "sources": {}
     },

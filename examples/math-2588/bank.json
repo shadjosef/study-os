@@ -164,7 +164,7 @@
       "courseId": "math-2588",
       "topicId": "1",
       "collectionId": "math-topic-practice",
-      "difficulty": 2,
+      "difficulty": 1,
       "origin": "synthetic_drill",
       "kind": "calculation",
       "title": "Simplify an algebraic fraction",
@@ -196,7 +196,8 @@
       "rubricChecks": [
         "Simplify to $2(x+2)$",
         "Exclude $x=2$"
-      ]
+      ],
+      "dlpfcBase": 1
     },
     {
       "id": "math-2588:PUBLIC-MATH-02",
@@ -235,7 +236,8 @@
       ],
       "numericCheck": {
         "expected": 5130
-      }
+      },
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-03",
@@ -275,7 +277,8 @@
       "rubricChecks": [
         "Discount payments at their own dates",
         "Compare the correct NPVs and choose A"
-      ]
+      ],
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-04",
@@ -314,7 +317,8 @@
       ],
       "numericCheck": {
         "expected": 4310.13
-      }
+      },
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-05",
@@ -322,7 +326,7 @@
       "courseId": "math-2588",
       "topicId": "5",
       "collectionId": "math-topic-practice",
-      "difficulty": 2,
+      "difficulty": 1,
       "origin": "synthetic_drill",
       "kind": "calculation",
       "title": "Find two roots by substitution",
@@ -354,7 +358,8 @@
       "rubricChecks": [
         "Solve for $u=4,9$",
         "Give all four real roots"
-      ]
+      ],
+      "dlpfcBase": 1
     },
     {
       "id": "math-2588:PUBLIC-MATH-06",
@@ -362,7 +367,7 @@
       "courseId": "math-2588",
       "topicId": "6",
       "collectionId": "math-topic-practice",
-      "difficulty": 2,
+      "difficulty": 1,
       "origin": "synthetic_drill",
       "kind": "calculation",
       "title": "Use the factor theorem",
@@ -393,7 +398,8 @@
       ],
       "numericCheck": {
         "expected": -1
-      }
+      },
+      "dlpfcBase": 1
     },
     {
       "id": "math-2588:PUBLIC-MATH-07",
@@ -401,7 +407,7 @@
       "courseId": "math-2588",
       "topicId": "7",
       "collectionId": "math-topic-practice",
-      "difficulty": 2,
+      "difficulty": 1,
       "origin": "synthetic_drill",
       "kind": "calculation",
       "title": "Check for an extraneous root",
@@ -433,7 +439,8 @@
       "rubricChecks": [
         "State $x\\ge0$",
         "Reject $-2$ and verify $3$"
-      ]
+      ],
+      "dlpfcBase": 1
     },
     {
       "id": "math-2588:PUBLIC-MATH-08",
@@ -441,7 +448,7 @@
       "courseId": "math-2588",
       "topicId": "8",
       "collectionId": "math-topic-practice",
-      "difficulty": 2,
+      "difficulty": 1,
       "origin": "synthetic_drill",
       "kind": "calculation",
       "title": "Read the centre of an ellipse",
@@ -473,7 +480,8 @@
       "rubricChecks": [
         "Obtain the standard form",
         "Identify the centre and both semi-axis lengths"
-      ]
+      ],
+      "dlpfcBase": 1
     },
     {
       "id": "math-2588:PUBLIC-MATH-09",
@@ -481,7 +489,7 @@
       "courseId": "math-2588",
       "topicId": "9",
       "collectionId": "math-topic-practice",
-      "difficulty": 2,
+      "difficulty": 1,
       "origin": "synthetic_drill",
       "kind": "calculation",
       "title": "Distinguish a hole from an asymptote",
@@ -513,7 +521,8 @@
       "rubricChecks": [
         "Give the hole $(1,-4)$",
         "Give the asymptote $x=2$"
-      ]
+      ],
+      "dlpfcBase": 1
     },
     {
       "id": "math-2588:PUBLIC-MATH-10",
@@ -553,7 +562,8 @@
       "rubricChecks": [
         "Isolate the exponential and apply the log",
         "State the correct domain"
-      ]
+      ],
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-11",
@@ -592,7 +602,8 @@
       ],
       "numericCheck": {
         "expected": 8.155
-      }
+      },
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-12",
@@ -631,7 +642,8 @@
       ],
       "numericCheck": {
         "expected": 288
-      }
+      },
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-13",
@@ -670,7 +682,8 @@
       ],
       "numericCheck": {
         "expected": -1.25
-      }
+      },
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-14",
@@ -710,7 +723,8 @@
       "rubricChecks": [
         "Check both signs of the second derivative",
         "Give the point $(3,-35)$"
-      ]
+      ],
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-15",
@@ -749,7 +763,8 @@
       ],
       "numericCheck": {
         "expected": 2
-      }
+      },
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-16",
@@ -788,7 +803,8 @@
       ],
       "numericCheck": {
         "expected": 10
-      }
+      },
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-17",
@@ -828,7 +844,8 @@
       "rubricChecks": [
         "Calculate the signed elasticity $-2$",
         "Classify demand as elastic"
-      ]
+      ],
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:PUBLIC-MATH-18",
@@ -867,7 +884,8 @@
       ],
       "numericCheck": {
         "expected": 2.0975
-      }
+      },
+      "dlpfcBase": 2
     },
     {
       "id": "math-2588:MATH26-MOCK-01",
@@ -877,7 +895,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 1 · Combine derivative rules",
       "available": true,
@@ -910,7 +928,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-02",
@@ -920,7 +939,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 2 · Apply the mean value theorem",
       "available": true,
@@ -952,7 +971,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-03",
@@ -962,7 +982,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 3 · Find an implicit tangent",
       "available": true,
@@ -994,7 +1014,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-04",
@@ -1004,7 +1025,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 4 · Distinguish a stationary inflection from a minimum",
       "available": true,
@@ -1036,7 +1057,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-05",
@@ -1046,7 +1068,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 5 · Solve a logarithmic inequality",
       "available": true,
@@ -1079,7 +1101,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-06",
@@ -1089,7 +1112,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 6 · Factor a polynomial and read its sign",
       "available": true,
@@ -1121,7 +1144,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-07",
@@ -1131,7 +1155,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 7 · Sketch a rational function with a hole",
       "available": true,
@@ -1163,7 +1187,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-08",
@@ -1173,7 +1198,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 8 · Value delayed payments and decide whether to invest",
       "available": true,
@@ -1205,7 +1230,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-09",
@@ -1215,7 +1241,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 9 · Compare profit maximisation and cost efficiency",
       "available": true,
@@ -1247,7 +1273,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-10",
@@ -1257,7 +1284,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 10 · Connect elasticity with revenue",
       "available": true,
@@ -1289,7 +1316,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-11",
@@ -1299,7 +1327,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 11 · Invert a function with a restricted range",
       "available": true,
@@ -1331,7 +1359,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     },
     {
       "id": "math-2588:MATH26-MOCK-12",
@@ -1341,7 +1370,7 @@
       "collectionId": "mock-exam-math-autumn-2026",
       "origin": "mock_exam",
       "kind": "calculation",
-      "difficulty": 2,
+      "difficulty": 3,
       "points": 10,
       "title": "Problem 12 · Connect a Taylor approximation to a limit",
       "available": true,
@@ -1373,7 +1402,8 @@
       },
       "tags": [
         "autumn-2026-mock"
-      ]
+      ],
+      "dlpfcBase": 3
     }
   ],
   "canvasId": "2588"

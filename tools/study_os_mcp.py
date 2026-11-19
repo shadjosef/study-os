@@ -326,13 +326,58 @@ def study_report() -> dict[str, Any]:
 
 
 def schedule_summary(blocks: list[dict], limit: int) -> list[dict]:
-    keys = ("eventId", "summary", "date", "startLabel", "endLabel", "courseId", "topicIds", "blockKind")
+    keys = ("eventId", "summary", "date", "startLabel", "endLabel", "courseId", "topicIds", "blockKind", "dlpfcMode")
     return [{key: block[key] for key in keys if key in block} for block in blocks[:limit]]
 
 
 @server.tool(annotations=READ)
+def circadian_dlpfc_blueprint(wake_time: str = "07:30", bed_time: str = "23:00") -> dict[str, Any]:
+    """Return personalized circadian High / Med / Low DLPFC scheduling windows and per-course DLPFC workload.
+
+    Use this before creating a custom Google Calendar or replacing the Study-OS schedule so
+    High DLPFC blocks land in the student's peak wake window (<=4.5h/day cap), Med DLPFC
+    in mid-day procedural hours, and Low DLPFC in evening wind-down recall slots.
+    """
+    boot = call_api("/api/bootstrap")
+    prefs = (boot.get("scheduleConfig") or {}).get("prefs") or {}
+    wake = str(prefs.get("wakeTime") or wake_time)
+    bed = str(prefs.get("bedTime") or bed_time)
+    wh, wm = (int(x) for x in wake.split(":")[:2]) if ":" in wake else (7, 30)
+    wake_m = wh * 60 + wm
+    fmt = lambda mins: f"{(mins // 60) % 24:02d}:{mins % 60:02d}"
+    course_load = []
+    cp_map = (boot.get("analytics") or {}).get("courseProgress") or {}
+    for c in boot.get("catalog") or []:
+        cid = c["courseId"]
+        by_tier = (cp_map.get(cid) or {}).get("byTier") or {}
+        course_load.append({
+            "courseId": cid,
+            "code": c.get("code"),
+            "title": c.get("shortTitle") or c.get("title"),
+            "examDate": (c.get("examInfo") or {}).get("date"),
+            "remainingByDlpfc": {
+                "high_dlpfc": max(0, int(by_tier.get("3", {}).get("total", c.get("highDlpfcCount", 0))) - int(by_tier.get("3", {}).get("done", 0))),
+                "med_dlpfc": max(0, int(by_tier.get("2", {}).get("total", c.get("medDlpfcCount", 0))) - int(by_tier.get("2", {}).get("done", 0))),
+                "low_dlpfc": max(0, int(by_tier.get("1", {}).get("total", c.get("lowDlpfcCount", 0))) - int(by_tier.get("1", {}).get("done", 0))),
+            },
+        })
+    return {
+        "wakeTime": wake,
+        "bedTime": bed,
+        "dailyHighDlpfcCapMinutes": 270,
+        "windows": [
+            {"dlpfcMode": "high_dlpfc", "label": "High DLPFC · Novel Synthesis", "from": fmt(wake_m + 30), "to": fmt(wake_m + 420), "maxMinutesPerDay": 270, "useFor": "Multi-step cases, proofs, coding, heavy calculations"},
+            {"dlpfcMode": "med_dlpfc", "label": "Med DLPFC · Procedural Drills", "from": fmt(wake_m + 420), "to": fmt(wake_m + 660), "useFor": "Standard calculations, applied scenarios, speed drills"},
+            {"dlpfcMode": "low_dlpfc", "label": "Low DLPFC · Recall & Review", "from": fmt(wake_m + 660), "to": bed, "useFor": "Conceptual MCQs, spaced-repetition reviews, light revision"},
+        ],
+        "breakProtocol": "50m or 75m distraction-free working blocks followed by a 1:5 off-screen recovery break.",
+        "courses": course_load,
+    }
+
+
+@server.tool(annotations=READ)
 def read_schedule(limit: int = 25) -> dict[str, Any]:
-    """Read upcoming blocks from the schedule shown inside Study-OS."""
+    """Read upcoming blocks from the schedule shown inside Study-OS (including High/Med/Low DLPFC tags)."""
     calendar = call_api("/api/bootstrap").get("calendar", {})
     blocks = [block for block in calendar.get("blocks", []) if block.get("timingState") != "past"]
     return {"source": calendar.get("source"), "total": len(blocks),
@@ -341,7 +386,11 @@ def read_schedule(limit: int = 25) -> dict[str, Any]:
 
 @server.tool(annotations=READ)
 def preview_schedule(schedule: dict[str, Any]) -> dict[str, Any]:
-    """Validate a proposed Study-OS schedule and preview the resulting blocks."""
+    """Validate a proposed Study-OS schedule and preview the resulting blocks.
+
+    Prefer tagging each block summary with [High DLPFC], [Med DLPFC], or [Low DLPFC] matching
+    the windows from `circadian_dlpfc_blueprint`.
+    """
     catalog = call_api("/api/bootstrap").get("catalog", [])
     courses = {entry["courseId"]: bank(entry["courseId"]) for entry in catalog}
     blocks = parse_universal_schedule_payload(json.dumps(schedule), courses)
@@ -352,7 +401,7 @@ def preview_schedule(schedule: dict[str, Any]) -> dict[str, Any]:
 
 @server.tool(annotations=WRITE)
 def replace_study_schedule(schedule: dict[str, Any]) -> dict[str, Any]:
-    """Replace the active schedule inside Study-OS at the student's request. Preview it first."""
+    """Replace the active schedule inside Study-OS at the student's request. Call `circadian_dlpfc_blueprint` and `preview_schedule` first."""
     checked = preview_schedule(schedule)
     result = call_api("/api/schedule/import-llm", {"payload": json.dumps(schedule)})
     return {"ok": result["ok"], "blockCount": result.get("blockCount", checked["total"])}
@@ -379,7 +428,7 @@ def draft_study_set(title: str, cards: list[tuple[str, str]]) -> dict[str, Any]:
     packed = gzip.compress(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode())
     code = base64.urlsafe_b64encode(packed).decode().rstrip("=")
     return {"title": title, "cardCount": len(cards),
-            "importUrl": "https://shadjosef.github.io/study-os/#study-set=" + code}
+            "importUrl": "https://studyos.no/#study-set=" + code}
 
 
 def main() -> None:

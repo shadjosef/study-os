@@ -53,12 +53,13 @@ window.StudySchedule = (() => {
     ));
   };
 
-  function block(id, summary, start, end, kind, courseId = '') {
+  function block(id, summary, start, end, kind, courseId = '', dlpfcMode = '') {
     const mins = Math.max(0, Math.round((end - start) / minute));
     return {
       eventId: id, summary, courseId, date: dateKey(start), startIso: iso(start), endIso: iso(end),
       startLabel: timeLabel(start), endLabel: timeLabel(end), blockKind: kind,
       focusMinutes: mins, attemptBudgetMinutes: Math.floor(mins * 0.85), recommendedProfile: 'learning',
+      ...(dlpfcMode ? { dlpfcMode } : {}),
     };
   }
 
@@ -154,8 +155,10 @@ window.StudySchedule = (() => {
       const candidates = catalog.filter(course => !course.examInfo?.date || course.examInfo.date >= current);
       if (!candidates.length) continue;
       const close = atMinutes(current, until);
+      const wakeEpoch = atMinutes(current, Math.max(0, from - 30));
       let start = Math.max(atMinutes(current, Math.min(1440, from)), Math.ceil(now / (15 * minute)) * 15 * minute);
       let today = 0;
+      let todayHighMin = 0;
       const cap = Math.ceil(perWeek / activeDays);
       while (start + length <= close && placed < perWeek && today < cap) {
         const conflict = fixed.find(event => start < event.end + rest && start + length + rest > event.start);
@@ -163,20 +166,39 @@ window.StudySchedule = (() => {
           start = Math.ceil((conflict.end + rest) / (5 * minute)) * 5 * minute;
           continue;
         }
+        // Circadian DLPFC window relative to student's wake-up time (4.5h / 270m daily High DLPFC cap)
+        const hoursAwake = (start - wakeEpoch) / (60 * minute);
+        let dlpfcMode = 'low_dlpfc';
+        let phaseLabel = 'Low DLPFC · Recall';
+        if (hoursAwake < 7.0 && todayHighMin + prefs.blockMinutes <= 270) {
+          dlpfcMode = 'high_dlpfc';
+          phaseLabel = 'High DLPFC · Synthesis';
+        } else if (hoursAwake < 11.0) {
+          dlpfcMode = 'med_dlpfc';
+          phaseLabel = 'Med DLPFC · Procedural';
+        }
+
         let weightSum = 0;
         for (const course of candidates) {
           const remaining = Math.max(0, 1 - (courseProgress[course.courseId]?.done || 0) / Math.max(1, course.questionCount || 1));
           const days = (Date.parse(course.examInfo?.date) - Date.parse(current)) / day;
           const urgency = days <= 7 ? 2.4 : days <= 14 ? 1.8 : 1;
-          const weight = (prefs.courseWeights[course.courseId] || 1) * (0.45 + 0.75 * remaining) * urgency;
+          const totalQ = Math.max(1, course.questionCount || 1);
+          const tierMatch = dlpfcMode === 'high_dlpfc'
+            ? 0.85 + 0.55 * (Number(course.highDlpfcCount || 0) / totalQ)
+            : dlpfcMode === 'med_dlpfc'
+            ? 0.9 + 0.35 * (Number(course.medDlpfcCount || 0) / totalQ)
+            : 0.85 + 0.55 * (Number(course.lowDlpfcCount || 0) / totalQ);
+          const weight = (prefs.courseWeights[course.courseId] || 1) * (0.45 + 0.75 * remaining) * urgency * tierMatch;
           scores.set(course.courseId, (scores.get(course.courseId) || 0) + weight);
           weightSum += weight;
         }
         const chosen = candidates.reduce((a, b) => scores.get(a.courseId) >= scores.get(b.courseId) ? a : b);
         scores.set(chosen.courseId, scores.get(chosen.courseId) - weightSum);
-        const phase = timeLabel(start) < '15:00' ? 'Deep practice' : timeLabel(start) < '18:00' ? 'Practice' : 'Review';
-        out.push(block(`study-${chosen.courseId}-${start}`, `${phase} · ${chosen.shortTitle || chosen.title}`,
-          start, start + length, 'study_block', chosen.courseId));
+        if (dlpfcMode === 'high_dlpfc') todayHighMin += prefs.blockMinutes;
+        const kind = dlpfcMode === 'low_dlpfc' ? 'recall_sprint' : 'study_block';
+        out.push(block(`study-${chosen.courseId}-${start}`, `[${phaseLabel.split(' · ')[0]}] ${chosen.code || chosen.shortTitle || chosen.title} · ${phaseLabel.split(' · ')[1]}`,
+          start, start + length, kind, chosen.courseId, dlpfcMode));
         studyCount++;
         placed++;
         today++;
@@ -190,13 +212,24 @@ window.StudySchedule = (() => {
   function download(blocks) {
     const escape = value => String(value).replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/[,;]/g, c => '\\' + c);
     const stamp = time => new Date(time).toISOString().replace(/[-:]|\.\d{3}/g, '');
-    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Study-OS//Schedule//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Study-OS'];
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Study-OS//Circadian DLPFC Schedule//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Study-OS (DLPFC)'];
     for (const entry of blocks) {
       if (!['study_block', 'recall_sprint'].includes(entry.blockKind) ||
           !Number.isFinite(Date.parse(entry.startIso)) || !Number.isFinite(Date.parse(entry.endIso))) continue;
+      const mode = entry.dlpfcMode || (entry.blockKind === 'recall_sprint' ? 'low_dlpfc' : 'med_dlpfc');
+      const modeDesc = mode === 'high_dlpfc'
+        ? 'High DLPFC peak synthesis window (max ~4.5h/day). Take a real 1:5 off-screen break afterward.'
+        : mode === 'med_dlpfc'
+        ? 'Med DLPFC procedural drills & applied problems. Follow with a 1:5 off-screen break.'
+        : 'Low DLPFC wind-down recall, concept checks & spaced-repetition review.';
+      const launchUrl = entry.courseId
+        ? `https://studyos.no/?course=${encodeURIComponent(entry.courseId)}&autostart=1&dlpfc=${encodeURIComponent(mode)}`
+        : 'https://studyos.no/';
+      const desc = `${modeDesc}\nStart directly in Study-OS: ${launchUrl}`;
       lines.push('BEGIN:VEVENT', `UID:${String(entry.eventId).replace(/[^\w.-]/g, '-')}@studyos.no`,
         `DTSTAMP:${stamp(Date.now())}`, `DTSTART:${stamp(entry.startIso)}`, `DTEND:${stamp(entry.endIso)}`,
-        `SUMMARY:${escape(entry.summary || 'Study block')}`, 'END:VEVENT');
+        `SUMMARY:${escape(entry.summary || 'Study block')}`,
+        `DESCRIPTION:${escape(desc)}`, 'END:VEVENT');
     }
     if (lines.length <= 5) throw new Error('Generate or import study blocks before exporting.');
     lines.push('END:VCALENDAR', '');

@@ -2,9 +2,9 @@
 
 window.StudyLayout = (() => {
   const { esc, workClock } = window.StudyUI;
-  const key = 'study-os-layout-v1';
-  const standard = { title: 'Standard', dlpfc: false, budget: false, performance: true, screen: true };
-  const focus = { title: 'Focus metrics', dlpfc: true, budget: true, performance: true, screen: true };
+  const key = 'study-os-layout-v2';
+  const standard = { title: 'DLPFC Focus (Default)', dlpfc: true, budget: true, performance: true, screen: true };
+  const simple = { title: 'Simple Labels (Easy/Med/Hard)', dlpfc: false, budget: false, performance: true, screen: true };
   const fields = ['dlpfc', 'budget', 'performance', 'screen'];
   const dialog = document.getElementById('layout-dialog');
   const form = document.getElementById('layout-form');
@@ -44,7 +44,7 @@ window.StudyLayout = (() => {
   }
 
   function presets() {
-    return [standard, focus, ...saved];
+    return [standard, simple, ...saved];
   }
 
   function edit(preset) {
@@ -84,7 +84,11 @@ window.StudyLayout = (() => {
   }
 
   function label(tier) {
-    return (active.dlpfc ? ['Low dlPFC', 'Medium dlPFC', 'High dlPFC'] : ['Easy', 'Medium', 'Hard'])[tier - 1] || 'Medium';
+    return (active.dlpfc ? ['Low DLPFC', 'Med DLPFC', 'High DLPFC'] : ['Easy', 'Medium', 'Hard'])[tier - 1] || (active.dlpfc ? 'Med DLPFC' : 'Medium');
+  }
+
+  function isDlpfc() {
+    return Boolean(active.dlpfc);
   }
 
   picker.onchange = () => edit(presets()[Number(picker.value)]);
@@ -93,7 +97,7 @@ window.StudyLayout = (() => {
     if (!onBreak()) return close();
     try {
       const preset = fromForm();
-      const builtIn = [standard, focus].find((option) => option.title === preset.title);
+      const builtIn = [standard, simple].find((option) => option.title === preset.title);
       if (builtIn && fields.some((field) => preset[field] !== builtIn[field])) {
         throw new Error('Give your customized preset a new name.');
       }
@@ -103,6 +107,7 @@ window.StudyLayout = (() => {
       saved = updated;
       applyFlags();
       refreshPicker();
+      window.StudyApp?.renderHome?.();
       status.textContent = 'Preset saved and applied.';
     } catch (error) {
       status.textContent = error.message;
@@ -135,5 +140,5 @@ window.StudyLayout = (() => {
     window.StudyUI?.updateSettingsIndicators?.();
   });
   applyFlags();
-  return { open, clockTick, label, getActiveTitle: () => active.title };
+  return { open, clockTick, label, isDlpfc, getActiveTitle: () => active.title };
 })();

@@ -1152,10 +1152,12 @@ window.StudyApp = (() => {
           <div class="row-actions">
             <button type="button" class="primary-btn" id="btn-web-refs">Course notes</button>
             <button type="button" class="ghost-btn" id="btn-web-exams">Mock exams</button>
+            <button type="button" class="ghost-btn" id="btn-web-playbook">Study Playbook</button>
           </div>
         </div>`;
       document.getElementById('btn-web-refs').onclick = () => navigate('references');
       document.getElementById('btn-web-exams').onclick = () => navigate('exams');
+      document.getElementById('btn-web-playbook').onclick = () => window.StudyPlaybook?.open?.();
       if (nextExam) {
         document.getElementById('btn-hero-next-exam').onclick = () => navigate('exams', { focusCourseId: nextExam.c.courseId });
       }
@@ -1233,21 +1235,24 @@ window.StudyApp = (() => {
     // 3B. Canvas-Archive Cookie-Session Strip & Fresh-Clone Onboarding
     renderCanvasBridgeStrip();
 
-    // 4. Difficulty Picker + Duration Picker + Semester Filter + Courses Grid
+    // 4. Difficulty / DLPFC Picker + Duration Picker + Semester Filter + Courses Grid
+    const tierLbl = (t) => window.StudyLayout?.label?.(t) || (t === 1 ? 'Low DLPFC' : t === 2 ? 'Med DLPFC' : 'High DLPFC');
+    const diffWord = homeDifficulty === 'all' ? '' : tierLbl(Number(homeDifficulty));
     const eyebrowEl = document.getElementById('home-courses-eyebrow');
     if (eyebrowEl) {
-      const dTag = homeDifficulty === '1' ? ' · Easy' : homeDifficulty === '2' ? ' · Medium' : homeDifficulty === '3' ? ' · Hard' : '';
-      eyebrowEl.textContent = `Active Semester Courses · ${homeBlockMinutes}m AI Par Blocks${dTag}`;
+      eyebrowEl.textContent = `Active Semester Courses · ${homeBlockMinutes}m AI Par Blocks${diffWord ? ` · ${diffWord}` : ''}`;
     }
     const diffSeg = document.getElementById('home-difficulty-seg');
     if (diffSeg) {
       diffSeg.querySelectorAll('[data-home-diff]').forEach((btn) => {
-        const active = btn.dataset.homeDiff === homeDifficulty;
+        const val = btn.dataset.homeDiff;
+        if (val !== 'all') btn.textContent = tierLbl(Number(val));
+        const active = val === homeDifficulty;
         btn.classList.toggle('active', active);
         btn.setAttribute('aria-pressed', active ? 'true' : 'false');
         btn.onclick = () => {
-          if (homeDifficulty === btn.dataset.homeDiff) return;
-          homeDifficulty = btn.dataset.homeDiff;
+          if (homeDifficulty === val) return;
+          homeDifficulty = val;
           try { localStorage.setItem('study-os-home-diff-v1', homeDifficulty); } catch {}
           renderHome();
         };
@@ -1268,8 +1273,7 @@ window.StudyApp = (() => {
         };
       });
     }
-    const diffWord = homeDifficulty === '1' ? 'Easy' : homeDifficulty === '2' ? 'Medium' : homeDifficulty === '3' ? 'Hard' : '';
-    const primaryCtaLabel = diffWord ? `${diffWord} ${homeBlockMinutes}m` : `Start ${homeBlockMinutes}m`;
+    const primaryCtaLabel = diffWord ? `${diffWord} · ${homeBlockMinutes}m` : `Start ${homeBlockMinutes}m`;
 
     const semesters = [...new Set((boot.catalog || []).map((c) => c.semester).filter(Boolean))];
     const semSel = document.getElementById('home-semester-filter');
@@ -2395,14 +2399,19 @@ window.StudyApp = (() => {
     const bank = await ensureCourseBank(block.courseId);
     const cMeta = boot.catalog.find((c) => c.courseId === block.courseId);
     const prof = block.recommendedProfile || 'learning';
+    const blockDlpfcMode = block.dlpfcMode
+      || (/high\s*dlpfc/i.test(block.summary || '') ? 'high_dlpfc'
+        : /low\s*dlpfc/i.test(block.summary || '') || block.blockKind === 'recall_sprint' ? 'low_dlpfc'
+        : /med(?:ium)?\s*dlpfc/i.test(block.summary || '') ? 'med_dlpfc'
+        : getResolvedFocusMode());
     let qids = (block.autoQueue?.questionIds || []).filter((id) => getProgressRecord(id)?.status !== 'done');
-    if (sessionFocusMode !== 'auto' || !qids.length) {
+    if (sessionFocusMode !== 'auto' || block.dlpfcMode || !qids.length) {
       qids = buildEffortSortedQueue(
         bank.questions || [],
-        Number(block.attemptBudgetMinutes || block.focusMinutes || 75),
+        Number(block.attemptBudgetMinutes || block.focusMinutes || homeBlockMinutes || 50),
         prof,
         block.topicIds || [],
-        getResolvedFocusMode()
+        blockDlpfcMode
       );
     }
     window.StudyRunner.startRun({
@@ -3474,7 +3483,7 @@ window.StudyApp = (() => {
     const coursesTxt = (boot.catalog || [])
       .map((c) => {
         const cp = boot.analytics?.courseProgress?.[c.courseId] || {};
-        return `- courseId: "${c.courseId}" | ${c.code} · ${c.title} | Exam: ${c.examInfo?.date || 'TBD'} | Done: ${cp.done || 0}/${c.questionCount}`;
+        return `- courseId: "${c.courseId}" | ${c.code} · ${c.title} | Exam: ${c.examInfo?.date || 'TBD'} | Done: ${cp.done || 0}/${c.questionCount} | High/Med/Low DLPFC Qs: ${c.highDlpfcCount || 0}/${c.medDlpfcCount || 0}/${c.lowDlpfcCount || 0}`;
       })
       .join('\n');
 
@@ -3488,12 +3497,14 @@ window.StudyApp = (() => {
     const targetH = prefs.autoAdjustStudy !== false ? est.recommendedStudyHours : prefs.targetStudyHours || 25;
 
     return [
-      `Design an optimal, sustainable 7-day study schedule starting ${todayIso} in Universal Study-OS Calendar JSON format.`,
+      `Design an optimal, sustainable 7-day circadian DLPFC study schedule starting ${todayIso} in Universal Study-OS Calendar JSON format.`,
       '',
-      'STUDENT CONSTRAINTS & COGNITIVE RULES:',
+      'STUDENT CONSTRAINTS & CIRCADIAN DLPFC RULES:',
       `- Part-time job hours/week: ${prefs.weeklyWorkHours || 0}h -> Target self-study budget: ~${targetH}h/week`,
       `- Wake up at ${prefs.wakeTime} and go to bed at ${prefs.bedTime}. Leave 30 minutes at each end of the awake window. Use ${prefs.blockMinutes || 50}m focus / ${prefs.breakMinutes || 10}m off-screen break.`,
-      '- Circadian routing: schedule heavy quantitative/coding synthesis BEFORE 15:00 (Hard), procedural drills 15:00-18:00 (Medium), and light recall/MCQ review after 18:00 (Easy).',
+      '- High DLPFC peak window (wake +30m to wake +7h, max 4.5h/day cap): schedule heavy synthesis, proofs, coding & financial cases and prefix summaries with "[High DLPFC]".',
+      '- Med DLPFC mid-day window (wake +7h to wake +11h): schedule procedural drills & standard calculations and prefix summaries with "[Med DLPFC]".',
+      '- Low DLPFC evening wind-down (wake +11h to bedtime -30m): schedule conceptual recall MCQs & spaced-repetition reviews and prefix summaries with "[Low DLPFC]".',
       customNotes ? `- Personal constraints / shifts / preferences: ${customNotes}` : '',
       '',
       'ACTIVE COURSES (use exact courseId strings):',
@@ -4570,7 +4581,14 @@ window.StudyApp = (() => {
     const qCourse = params.get('course');
     const qTopic = params.get('topic') || '';
     const qView = params.get('view') || '';
+    const qDlpfc = params.get('dlpfc') || '';
     const autoStart = params.get('autostart') === '1';
+
+    if (qView === 'playbook') {
+      window.history.replaceState({}, '', window.location.pathname);
+      window.StudyPlaybook?.open?.();
+      return;
+    }
 
     if (autoEvent) {
       const blk = (boot.calendar?.blocks || []).find((b) => b.eventId === autoEvent);
@@ -4595,7 +4613,9 @@ window.StudyApp = (() => {
     if (qCourse) {
       window.history.replaceState({}, '', window.location.pathname);
       if (autoStart) {
-        await launchSmartCourseRun(qCourse, 40, 'learning', qTopic);
+        const mode = ['high_dlpfc', 'med_dlpfc', 'low_dlpfc'].includes(qDlpfc) ? qDlpfc : 'auto';
+        const exact = mode === 'high_dlpfc' ? 3 : mode === 'med_dlpfc' ? 2 : mode === 'low_dlpfc' ? 1 : 0;
+        await launchSmartCourseRun(qCourse, homeBlockMinutes || 50, 'learning', qTopic, mode, false, exact);
       } else {
         await navigate('course', { courseId: qCourse });
         if (qTopic) {
@@ -4625,6 +4645,7 @@ window.StudyApp = (() => {
     syncSettingsRows,
     syncCloudProgress,
     navigate,
+    renderHome,
     showRawView,
     setQuestionStatus,
     setQuestionDifficulty,
