@@ -1080,9 +1080,10 @@ window.StudyApp = (() => {
         primary.timingState === 'live_now'
           ? '<span class="badge live">LIVE NOW</span>'
           : `<span class="badge">UP NEXT · ${esc(primary.date)} ${esc(primary.startLabel)}–${esc(primary.endLabel)}</span>`;
+      const tierLabel = (t) => window.StudyLayout?.label?.(t) || (t === 1 ? 'Low DLPFC' : t === 2 ? 'Med DLPFC' : 'High DLPFC');
       const modeNote =
         sessionFocusMode !== 'auto'
-          ? `Mode: ${resolvedFocus === 'high_dlpfc' ? 'Hard · Multi-step' : resolvedFocus === 'low_dlpfc' ? 'Easy · Recall' : 'Medium · Standard practice'}`
+          ? `Mode: ${resolvedFocus === 'high_dlpfc' ? `${tierLabel(3)} · Multi-step` : resolvedFocus === 'low_dlpfc' ? `${tierLabel(1)} · Recall` : `${tierLabel(2)} · Standard practice`}`
           : primary.autoQueue?.strategy || `${primary.focusMinutes}m block`;
 
       heroEl.innerHTML = `
@@ -1100,15 +1101,16 @@ window.StudyApp = (() => {
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;min-width:240px">
             <button type="button" class="primary-btn btn-lg" id="btn-launch-hero" ${qCount ? '' : 'disabled'}>
-              Start ${primary.focusMinutes}m ${resolvedFocus === 'high_dlpfc' ? 'Hard ' : ''}Run →
+              Start ${primary.focusMinutes}m ${resolvedFocus === 'high_dlpfc' ? `${tierLabel(3)} ` : resolvedFocus === 'low_dlpfc' ? `${tierLabel(1)} ` : ''}Run →
             </button>
             <div class="row-actions" style="gap:6px">
               ${
                 cMeta
-                  ? `<button type="button" class="ghost-btn" style="flex:1" id="btn-hero-deep-filter">Hard practice</button>
+                  ? `<button type="button" class="ghost-btn" style="flex:1" id="btn-hero-deep-filter">${esc(tierLabel(3))}</button>
                      <button type="button" class="ghost-btn" style="flex:1" id="btn-hero-ref">${esc(cMeta.shortTitle)} Ref</button>`
                   : ''
               }
+              ${isStaticWeb ? '<button type="button" class="ghost-btn" id="btn-web-bi-sync">Sync BI</button>' : ''}
             </div>
           </div>
         </div>
@@ -1123,7 +1125,7 @@ window.StudyApp = (() => {
                         <strong>${esc(b.summary)}</strong>
                       </div>
                       <div class="row-between" style="margin:4px 0 0">
-                        <small>${b.autoQueue?.questionIds?.length || 0} queued${b.autoQueue?.cognitiveMode === 'high_dlpfc' ? ' · Hard' : b.autoQueue?.cognitiveMode === 'med_dlpfc' ? ' · Med' : ''}</small>
+                        <small>${b.autoQueue?.questionIds?.length || 0} queued${b.autoQueue?.cognitiveMode === 'high_dlpfc' ? ` · ${esc(tierLabel(3))}` : b.autoQueue?.cognitiveMode === 'med_dlpfc' ? ` · ${esc(tierLabel(2))}` : b.autoQueue?.cognitiveMode === 'low_dlpfc' ? ` · ${esc(tierLabel(1))}` : ''}</small>
                         ${
                           b.courseId
                             ? `<button type="button" class="ghost-btn" style="padding:4px 9px;font-size:12px" data-launch-event="${esc(b.eventId)}">Start →</button>`
@@ -1143,6 +1145,7 @@ window.StudyApp = (() => {
         navigate('course', { courseId: primary.courseId, preset: 'high_dlpfc' })
       );
       document.getElementById('btn-hero-ref')?.addEventListener('click', () => openReferenceDrawer(cMeta));
+      document.getElementById('btn-web-bi-sync')?.addEventListener('click', () => openBiSyncHub());
       heroEl.querySelectorAll('[data-launch-event]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const blk = (boot.calendar?.blocks || []).find((x) => x.eventId === btn.dataset.launchEvent);
