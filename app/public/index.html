@@ -205,6 +205,16 @@
     <form method="dialog"><button type="submit" class="ghost-btn">Close</button></form>
   </dialog>
   <main class="container">
+    <aside id="mobile-sync-tip" class="mobile-sync-tip" aria-label="Get your plan on this phone" hidden>
+      <div>
+        <strong>Bring your study plan here</strong>
+        <p>Connect TimeEdit and Canvas on your computer, then use the same Study-OS profile on this phone.</p>
+      </div>
+      <div class="row-actions">
+        <button type="button" class="primary-btn" id="mobile-sync-action">Sign in</button>
+        <button type="button" class="ghost-btn" id="mobile-sync-dismiss" aria-label="Dismiss desktop setup tip">Dismiss</button>
+      </div>
+    </aside>
     <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
     <dialog id="member-dialog" class="member-dialog" aria-labelledby="member-title">
       <form id="member-form">
@@ -247,6 +257,10 @@
         </div>
       </div>
       <div id="courses-grid" class="courses-grid"></div>
+      <section id="community-course-directory" hidden>
+        <h2>Community course directory</h2>
+        <div class="courses-grid"></div>
+      </section>
       <details id="my-study-sets" class="panel">
         <summary>My study sets</summary>
         <div id="study-sets-root"></div>
@@ -293,6 +307,10 @@
     <section id="view-room" class="view-section" hidden>
       <div id="study-room-root"></div>
     </section>
+    <footer class="site-footer">
+      <span>Study-OS · <a href="https://virksomhet.brreg.no/nb/oppslag/enheter/836661222" target="_blank" rel="noopener">Org. no. 836 661 222</a></span>
+      <a href="https://github.com/shadjosef/study-os" target="_blank" rel="noopener">Source and project information</a>
+    </footer>
   </main>
 
   <!-- SLIDE-OVER OBSIDIAN REFERENCE DRAWER (Read Reference Side-by-Side Without Leaving Run!) -->
@@ -498,8 +516,8 @@
               </svg>
             </span>
             <span class="ios-row-copy">
-              <span class="ios-row-label">Passkeys &amp; Linked Devices</span>
-              <small class="ios-row-sub">Face ID / Touch ID sign-in &amp; 6-digit device codes</small>
+              <span class="ios-row-label">Sign-in &amp; Devices</span>
+              <small class="ios-row-sub">Passkeys, Google, recovery keys and device codes</small>
             </span>
             <span class="ios-row-trailing">
               <span class="ios-row-value" id="settings-passkey-value">Manage</span>
@@ -889,7 +907,7 @@
               </svg>
             </span>
             <span class="ios-row-copy">
-              <span class="ios-row-label">Full Course Library</span>
+              <span class="ios-row-label">Private Library Access</span>
               <small class="ios-row-sub" id="settings-member-sub">Unlock question banks, sources &amp; worked answers</small>
             </span>
             <span class="ios-row-trailing">
@@ -1030,6 +1048,7 @@
   <script src="./js/study-sets.js"></script>
   <script src="./js/community.js"></script>
   <script src="./js/rooms.js"></script>
+  <script src="./js/schedule-tools.js"></script>
   <script src="./js/app.js"></script>
 </body>
 </html>

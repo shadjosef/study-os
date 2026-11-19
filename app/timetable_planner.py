@@ -72,6 +72,23 @@ def default_schedule_prefs() -> dict[str, Any]:
     }
 
 
+def _daily_study_minutes(prefs: dict[str, Any]) -> tuple[int, int]:
+    wake, bed = prefs.get("wakeTime"), prefs.get("bedTime")
+    if wake is not None or bed is not None:
+        def parse(value):
+            if not isinstance(value, str) or not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value):
+                raise ValueError("Enter a wake-up time and a bedtime.")
+            h, m = map(int, value.split(":"))
+            return 60 * h + m
+        start, end = parse(wake), parse(bed)
+        if start == end:
+            raise ValueError("Wake-up time and bedtime must be different.")
+        return min(1440, start + 30), min(1440, end + (1440 if end < start else 0) - 30)
+    start = max(5, min(14, int(prefs.get("dayStartHour") or 8)))
+    end = max(start + 3, min(23, int(prefs.get("dayEndHour") or 19)))
+    return start * 60, end * 60
+
+
 def estimate_recommended_study_hours(
     weekly_work_hours: float,
     weekly_class_hours: float,
@@ -283,8 +300,7 @@ def generate_adaptive_schedule(
 
     work_hours = float(prefs.get("weeklyWorkHours") or 0.0)
     auto_adjust = bool(prefs.get("autoAdjustStudy", True))
-    day_start_h = max(5, min(14, int(prefs.get("dayStartHour") or 8)))
-    day_end_h = max(day_start_h + 3, min(23, int(prefs.get("dayEndHour") or 19)))
+    day_start_m, day_end_m = _daily_study_minutes(prefs)
     block_min = max(25, min(90, int(prefs.get("blockMinutes") or 50)))
     break_min = max(5, min(30, int(prefs.get("breakMinutes") or 10)))
     rest_days = {int(x) for x in (prefs.get("restDays") or []) if str(x).isdigit()}
@@ -308,7 +324,10 @@ def generate_adaptive_schedule(
         if sdt < week1_cutoff and edt > now:
             class_minutes_week1 += dur
 
-        busy_by_day.setdefault(sdt.date(), []).append((sdt, edt))
+        for offset in range(days_ahead):
+            which_day = start_day + timedelta(days=offset)
+            if sdt.date() <= which_day <= edt.date():
+                busy_by_day.setdefault(which_day, []).append((sdt, edt))
         cid, tids = match_course_for_text(f"{ev.get('summary', '')} {ev.get('description', '')}", courses_by_id)
         summary_clean = re.sub(r"\s+", " ", str(ev.get("summary") or "Scheduled Class")).strip()
         is_exam_ev = bool(re.search(r"\b(exam|eksamen|midterm|mock)\b", summary_clean, re.I))
@@ -387,24 +406,28 @@ def generate_adaptive_schedule(
 
     # Build weighted round-robin course rotation
     total_w = sum(w for _, w in course_weights)
-    blocks_per_week = max(2, int(round((weekly_study_hours * 60.0) / block_min)))
+    blocks_per_week = max(0, int((weekly_study_hours * 60.0 + 1e-6) // block_min))
     total_target_blocks = blocks_per_week * 2  # across 14 days
     quotas = {cid: max(1, int(round(total_target_blocks * (w / total_w)))) for cid, w in course_weights}
 
     # 3. Slot study blocks into free daily intervals across the next 14 days
     active_days_per_week = max(1, 7 - len(rest_days))
-    daily_cap = max(1, int(round(blocks_per_week / active_days_per_week)))
+    daily_cap = (blocks_per_week + active_days_per_week - 1) // active_days_per_week
     generated_blocks: list[dict[str, Any]] = []
+    placed_week = 0
     rr_idx = 0
     ordered_cids = [cid for cid, _ in sorted(course_weights, key=lambda kv: -kv[1])]
 
     for day_offset in range(days_ahead):
+        if day_offset % 7 == 0:
+            placed_week = 0
         cur_day = start_day + timedelta(days=day_offset)
         if cur_day.weekday() in rest_days:
             continue
 
-        day_start = datetime.combine(cur_day, time(day_start_h, 0), tzinfo=OSLO_TZ)
-        day_end = datetime.combine(cur_day, time(day_end_h, 0), tzinfo=OSLO_TZ)
+        midnight = datetime.combine(cur_day, time(0, 0), tzinfo=OSLO_TZ)
+        day_start = midnight + timedelta(minutes=day_start_m)
+        day_end = midnight + timedelta(minutes=day_end_m)
         if cur_day == start_day and now > day_start:
             # Round up to next 15-minute mark
             mins_up = 15 - (now.minute % 15)
@@ -416,7 +439,7 @@ def generate_adaptive_schedule(
         placed_today = 0
         cursor = day_start
 
-        while cursor + timedelta(minutes=block_min) <= day_end and placed_today < daily_cap:
+        while cursor + timedelta(minutes=block_min) <= day_end and placed_today < daily_cap and placed_week < blocks_per_week:
             cand_end = cursor + timedelta(minutes=block_min)
             if _overlaps(cursor, cand_end, busy, pad_min=break_min):
                 cursor += timedelta(minutes=15)
@@ -438,7 +461,14 @@ def generate_adaptive_schedule(
                     rr_idx = (rr_idx + step + 1) % len(ordered_cids)
                     break
             if not chosen_cid:
-                chosen_cid = ordered_cids[rr_idx % len(ordered_cids)]
+                eligible = []
+                for cid in ordered_cids:
+                    exam = str((courses_by_id[cid].get("examInfo") or {}).get("date") or "")
+                    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", exam) or exam >= cur_day.isoformat():
+                        eligible.append(cid)
+                if not eligible:
+                    break
+                chosen_cid = eligible[rr_idx % len(eligible)]
                 rr_idx += 1
 
             quotas[chosen_cid] = max(0, quotas.get(chosen_cid, 1) - 1)
@@ -482,6 +512,7 @@ def generate_adaptive_schedule(
             )
             busy.append((cursor, cand_end))
             placed_today += 1
+            placed_week += 1
             cursor = cand_end + timedelta(minutes=break_min)
 
     all_blocks = sorted([*fixed_blocks, *generated_blocks], key=lambda b: b["start"])

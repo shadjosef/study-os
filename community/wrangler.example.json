@@ -1,6 +1,9 @@
 {
   "name": "study-os-community",
   "main": "worker.mjs",
+  "ratelimits": [
+    { "name": "AUTH_RATE_LIMIT", "namespace_id": "220619", "simple": { "limit": 18, "period": 60 } }
+  ],
   "compatibility_date": "2026-11-18",
   "vars": {
     "WEB_ORIGIN": "https://shadjosef.github.io",

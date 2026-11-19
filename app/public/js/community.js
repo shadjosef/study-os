@@ -8,6 +8,7 @@ window.StudyCommunity = (() => {
   let token = '';
   let currentProfile = null;
   let authConfigPromise = null;
+  let turnstilePromise = null;
   let gsiLoadPromise = null;
   let gsiInitializedClient = '';
   let gsiActiveCallback = null;
@@ -66,13 +67,54 @@ window.StudyCommunity = (() => {
   }
 
   function getAuthConfig() {
-    if (!api) return Promise.resolve({ googleClientId: '' });
+    if (!api) return Promise.resolve({});
     if (!authConfigPromise) {
       authConfigPromise = request('/auth/config', null, '')
-        .then((res) => ({ googleClientId: typeof res?.googleClientId === 'string' ? res.googleClientId.trim() : '' }))
-        .catch(() => ({ googleClientId: '' }));
+        .catch(() => {
+          authConfigPromise = null;
+          return {};
+        });
     }
     return authConfigPromise;
+  }
+
+  async function humanToken(form, action, status) {
+    const { turnstileSiteKey } = await getAuthConfig();
+    if (!turnstileSiteKey) return '';
+    status.textContent = 'Checking that you’re human…';
+    if (!window.turnstile && !turnstilePromise) {
+      turnstilePromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Could not load the security check. Try again.'));
+        document.head.appendChild(script);
+      }).catch(error => {
+        turnstilePromise = null;
+        throw error;
+      });
+    }
+    await turnstilePromise;
+    const mount = document.createElement('div');
+    form.append(mount);
+    let widget;
+    let timer;
+    try {
+      return await new Promise((resolve, reject) => {
+        const failed = () => reject(new Error('The security check could not finish. Try again.'));
+        timer = setTimeout(failed, 120_000);
+        widget = window.turnstile.render(mount, {
+          sitekey: turnstileSiteKey, action, size: 'flexible', execution: 'execute', appearance: 'interaction-only',
+          callback: resolve, 'error-callback': failed, 'expired-callback': failed, 'timeout-callback': failed,
+        });
+        window.turnstile.execute(widget);
+      });
+    } finally {
+      clearTimeout(timer);
+      if (widget) window.turnstile.remove(widget);
+      mount.remove();
+    }
   }
 
   function loadGoogleGsi() {
@@ -208,6 +250,20 @@ window.StudyCommunity = (() => {
     return request('/sync', payload);
   }
 
+  async function fetchTimeEdit(url) {
+    if (!token) throw new Error('Sign in to load the TimeEdit link, or upload your .ics file.');
+    const result = await request('/schedule/timeedit', { url });
+    return result.calendar;
+  }
+
+  async function approvedCourses() {
+    return api ? (await request('/courses', null, '')).courses : [];
+  }
+
+  function proposeCourses(courses) {
+    return request('/courses/propose', { courses });
+  }
+
   async function request(path, data, key = token) {
     const response = await fetch(api + path, {
       method: data ? 'POST' : 'GET',
@@ -297,7 +353,7 @@ window.StudyCommunity = (() => {
       submit.disabled = true;
       status.textContent = '';
       try {
-        await handler(new FormData(form));
+        await handler(new FormData(form), form);
       } catch (error) {
         status.textContent = error.message || 'Could not complete that action.';
       } finally {
@@ -310,7 +366,7 @@ window.StudyCommunity = (() => {
     <details class="auth-privacy-note">
       <summary>Community privacy &amp; rules</summary>
       <p>Study-OS Community is run by the Study-OS project, independently of BI. Use a nickname and keep private info, restricted course files, and active assessment material out of messages.</p>
-      <p>Cloudflare (EU) stores your display name, optional avatar &amp; bio, study and break totals, synced progress backup, passkey public keys, room results, duel rating, chat posts, direct messages, shared study sets, and block list. Only the sender and recipient see direct messages.</p>
+      <p>Cloudflare (EU) stores your display name, optional avatar &amp; bio, study and break totals, synced progress and schedule, passkey public keys, recovery key hash, room results, duel rating, chat posts, direct messages, shared study sets, and block list.</p>
       <p>Delete your profile anytime to erase your account, passkeys, synced backup, and message history from the active database. Cloudflare may retain rolling backups briefly.</p>
     </details>`;
 
@@ -327,7 +383,8 @@ window.StudyCommunity = (() => {
           </div>
           <div>
             <h1 class="auth-title">Sign in to Study-OS</h1>
-            <p class="muted auth-sub">Sync progress across devices, join study rooms, and unlock Community.</p>
+            <p class="muted auth-sub">Sync progress and your study schedule across devices.</p>
+            <p class="mobile-auth-tip muted">On a computer, connect Canvas and TimeEdit in Schedule.</p>
           </div>
         </div>
 
@@ -341,8 +398,9 @@ window.StudyCommunity = (() => {
               <path d="M18 5l2 2"></path>
               <path d="M15 8l2 2"></path>
             </svg>
-            <span>Sign in with Passkey (Face ID / Touch ID)</span>
+            <span>Use an existing passkey</span>
           </button>
+          <button type="button" class="ghost-btn" id="community-passkey-create">Create a profile and passkey</button>
         ` : ''}
         <div class="auth-or" id="community-auth-or" ${passkeyReady ? '' : 'hidden'}><span>or</span></div>
 
@@ -351,7 +409,7 @@ window.StudyCommunity = (() => {
           <form id="community-google-complete-form" class="auth-form">
             <input type="hidden" name="ticket">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
-            <label class="field-label">Community invite code <input name="invite" type="password" required autocomplete="off" placeholder="Enter your invite code"></label>
+            <label class="field-label" data-join-invite="google" hidden>Community invite code <input name="invite" type="password" disabled autocomplete="off" placeholder="Enter your invite code"></label>
             <div class="row-actions">
               <button type="submit" class="primary-btn" style="flex:1">Finish &amp; Sign In</button>
               <button type="button" class="ghost-btn" id="community-google-back">Back</button>
@@ -363,12 +421,13 @@ window.StudyCommunity = (() => {
           <div class="ios-segmented auth-tabs" role="tablist" aria-label="Sign in method">
             <button type="button" role="tab" class="active" data-auth-tab="join" aria-selected="true">Create profile</button>
             <button type="button" role="tab" data-auth-tab="code" aria-selected="false">Device code</button>
-            <button type="button" role="tab" data-auth-tab="key" aria-selected="false">Profile key</button>
+            <button type="button" role="tab" data-auth-tab="key" aria-selected="false">Use a key</button>
           </div>
 
           <form id="community-join" class="auth-form" data-auth-pane="join">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Shad" required></label>
-            <label class="field-label">Community invite code <input name="invite" type="password" required autocomplete="off" placeholder="Enter your invite code"></label>
+            <label class="field-label" data-join-invite hidden>Community invite code <input name="invite" type="password" disabled autocomplete="off" placeholder="Enter your invite code"></label>
+            ${passkeyReady ? '<label class="check-row"><input name="withPasskey" type="checkbox" checked> Set up a passkey after signup</label>' : ''}
             <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Create profile</button>
             <small class="muted" id="community-stats-notice">Your nickname, study hours, breaks, and practice totals appear on the members leaderboard.</small>
           </form>
@@ -382,8 +441,8 @@ window.StudyCommunity = (() => {
           </form>
 
           <form id="community-sign-in" class="auth-form" data-auth-pane="key" hidden>
-            <label class="field-label">Personal profile key <input name="key" type="password" required autocomplete="off" placeholder="soc1_…"></label>
-            <button type="submit" class="primary-btn">Use my profile</button>
+            <label class="field-label">Recovery or profile key <input name="key" type="password" required autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+            <button type="submit" class="primary-btn">Sign in with key</button>
           </form>
         </div>
 
@@ -404,6 +463,24 @@ window.StudyCommunity = (() => {
     const googleCompleteWrap = root.querySelector('#community-google-complete-wrap');
     const classicWrap = root.querySelector('#community-classic-wrap');
     const authOr = root.querySelector('#community-auth-or');
+    getAuthConfig().then(({ openSignup, googleOpenSignup }) => {
+      root.querySelectorAll('[data-join-invite]').forEach(label => {
+        const open = Boolean(openSignup || (label.dataset.joinInvite === 'google' && googleOpenSignup));
+        label.hidden = open;
+        label.firstElementChild.disabled = open;
+        label.firstElementChild.required = !open;
+      });
+    });
+
+    async function signupAccess(form, element, google = false) {
+      const { openSignup, googleOpenSignup } = await getAuthConfig();
+      if (openSignup) return { humanToken: await humanToken(element, 'signup', status) };
+      if (google && googleOpenSignup) return {};
+      const invite = String(form.get('invite') || '').trim();
+      if (!/^\S{6,120}$/.test(invite)) throw new Error('Enter a valid Community invite code.');
+      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invite)));
+      return { proof: [...hash].map(value => value.toString(16).padStart(2, '0')).join('') };
+    }
 
     mountGoogleButton(googleSlot, async (idToken) => {
       status.textContent = 'Signing in with Google…';
@@ -414,14 +491,14 @@ window.StudyCommunity = (() => {
           const form = root.querySelector('#community-google-complete-form');
           form.elements.ticket.value = res.ticket;
           form.elements.nickname.value = res.suggestedName || '';
-          root.querySelector('#community-google-complete-note').textContent = res.emailHint
-            ? `Signed in with Google (${res.emailHint}). Pick a nickname and enter your invite code to finish.`
-            : 'Signed in with Google. Pick a nickname and enter your invite code to finish.';
+          root.querySelector('#community-google-complete-note').textContent = 'Pick a nickname to finish setting up your Google sign-in.';
           googleCompleteWrap.hidden = false;
           classicWrap.hidden = true;
           googleSlot.hidden = true;
           const pkBtn = root.querySelector('#community-passkey-login');
           if (pkBtn) pkBtn.hidden = true;
+          const createBtn = root.querySelector('#community-passkey-create');
+          if (createBtn) createBtn.hidden = true;
           if (authOr) authOr.hidden = true;
           form.elements.nickname.focus();
           return;
@@ -443,19 +520,17 @@ window.StudyCommunity = (() => {
       googleSlot.hidden = false;
       const pkBtn = root.querySelector('#community-passkey-login');
       if (pkBtn) pkBtn.hidden = false;
+      const createBtn = root.querySelector('#community-passkey-create');
+      if (createBtn) createBtn.hidden = false;
       if (authOr) authOr.hidden = false;
       status.textContent = '';
     });
 
-    action(root.querySelector('#community-google-complete-form'), async (form) => {
-      const invite = form.get('invite').trim();
-      if (!/^\S{6,120}$/.test(invite)) throw new Error('Enter a valid Community invite code.');
-      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invite)));
-      const proof = [...hash].map((value) => value.toString(16).padStart(2, '0')).join('');
+    action(root.querySelector('#community-google-complete-form'), async (form, element) => {
       const res = await request('/auth/google/complete', {
         ticket: form.get('ticket'),
         nickname: form.get('nickname'),
-        proof,
+        ...await signupAccess(form, element, true),
         label: detectDeviceLabel(),
       }, '');
       useProfile(res.token);
@@ -480,6 +555,10 @@ window.StudyCommunity = (() => {
     });
 
     const passkeyBtn = root.querySelector('#community-passkey-login');
+    root.querySelector('#community-passkey-create')?.addEventListener('click', () => {
+      root.querySelector('[data-auth-tab="join"]').click();
+      root.querySelector('#community-join input[name="nickname"]').focus();
+    });
     if (passkeyBtn) {
       passkeyBtn.onclick = async () => {
         passkeyBtn.disabled = true;
@@ -498,22 +577,23 @@ window.StudyCommunity = (() => {
       };
     }
 
-    action(root.querySelector('#community-join'), async (form) => {
-      const invite = form.get('invite').trim();
-      if (!/^\S{6,120}$/.test(invite)) throw new Error('Enter a valid Community invite code.');
-      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invite)));
-      const proof = [...hash].map((value) => value.toString(16).padStart(2, '0')).join('');
-      const result = await request('/join', { nickname: form.get('nickname'), proof }, '');
+    action(root.querySelector('#community-join'), async (form, element) => {
+      const result = await request('/join', { nickname: form.get('nickname'), ...await signupAccess(form, element) }, '');
       useProfile(result.token);
       currentProfile = await request('/profile').catch(() => null);
-      toast('Profile created! Tip: add a Passkey in Settings for 1-tap sign-in.');
+      toast('Profile created. Save a recovery key in Settings → Sign-in & Devices.');
       await onSignedIn();
+      if (form.get('withPasskey') === 'on') {
+        await openSecuritySheet();
+        window.requestAnimationFrame(() => document.getElementById('sec-add-passkey')?.focus());
+      }
     }, status);
 
-    action(root.querySelector('#community-link-redeem'), async (form) => {
+    action(root.querySelector('#community-link-redeem'), async (form, element) => {
       const res = await request('/auth/link-redeem', {
         code: form.get('code'),
         label: detectDeviceLabel(),
+        humanToken: await humanToken(element, 'link', status),
       }, '');
       useProfile(res.token);
       currentProfile = await request('/profile').catch(() => null);
@@ -521,11 +601,19 @@ window.StudyCommunity = (() => {
       await onSignedIn();
     }, status);
 
-    action(root.querySelector('#community-sign-in'), async (form) => {
+    action(root.querySelector('#community-sign-in'), async (form, element) => {
       const key = form.get('key').trim();
-      const prof = await request('/profile', null, key);
-      useProfile(key);
-      currentProfile = prof;
+      if (/^soc1_/.test(key)) {
+        currentProfile = await request('/profile', null, key);
+        useProfile(key);
+      } else {
+        const res = await request('/auth/recovery', {
+          key, label: detectDeviceLabel(), humanToken: await humanToken(element, 'recovery', status),
+        }, '');
+        useProfile(res.token);
+        currentProfile = await request('/profile').catch(() => null);
+      }
+      element.reset();
       await onSignedIn();
     }, status);
   }
@@ -580,7 +668,7 @@ window.StudyCommunity = (() => {
     async function paint() {
       dialog.innerHTML = `
         <div class="row-between" style="margin:0 0 12px">
-          <h2 id="security-sheet-title" style="margin:0">Passkeys &amp; Devices</h2>
+          <h2 id="security-sheet-title" style="margin:0">Sign-in &amp; Devices</h2>
           <button type="button" class="ios-done-btn" id="security-sheet-close">Done</button>
         </div>
         <p class="muted" style="margin:0 0 14px;font-size:13.5px">Sign in with Face ID / Touch ID across devices, or generate a 5-minute code to link another phone or computer.</p>
@@ -589,6 +677,14 @@ window.StudyCommunity = (() => {
           <button type="button" class="ghost-btn" id="sec-gen-link-code">Generate 5-min device code</button>
         </div>
         <div id="sec-link-code-box" class="admin-created-code" hidden></div>
+        <div id="sec-recovery" hidden>
+          <button type="button" class="ghost-btn" id="sec-generate-recovery">Generate recovery key</button>
+          <div id="sec-recovery-key" hidden class="admin-created-code">
+            <p>Save this key in your password manager. A new key replaces your previous one.</p>
+            <input type="text" id="sec-recovery-value" readonly aria-label="Recovery key">
+            <button type="button" class="ghost-btn" id="sec-copy-recovery">Copy key</button>
+          </div>
+        </div>
         <p id="sec-status" role="status" class="muted" style="font-size:13px"></p>
         <div id="sec-lists"><p class="muted">Loading devices…</p></div>
       `;
@@ -596,6 +692,34 @@ window.StudyCommunity = (() => {
       const statusEl = dialog.querySelector('#sec-status');
       const codeBox = dialog.querySelector('#sec-link-code-box');
       const listsEl = dialog.querySelector('#sec-lists');
+      const recovery = dialog.querySelector('#sec-recovery');
+      const recoveryBox = dialog.querySelector('#sec-recovery-key');
+      const recoveryInput = dialog.querySelector('#sec-recovery-value');
+      getAuthConfig().then(config => { recovery.hidden = !config.recoveryEnabled; });
+      dialog.addEventListener('close', () => { recoveryInput.value = ''; recoveryBox.hidden = true; }, { once: true });
+      dialog.querySelector('#sec-generate-recovery').onclick = async event => {
+        const btn = event.currentTarget;
+        btn.disabled = true;
+        statusEl.textContent = '';
+        try {
+          const res = await request('/auth/recovery/create', {});
+          recoveryInput.value = res.key;
+          recoveryBox.hidden = false;
+          recoveryInput.select();
+        } catch (err) {
+          statusEl.textContent = err.message || 'Could not generate a recovery key.';
+        } finally {
+          btn.disabled = false;
+        }
+      };
+      dialog.querySelector('#sec-copy-recovery').onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(recoveryInput.value);
+          toast('Recovery key copied.');
+        } catch {
+          recoveryInput.select();
+        }
+      };
 
       const renderCodeBox = () => {
         if (!activeCode) { codeBox.hidden = true; return; }
@@ -1066,9 +1190,35 @@ window.StudyCommunity = (() => {
       if (!body) return;
       body.innerHTML = '<p class="muted">Loading admin controls…</p>';
       try {
-        const overview = await request('/admin/overview');
+        const [overview, courseList] = await Promise.all([
+          request('/admin/overview'), request('/admin/courses').catch(() => ({ courses: [] })),
+        ]);
         if (!body.isConnected) return;
         renderAdminBody(body, overview);
+        const courses = document.createElement('section');
+        courses.className = 'panel course-review';
+        courses.innerHTML = `<h3>Canvas course suggestions</h3>${courseList.courses.length
+          ? courseList.courses.map(course => `<div class="row-between">
+            <span><strong>${esc(course.title)}</strong> · ${esc(course.code || 'BI Canvas')} · ${esc(course.status)}</span>
+            <div class="row-actions">
+              ${course.status !== 'approved' ? `<button type="button" class="ghost-btn" data-course-review="approved" data-id="${esc(course.id)}">Approve</button>` : ''}
+              ${course.status !== 'rejected' ? `<button type="button" class="ghost-btn" data-course-review="rejected" data-id="${esc(course.id)}">${course.status === 'approved' ? 'Unpublish' : 'Reject'}</button>` : ''}
+            </div>
+          </div>`).join('')
+          : '<p class="muted">No courses have been suggested yet.</p>'}`;
+        body.prepend(courses);
+        courses.querySelectorAll('[data-course-review]').forEach(button => {
+          button.onclick = async () => {
+            button.disabled = true;
+            try {
+              await request('/admin/courses', { id: button.dataset.id, status: button.dataset.courseReview });
+              await loadAdmin();
+            } catch (error) {
+              toast(error.message || 'Could not review the course.');
+              button.disabled = false;
+            }
+          };
+        });
       } catch (err) {
         body.innerHTML = `<p class="muted">${esc(err.message || 'Could not load admin controls.')}</p>`;
       }
@@ -1587,5 +1737,8 @@ window.StudyCommunity = (() => {
     signOut,
     fetchCloudBackup,
     pushCloudBackup,
+    fetchTimeEdit,
+    approvedCourses,
+    proposeCourses,
   };
 })();

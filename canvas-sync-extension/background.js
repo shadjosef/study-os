@@ -50,7 +50,10 @@ async function collectCanvas() {
     const all = await list('/api/v1/courses', { enrollment_type: 'student', enrollment_state: 'active' }, 100);
     const courses = all.filter(course => typeof course.name === 'string' && course.name.trim()).map(course => ({
       id: id(course.id),
-      name: course.name.trim().slice(0, 300)
+      name: course.name.trim().slice(0, 300),
+      code: [course.course_code, course.name].map(text => typeof text === 'string'
+        ? text.match(/\b([A-Z]{2,6})\s*(\d{3,6})(?!\d)\b/)?.slice(1).join('')
+        : '').find(Boolean) || ''
     }));
     let remaining = 5000;
     for (const course of courses) {

@@ -28,7 +28,15 @@ To rotate the Community invite code, update its digest. Existing personal profil
 
 In [Google Auth Platform](https://console.cloud.google.com/auth/clients), create a Web application client for Study-OS. Add your deployed site's HTTPS origin, with no path, under Authorized JavaScript origins. Set up the consent screen for the students you intend to invite. The popup uses Google Identity Services, so it needs no redirect URI or client secret. See [Google's setup guide](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid).
 
-Apply `migrate_google_auth.sql` to the existing D1 database if it was created before Google sign-in shipped. Set the Web client ID on the deployed Worker with `npx wrangler secret put GOOGLE_CLIENT_ID`. Reload the site to check that **Continue with Google** appears. Existing members can link Google in **Settings → Passkeys & Linked Devices** to keep their current profile. New members still need a Community invite.
+Apply `migrate_google_auth.sql` to the existing D1 database if it was created before Google sign-in shipped. Set the Web client ID on the deployed Worker with `npx wrangler secret put GOOGLE_CLIENT_ID`. Reload the site to check that **Continue with Google** appears. New members can create a profile after Google verifies their account. Existing members link Google in **Settings → Sign-in & Devices** to keep their current profile.
+
+## Recovery, open signup and course review
+
+Apply `migrate_recovery.sql` and `migrate_courses.sql` before updating an existing Worker. Members can create a recovery key in **Settings → Sign-in & Devices**. The Worker stores a hash, and generating a new key replaces the previous one.
+
+For nickname-only signup, configure a managed [Cloudflare Turnstile widget](https://developers.cloudflare.com/turnstile/get-started/widget-management/) for the website hostnames. Set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` on the Worker. The admin signup pause applies to every new profile. Without Turnstile, nickname-only signup uses a Community invite. The private course library has a separate access key.
+
+Members can suggest Canvas course names and codes during desktop transfer. Review them in **Community → Admin → Canvas course suggestions**. The public directory shows approved course names and Canvas links.
 
 ## Profile editing, avatars (PFPs) & admin nickname override
 

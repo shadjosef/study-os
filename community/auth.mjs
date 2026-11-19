@@ -1,6 +1,8 @@
 // WebAuthn Passkeys (Face ID / Touch ID), Multi-Device Sessions, and 5-Minute Link Codes
 // Zero-dependency ES2020 module using standard Web Crypto API on Cloudflare Workers.
 
+import { turnstileSiteKey } from './human.mjs';
+
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const LINK_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -219,11 +221,29 @@ export async function handlePublicAuth({
 }) {
   if (path === '/auth/config' && request.method === 'GET') {
     const googleClientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
-    return reply({ googleClientId });
+    const siteKey = turnstileSiteKey(env);
+    return reply({ googleClientId, turnstileSiteKey: siteKey, openSignup: Boolean(siteKey),
+      googleOpenSignup: Boolean(googleClientId), recoveryEnabled: true });
   }
   if (request.method !== 'POST') return reply({ error: 'Method not allowed.' }, 405);
   const webOrigin = request.headers.get('Origin');
   const rpId = new URL(webOrigin).hostname;
+
+  if (path === '/auth/recovery') {
+    const key = typeof data.key === 'string' && data.key.length <= 100
+      ? data.key.trim().toUpperCase().replace(/[\s-]/g, '')
+      : '';
+    if (!/^[A-HJ-NP-Z2-9]{32}$/.test(key)) {
+      return reply({ error: 'Enter the 32-character recovery key you saved.' }, 400);
+    }
+    const row = await db.prepare(`
+      SELECT p.id, p.nickname FROM recovery_keys r JOIN profiles p ON p.id = r.profile_id
+      WHERE r.key_hash = ?
+    `).bind(await digest('recovery:' + key)).first();
+    if (!row) return reply({ error: 'That recovery key is invalid.' }, 401);
+    const token = await createDeviceSession(db, row.id, cleanLabel(data.label, 'Recovered device'), now, digest, hex);
+    return reply({ token, profileId: row.id, nickname: row.nickname });
+  }
 
   if (path === '/auth/google') {
     const clientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
@@ -278,7 +298,7 @@ export async function handlePublicAuth({
       return reply({ error: 'Google sign-up session expired. Click Continue with Google again.' }, 401);
     }
 
-    const check = await verifyJoinProof(db, env, data.proof, now, equalProof);
+    const check = await verifyJoinProof(db, env, data.proof, now, equalProof, true);
     if (!check.ok) return reply({ error: check.error }, 403);
 
     const nickname = typeof data.nickname === 'string' ? data.nickname.trim().normalize('NFC') : '';
@@ -479,6 +499,15 @@ export async function handlePublicAuth({
 export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, now, data, reply, digest }) {
   const webOrigin = request.headers.get('Origin');
   const rpId = new URL(webOrigin).hostname;
+
+  if (path === '/auth/recovery/create' && request.method === 'POST') {
+    const raw = Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => LINK_ALPHABET[byte & 31]).join('');
+    await db.prepare(`
+      INSERT INTO recovery_keys(profile_id, key_hash, created_at) VALUES (?, ?, ?)
+      ON CONFLICT(profile_id) DO UPDATE SET key_hash = excluded.key_hash, created_at = excluded.created_at
+    `).bind(me.id, await digest('recovery:' + raw), now).run();
+    return reply({ key: raw.match(/.{4}/g).join('-') }, 201);
+  }
 
   if (path === '/auth/devices' && request.method === 'GET') {
     const [keysRes, sessRes, googleRow] = await Promise.all([

@@ -28,6 +28,7 @@ window.StudyApp = (() => {
   let offlineStatus = navigator.serviceWorker?.controller ? 'Saved for offline' : '';
 
   let currentView = 'home';
+  let desktopImport = null;
   let openCanvasSync;
   let openCanvasFiles;
   let selectedCourseId = '';
@@ -107,8 +108,93 @@ window.StudyApp = (() => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload || {}),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const result = await res.json().catch(() => ({}));
+      throw new Error(result.error || `HTTP ${res.status}`);
+    }
     return res.json();
+  }
+
+  const hostedOrigin = 'https://studyos.no';
+
+  function sendDesktopSetup() {
+    const popup = window.open(hostedOrigin + '/?view=schedule&desktop=1', '_blank');
+    if (!popup) {
+      toast('Allow pop-ups from desktop Study-OS to send your schedule.');
+      return;
+    }
+    const timeout = setTimeout(() => window.removeEventListener('message', send), 60_000);
+    async function send(event) {
+      if (event.origin !== hostedOrigin || event.source !== popup || event.data?.type !== 'study-os-ready') return;
+      clearTimeout(timeout);
+      window.removeEventListener('message', send);
+      const { snapshot } = await apiGet('/api/canvas/browser/status').catch(() => ({}));
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const canvasSnapshot = snapshot ? { syncedAt: snapshot.syncedAt, courses: snapshot.courses.slice(0, 100).map(course => ({
+        id: course.id, name: course.name, code: course.code, url: course.url,
+        assignments: course.assignments.filter(task => Date.parse(task.dueAt) >= weekAgo).slice(0, 30),
+      })) } : null;
+      const cfg = boot.scheduleConfig;
+      const customSchedule = cfg?.enabled ? {
+        enabled: true, source: cfg.source, estimate: cfg.estimate, updatedAt: new Date().toISOString(),
+        prefs: { ...cfg.prefs, timeeditUrl: undefined },
+        blocks: (boot.calendar?.blocks || []).filter(b => b.timingState !== 'past').slice(0, 200)
+          .map(({ autoQueue, ...block }) => block),
+      } : null;
+      popup.postMessage({ type: 'study-os-desktop-setup', customSchedule, canvasSnapshot }, hostedOrigin);
+    }
+    window.addEventListener('message', send);
+  }
+
+  function receiveDesktopSetup() {
+    if (!isStaticWeb || location.origin !== hostedOrigin || !window.opener ||
+        new URLSearchParams(location.search).get('desktop') !== '1') return;
+    const opener = window.opener;
+    window.addEventListener('message', function receive(event) {
+      const local = /^http:\/\/(127\.0\.0\.1|localhost):\d{1,5}$/.test(event.origin);
+      if (!local || event.source !== opener || event.data?.type !== 'study-os-desktop-setup') return;
+      window.removeEventListener('message', receive);
+      desktopImport = event.data;
+      if (currentView === 'schedule') renderScheduleStudio();
+    });
+    // The receiver validates both the opener window and loopback origin before accepting data.
+    opener.postMessage({ type: 'study-os-ready' }, '*');
+  }
+
+  async function saveDesktopSetup(share) {
+    if (!window.StudyCommunity.isSignedIn()) {
+      if (!await window.StudyCommunity.requireProfile({ allowDemo: true, forcePrompt: true })) return;
+    }
+    if (cloudSyncInFlight) {
+      toast('Your current sync is finishing. Try saving again in a moment.');
+      return;
+    }
+    const data = desktopImport;
+    if (!data) return;
+    const snapshot = data.canvasSnapshot;
+    const ws = loadWebState();
+    if (data.customSchedule?.enabled) ws.customSchedule = {
+      ...data.customSchedule, prefs: { ...data.customSchedule.prefs, timeeditUrl: ws.customSchedule.prefs?.timeeditUrl || '' },
+    };
+    if (snapshot?.courses) ws.canvasSnapshot = snapshot;
+    if (!saveWebState(ws)) return;
+    try { localStorage.setItem('study-os-course-suggestions', share ? 'on' : 'off'); } catch {}
+    recomputeWebAnalytics();
+    const synced = await syncCloudProgress({ interactive: true });
+    if (synced) desktopImport = null;
+    if (currentView === 'schedule') renderScheduleStudio();
+    if (synced && share && snapshot?.courses?.length) {
+      const known = new Set(boot.catalog.map(course => (course.code || '').toUpperCase().replace(/\s/g, '')));
+      const knownIds = new Set(boot.catalog.map(course => String(course.canvasId || course.courseId?.split('-').pop() || '')));
+      const candidates = snapshot.courses.filter(course => !knownIds.has(course.id) && !known.has(course.code || '--'))
+        .slice(0, 60).map(({ id, name, code }) => ({ id, name, code }));
+      if (candidates.length) {
+        try {
+          await window.StudyCommunity.proposeCourses(candidates);
+          toast('New courses sent for review. Assignments stay private.');
+        } catch (error) { toast(error.message || 'Could not submit course suggestions.'); }
+      }
+    }
   }
 
   function getProgressRecord(qid) {
@@ -171,6 +257,7 @@ window.StudyApp = (() => {
         attempts: Array.isArray(raw.attempts) ? raw.attempts : [],
         sessions: Array.isArray(raw.sessions) ? raw.sessions : [],
         customSchedule: raw.customSchedule || { enabled: false, prefs: {}, blocks: [] },
+        canvasSnapshot: raw.canvasSnapshot || null,
       };
     } catch {
       return { records: {}, attempts: [], sessions: [], customSchedule: { enabled: false, prefs: {}, blocks: [] } };
@@ -252,7 +339,15 @@ window.StudyApp = (() => {
       && isRecord(schedule.prefs) && Array.isArray(schedule.blocks) && schedule.blocks.every(isRecord)
       && ((!currentSchedule.enabled && !currentSchedule.updatedAt)
         || backupTime(schedule.updatedAt) > backupTime(currentSchedule.updatedAt));
-    if (scheduleChanged) ws.customSchedule = schedule;
+    if (scheduleChanged) {
+      ws.customSchedule = { ...schedule, prefs: { ...schedule.prefs,
+        timeeditUrl: schedule.prefs.timeeditUrl || currentSchedule.prefs?.timeeditUrl || '',
+      } };
+    }
+    const snapshot = data.canvasSnapshot;
+    const canvasChanged = snapshot && Array.isArray(snapshot.courses) &&
+      backupTime(snapshot.syncedAt) > backupTime(ws.canvasSnapshot?.syncedAt);
+    if (canvasChanged) ws.canvasSnapshot = snapshot;
     if (!saveWebState(ws)) return '';
 
     const restored = [
@@ -260,6 +355,7 @@ window.StudyApp = (() => {
       ws.attempts.length > originalAttemptCount ? `${ws.attempts.length - originalAttemptCount} attempts` : '',
       ws.sessions.length > originalSessionCount ? `${ws.sessions.length - originalSessionCount} sessions` : '',
       scheduleChanged ? 'your schedule' : '',
+      canvasChanged ? 'Canvas deadlines' : '',
     ].filter(Boolean);
     return restored.length ? `Restored ${restored.join(', ')}.` : 'This backup contains no newer study data.';
   }
@@ -324,7 +420,13 @@ window.StudyApp = (() => {
         updatedAt: ws.customSchedule.updatedAt || nowIso,
         source: ws.customSchedule.source || 'browser_schedule',
         estimate: ws.customSchedule.estimate || null,
-        blocks: ws.customSchedule.blocks,
+        blocks: ws.customSchedule.blocks.map(block => {
+          const start = Date.parse(block.startIso);
+          const end = Date.parse(block.endIso);
+          const at = Date.parse(nowIso);
+          const timingState = end <= at ? 'past' : start <= at ? 'live_now' : 'upcoming';
+          return { ...block, timingState };
+        }),
       };
       boot.scheduleConfig = {
         enabled: true,
@@ -332,6 +434,9 @@ window.StudyApp = (() => {
         prefs: ws.customSchedule.prefs || {},
         estimate: ws.customSchedule.estimate || null,
       };
+    } else {
+      boot.calendar = { source: 'static_web', blocks: [] };
+      boot.scheduleConfig = { enabled: false, prefs: ws.customSchedule?.prefs || {} };
     }
   }
 
@@ -499,7 +604,11 @@ window.StudyApp = (() => {
       progress: { records: ws.records },
       attempts: ws.attempts,
       sessions: ws.sessions,
-      customSchedule: ws.customSchedule,
+      customSchedule: {
+        ...ws.customSchedule,
+        prefs: { ...ws.customSchedule.prefs, timeeditUrl: undefined },
+      },
+      canvasSnapshot: ws.canvasSnapshot,
     };
   }
 
@@ -514,12 +623,16 @@ window.StudyApp = (() => {
       let cloudRecCount = 0;
       let cloudAttemptCount = 0;
       let cloudSessionCount = 0;
+      let cloudScheduleAt = 0;
+      let cloudCanvasAt = 0;
       if (!pushOnly) {
         const remote = await window.StudyCommunity.fetchCloudBackup();
         if (remote?.hasBackup && remote.data) {
           cloudRecCount = Number(remote.recordCount || 0);
           cloudAttemptCount = Number(remote.attemptCount || 0);
           cloudSessionCount = Number(remote.sessionCount || 0);
+          cloudScheduleAt = backupTime(remote.data.customSchedule?.updatedAt);
+          cloudCanvasAt = backupTime(remote.data.canvasSnapshot?.syncedAt);
           const msg = restoreWebBackup(remote.data);
           if (msg && msg.startsWith('Restored ')) {
             mergedFromCloud = true;
@@ -527,6 +640,7 @@ window.StudyApp = (() => {
             updateHeaderStats();
             if (currentView === 'home') renderHome();
             else if (currentView === 'analytics') renderAnalytics();
+            else if (currentView === 'schedule') renderScheduleStudio();
           }
         }
       }
@@ -534,9 +648,12 @@ window.StudyApp = (() => {
       const localRecCount = Object.keys(payload.progress.records || {}).length;
       const localAttemptCount = (payload.attempts || []).length;
       const localSessionCount = (payload.sessions || []).length;
-      const hasLocalData = localRecCount > 0 || localAttemptCount > 0 || localSessionCount > 0 || Boolean(payload.customSchedule?.enabled);
+      const scheduleAt = backupTime(payload.customSchedule.updatedAt);
+      const canvasAt = backupTime(payload.canvasSnapshot?.syncedAt);
+      const hasLocalData = localRecCount > 0 || localAttemptCount > 0 || localSessionCount > 0 || scheduleAt > 0 || canvasAt > 0;
       const shouldPush = pushOnly || interactive || (hasLocalData && (
-        localRecCount !== cloudRecCount || localAttemptCount !== cloudAttemptCount || localSessionCount !== cloudSessionCount || mergedFromCloud
+        localRecCount !== cloudRecCount || localAttemptCount !== cloudAttemptCount || localSessionCount !== cloudSessionCount ||
+        scheduleAt > cloudScheduleAt || canvasAt > cloudCanvasAt || mergedFromCloud
       ));
       if (shouldPush) {
         const res = await window.StudyCommunity.pushCloudBackup(payload);
@@ -553,11 +670,13 @@ window.StudyApp = (() => {
         };
       }
       if (interactive) {
-        toast(mergedFromCloud ? 'Synced & merged progress across your devices!' : 'Progress synced to cloud.');
+        toast(mergedFromCloud ? 'Study data merged across your devices.' : 'Study data synced across your devices.');
       }
+      return true;
     } catch (err) {
       cloudSyncMeta.status = 'Retry';
       if (interactive) toast(err?.message || 'Could not sync progress right now.');
+      return false;
     } finally {
       cloudSyncInFlight = false;
       syncSettingsRows();
@@ -576,6 +695,12 @@ window.StudyApp = (() => {
     const communityOn = Boolean(window.StudyCommunity?.enabled);
     const signedIn = Boolean(window.StudyCommunity?.isSignedIn?.());
     const prof = window.StudyCommunity?.getCurrentProfile?.() || null;
+    const syncTip = document.getElementById('mobile-sync-tip');
+    let tipDismissed = false;
+    try { tipDismissed = sessionStorage.getItem('study-os-dismiss-mobile-sync') === '1'; } catch {}
+    syncTip.hidden = !isStaticWeb || !communityOn || tipDismissed ||
+      (signedIn && boot.scheduleConfig?.enabled && Boolean(loadWebState().canvasSnapshot));
+    document.getElementById('mobile-sync-action').textContent = signedIn ? 'Open Schedule' : 'Sign in';
 
     const profileAvatar = document.getElementById('settings-profile-avatar');
     const profileName = document.getElementById('settings-profile-name');
@@ -1603,7 +1728,7 @@ window.StudyApp = (() => {
     }
   }
 
-  function bindMemberAccess(showWelcome = true) {
+  function bindMemberAccess() {
     if (!members.enabled) return;
     const dialog = document.getElementById('member-dialog');
     const form = document.getElementById('member-form');
@@ -1661,9 +1786,6 @@ window.StudyApp = (() => {
         submit.disabled = false;
       }
     };
-    if (!showWelcome || members.isUnlocked()) return;
-    try { if (sessionStorage.getItem('study-os-member-dismissed')) return; } catch {}
-    show();
   }
 
   // ---------------------------------------------------------------------------
@@ -3142,8 +3264,12 @@ window.StudyApp = (() => {
     return arr.map((b, idx) => {
       const sIso = b.start?.includes('T') ? b.start : `${b.date}T${b.startTime || b.start || '09:00'}:00`;
       const sd = new Date(sIso);
-      const dur = Number(b.durationMinutes || b.focusMinutes || 50);
-      const ed = b.end?.includes('T') ? new Date(b.end) : new Date(sd.getTime() + dur * 60000);
+      const duration = Number(b.durationMinutes || b.focusMinutes || 50);
+      const ed = b.end?.includes('T') ? new Date(b.end) : b.endTime
+        ? new Date(`${b.date}T${b.endTime}:00`)
+        : new Date(sd.getTime() + duration * 60000);
+      const dur = Math.round((ed - sd) / 60000);
+      if (!Number.isFinite(dur) || dur <= 0) throw new Error('Choose a valid end time after the start time.');
       return {
         eventId: b.id || `web-llm-${idx + 1}`,
         summary: b.title || b.summary || `Study Block ${idx + 1}`,
@@ -3185,7 +3311,7 @@ window.StudyApp = (() => {
       '',
       'STUDENT CONSTRAINTS & COGNITIVE RULES:',
       `- Part-time job hours/week: ${prefs.weeklyWorkHours || 0}h -> Target self-study budget: ~${targetH}h/week`,
-      `- Preferred daily study window: ${String(prefs.dayStartHour || 8).padStart(2, '0')}:00 to ${String(prefs.dayEndHour || 19).padStart(2, '0')}:00 (${prefs.blockMinutes || 50}m focus / ${prefs.breakMinutes || 10}m off-screen break)`,
+      `- Wake up at ${prefs.wakeTime} and go to bed at ${prefs.bedTime}. Leave 30 minutes at each end of the awake window. Use ${prefs.blockMinutes || 50}m focus / ${prefs.breakMinutes || 10}m off-screen break.`,
       '- Circadian routing: schedule heavy quantitative/coding synthesis BEFORE 15:00 (Hard), procedural drills 15:00-18:00 (Medium), and light recall/MCQ review after 18:00 (Easy).',
       customNotes ? `- Personal constraints / shifts / preferences: ${customNotes}` : '',
       '',
@@ -3217,6 +3343,14 @@ window.StudyApp = (() => {
   function renderScheduleStudio() {
     const root = document.getElementById('schedule-studio-root');
     const cfg = boot.scheduleConfig || {};
+    const personalCanvas = isStaticWeb ? loadWebState().canvasSnapshot : null;
+    const validCanvasId = id => /^[1-9][0-9]{0,19}$/.test(id || '');
+    const due = (personalCanvas?.courses || []).filter(course => validCanvasId(course.id)).flatMap(course => (course.assignments || [])
+      .filter(task => validCanvasId(task.id) && Date.parse(task.dueAt) >= Date.now())
+      .map(task => ({ ...task, course: course.name, url: `https://canvas.bi.no/courses/${course.id}/assignments/${task.id}` })))
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt)).slice(0, 15);
+    let suggestCourses = true;
+    try { suggestCourses = localStorage.getItem('study-os-course-suggestions') !== 'off'; } catch {}
     const prefs = {
       timeeditUrl: '',
       weeklyWorkHours: 0,
@@ -3230,6 +3364,8 @@ window.StudyApp = (() => {
       courseWeights: {},
       ...(cfg.prefs || {}),
     };
+    prefs.wakeTime ||= `${String(prefs.dayStartHour - 1).padStart(2, '0')}:30`;
+    prefs.bedTime ||= `${String(prefs.dayEndHour).padStart(2, '0')}:30`;
     const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const classBlocksCount = (boot.calendar?.blocks || []).filter((b) => b.blockKind === 'class_session').length;
     const approxWeeklyClassH = classBlocksCount ? Math.round((classBlocksCount * 1.75) / 2) : 8;
@@ -3257,40 +3393,64 @@ window.StudyApp = (() => {
       <div class="hero-card" style="margin-bottom:18px">
         <div class="row-between" style="margin:0;flex-wrap:wrap;gap:12px">
           <div>
-            <span class="eyebrow">TimeEdit (.ics) × Work-Load Adjuster × Universal LLM Calendar</span>
-            <h1 class="hero-title" style="margin:2px 0 4px">Adaptive Schedule Studio</h1>
+            <h1 class="hero-title" style="margin:2px 0 4px">Study schedule</h1>
             <p class="muted" style="margin:0;font-size:13.5px">
-              Active calendar source: <code>${esc(boot.calendar?.source || 'none')}</code> · Paste your TimeEdit link + weekly work hours for instant auto-scheduling, or use 1-Prompt Copy/Paste with any LLM.
+              Plan two weeks around your classes, work hours, and sleep.
             </p>
           </div>
           <div class="row-actions">
-            ${!isStaticWeb ? '<a class="ghost-btn" href="/api/schedule/export.ics" download="study-os-schedule.ics">Export .ics Calendar</a>' : ''}
+            <button type="button" class="ghost-btn" id="btn-export-schedule">Download calendar (.ics)</button>
             ${!isStaticWeb ? '<a class="ghost-btn" href="./canvas-connect.html" target="_blank" rel="noopener">Canvas deadlines ↗</a>' : ''}
             ${cfg.enabled ? '<button type="button" class="ghost-btn" id="btn-reset-custom-sched">Revert to Default Calendar</button>' : ''}
           </div>
         </div>
       </div>
 
+      ${desktopImport ? `
+        <section class="panel device-setup-card">
+          <h2>Desktop setup is ready to import</h2>
+          ${desktopImport.customSchedule || desktopImport.canvasSnapshot ? `
+            <p class="muted">Save your ${desktopImport.customSchedule ? 'study plan' : ''}${desktopImport.customSchedule && desktopImport.canvasSnapshot ? ' and ' : ''}${desktopImport.canvasSnapshot ? 'Canvas deadlines' : ''} to your Study-OS profile.</p>
+            ${desktopImport.canvasSnapshot ? `<label class="check-row"><input type="checkbox" id="desktop-suggest-courses" ${suggestCourses ? 'checked' : ''}> Suggest new course names and codes for admin review</label>` : ''}
+            <button type="button" class="primary-btn" id="btn-save-desktop-setup">Save to my profile</button>
+          ` : '<p class="muted">Build a study plan or run Canvas Browser Sync on your computer, then send it again.</p>'}
+        </section>` : ''}
+
+      <section class="panel device-setup-card">
+        <h2>Canvas and phone setup</h2>
+        ${isStaticWeb
+          ? '<p class="muted">Use the Chrome extension on your computer to sync a signed-in BI Canvas tab. In desktop Study-OS, open Schedule and choose Send to phone.</p><a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Set up Canvas on a computer ↗</a>'
+          : '<p class="muted">After syncing your courses in Chrome, send your plan and Canvas deadlines to your online profile.</p><button type="button" class="ghost-btn" id="btn-send-desktop-setup">Send to phone ↗</button>'}
+        ${personalCanvas ? '<h3>Canvas deadlines</h3>' + (due.length ? '<ul class="mobile-deadline-list">' +
+          due.map(task => `<li><a href="${esc(task.url)}" target="_blank" rel="noopener">${esc(task.name)}</a><small>${esc(task.course)} · ${esc(new Date(task.dueAt).toLocaleString())}</small></li>`).join('') + '</ul>'
+          : '<p class="muted">No upcoming Canvas deadlines.</p>') : ''}
+      </section>
+
       <div class="schedule-studio-grid">
         <!-- PANEL A: TIMEEDIT + WORK HOURS AUTO-SCHEDULER -->
         <section class="panel" style="margin:0">
-          <span class="eyebrow">Option 1 · Instant Algorithmic Scheduler</span>
-          <h3 style="margin:4px 0 10px">TimeEdit Link + Weekly Work Hours</h3>
+          <h2>Plan around TimeEdit</h2>
+          <p class="muted">In TimeEdit, choose Subscribe and copy the .ics link.</p>
+          <div class="row-actions timetable-links">
+            <a class="ghost-btn" href="https://cloud.timeedit.net/bi/web/" target="_blank" rel="noopener">Open BI TimeEdit ↗</a>
+          </div>
 
-          <label class="field-label">TimeEdit Subscription URL (<code>.ics</code>) ${isStaticWeb ? '<small class="muted">(or upload .ics file below)</small>' : ''}
-            <input type="url" id="sch-te-url" value="${esc(prefs.timeeditUrl || '')}" placeholder="https://cloud.timeedit.net/.../ri....ics">
+          <label class="field-label">TimeEdit subscription link
+            <input type="url" id="sch-te-url" value="${esc(prefs.timeeditUrl || '')}" placeholder="https://cloud.timeedit.net/… .ics" autocomplete="off" autocapitalize="off" spellcheck="false">
           </label>
 
-          <label class="field-label" style="margin-top:8px">Or Upload Saved TimeEdit / Calendar <code>.ics</code> File
+          <label class="field-label" style="margin-top:8px">Or upload an .ics file
             <input type="file" id="sch-ics-file" accept=".ics,text/calendar" style="font-size:12.5px">
           </label>
 
-          <div class="filter-grid" style="margin-top:12px;grid-template-columns:1fr 1fr">
-            <label class="field-label">Hours Worked / Week (Job)
-              <input type="number" id="sch-work-h" min="0" max="50" step="1" value="${Number(prefs.weeklyWorkHours || 0)}">
+          <div class="schedule-range-fields">
+            <label class="field-label" for="sch-work-h">
+              <span>Paid work per week <output id="sch-work-output" for="sch-work-h"></output></span>
+              <input type="range" id="sch-work-h" min="0" max="50" step="1" value="${Number(prefs.weeklyWorkHours || 0)}">
             </label>
-            <label class="field-label">Target Self-Study Hours / Week
-              <input type="number" id="sch-study-h" min="4" max="45" step="1" value="${Number(prefs.targetStudyHours || est.recommendedStudyHours)}" ${prefs.autoAdjustStudy !== false ? 'disabled' : ''}>
+            <label class="field-label" for="sch-study-h">
+              <span>Study time outside class <output id="sch-study-output" for="sch-study-h"></output></span>
+              <input type="range" id="sch-study-h" min="2" max="45" step="0.5" value="${Number(prefs.targetStudyHours || est.recommendedStudyHours)}" ${prefs.autoAdjustStudy !== false ? 'disabled' : ''}>
             </label>
           </div>
 
@@ -3304,12 +3464,12 @@ window.StudyApp = (() => {
             Job <b>${est.weeklyWorkHours}h</b> + Lectures <b>~${est.weeklyClassHours}h</b> → Recommended Deep Study: <b>${est.recommendedStudyHours}h/wk</b> (Total committed: <b>${est.totalCommittedHours}h/wk</b>)
           </div>
 
-          <div class="filter-grid" style="grid-template-columns:1fr 1fr 1fr">
-            <label class="field-label">Start Hour
-              <input type="number" id="sch-start-h" min="6" max="14" value="${Number(prefs.dayStartHour || 8)}">
+          <div class="schedule-time-fields">
+            <label class="field-label">Wake-up time
+              <input type="time" id="sch-wake" required value="${esc(prefs.wakeTime)}">
             </label>
-            <label class="field-label">End Hour
-              <input type="number" id="sch-end-h" min="15" max="23" value="${Number(prefs.dayEndHour || 19)}">
+            <label class="field-label">Bedtime
+              <input type="time" id="sch-bed" required value="${esc(prefs.bedTime)}">
             </label>
             <label class="field-label">Block Rhythm
               <select id="sch-rhythm">
@@ -3319,6 +3479,7 @@ window.StudyApp = (() => {
               </select>
             </label>
           </div>
+          <p class="muted schedule-field-tip">Study starts at least 30 minutes after waking and ends at least 30 minutes before bedtime.</p>
 
           <div style="margin-top:10px">
             <small class="muted" style="font-weight:700">REST / OFF DAYS:</small>
@@ -3338,7 +3499,7 @@ window.StudyApp = (() => {
           ${courseWeightRows ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:13px;font-weight:600">Customize Per-Course Weights</summary><div style="margin-top:6px">${courseWeightRows}</div></details>` : ''}
 
           <div class="row-actions" style="margin-top:14px">
-            <button type="button" class="primary-btn" style="flex:1" id="btn-generate-sched">Generate &amp; Apply Schedule →</button>
+            <button type="button" class="primary-btn" id="btn-generate-sched">Build my study plan</button>
           </div>
         </section>
 
@@ -3368,6 +3529,14 @@ window.StudyApp = (() => {
         </section>
       </div>
 
+      <section class="panel timetable-links">
+        <h2>Add your plan to a calendar</h2>
+        <p class="muted">Download your study blocks. Import the file into Google Calendar on a computer, or open it in Calendar on a Mac and choose your iCloud calendar.</p>
+        <div class="row-actions">
+          <a class="ghost-btn" href="https://calendar.google.com/calendar/r/settings/export" target="_blank" rel="noopener">Google Calendar import ↗</a>
+          <a class="ghost-btn" href="https://support.apple.com/guide/calendar/icl1023/mac" target="_blank" rel="noopener">Apple Calendar import ↗</a>
+        </div>
+      </section>
       <!-- UPCOMING SCHEDULE PREVIEW -->
       <div class="panel">
         <div class="row-between" style="margin-top:0">
@@ -3420,8 +3589,8 @@ window.StudyApp = (() => {
         weeklyWorkHours: Number(document.getElementById('sch-work-h').value || 0),
         autoAdjustStudy: document.getElementById('sch-auto-adjust').checked,
         targetStudyHours: Number(document.getElementById('sch-study-h').value || 25),
-        dayStartHour: Number(document.getElementById('sch-start-h').value || 8),
-        dayEndHour: Number(document.getElementById('sch-end-h').value || 19),
+        wakeTime: document.getElementById('sch-wake').value,
+        bedTime: document.getElementById('sch-bed').value,
         blockMinutes: bMin || 50,
         breakMinutes: brkMin || 10,
         restDays,
@@ -3435,6 +3604,8 @@ window.StudyApp = (() => {
       const studyInput = document.getElementById('sch-study-h');
       studyInput.disabled = p.autoAdjustStudy;
       if (p.autoAdjustStudy) studyInput.value = e.recommendedStudyHours;
+      document.getElementById('sch-work-output').value = `${p.weeklyWorkHours} h`;
+      document.getElementById('sch-study-output').value = `${studyInput.value} h`;
       document.getElementById('sch-estimate-box').innerHTML = `
         <strong>Rough Weekly Load Estimate:</strong>
         Job <b>${e.weeklyWorkHours}h</b> + Lectures <b>~${e.weeklyClassHours}h</b> → Recommended Deep Study: <b>${e.recommendedStudyHours}h/wk</b> (Total committed: <b>${
@@ -3446,38 +3617,57 @@ window.StudyApp = (() => {
     document.getElementById('sch-work-h').oninput = refreshEstimateUI;
     document.getElementById('sch-study-h').oninput = refreshEstimateUI;
     document.getElementById('sch-auto-adjust').onchange = refreshEstimateUI;
+    refreshEstimateUI();
 
-    document.getElementById('btn-generate-sched').onclick = async () => {
+    document.getElementById('btn-export-schedule').onclick = () => {
+      try { window.StudySchedule.download(boot.calendar?.blocks || []); }
+      catch (error) { toast(error.message); }
+    };
+    document.getElementById('btn-send-desktop-setup')?.addEventListener('click', sendDesktopSetup);
+    document.getElementById('btn-save-desktop-setup')?.addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try { await saveDesktopSetup(Boolean(document.getElementById('desktop-suggest-courses')?.checked)); }
+      finally { button.disabled = false; }
+    });
+
+    document.getElementById('btn-generate-sched').onclick = async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
       const formPrefs = collectFormPrefs();
       const fileEl = document.getElementById('sch-ics-file');
-      const icsText = fileEl.files?.[0] ? await fileEl.files[0].text() : '';
-      if (isStaticWeb) {
-        if (!icsText) {
-          toast('In static web mode, upload a downloaded .ics file or use Option 2 (LLM JSON/.ics paste).');
-          return;
-        }
-        try {
-          const blocks = parseClientSchedulePayload(icsText);
+      try {
+        window.StudySchedule.bounds(formPrefs.wakeTime, formPrefs.bedTime);
+        const file = fileEl.files?.[0];
+        if (file && file.size > 2_000_000) throw new Error('Choose an .ics file under 2 MB.');
+        const icsText = file ? await file.text() : '';
+        if (file) formPrefs.timeeditUrl = '';
+        if (isStaticWeb) {
+          const text = icsText || (formPrefs.timeeditUrl ? await window.StudyCommunity.fetchTimeEdit(formPrefs.timeeditUrl) : '');
           const ws = loadWebState();
-          ws.customSchedule = { enabled: true, source: 'browser_ics', prefs: formPrefs, blocks, updatedAt: new Date().toISOString() };
+          const fixed = text ? await window.StudySchedule.readCalendar(text) : (ws.customSchedule?.blocks || [])
+            .filter(b => ['class_session', 'exam'].includes(b.blockKind) && Date.parse(b.endIso) > Date.now())
+            .map(b => ({ uid: b.eventId, summary: b.summary, start: Date.parse(b.startIso), end: Date.parse(b.endIso), allDay: b.allDay }));
+          const plan = window.StudySchedule.plan(fixed, formPrefs, boot.catalog, boot.analytics?.courseProgress || {}, computeClientStudyEstimate);
+          if (!plan.blocks.length) throw new Error('No time fits these settings. Widen your awake hours or choose fewer rest days.');
+          ws.customSchedule = {
+            enabled: true, source: 'timeedit_auto_scheduler', prefs: formPrefs, blocks: plan.blocks,
+            estimate: plan.estimate, updatedAt: new Date().toISOString(),
+          };
           saveWebState(ws);
           recomputeWebAnalytics();
-          toast(`Loaded ${blocks.length} timetable events in browser!`);
-          renderScheduleStudio();
-        } catch (err) {
-          toast(err.message || 'Could not parse .ics file.');
+          syncCloudProgress().catch(() => {});
+          toast(`Scheduled ${plan.studyCount} study blocks around ${fixed.length} calendar events.`);
+        } else {
+          const res = await apiPost('/api/schedule/generate', { prefs: formPrefs, icsText });
+          if (res.bootstrap) boot = res.bootstrap;
+          toast(`Scheduled ${res.studyCount ?? res.blockCount ?? 0} study blocks.`);
         }
-        return;
-      }
-
-      toast('Generating adaptive 14-day schedule…');
-      try {
-        const res = await apiPost('/api/schedule/generate', { prefs: formPrefs, icsText });
-        if (res.bootstrap) boot = res.bootstrap;
-        toast(`Generated ${res.blockCount || 0} adaptive blocks!`);
         renderScheduleStudio();
       } catch (err) {
-        toast('Schedule generation failed — verify your TimeEdit .ics link or upload the .ics file.');
+        toast(err.message || 'Could not build the schedule.');
+      } finally {
+        button.disabled = false;
       }
     };
 
@@ -3508,6 +3698,7 @@ window.StudyApp = (() => {
           ws.customSchedule = { enabled: true, source: 'llm_universal_import', prefs: collectFormPrefs(), blocks, updatedAt: new Date().toISOString() };
           saveWebState(ws);
           recomputeWebAnalytics();
+          syncCloudProgress().catch(() => {});
           toast(`Applied ${blocks.length} LLM-scheduled study blocks!`);
           renderScheduleStudio();
         } catch (err) {
@@ -3532,6 +3723,7 @@ window.StudyApp = (() => {
         ws.customSchedule = { enabled: false, prefs: {}, blocks: [], updatedAt: new Date().toISOString() };
         saveWebState(ws);
         await refreshBootstrap(false);
+        syncCloudProgress().catch(() => {});
         return;
       }
       const res = await apiPost('/api/schedule/import-llm', { action: 'reset' });
@@ -3549,6 +3741,24 @@ window.StudyApp = (() => {
   }
 
   // ---------------------------------------------------------------------------
+  async function renderCourseDirectory() {
+    try {
+      const items = await window.StudyCommunity.approvedCourses();
+      const root = document.getElementById('community-course-directory');
+      const grid = root.querySelector('.courses-grid');
+      const currentIds = new Set(boot.catalog.map(course => String(course.canvasId || course.courseId?.split('-').pop() || '')));
+      const currentCodes = new Set(boot.catalog.map(course => (course.code || '').toUpperCase().replace(/\s/g, '')));
+      const shown = items.filter(course => /^[1-9][0-9]{0,19}$/.test(course.canvasId) &&
+        !currentIds.has(course.canvasId) && !currentCodes.has(course.code || '--'));
+      grid.innerHTML = shown.map(course => `<article class="course-card">
+        ${course.code ? `<small class="muted">${esc(course.code)}</small>` : ''}
+        <h3>${esc(course.title)}</h3>
+        <a class="ghost-btn" target="_blank" rel="noopener" href="https://canvas.bi.no/courses/${course.canvasId}">Open in BI Canvas ↗</a>
+      </article>`).join('');
+      root.hidden = !shown.length;
+    } catch {}
+  }
+
   // STATE MUTATIONS (Local Python Server + Static Web Browser Fallback)
   // ---------------------------------------------------------------------------
   async function setQuestionStatus(questionIds, status, resetWork = false) {
@@ -3913,6 +4123,15 @@ window.StudyApp = (() => {
   async function init() {
     bindGlobalChrome();
     bindCommandPalette();
+    receiveDesktopSetup();
+    document.getElementById('mobile-sync-dismiss').onclick = () => {
+      try { sessionStorage.setItem('study-os-dismiss-mobile-sync', '1'); } catch {}
+      document.getElementById('mobile-sync-tip').hidden = true;
+    };
+    document.getElementById('mobile-sync-action').onclick = async () => {
+      if (window.StudyCommunity.isSignedIn() ||
+          await window.StudyCommunity.requireProfile({ allowDemo: true, forcePrompt: true })) navigate('schedule');
+    };
     if (isStaticWeb && navigator.serviceWorker) {
       navigator.serviceWorker.getRegistration?.().then((reg) => reg?.update?.()).catch(() => {});
     }
@@ -4056,11 +4275,12 @@ window.StudyApp = (() => {
         await members.restore();
       }
       await refreshBootstrap(false);
+      if (isStaticWeb) renderCourseDirectory();
       if (signedIn && isStaticWeb) {
         syncCloudProgress().catch(() => {});
       }
-      const openedStudySet = await window.StudySets.activateDraft();
-      bindMemberAccess(signedIn && !openedStudySet);
+      await window.StudySets.activateDraft();
+      bindMemberAccess();
     } catch {
       const hero = document.getElementById('up-next-hero');
       hero.innerHTML = '<h1>Could not load Study-OS</h1><p>Check your connection and try again.</p><button type="button" class="primary-btn">Retry</button>';

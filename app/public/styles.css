@@ -2352,9 +2352,71 @@ html:not([data-show-screen]) [data-layout-screen] { display: none; }
 
 .schedule-studio-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 16px;
   margin-bottom: 18px;
+}
+
+.mobile-sync-tip,
+.mobile-auth-tip { display: none; }
+
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  padding: 18px 0 calc(18px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  font-size: 13px;
+}
+
+.device-setup-card h2,
+.timetable-links h2,
+.schedule-studio-grid h2 { margin-top: 0; }
+.device-setup-card .primary-btn { margin-top: 10px; }
+.mobile-deadline-list { padding-inline-start: 20px; }
+.mobile-deadline-list li { margin-bottom: 10px; }
+.mobile-deadline-list small { display: block; color: var(--muted); }
+.course-review > .row-between { padding-block: 8px; flex-wrap: wrap; gap: 8px; }
+
+.schedule-range-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 166px), 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.schedule-range-fields input[type="range"] { width: 100%; accent-color: var(--accent); height: 34px; }
+.schedule-range-fields output { float: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+.schedule-time-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 96px), 1fr));
+  gap: 10px;
+}
+.schedule-time-fields input, .schedule-time-fields select { width: 100%; min-width: 0; }
+.schedule-field-tip { font-size: 13px; }
+.timetable-links { margin-block: 10px; }
+#sec-recovery-key input { width: 100%; min-width: 0; font-family: ui-monospace, monospace; margin-block: 6px; }
+
+@media (max-width: 720px) {
+  .mobile-sync-tip:not([hidden]) {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    background: var(--glass-bg-strong);
+    border: 1px solid var(--glass-edge);
+    border-radius: 20px;
+    padding: 14px;
+    margin: 0 0 14px;
+    box-shadow: 0 5px 20px var(--line);
+  }
+  .mobile-sync-tip p, .mobile-auth-tip { font-size: 13px; margin: 4px 0 0; }
+  .mobile-auth-tip { display: block; }
+  .mobile-sync-tip button, .schedule-studio-grid button, .auth-form button { min-height: 44px; }
+  .auth-form input, .schedule-studio-grid input:not([type="range"]) { font-size: 16px; }
+  dialog.auth-sheet, dialog.security-sheet { max-height: calc(100dvh - 24px); overflow-y: auto; }
 }
 
 .day-toggle-row {

@@ -849,6 +849,9 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             return
 
         if route == "/api/schedule/generate":
+            if not self.is_local_canvas_request(require_origin=False):
+                self.send_json({"error": "Open the local Study-OS app to generate this schedule."}, status=403)
+                return
             with STATE_LOCK:
                 _, courses_by_id = STORE.discover_courses()
                 prog = STORE.load_progress()
@@ -861,9 +864,13 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 try:
                     if ics_text:
                         fixed_events = parse_ics_events(ics_text)
+                        if not fixed_events:
+                            raise ValueError("No calendar events found.")
                     elif te_url:
                         fetched_ics = fetch_timeedit_ics(te_url)
                         fixed_events = parse_ics_events(fetched_ics)
+                    elif cur_cfg.get("fixedEvents"):
+                        fixed_events = cur_cfg["fixedEvents"]
                     else:
                         # Use Canvas-Archive TimeEdit snapshot if available
                         fb = load_fallback_from_canvas_archive(ROOT_DIR, data_dir=STORE.data_dir, courses_by_id=courses_by_id)
@@ -881,13 +888,17 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                     self.send_json({"ok": False, "error": f"TimeEdit .ics error: {exc}"}, status=400)
                     return
 
-                gen = generate_adaptive_schedule(
-                    fixed_events=fixed_events,
-                    courses_by_id=courses_by_id,
-                    progress_state=prog,
-                    prefs=prefs,
-                    days_ahead=14,
-                )
+                try:
+                    gen = generate_adaptive_schedule(
+                        fixed_events=fixed_events,
+                        courses_by_id=courses_by_id,
+                        progress_state=prog,
+                        prefs=prefs,
+                        days_ahead=14,
+                    )
+                except (ValueError, TypeError, OverflowError) as exc:
+                    self.send_json({"error": str(exc)}, status=400)
+                    return
                 save_custom_schedule(
                     STORE.data_dir,
                     {
@@ -896,10 +907,12 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                         "prefs": prefs,
                         "estimate": gen["estimate"],
                         "blocks": gen["blocks"],
+                        "fixedEvents": fixed_events if ics_text or cur_cfg.get("fixedEvents") and not te_url else [],
                     },
                 )
                 boot = STORE.build_bootstrap(force_calendar=True)
-            self.send_json({"ok": True, "estimate": gen["estimate"], "blockCount": len(gen["blocks"]), "bootstrap": boot})
+            study_count = sum(b["blockKind"] in ("study_block", "recall_sprint") for b in gen["blocks"])
+            self.send_json({"ok": True, "estimate": gen["estimate"], "blockCount": len(gen["blocks"]), "studyCount": study_count, "bootstrap": boot})
             return
 
         if route == "/api/schedule/import-llm":
@@ -907,6 +920,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 if body.get("action") == "reset":
                     cur = load_custom_schedule(STORE.data_dir)
                     cur["enabled"] = False
+                    cur.pop("fixedEvents", None)
                     save_custom_schedule(STORE.data_dir, cur)
                     boot = STORE.build_bootstrap(force_calendar=True)
                     self.send_json({"ok": True, "reset": True, "bootstrap": boot})

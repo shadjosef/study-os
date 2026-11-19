@@ -8,6 +8,8 @@
  * - Member management (list, rename, reset 30-day nickname cooldown, remove)
  */
 
+import { turnstileSiteKey } from './human.mjs';
+
 const idPattern = /^[0-9a-f-]{36}$/;
 const proofPattern = /^[0-9a-f]{64}$/;
 
@@ -35,13 +37,15 @@ export async function getJoinSettings(db, env) {
   };
 }
 
-export async function verifyJoinProof(db, env, proof, now, equalProof) {
-  if (!proofPattern.test(proof || '')) {
-    return { ok: false, error: 'Enter a valid Community invite code.' };
-  }
+export async function verifyJoinProof(db, env, proof, now, equalProof, verifiedGoogle = false) {
   const settings = await getJoinSettings(db, env);
   if (!settings.signupsOpen) {
     return { ok: false, error: 'Community signups are currently paused by the admin.' };
+  }
+  // The Worker verifies the Turnstile token before either signup handler runs.
+  if (verifiedGoogle || turnstileSiteKey(env)) return { ok: true, inviteId: null };
+  if (!proofPattern.test(proof || '')) {
+    return { ok: false, error: 'Enter a valid Community invite code.' };
   }
   const row = await db.prepare(
     'SELECT id, max_uses, uses, expires_at, revoked FROM invite_codes WHERE code_hash = ?'

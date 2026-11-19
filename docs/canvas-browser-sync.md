@@ -14,6 +14,14 @@ Open [BI Canvas](https://canvas.bi.no/) and sign in. Click the pinned **Study-OS
 
 Leave desktop Study-OS running while syncing. If Canvas signs you out, sign back in and click the extension again. Repeated syncs replace the previous course and deadline list, including assignments that were removed or moved. Failed syncs preserve the last successful list.
 
+## See your plan on a phone
+
+In desktop Study-OS, open **Schedule → Send to phone**. In the tab that opens, select **Save to my profile**. Sign into that same profile at [studyos.no](https://studyos.no/) on your phone and open **Schedule**. Repeat the transfer after you refresh Canvas or rebuild the desktop schedule.
+
+The **Suggest new course names and codes for admin review** checkbox lets you contribute missing courses to the public directory. Clear it to keep the courses out of the directory. Approvals create Canvas course links. Assignment names, deadlines and materials are private.
+
+Build a study plan from your TimeEdit subscription link or an .ics file. Set paid work and study hours, wake-up time, bedtime and rest days. The **Download calendar (.ics)** button exports study blocks for import into [Google Calendar](https://support.google.com/calendar/answer/37118) or [Apple Calendar](https://support.apple.com/guide/calendar/icl1023/mac).
+
 ## Access and data
 
 The extension uses Chrome’s [active tab permission](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab) when you click its icon on BI Canvas. Canvas handles your browser sign-in. The extension passes course and assignment names, IDs and assigned due dates to desktop Study-OS. Study-OS builds the source links and saves the list under `data/state/canvas-browser.json`. If you keep Study-OS data in OneDrive, that file follows your OneDrive settings.

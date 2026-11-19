@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS recovery_keys (
+  profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+  key_hash TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL
+);

@@ -143,6 +143,12 @@ CREATE TABLE IF NOT EXISTS profile_sessions (
 );
 CREATE INDEX IF NOT EXISTS profile_sessions_owner ON profile_sessions(profile_id, last_used_at DESC);
 
+CREATE TABLE IF NOT EXISTS recovery_keys (
+  profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+  key_hash TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS passkeys (
   credential_id TEXT PRIMARY KEY,
   profile_id TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -199,3 +205,11 @@ CREATE TABLE IF NOT EXISTS oauth_pending (
   expires_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS oauth_pending_exp ON oauth_pending(expires_at);
+CREATE TABLE IF NOT EXISTS community_courses (
+  course_key TEXT PRIMARY KEY,
+  code TEXT NOT NULL,
+  title TEXT NOT NULL,
+  canvas_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+  last_seen_at INTEGER NOT NULL
+);

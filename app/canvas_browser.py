@@ -79,6 +79,7 @@ def parse_snapshot(payload: dict, now: datetime) -> dict:
         result[course_id] = {
             "id": course_id,
             "name": _name(course.get("name")),
+            "code": str(course.get("code") or "")[:32] if isinstance(course.get("code"), str) else "",
             "url": course_url,
             "assignments": sorted(assignments.values(), key=lambda item: (item["dueAt"] is None, item["dueAt"] or "", item["name"])),
         }

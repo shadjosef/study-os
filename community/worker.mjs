@@ -2,6 +2,9 @@ import { handleRooms, runningStudyRoom } from './rooms.mjs';
 import { verifyJoinProof, consumeInviteUse, handleAdmin } from './admin.mjs';
 import { handlePublicAuth, handleAuthedAuth } from './auth.mjs';
 import { handleSync } from './sync.mjs';
+import { checkHuman } from './human.mjs';
+import { readTimeEdit } from './timeedit.mjs';
+import { handleCourses } from './courses.mjs';
 
 const encoder = new TextEncoder();
 const hex = (bytes) => [...bytes].map((n) => n.toString(16).padStart(2, '0')).join('');
@@ -22,6 +25,7 @@ const publicAuthPaths = new Set([
   '/auth/passkey/login/options',
   '/auth/passkey/login/verify',
   '/auth/link-redeem',
+  '/auth/recovery',
 ]);
 const breakRequired = new Set(['/dashboard', '/message', '/chat', '/block', '/sets']);
 const osloHour = new Intl.DateTimeFormat('en-GB', {
@@ -30,7 +34,7 @@ const osloHour = new Intl.DateTimeFormat('en-GB', {
 
 function isAdminMember(env, me, tokenHash) {
   const adminHash = typeof env.ADMIN_TOKEN_HASH === 'string' ? env.ADMIN_TOKEN_HASH.trim().toLowerCase() : '';
-  if (adminHash && equalProof(adminHash, tokenHash)) return true;
+  if (adminHash && (equalProof(adminHash, tokenHash) || equalProof(adminHash, me.primary_token_hash))) return true;
   const adminIds = typeof env.ADMIN_PROFILE_IDS === 'string'
     ? env.ADMIN_PROFILE_IDS.split(',').map((s) => s.trim()).filter(Boolean)
     : [];
@@ -132,6 +136,9 @@ export default {
       try { data = await readJson(request, path === '/sync' ? maxSyncBytes : maxInputBytes); }
       catch { return reply({ error: 'Invalid request.' }, 400); }
     }
+    const humanError = await checkHuman(request, env, path, data, reply);
+    if (humanError) return humanError;
+    if (path === '/courses' && request.method === 'GET') return handleCourses({ path, request, db, reply });
 
     if (publicAuthPaths.has(path)) {
       return handlePublicAuth({
@@ -165,14 +172,14 @@ export default {
     const tokenHash = await digest(token);
     const now = Date.now();
     let me = await db.prepare(`
-      SELECT profiles.id, nickname, avatar, bio, nickname_changed_at,
+      SELECT profiles.id, profiles.token_hash AS primary_token_hash, nickname, avatar, bio, nickname_changed_at,
         study_minutes, break_minutes, break_count, last_break_at,
         completed, attempts, accuracy, break_ends_at, expires_at
       FROM profiles LEFT JOIN presence ON presence.profile = profiles.id WHERE token_hash = ?
     `).bind(tokenHash).first();
     if (!me) {
       me = await db.prepare(`
-        SELECT profiles.id, nickname, avatar, bio, nickname_changed_at,
+        SELECT profiles.id, profiles.token_hash AS primary_token_hash, nickname, avatar, bio, nickname_changed_at,
           study_minutes, break_minutes, break_count, last_break_at,
           completed, attempts, accuracy, break_ends_at, expires_at,
           profile_sessions.last_used_at AS session_last_used_at
@@ -187,7 +194,11 @@ export default {
       }
     }
     if (!me) return reply({ error: 'That profile key is invalid.' }, 401);
+    if (path === '/schedule/timeedit' && request.method === 'POST') return readTimeEdit(data, reply);
     const isAdmin = isAdminMember(env, me, tokenHash);
+    if (path === '/courses/propose' || path === '/admin/courses') {
+      return handleCourses({ path, request, db, data, me, isAdmin, now, reply });
+    }
     if (path.startsWith('/auth/')) {
       return handleAuthedAuth({ request, path, db, env, me, tokenHash, now, data, reply, digest });
     }
