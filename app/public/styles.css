@@ -3374,6 +3374,12 @@ dialog.security-sheet {
   font-size: 14.5px;
 }
 
+.auth-google-slot {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+
 .auth-or {
   display: flex;
   align-items: center;

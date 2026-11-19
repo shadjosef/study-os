@@ -15,7 +15,14 @@ const avatarPresets = new Set(['owl', 'fox', 'cat', 'penguin', 'rocket', 'book',
 const nicknameCooldownMs = 30 * 86_400_000;
 const maxInputBytes = 65_536;
 const maxSyncBytes = 524_288;
-const publicAuthPaths = new Set(['/auth/passkey/login/options', '/auth/passkey/login/verify', '/auth/link-redeem']);
+const publicAuthPaths = new Set([
+  '/auth/config',
+  '/auth/google',
+  '/auth/google/complete',
+  '/auth/passkey/login/options',
+  '/auth/passkey/login/verify',
+  '/auth/link-redeem',
+]);
 const breakRequired = new Set(['/dashboard', '/message', '/chat', '/block', '/sets']);
 const osloHour = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Oslo', hour: 'numeric', hourCycle: 'h23',
@@ -126,7 +133,10 @@ export default {
     }
 
     if (publicAuthPaths.has(path)) {
-      return handlePublicAuth({ request, path, db, env, now: Date.now(), data, reply, digest, hex });
+      return handlePublicAuth({
+        request, path, db, env, now: Date.now(), data, reply, digest, hex,
+        verifyJoinProof, consumeInviteUse, equalProof, nicknamePattern,
+      });
     }
 
     if (path === '/join' && request.method === 'POST') {

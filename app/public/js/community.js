@@ -7,6 +7,10 @@ window.StudyCommunity = (() => {
   const { esc, toast, clockSec, workClock } = window.StudyUI;
   let token = '';
   let currentProfile = null;
+  let authConfigPromise = null;
+  let gsiLoadPromise = null;
+  let gsiInitializedClient = '';
+  let gsiActiveCallback = null;
   let lastSync = '';
   let syncTimer;
   let lastPresence = '';
@@ -59,6 +63,71 @@ window.StudyCommunity = (() => {
       : /Safari\//.test(ua) ? 'Safari'
       : 'Browser';
     return `${os} · ${browser}`;
+  }
+
+  function getAuthConfig() {
+    if (!api) return Promise.resolve({ googleClientId: '' });
+    if (!authConfigPromise) {
+      authConfigPromise = request('/auth/config', null, '')
+        .then((res) => ({ googleClientId: typeof res?.googleClientId === 'string' ? res.googleClientId.trim() : '' }))
+        .catch(() => ({ googleClientId: '' }));
+    }
+    return authConfigPromise;
+  }
+
+  function loadGoogleGsi() {
+    if (window.google?.accounts?.id) return Promise.resolve(window.google.accounts.id);
+    if (!gsiLoadPromise) {
+      gsiLoadPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => (window.google?.accounts?.id ? resolve(window.google.accounts.id) : reject(new Error('Google Sign-In unavailable.')));
+        script.onerror = () => reject(new Error('Could not load Google Sign-In.'));
+        document.head.appendChild(script);
+      });
+    }
+    return gsiLoadPromise;
+  }
+
+  async function mountGoogleButton(container, onCredential, { text = 'continue_with', width = 380 } = {}) {
+    if (!container) return false;
+    const { googleClientId } = await getAuthConfig();
+    if (!googleClientId) {
+      container.hidden = true;
+      return false;
+    }
+    try {
+      const gsi = await loadGoogleGsi();
+      const dark = document.documentElement.dataset.theme === 'dark';
+      container.hidden = false;
+      container.innerHTML = '';
+      gsiActiveCallback = onCredential;
+      if (gsiInitializedClient !== googleClientId) {
+        gsi.initialize({
+          client_id: googleClientId,
+          callback: (response) => {
+            if (response?.credential && gsiActiveCallback) gsiActiveCallback(response.credential);
+          },
+          ux_mode: 'popup',
+        });
+        gsiInitializedClient = googleClientId;
+      }
+      const targetWidth = Math.min(width, Math.max(240, Math.floor(container.clientWidth || width)));
+      gsi.renderButton(container, {
+        type: 'standard',
+        theme: dark ? 'filled_black' : 'outline',
+        size: 'large',
+        shape: 'pill',
+        text,
+        width: targetWidth,
+      });
+      return true;
+    } catch {
+      container.hidden = true;
+      return false;
+    }
   }
 
   function supportsPasskeys() {
@@ -262,6 +331,8 @@ window.StudyCommunity = (() => {
           </div>
         </div>
 
+        <div id="community-google-slot" class="auth-google-slot" hidden></div>
+
         ${passkeyReady ? `
           <button type="button" class="primary-btn auth-passkey-btn" id="community-passkey-login">
             <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -272,34 +343,49 @@ window.StudyCommunity = (() => {
             </svg>
             <span>Sign in with Passkey (Face ID / Touch ID)</span>
           </button>
-          <div class="auth-or"><span>or</span></div>
         ` : ''}
+        <div class="auth-or" id="community-auth-or" ${passkeyReady ? '' : 'hidden'}><span>or</span></div>
 
-        <div class="ios-segmented auth-tabs" role="tablist" aria-label="Sign in method">
-          <button type="button" role="tab" class="active" data-auth-tab="join" aria-selected="true">Create profile</button>
-          <button type="button" role="tab" data-auth-tab="code" aria-selected="false">Device code</button>
-          <button type="button" role="tab" data-auth-tab="key" aria-selected="false">Profile key</button>
+        <div id="community-google-complete-wrap" hidden>
+          <p class="muted" style="margin:0 0 8px;font-size:13px" id="community-google-complete-note"></p>
+          <form id="community-google-complete-form" class="auth-form">
+            <input type="hidden" name="ticket">
+            <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
+            <label class="field-label">Community invite code <input name="invite" type="password" required autocomplete="off" placeholder="Enter your invite code"></label>
+            <div class="row-actions">
+              <button type="submit" class="primary-btn" style="flex:1">Finish &amp; Sign In</button>
+              <button type="button" class="ghost-btn" id="community-google-back">Back</button>
+            </div>
+          </form>
         </div>
 
-        <form id="community-join" class="auth-form" data-auth-pane="join">
-          <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Shad" required></label>
-          <label class="field-label">Community invite code <input name="invite" type="password" required autocomplete="off" placeholder="Enter your invite code"></label>
-          <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Create profile</button>
-          <small class="muted" id="community-stats-notice">Your nickname, study hours, breaks, and practice totals appear on the members leaderboard.</small>
-        </form>
+        <div id="community-classic-wrap">
+          <div class="ios-segmented auth-tabs" role="tablist" aria-label="Sign in method">
+            <button type="button" role="tab" class="active" data-auth-tab="join" aria-selected="true">Create profile</button>
+            <button type="button" role="tab" data-auth-tab="code" aria-selected="false">Device code</button>
+            <button type="button" role="tab" data-auth-tab="key" aria-selected="false">Profile key</button>
+          </div>
 
-        <form id="community-link-redeem" class="auth-form" data-auth-pane="code" hidden>
-          <label class="field-label">6-character device code
-            <input name="code" type="text" maxlength="7" autocomplete="off" spellcheck="false" placeholder="K7M-9P2" style="text-transform:uppercase;letter-spacing:0.12em;font-family:ui-monospace,monospace;font-weight:700" required>
-          </label>
-          <button type="submit" class="primary-btn">Link this device</button>
-          <small class="muted">On a signed-in device, open <b>Settings → Passkeys &amp; Linked Devices</b> to generate a 5-minute code.</small>
-        </form>
+          <form id="community-join" class="auth-form" data-auth-pane="join">
+            <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Shad" required></label>
+            <label class="field-label">Community invite code <input name="invite" type="password" required autocomplete="off" placeholder="Enter your invite code"></label>
+            <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Create profile</button>
+            <small class="muted" id="community-stats-notice">Your nickname, study hours, breaks, and practice totals appear on the members leaderboard.</small>
+          </form>
 
-        <form id="community-sign-in" class="auth-form" data-auth-pane="key" hidden>
-          <label class="field-label">Personal profile key <input name="key" type="password" required autocomplete="off" placeholder="soc1_…"></label>
-          <button type="submit" class="primary-btn">Use my profile</button>
-        </form>
+          <form id="community-link-redeem" class="auth-form" data-auth-pane="code" hidden>
+            <label class="field-label">6-character device code
+              <input name="code" type="text" maxlength="7" autocomplete="off" spellcheck="false" placeholder="K7M-9P2" style="text-transform:uppercase;letter-spacing:0.12em;font-family:ui-monospace,monospace;font-weight:700" required>
+            </label>
+            <button type="submit" class="primary-btn">Link this device</button>
+            <small class="muted">On a signed-in device, open <b>Settings → Passkeys &amp; Linked Devices</b> to generate a 5-minute code.</small>
+          </form>
+
+          <form id="community-sign-in" class="auth-form" data-auth-pane="key" hidden>
+            <label class="field-label">Personal profile key <input name="key" type="password" required autocomplete="off" placeholder="soc1_…"></label>
+            <button type="submit" class="primary-btn">Use my profile</button>
+          </form>
+        </div>
 
         <p id="community-status" class="auth-status" role="status">${esc(error)}</p>
 
@@ -313,6 +399,70 @@ window.StudyCommunity = (() => {
 
     const status = root.querySelector('#community-status');
     if (onDemo) root.querySelector('#community-demo').onclick = onDemo;
+
+    const googleSlot = root.querySelector('#community-google-slot');
+    const googleCompleteWrap = root.querySelector('#community-google-complete-wrap');
+    const classicWrap = root.querySelector('#community-classic-wrap');
+    const authOr = root.querySelector('#community-auth-or');
+
+    mountGoogleButton(googleSlot, async (idToken) => {
+      status.textContent = 'Signing in with Google…';
+      try {
+        const res = await request('/auth/google', { idToken, label: detectDeviceLabel() }, '');
+        if (res.needsJoin && res.ticket) {
+          status.textContent = '';
+          const form = root.querySelector('#community-google-complete-form');
+          form.elements.ticket.value = res.ticket;
+          form.elements.nickname.value = res.suggestedName || '';
+          root.querySelector('#community-google-complete-note').textContent = res.emailHint
+            ? `Signed in with Google (${res.emailHint}). Pick a nickname and enter your invite code to finish.`
+            : 'Signed in with Google. Pick a nickname and enter your invite code to finish.';
+          googleCompleteWrap.hidden = false;
+          classicWrap.hidden = true;
+          googleSlot.hidden = true;
+          const pkBtn = root.querySelector('#community-passkey-login');
+          if (pkBtn) pkBtn.hidden = true;
+          if (authOr) authOr.hidden = true;
+          form.elements.nickname.focus();
+          return;
+        }
+        useProfile(res.token);
+        currentProfile = await request('/profile').catch(() => null);
+        toast(`Welcome back, ${res.nickname}!`);
+        await onSignedIn();
+      } catch (err) {
+        status.textContent = err.message || 'Google sign-in failed.';
+      }
+    }).then((shown) => {
+      if (shown && authOr) authOr.hidden = false;
+    });
+
+    root.querySelector('#community-google-back')?.addEventListener('click', () => {
+      googleCompleteWrap.hidden = true;
+      classicWrap.hidden = false;
+      googleSlot.hidden = false;
+      const pkBtn = root.querySelector('#community-passkey-login');
+      if (pkBtn) pkBtn.hidden = false;
+      if (authOr) authOr.hidden = false;
+      status.textContent = '';
+    });
+
+    action(root.querySelector('#community-google-complete-form'), async (form) => {
+      const invite = form.get('invite').trim();
+      if (!/^\S{6,120}$/.test(invite)) throw new Error('Enter a valid Community invite code.');
+      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invite)));
+      const proof = [...hash].map((value) => value.toString(16).padStart(2, '0')).join('');
+      const res = await request('/auth/google/complete', {
+        ticket: form.get('ticket'),
+        nickname: form.get('nickname'),
+        proof,
+        label: detectDeviceLabel(),
+      }, '');
+      useProfile(res.token);
+      currentProfile = await request('/profile').catch(() => null);
+      toast(`Welcome, ${res.nickname}! Google Sign-In is now linked.`);
+      await onSignedIn();
+    }, status);
 
     root.querySelectorAll('[data-auth-tab]').forEach((tab) => {
       tab.addEventListener('click', () => {
@@ -500,9 +650,31 @@ window.StudyCommunity = (() => {
       };
 
       try {
-        const { passkeys, sessions } = await request('/auth/devices');
+        const { passkeys, sessions, googleEnabled, google } = await request('/auth/devices');
         const fmt = (ms) => ms ? new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Never';
+        const googleSectionHtml = googleEnabled ? `
+          <div class="sec-section">
+            <h3 class="ios-group-title" style="margin-left:2px">Google Sign-In</h3>
+            <div class="ios-group">
+              ${google?.linked ? `
+                <div class="ios-row">
+                  <span class="ios-row-copy">
+                    <span class="ios-row-label">Google account <span class="badge live">Connected</span></span>
+                    <small class="ios-row-sub">${esc(google.emailHint || 'Linked')} · Added ${fmt(google.createdAt)}</small>
+                  </span>
+                  <button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" id="sec-unlink-google">Disconnect</button>
+                </div>
+              ` : `
+                <div class="ios-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px">
+                  <small class="muted">Connect Google so you can sign in with 1 click on any phone, iPad, or laptop:</small>
+                  <div id="sec-link-google-slot" class="auth-google-slot"></div>
+                </div>
+              `}
+            </div>
+          </div>
+        ` : '';
         listsEl.innerHTML = `
+          ${googleSectionHtml}
           <div class="sec-section">
             <h3 class="ios-group-title" style="margin-left:2px">Passkeys (${passkeys.length})</h3>
             ${passkeys.length ? `<div class="ios-group">${passkeys.map((k) => `
@@ -528,6 +700,29 @@ window.StudyCommunity = (() => {
               : '<p class="muted" style="font-size:13px;margin:4px 0 0">Signed in with primary personal profile key.</p>'}
           </div>
         `;
+        const unlinkGoogleBtn = listsEl.querySelector('#sec-unlink-google');
+        if (unlinkGoogleBtn) {
+          unlinkGoogleBtn.onclick = async () => {
+            if (!window.confirm('Disconnect Google Sign-In from this profile?')) return;
+            unlinkGoogleBtn.disabled = true;
+            await request('/auth/google/unlink', {}).catch(() => {});
+            toast('Google Sign-In disconnected.');
+            await paint();
+          };
+        }
+        const linkGoogleSlot = listsEl.querySelector('#sec-link-google-slot');
+        if (linkGoogleSlot) {
+          mountGoogleButton(linkGoogleSlot, async (idToken) => {
+            statusEl.textContent = 'Linking Google account…';
+            try {
+              await request('/auth/google/link', { idToken });
+              toast('Google Sign-In connected! You can now sign in with 1 click.');
+              await paint();
+            } catch (err) {
+              statusEl.textContent = err.message || 'Could not link Google account.';
+            }
+          }, { text: 'continue_with', width: 340 });
+        }
         listsEl.querySelectorAll('[data-del-passkey]').forEach((b) => {
           b.onclick = async () => {
             if (!window.confirm('Remove this passkey from your profile?')) return;

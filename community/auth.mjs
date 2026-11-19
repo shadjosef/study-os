@@ -6,8 +6,110 @@ const decoder = new TextDecoder();
 const LINK_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const LINK_CODE_TTL_MS = 5 * 60 * 1000;
+const OAUTH_PENDING_TTL_MS = 10 * 60 * 1000;
+const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 const MAX_PASSKEYS_PER_PROFILE = 10;
 const MAX_SESSIONS_PER_PROFILE = 25;
+let googleJwksCache = { keys: [], fetchedAt: 0 };
+
+function maskEmail(email) {
+  if (typeof email !== 'string' || !email.includes('@')) return '';
+  const [local, domain] = email.trim().split('@');
+  if (!local || !domain) return '';
+  const head = local.slice(0, Math.min(2, local.length));
+  return `${head}***@${domain}`.slice(0, 64);
+}
+
+function cleanSuggestedName(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw.normalize('NFC').replace(/[^\p{L}\p{N} ._-]+/gu, '').replace(/\s+/g, ' ').trim().slice(0, 24);
+}
+
+async function fetchGoogleJwks(force = false) {
+  const now = Date.now();
+  if (!force && googleJwksCache.keys.length && now - googleJwksCache.fetchedAt < 3_600_000) {
+    return googleJwksCache.keys;
+  }
+  const res = await fetch(GOOGLE_JWKS_URL);
+  if (!res.ok) throw new Error('Could not reach Google sign-in keys.');
+  const body = await res.json();
+  const keys = Array.isArray(body?.keys) ? body.keys : [];
+  googleJwksCache = { keys, fetchedAt: now };
+  return keys;
+}
+
+export async function verifyGoogleIdToken(idToken, expectedClientId, now = Date.now()) {
+  if (!expectedClientId) throw new Error('Google Sign-In is not configured yet.');
+  if (typeof idToken !== 'string' || idToken.length < 40 || idToken.length > 8192) {
+    throw new Error('Invalid Google token.');
+  }
+  const parts = idToken.split('.');
+  if (parts.length !== 3) throw new Error('Malformed Google token.');
+  const [headerB64, payloadB64, sigB64] = parts;
+  const headerRaw = fromBase64Url(headerB64);
+  const payloadRaw = fromBase64Url(payloadB64);
+  const sigBytes = fromBase64Url(sigB64);
+  if (!headerRaw || !payloadRaw || !sigBytes) throw new Error('Could not decode Google token.');
+
+  let header;
+  let payload;
+  try {
+    header = JSON.parse(decoder.decode(headerRaw));
+    payload = JSON.parse(decoder.decode(payloadRaw));
+  } catch {
+    throw new Error('Malformed Google token JSON.');
+  }
+  if (header?.alg !== 'RS256' || typeof header?.kid !== 'string') {
+    throw new Error('Unsupported Google token algorithm.');
+  }
+  if (payload?.iss !== 'https://accounts.google.com' && payload?.iss !== 'accounts.google.com') {
+    throw new Error('Invalid Google token issuer.');
+  }
+  if (payload?.aud !== expectedClientId) {
+    throw new Error('Google token audience mismatch.');
+  }
+  if (payload?.email_verified !== true) {
+    throw new Error('Use a verified Google account.');
+  }
+  if (typeof payload?.sub !== 'string' || payload.sub.length < 6 || payload.sub.length > 128) {
+    throw new Error('Missing Google account identifier.');
+  }
+  if (!Number.isFinite(Number(payload.exp)) || Number(payload.exp) * 1000 <= now - 30_000) {
+    throw new Error('Google sign-in expired. Try again.');
+  }
+  if (payload.nbf && Number(payload.nbf) * 1000 > now + 60_000) {
+    throw new Error('Google token not yet valid.');
+  }
+
+  let keys = await fetchGoogleJwks(false);
+  let jwk = keys.find((k) => k.kid === header.kid && k.kty === 'RSA');
+  if (!jwk) {
+    keys = await fetchGoogleJwks(true);
+    jwk = keys.find((k) => k.kid === header.kid && k.kty === 'RSA');
+  }
+  if (!jwk) throw new Error('Google signing key not found.');
+
+  const pubKey = await crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['verify']
+  );
+  const ok = await crypto.subtle.verify(
+    'RSASSA-PKCS1-v1_5',
+    pubKey,
+    sigBytes,
+    encoder.encode(`${headerB64}.${payloadB64}`)
+  );
+  if (!ok) throw new Error('Google token signature verification failed.');
+
+  return {
+    sub: payload.sub,
+    emailHint: maskEmail(payload.email || ''),
+    suggestedName: cleanSuggestedName(payload.given_name || payload.name || ''),
+  };
+}
 
 export function toBase64Url(bytes) {
   const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -116,9 +218,119 @@ function parseClientData(b64) {
   }
 }
 
-export async function handlePublicAuth({ request, path, db, env, now, data, reply, digest, hex }) {
+export async function handlePublicAuth({
+  request, path, db, env, now, data, reply, digest, hex, verifyJoinProof, consumeInviteUse, equalProof, nicknamePattern,
+}) {
+  if (path === '/auth/config' && request.method === 'GET') {
+    const googleClientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
+    return reply({ googleClientId });
+  }
   if (request.method !== 'POST') return reply({ error: 'Method not allowed.' }, 405);
   const rpId = getRpId(env);
+
+  if (path === '/auth/google') {
+    const clientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
+    let verified;
+    try {
+      verified = await verifyGoogleIdToken(data.idToken, clientId, now);
+    } catch (err) {
+      return reply({ error: err.message || 'Google sign-in failed.' }, 401);
+    }
+    const existing = await db.prepare(`
+      SELECT l.profile_id, p.nickname
+      FROM oauth_links l JOIN profiles p ON p.id = l.profile_id
+      WHERE l.provider = 'google' AND l.provider_sub = ?
+    `).bind(verified.sub).first();
+
+    if (existing) {
+      const token = await createDeviceSession(
+        db,
+        existing.profile_id,
+        cleanLabel(data.label, 'Google sign-in'),
+        now,
+        digest,
+        hex
+      );
+      return reply({ token, profileId: existing.profile_id, nickname: existing.nickname });
+    }
+
+    await db.prepare('DELETE FROM oauth_pending WHERE expires_at < ?').bind(now).run();
+    const ticket = toBase64Url(crypto.getRandomValues(new Uint8Array(24)));
+    await db.prepare(`
+      INSERT INTO oauth_pending(ticket, provider, provider_sub, email_hint, suggested_name, expires_at)
+      VALUES (?, 'google', ?, ?, ?, ?)
+    `).bind(ticket, verified.sub, verified.emailHint, verified.suggestedName, now + OAUTH_PENDING_TTL_MS).run();
+
+    return reply({
+      needsJoin: true,
+      ticket,
+      suggestedName: verified.suggestedName,
+      emailHint: verified.emailHint,
+    });
+  }
+
+  if (path === '/auth/google/complete') {
+    const ticket = typeof data.ticket === 'string' ? data.ticket.trim() : '';
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(ticket)) {
+      return reply({ error: 'Google sign-up session expired. Click Continue with Google again.' }, 401);
+    }
+    const pending = await db.prepare(
+      "SELECT ticket, provider_sub, email_hint FROM oauth_pending WHERE ticket = ? AND provider = 'google' AND expires_at >= ?"
+    ).bind(ticket, now).first();
+    if (!pending) {
+      return reply({ error: 'Google sign-up session expired. Click Continue with Google again.' }, 401);
+    }
+
+    const check = await verifyJoinProof(db, env, data.proof, now, equalProof);
+    if (!check.ok) return reply({ error: check.error }, 403);
+
+    const nickname = typeof data.nickname === 'string' ? data.nickname.trim().normalize('NFC') : '';
+    if (!nicknamePattern.test(nickname)) {
+      return reply({ error: 'Choose a nickname of 2–24 letters, numbers or spaces.' }, 400);
+    }
+
+    const consumed = await db.prepare('DELETE FROM oauth_pending WHERE ticket = ?').bind(ticket).run();
+    if (!consumed.meta.changes) {
+      return reply({ error: 'Google sign-up session already used.' }, 409);
+    }
+
+    const id = crypto.randomUUID();
+    const primaryToken = 'soc1_' + hex(crypto.getRandomValues(new Uint8Array(32)));
+    const inserted = await db.prepare('INSERT OR IGNORE INTO profiles(id, token_hash, nickname) VALUES (?, ?, ?)')
+      .bind(id, await digest(primaryToken), nickname).run();
+    if (!inserted.meta.changes) {
+      // Put ticket back so user can pick another nickname without re-auth
+      await db.prepare(`
+        INSERT OR IGNORE INTO oauth_pending(ticket, provider, provider_sub, email_hint, suggested_name, expires_at)
+        VALUES (?, 'google', ?, ?, ?, ?)
+      `).bind(ticket, pending.provider_sub, pending.email_hint, nickname, now + OAUTH_PENDING_TTL_MS).run();
+      return reply({ error: 'That nickname is taken.' }, 409);
+    }
+
+    if (check.inviteId && !await consumeInviteUse(db, check.inviteId, now)) {
+      await db.prepare('DELETE FROM profiles WHERE id = ?').bind(id).run();
+      return reply({ error: 'That invite code is no longer available.' }, 403);
+    }
+
+    const linked = await db.prepare(`
+      INSERT OR IGNORE INTO oauth_links(provider, provider_sub, profile_id, email_hint, created_at)
+      VALUES ('google', ?, ?, ?, ?)
+    `).bind(pending.provider_sub, id, pending.email_hint, now).run();
+    if (!linked.meta.changes) {
+      await db.prepare('DELETE FROM profiles WHERE id = ?').bind(id).run();
+      return reply({ error: 'This Google account is already linked to another profile.' }, 409);
+    }
+
+    const sessionToken = await createDeviceSession(
+      db,
+      id,
+      cleanLabel(data.label, 'Google sign-in'),
+      now,
+      digest,
+      hex
+    );
+    return reply({ token: sessionToken, profileId: id, nickname }, 201);
+  }
 
   if (path === '/auth/passkey/login/options') {
     await db.prepare('DELETE FROM auth_challenges WHERE expires_at < ?').bind(now).run();
@@ -271,7 +483,7 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
   const rpId = getRpId(env);
 
   if (path === '/auth/devices' && request.method === 'GET') {
-    const [keysRes, sessRes] = await Promise.all([
+    const [keysRes, sessRes, googleRow] = await Promise.all([
       db.prepare(`
         SELECT credential_id AS id, label, algorithm, created_at AS createdAt, last_used_at AS lastUsedAt
         FROM passkeys WHERE profile_id = ? ORDER BY created_at DESC LIMIT 20
@@ -280,6 +492,10 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
         SELECT token_hash, label, created_at AS createdAt, last_used_at AS lastUsedAt
         FROM profile_sessions WHERE profile_id = ? ORDER BY last_used_at DESC LIMIT 25
       `).bind(me.id).all(),
+      db.prepare(`
+        SELECT email_hint AS emailHint, created_at AS createdAt
+        FROM oauth_links WHERE provider = 'google' AND profile_id = ? LIMIT 1
+      `).bind(me.id).first(),
     ]);
     const sessions = (sessRes.results || []).map((row) => ({
       id: row.token_hash.slice(0, 16),
@@ -288,7 +504,40 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
       lastUsedAt: Number(row.lastUsedAt || 0),
       current: row.token_hash === tokenHash,
     }));
-    return reply({ passkeys: keysRes.results || [], sessions });
+    const googleClientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
+    return reply({
+      passkeys: keysRes.results || [],
+      sessions,
+      googleEnabled: Boolean(googleClientId),
+      google: googleRow ? { linked: true, emailHint: googleRow.emailHint || '', createdAt: Number(googleRow.createdAt || 0) } : { linked: false },
+    });
+  }
+
+  if (path === '/auth/google/link' && request.method === 'POST') {
+    const clientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
+    let verified;
+    try {
+      verified = await verifyGoogleIdToken(data.idToken, clientId, now);
+    } catch (err) {
+      return reply({ error: err.message || 'Could not verify Google account.' }, 401);
+    }
+    const existing = await db.prepare(
+      "SELECT profile_id FROM oauth_links WHERE provider = 'google' AND provider_sub = ?"
+    ).bind(verified.sub).first();
+    if (existing && existing.profile_id !== me.id) {
+      return reply({ error: 'This Google account is already linked to another Study-OS profile.' }, 409);
+    }
+    await db.prepare("DELETE FROM oauth_links WHERE provider = 'google' AND profile_id = ?").bind(me.id).run();
+    await db.prepare(`
+      INSERT INTO oauth_links(provider, provider_sub, profile_id, email_hint, created_at)
+      VALUES ('google', ?, ?, ?, ?)
+    `).bind(verified.sub, me.id, verified.emailHint, now).run();
+    return reply({ ok: true, emailHint: verified.emailHint });
+  }
+
+  if (path === '/auth/google/unlink' && request.method === 'POST') {
+    await db.prepare("DELETE FROM oauth_links WHERE provider = 'google' AND profile_id = ?").bind(me.id).run();
+    return reply({ ok: true });
   }
 
   if (path === '/auth/passkey/register/options' && request.method === 'POST') {
