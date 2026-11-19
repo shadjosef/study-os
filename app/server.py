@@ -56,6 +56,7 @@ from canvas_bridge import (  # noqa: E402
     resolve_canvas_archive,
     save_settings,
 )
+from canvas_browser import CanvasBrowser, MAX_SNAPSHOT_BYTES, extension_origin  # noqa: E402
 from dlpfc import (  # noqa: E402
     classify_intrinsic_dlpfc,
     effective_dlpfc_tier,
@@ -324,6 +325,9 @@ class StudyStore:
 
 STORE = StudyStore(ROOT_DIR)
 LIVE_TUTOR = LiveTutor()
+CANVAS_BROWSER = CanvasBrowser(STORE.data_dir / "state" / "canvas-browser.json", atomic_write_json)
+CANVAS_BROWSER_API = "/api/canvas/browser/"
+CANVAS_EXTENSION_ROUTES = {CANVAS_BROWSER_API + "link", CANVAS_BROWSER_API + "snapshot"}
 
 
 def read_source_links() -> dict:
@@ -348,7 +352,16 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
 
     def end_headers(self) -> None:
         # Allow local Obsidian Desktop plugin (`app://obsidian.md`) & localhost access
-        if not self.path.startswith("/api/tutor/") and self.path.partition("?")[0] not in {
+        route = urllib.parse.urlsplit(self.path).path
+        if route.startswith(CANVAS_BROWSER_API):
+            origin = self.headers.get("Origin")
+            if route in CANVAS_EXTENSION_ROUTES:
+                self.send_header("Vary", "Origin")
+                if self.is_loopback_request() and extension_origin(origin):
+                    self.send_header("Access-Control-Allow-Origin", origin)
+                    self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+                    self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+        elif not route.startswith("/api/tutor/") and route not in {
             "/api/canvas/sync", "/api/canvas/add-file", "/api/canvas/documents", "/api/canvas-file"
         }:
             self.send_header("Access-Control-Allow-Origin", "*")
@@ -428,6 +441,19 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
 
         if route == "/api/ping":
             self.send_json({"ok": True, "service": "study-os", "version": "1.0.0"})
+            return
+
+        if route == CANVAS_BROWSER_API + "status":
+            if not self.is_local_canvas_request(require_origin=False):
+                self.send_json({"error": "Open Canvas Browser Sync in desktop Study-OS."}, status=403)
+                return
+            try:
+                with STATE_LOCK:
+                    result = CANVAS_BROWSER.status()
+            except (ValueError, OSError):
+                self.send_json({"error": "Study-OS could not read the saved Canvas sync."}, status=503)
+                return
+            self.send_json(result)
             return
 
         if route in ("/api/tutor/live", "/api/tutor/config"):
@@ -579,15 +605,63 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         # Serve SPA static files (fallback to index.html for client-side routes)
         super().do_GET()
 
-    def is_local_canvas_request(self, *, require_origin: bool = True) -> bool:
+    def is_loopback_request(self) -> bool:
         port = self.server.server_address[1]
-        host = self.headers.get("Host")
-        origin = self.headers.get("Origin")
         return (
             self.client_address[0] == "127.0.0.1"
-            and host in {f"127.0.0.1:{port}", f"localhost:{port}"}
-            and (origin == f"http://{host}" or (origin is None and not require_origin))
+            and self.headers.get("Host") in {f"127.0.0.1:{port}", f"localhost:{port}"}
         )
+
+    def is_local_canvas_request(self, *, require_origin: bool = True) -> bool:
+        origin = self.headers.get("Origin")
+        return self.is_loopback_request() and (
+            origin == f"http://{self.headers.get('Host')}" or (origin is None and not require_origin)
+        )
+
+    def handle_canvas_browser(self, route: str) -> None:
+        action = route[len(CANVAS_BROWSER_API):]
+        if action not in ("code", "disconnect", "link", "snapshot"):
+            self.send_json({"error": "Unknown Canvas Browser Sync action."}, status=404)
+            return
+        origin = self.headers.get("Origin")
+        if route in CANVAS_EXTENSION_ROUTES:
+            allowed = self.is_loopback_request() and extension_origin(origin)
+        else:
+            allowed = self.is_local_canvas_request()
+        if not allowed:
+            self.send_json({"error": "Open Canvas Browser Sync in desktop Study-OS."}, status=403)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            limit = MAX_SNAPSHOT_BYTES if action == "snapshot" else 4096
+            if not 0 < length <= limit or self.headers.get_content_type() != "application/json":
+                raise ValueError
+            payload = self.read_json_body()
+            if not isinstance(payload, dict):
+                raise ValueError
+        except (ValueError, RecursionError):
+            self.send_json({"error": "Invalid or oversized Canvas Browser Sync request."}, status=400)
+            return
+        try:
+            with STATE_LOCK:
+                if action == "code":
+                    result = CANVAS_BROWSER.issue_code()
+                elif action == "disconnect":
+                    result = CANVAS_BROWSER.disconnect()
+                elif action == "link":
+                    result = CANVAS_BROWSER.link(origin, payload.get("code"))
+                else:
+                    result = CANVAS_BROWSER.import_snapshot(origin, self.headers.get("Authorization", ""), payload)
+        except PermissionError as exc:
+            self.send_json({"error": str(exc)}, status=403)
+            return
+        except (ValueError, OverflowError) as exc:
+            self.send_json({"error": str(exc)}, status=400)
+            return
+        except OSError:
+            self.send_json({"error": "Study-OS could not save the Canvas sync. Try again."}, status=503)
+            return
+        self.send_json(result)
 
     def handle_canvas_sync(self) -> None:
         if not self.is_local_canvas_request():
@@ -712,6 +786,10 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
 
         if route in ("/api/tutor/live", "/api/tutor/source-link"):
             self.handle_tutor(route)
+            return
+
+        if route.startswith(CANVAS_BROWSER_API):
+            self.handle_canvas_browser(route)
             return
 
         if route == "/api/canvas/sync":

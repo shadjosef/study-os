@@ -27,6 +27,7 @@ jobs:
             app/analytics.py \
             app/calendar_sync.py \
             app/canvas_bridge.py \
+            app/canvas_browser.py \
             app/timetable_planner.py \
             app/obsidian_sync.py \
             app/dlpfc.py \
@@ -47,6 +48,9 @@ jobs:
           node --check app/public/js/tutor-bridge.js
           node --check app/public/js/rooms.js
           node --check app/public/js/app.js
+          node --check app/public/js/canvas-connect.js
+          node --check canvas-sync-extension/background.js
+          node --check canvas-sync-extension/popup.js
           node --check app/public/js/members.js
           node --check app/public/js/study-sets.js
           node --check app/public/js/community.js

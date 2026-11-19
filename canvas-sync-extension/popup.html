@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study-OS Canvas Sync</title>
+<style>
+  :root { color-scheme: light dark; font: 14px system-ui, sans-serif; }
+  body { box-sizing: border-box; width: 310px; margin: 0; padding: 16px; }
+  h1 { font-size: 16px; margin: 0 0 12px; }
+  p { line-height: 1.45; }
+  label { display: grid; gap: 5px; }
+  input, button { box-sizing: border-box; min-height: 34px; font: inherit; }
+  button { margin-top: 8px; cursor: pointer; }
+  .links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+  [hidden] { display: none !important; }
+</style>
+<h1>Study-OS Canvas Sync</h1>
+<p id="status" role="status">Checking your connection…</p>
+<form id="pair" hidden>
+  <label>Study-OS connection code
+    <input id="code" type="text" required minlength="24" maxlength="24" autocomplete="off" spellcheck="false">
+  </label>
+  <button type="submit">Connect browser</button>
+</form>
+<button type="button" id="retry" hidden>Sync again</button>
+<div class="links">
+  <a id="study" href="http://127.0.0.1:8765/canvas-connect.html" rel="noopener" target="_blank">Open Study-OS setup</a>
+  <a id="canvas" href="https://canvas.bi.no/" rel="noopener" target="_blank" hidden>Open BI Canvas</a>
+</div>
+<script src="popup.js"></script>
+</html>

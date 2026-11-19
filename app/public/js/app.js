@@ -674,6 +674,8 @@ window.StudyApp = (() => {
     }
 
     const ca = boot.canvasArchive || {};
+    const canvasBrowserLink = document.getElementById('settings-canvas-browser-link');
+    if (canvasBrowserLink) canvasBrowserLink.hidden = isStaticWeb;
     const syncTime = ca.lastSyncAt ? ca.lastSyncAt.slice(0, 16).replace('T', ' ') : 'Not synced yet';
     const canvasSyncBtn = document.getElementById('settings-canvas-sync-btn');
     if (canvasSyncBtn) {
@@ -3263,6 +3265,7 @@ window.StudyApp = (() => {
           </div>
           <div class="row-actions">
             ${!isStaticWeb ? '<a class="ghost-btn" href="/api/schedule/export.ics" download="study-os-schedule.ics">Export .ics Calendar</a>' : ''}
+            ${!isStaticWeb ? '<a class="ghost-btn" href="./canvas-connect.html" target="_blank" rel="noopener">Canvas deadlines ↗</a>' : ''}
             ${cfg.enabled ? '<button type="button" class="ghost-btn" id="btn-reset-custom-sched">Revert to Default Calendar</button>' : ''}
           </div>
         </div>

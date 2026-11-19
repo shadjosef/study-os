@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Study-OS Canvas Sync",
+  "version": "1.0.0",
+  "description": "Sync courses and assignment deadlines from your open BI Canvas tab to desktop Study-OS.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "action": {
+    "default_title": "Sync Canvas to Study-OS",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

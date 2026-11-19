@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Canvas Browser Sync · Study-OS</title>
+  <link rel="icon" href="./pwa/study-os-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./canvas-connect.css">
+  <script src="./js/canvas-connect.js" defer></script>
+</head>
+<body>
+  <main class="canvas-connect">
+    <a href="./" class="ghost-btn">← Study-OS</a>
+    <section class="panel">
+      <h1>Canvas Browser Sync</h1>
+      <p id="canvas-instructions">Connect Chrome once. Then click the Study-OS Canvas Sync extension while BI Canvas is open to update your courses and deadlines.</p>
+      <div class="row-actions" id="canvas-controls" hidden>
+        <button type="button" class="primary-btn" id="canvas-link">Get connection code</button>
+        <a href="https://canvas.bi.no/" class="ghost-btn" target="_blank" rel="noopener">Open BI Canvas ↗</a>
+        <button type="button" class="ghost-btn" id="canvas-disconnect" hidden>Disconnect browser</button>
+      </div>
+      <p id="canvas-connection-code" class="row-actions" hidden>
+        <label class="field-label">One-time code
+          <input type="text" readonly id="canvas-code" size="26">
+        </label>
+        <button type="button" class="ghost-btn" id="canvas-copy">Copy code</button>
+        <span class="muted">Expires in 5 minutes.</span>
+      </p>
+      <p role="status" id="canvas-sync-state" class="muted"></p>
+      <a href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Install the browser extension ↗</a>
+    </section>
+    <section class="panel" id="canvas-deadlines" hidden>
+      <h2>Upcoming deadlines</h2>
+      <div id="canvas-upcoming"></div>
+      <details>
+        <summary>All synced assignments by course</summary>
+        <div id="canvas-courses"></div>
+      </details>
+    </section>
+  </main>
+</body>
+</html>

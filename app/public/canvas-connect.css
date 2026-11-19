@@ -1,0 +1,11 @@
+.canvas-connect {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: clamp(12px, 4vw, 32px);
+  overflow-wrap: anywhere;
+}
+.canvas-connect > .panel { margin-top: 14px; }
+.canvas-connect h1, .canvas-connect h2 { margin-top: 0; }
+.canvas-connect li + li { margin-top: 8px; }
+.canvas-connect .canvas-due { display: block; }
+.canvas-connect #canvas-connection-code { align-items: end; }
