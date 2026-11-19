@@ -2,11 +2,13 @@
 
 The website and encrypted library run on GitHub Pages. Community profiles, the leaderboard and direct messages use a small Cloudflare Worker backed by D1. The Community tab appears when the website has an HTTPS endpoint in `site-pack/community.json`.
 
-Join with a Community invite code and use a nickname and a personal profile key. Every profile appears on the members-only leaderboard, with hours, completed questions, attempts, practice accuracy and the current Study-OS timer. Stats are submitted from the browser with the most recorded attempts. Solo practice works without a profile.
+The Community-enabled site requires a profile with a display name. Join with a Community invite code and save the personal profile key for using another browser. Every profile appears on the members-only leaderboard, with hours, completed questions, attempts, practice accuracy and the current Study-OS timer. Stats are submitted from the browser with the most recorded attempts.
 
 The leaderboard, global chat and direct messages open during timed breaks and from 20:00 to midnight Europe/Oslo. Timer status updates once a minute while active and expires after less than two minutes without an update. The status comes from the browser timer. Direct messages are visible to their participants in the app. Chat is shared with all Community members, displays posts from the last seven days, and supports blocking members. Members can delete their profile and messages from the active database. Review your privacy notice, contact details and Cloudflare terms with the operator before inviting students.
 
 Use the [Study-OS MCP tool](../docs/study-sets-mcp.md) to create a study set link. During break access, members can share a set after opening that link, save copies of shared sets, or remove a set they published. Practice from custom sets stays outside the leaderboard and Elo.
+
+[Study rooms and Duels](DUELS.md) use the same profile. Group study shows live practice counts. The server grades rated duels with a distinct Elo leaderboard.
 
 ## Deploy the community
 

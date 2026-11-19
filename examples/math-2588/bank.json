@@ -6,6 +6,12 @@
   "shortTitle": "Mathematics",
   "semester": "Autumn 2026",
   "color": "#477eaa",
+  "examInfo": {
+    "date": "2026-12-04",
+    "format": "Written, pen and paper",
+    "durationMinutes": 180,
+    "notes": "Starts at 09:00 Europe/Oslo."
+  },
   "obsidian": {
     "mainReference": "math-reference/Mathematics for Data Science - Semester Reference.md"
   },

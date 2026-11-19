@@ -1,3 +1,5 @@
+import { handleRooms, runningStudyRoom } from './rooms.mjs';
+
 const encoder = new TextEncoder();
 const hex = (bytes) => [...bytes].map((n) => n.toString(16).padStart(2, '0')).join('');
 const digest = async (value) => hex(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(value))));
@@ -94,8 +96,15 @@ export default {
     `).bind(await digest(token)).first();
     if (!me) return reply({ error: 'That profile key is invalid.' }, 401);
     const now = Date.now();
-    if (breakRequired.has(path) && Number(osloHour.format(now)) < 20 && !(me.break_ends_at > now && me.expires_at > now)) {
-      return reply({ error: 'Community opens during a timed Study-OS break or after 20:00 Oslo time.' }, 423);
+    if (breakRequired.has(path) || path === '/rooms' || path.startsWith('/rooms/')) {
+      const breakAccess = Number(osloHour.format(now)) >= 20 || (me.break_ends_at > now && me.expires_at > now);
+      const canUseCommunity = breakAccess && !await runningStudyRoom(db, me.id, now);
+      if (path === '/rooms' || path.startsWith('/rooms/')) {
+        return handleRooms({ request, url, db, me, now, data, canUseCommunity, reply });
+      }
+      if (!canUseCommunity) {
+        return reply({ error: 'Community opens on breaks or after 20:00 Oslo time, outside active study rooms.' }, 423);
+      }
     }
 
     if (path === '/profile' && request.method === 'GET') {

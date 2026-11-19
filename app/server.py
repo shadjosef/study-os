@@ -95,6 +95,9 @@ def merge_course_practice(bank: dict[str, Any], supplement: dict[str, Any]) -> d
     if bank["courseId"] != supplement["courseId"]:
         return bank
     merged = dict(bank)
+    main_exam = bank.get("examInfo") or {}
+    if not main_exam.get("date") and supplement.get("examInfo", {}).get("date"):
+        merged["examInfo"] = {**main_exam, **supplement["examInfo"]}
     for field in ("topics", "collections", "questions"):
         entries = list(bank.get(field) or [])
         ids = {entry["id"] for entry in entries}

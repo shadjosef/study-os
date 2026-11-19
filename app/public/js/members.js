@@ -111,6 +111,11 @@ window.StudyMembers = (() => {
     return new Blob([await decrypt(id, session.key)], { type: mime });
   }
 
+  async function pdfBytes(id) {
+    const url = await previewUrl(id, 'application/pdf');
+    return (await fetch(url)).arrayBuffer();
+  }
+
   async function previewUrl(id, mime) {
     if (!previews.has(id)) {
       previews.set(id, fileBlob(id, mime).then((blob) => URL.createObjectURL(blob)).catch((error) => {
@@ -166,5 +171,5 @@ window.StudyMembers = (() => {
     }
   }
 
-  return { enabled, unlock, restore, forget, isUnlocked: () => Boolean(session), course, loadBank, fillPreviews, bindDownloads };
+  return { enabled, unlock, restore, forget, isUnlocked: () => Boolean(session), course, loadBank, pdfBytes, fillPreviews, bindDownloads };
 })();

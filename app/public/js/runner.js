@@ -223,7 +223,8 @@ window.StudyRunner = (() => {
         layoutOverride: null,
         readerTab: 'task',
         selectedPdfIdx: 0,
-        excerptZoom: 100,
+        excerptViews: {},
+        pdfViews: {},
         invertPdfFrame: false,
         inlineRefFile: '',
         inlineRefHeading: '',
@@ -643,10 +644,8 @@ window.StudyRunner = (() => {
     }
   }
 
-  function renderAssets(assets, courseId, sourcesMap, zoomPct = 100, isBlindUnfinished = false) {
+  function renderAssets(assets, courseId, sourcesMap, isBlindUnfinished = false) {
     if (!Array.isArray(assets) || !assets.length) return '';
-    const z = Number(zoomPct) || 100;
-    const imgStyle = z !== 100 ? `style="width:${z}%;max-width:none"` : '';
     return assets
       .map((a, idx) => {
         const rel = typeof a === 'string' ? a : a.src;
@@ -668,10 +667,13 @@ window.StudyRunner = (() => {
                  ${entry.memberAsset ? memberDownload(entry.memberAsset) : `<button type="button" class="mini-tool-btn" data-open-native-pdf="${esc(entry.openAppUrl)}">PDF App</button>`}
                </span>`
             : '';
-        return `<figure class="pdf-figure" data-fig-idx="${idx}">
+        return `<figure class="pdf-figure" data-fig-idx="${idx}" data-pdf-excerpt="${esc(rel)}">
           <figcaption><span>${esc(cap || srcMeta?.title || 'Source excerpt')}</span>${pdfActions}</figcaption>
-          <div class="pdf-figure-scroll">
-            <img ${privateAsset ? memberPreviewAttrs(privateAsset) : `src="${esc(srcUrl)}"`} alt="${esc(cap || 'Question excerpt')}" loading="eager" ${imgStyle}>
+          ${window.StudyPdf.toolbar()}
+          <div class="pdf-zoom-scroll pdf-figure-scroll" tabindex="0" aria-label="Scrollable question excerpt">
+            <div class="pdf-zoom-page">
+              <img ${privateAsset ? memberPreviewAttrs(privateAsset) : `src="${esc(srcUrl)}"`} alt="${esc(cap || 'Question excerpt')}" loading="eager">
+            </div>
           </div>
         </figure>`;
       })
@@ -906,10 +908,9 @@ window.StudyRunner = (() => {
     const sourcesMap = activeRun.bank.sources || {};
     const isBlindUnfinished = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
     const hasWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
-    const hasFigures = Boolean((q.promptAssets && q.promptAssets.length) || (q.contextAssets && q.contextAssets.length));
     const sourcePdfs = getQuestionSourcePdfs(q, sourcesMap, isBlindUnfinished, st.revealed);
     const uiPrefs = getRunnerUiPrefs();
-    const splitRatio = uiPrefs.splitRatio || 'balanced'; // 'balanced' | 'wide-left' | 'wide-right'
+    const splitRatio = uiPrefs.splitRatio || 'balanced';
     const instantMcq = Boolean(uiPrefs.instantMcq) && !isBlindUnfinished;
 
     // Guard invalid reader tab (e.g. if switched to question without PDFs or blind exam locks reference)
@@ -1006,23 +1007,23 @@ window.StudyRunner = (() => {
     `;
 
     // Question Body / Left Reader Content
-    const zoomPct = Number(st.excerptZoom) || 100;
     const contextHtml =
       (q.contextMarkdown ? `<div class="markdown-body">${renderMarkdownWithMath(q.contextMarkdown)}</div>` : '') +
-      renderAssets(q.contextAssets, q.courseId, sourcesMap, zoomPct, isBlindUnfinished);
+      renderAssets(q.contextAssets, q.courseId, sourcesMap, isBlindUnfinished);
 
-    const promptAssetsHtml = renderAssets(q.promptAssets, q.courseId, sourcesMap, zoomPct, isBlindUnfinished);
+    const promptAssetsHtml = renderAssets(q.promptAssets, q.courseId, sourcesMap, isBlindUnfinished);
     const svgHtml = q.svgDiagram ? `<div class="diagram-wrap" style="margin:14px 0">${q.svgDiagram}</div>` : '';
     const promptMdHtml = q.promptMarkdown
       ? `<div class="markdown-body" style="font-size:16px">${renderMarkdownWithMath(q.promptMarkdown)}</div>`
       : '';
 
     let readerBodyHtml = '';
+    let inlinePdf = null;
     if (st.readerTab === 'pdf' && sourcePdfs.length) {
       const pdfIdx = Math.max(0, Math.min(sourcePdfs.length - 1, Number(st.selectedPdfIdx) || 0));
       const curPdf = sourcePdfs[pdfIdx];
       const memberFile = curPdf.memberAsset;
-      const inlineMember = memberFile && (curPdf.isPdf || memberFile.mime.startsWith('image/'));
+      if (curPdf.isPdf) inlinePdf = curPdf;
       const selectorHtml =
         sourcePdfs.length > 1
           ? `<select id="sel-inline-pdf" style="font-size:12.5px;padding:4px 8px;max-width:340px">` +
@@ -1043,14 +1044,28 @@ window.StudyRunner = (() => {
             </div>
           </div>
           ${
-            memberFile ? (inlineMember
-              ? (curPdf.isPdf
-                ? `<iframe class="inline-pdf-frame ${st.invertPdfFrame ? 'pdf-invert-frame' : ''}" ${memberPreviewAttrs(memberFile, curPdf.page)} title="${esc(curPdf.title)}"></iframe>`
-                : `<img ${memberPreviewAttrs(memberFile)} alt="${esc(curPdf.title)}" style="max-width:100%">`)
-              : '<p class="muted">Download this file to open it on your device.</p>')
-            : curPdf.isPdf
-              ? `<iframe class="inline-pdf-frame ${st.invertPdfFrame ? 'pdf-invert-frame' : ''}" src="${esc(curPdf.embedUrl)}" title="${esc(curPdf.title)}"></iframe>`
-              : `<div class="pdf-figure-scroll"><img src="${esc(curPdf.rawUrl)}" alt="${esc(curPdf.title)}" style="max-width:100%;height:auto"></div>`
+            curPdf.isPdf ? `
+              <div id="source-pdf-reader">
+                <div class="pdf-page-tools">
+                  <button type="button" class="mini-tool-btn" data-pdf-prev aria-label="Previous PDF page">‹</button>
+                  <form data-pdf-page-form><label>Page <input name="page" type="number" min="1" value="${curPdf.page}"></label>
+                    <button type="submit" class="mini-tool-btn">Go</button></form>
+                  <span data-pdf-page-count></span>
+                  <button type="button" class="mini-tool-btn" data-pdf-next aria-label="Next PDF page">›</button>
+                </div>
+                ${window.StudyPdf.toolbar()}
+                <p class="muted pdf-status" data-pdf-status role="status">Loading PDF…</p>
+                <div class="pdf-zoom-scroll pdf-document-scroll ${st.invertPdfFrame ? 'pdf-ink-inverted' : ''}"
+                    tabindex="0" aria-label="Scrollable source PDF">
+                  <div class="pdf-zoom-page"><canvas aria-hidden="true"></canvas><div class="textLayer"></div></div>
+                </div>
+              </div>`
+            : memberFile && !memberFile.mime.startsWith('image/')
+              ? '<p class="muted">Download this file to open it on your device.</p>'
+              : `<figure class="pdf-figure" data-pdf-excerpt="${esc(curPdf.key)}">${window.StudyPdf.toolbar()}
+                  <div class="pdf-zoom-scroll pdf-figure-scroll" tabindex="0" aria-label="Scrollable source image">
+                    <div class="pdf-zoom-page"><img ${memberFile ? memberPreviewAttrs(memberFile) : `src="${esc(curPdf.rawUrl)}"`} alt="${esc(curPdf.title)}"></div>
+                  </div></figure>`
           }
         </div>
       `;
@@ -1118,16 +1133,6 @@ window.StudyRunner = (() => {
           }
         </div>
         <div class="reader-tools">
-          ${
-            st.readerTab === 'task' && hasFigures
-              ? `
-                <button type="button" class="mini-tool-btn" data-fig-zoom="-25" title="Zoom out excerpt">−</button>
-                <span style="font-size:11.5px;font-weight:700;min-width:38px;text-align:center">${zoomPct}%</span>
-                <button type="button" class="mini-tool-btn" data-fig-zoom="25" title="Zoom in excerpt side-by-side">+</button>
-                ${zoomPct !== 100 ? `<button type="button" class="mini-tool-btn" data-fig-zoom="reset" title="Reset zoom">100%</button>` : ''}
-              `
-              : ''
-          }
           ${
             isSplit
               ? `
@@ -1238,7 +1243,7 @@ window.StudyRunner = (() => {
     const nextFullLbl = hasMoreQuestions ? 'Next Question → (N)' : 'Finish Run (N)';
     let solutionHtml = '';
     if (st.revealed && !isBlindUnfinished) {
-      const solAssets = renderAssets(q.solutionAssets, q.courseId, sourcesMap, 100, false);
+      const solAssets = renderAssets(q.solutionAssets, q.courseId, sourcesMap);
       const pitfallHtml = q.pitfall
         ? `<p style="margin-top:10px;color:var(--warn)"><strong>Exam Pitfall:</strong> ${esc(q.pitfall)}</p>`
         : '';
@@ -1511,20 +1516,23 @@ window.StudyRunner = (() => {
     `;
 
     const card = document.getElementById('runner-question-card');
-    const ratioCls =
-      splitRatio === 'wide-left' ? 'ratio-wide-left' : splitRatio === 'wide-right' ? 'ratio-wide-right' : '';
     card.classList.toggle('split-card', isSplit);
     card.classList.toggle('foveal-card', !isSplit);
 
+    window.StudyPdf.dispose();
     if (isSplit) {
+      const initialWidth = splitRatio === 'wide-left' ? 62 : splitRatio === 'wide-right' ? 41 : splitRatio === 'custom'
+        ? Math.max(32, Math.min(68, Number(uiPrefs.splitWidth) || 52)) : 52;
       card.innerHTML = `
-        <div class="runner-split-grid ${ratioCls}">
+        <div class="runner-split-grid" style="--task-share:${initialWidth}fr;--answer-share:${100 - initialWidth}fr">
           <div class="runner-pane-left">
             ${readerTabBarHtml}
             <div class="runner-pane-left-scroll">
               ${readerBodyHtml}
             </div>
           </div>
+          <div class="runner-divider" role="separator" aria-label="Resize task and answer panes" aria-orientation="vertical"
+              aria-valuemin="32" aria-valuemax="68" aria-valuenow="${initialWidth}" tabindex="0"></div>
           <div class="runner-pane-right">
             ${statusBarHtml}
             ${ghostHtml}
@@ -1582,6 +1590,10 @@ window.StudyRunner = (() => {
       .join('');
 
     bindQuestionCardEvents(q, st, sourcePdfs);
+    if (inlinePdf) {
+      const view = st.pdfViews[inlinePdf.key] ||= { page: inlinePdf.page, zoom: 100, trim: false };
+      window.StudyPdf.mount(card.querySelector('#source-pdf-reader'), inlinePdf, view);
+    }
     tickLiveClocks();
   }
 
@@ -1638,9 +1650,10 @@ window.StudyRunner = (() => {
       renderRunner();
     });
 
-    document.getElementById('btn-invert-pdf-frame')?.addEventListener('click', () => {
+    document.getElementById('btn-invert-pdf-frame')?.addEventListener('click', (event) => {
       st.invertPdfFrame = !st.invertPdfFrame;
-      renderRunner();
+      event.currentTarget.classList.toggle('active', st.invertPdfFrame);
+      document.querySelector('.pdf-document-scroll')?.classList.toggle('pdf-ink-inverted', st.invertPdfFrame);
     });
 
     document.getElementById('btn-bottom-pdf')?.addEventListener('click', () => {
@@ -1668,15 +1681,39 @@ window.StudyRunner = (() => {
       renderRunner();
     });
 
-    // Inline Excerpt Zoom & Split Ratio buttons
-    document.querySelectorAll('[data-fig-zoom]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const spec = btn.dataset.figZoom;
-        if (spec === 'reset') st.excerptZoom = 100;
-        else st.excerptZoom = Math.max(75, Math.min(225, (Number(st.excerptZoom) || 100) + Number(spec)));
-        renderRunner();
+    window.StudyPdf.bindExcerpts(card, st.excerptViews);
+    const divider = card.querySelector('.runner-divider');
+    if (divider) {
+      const grid = divider.parentElement;
+      function resize(width) {
+        const percent = Math.round(Math.max(32, Math.min(68, width)));
+        grid.style.setProperty('--task-share', percent + 'fr');
+        grid.style.setProperty('--answer-share', (100 - percent) + 'fr');
+        divider.setAttribute('aria-valuenow', percent);
+        return percent;
+      }
+      function applyWidth() {
+        saveRunnerUiPrefs({ splitRatio: 'custom', splitWidth: Number(divider.getAttribute('aria-valuenow')) });
+        for (const button of card.querySelectorAll('[data-split-ratio]')) button.classList.remove('active');
+      }
+      divider.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        divider.setPointerCapture(event.pointerId);
       });
-    });
+      divider.addEventListener('pointermove', (event) => {
+        if (!divider.hasPointerCapture(event.pointerId)) return;
+        const rect = grid.getBoundingClientRect();
+        resize(100 * (event.clientX - rect.left) / rect.width);
+      });
+      divider.addEventListener('lostpointercapture', applyWidth);
+      divider.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        resize(Number(divider.getAttribute('aria-valuenow')) + (event.key === 'ArrowLeft' ? -3 : 3));
+        applyWidth();
+      });
+    }
 
     document.querySelectorAll('[data-split-ratio]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -2247,6 +2284,7 @@ window.StudyRunner = (() => {
 
   function exitRunnerKeepPaused() {
     pauseCurrentTimer();
+    window.StudyPdf.dispose();
     document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-foveal-compact');
     document.getElementById('runner-header').hidden = true;
     document.getElementById('global-header').hidden = false;
@@ -2280,6 +2318,12 @@ window.StudyRunner = (() => {
   }
 
   function bindRunnerGlobals() {
+    const runnerHeader = document.getElementById('runner-header');
+    new ResizeObserver(() => {
+      if (!runnerHeader.hidden) {
+        document.body.style.setProperty('--runner-sticky-top', runnerHeader.offsetHeight + 8 + 'px');
+      }
+    }).observe(runnerHeader);
     document.getElementById('run-exit-btn')?.addEventListener('click', exitRunnerKeepPaused);
     document.getElementById('run-layout-btn')?.addEventListener('click', toggleSplitWorkspace);
     document.getElementById('run-submit-exam-btn')?.addEventListener('click', () => promptSubmitFullExam());
@@ -2369,6 +2413,7 @@ window.StudyRunner = (() => {
         return;
       }
       if (!activeRun || document.getElementById('view-runner').hidden || !document.getElementById('checkin-modal').hidden) return;
+      if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-page-tools, .pdf-zoom-tools')) return;
       if (!document.getElementById('img-lightbox')?.hidden) return;
 
       // Cmd/Ctrl + Enter works even while typing inside the answer textarea:

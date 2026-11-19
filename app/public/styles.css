@@ -1178,20 +1178,31 @@ html[data-theme="dark"] .preset-chip.active {
   }
   .runner-split-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.04fr) minmax(0, 0.96fr);
-    gap: 14px;
+    grid-template-columns: minmax(0, var(--task-share, 52fr)) 14px minmax(0, var(--answer-share, 48fr));
     align-items: start;
   }
-  .runner-split-grid.ratio-wide-left {
-    grid-template-columns: minmax(0, 1.32fr) minmax(0, 0.78fr);
+  .runner-divider {
+    position: sticky;
+    top: var(--runner-sticky-top, 85px);
+    height: min(60vh, 540px);
+    cursor: col-resize;
+    touch-action: none;
+    display: grid;
+    justify-items: center;
+    align-items: center;
   }
-  .runner-split-grid.ratio-wide-right {
-    grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  .runner-divider::before {
+    content: '';
+    width: 4px;
+    height: 48px;
+    border-radius: 4px;
+    background: var(--line);
   }
+  .runner-divider:is(:hover, :focus-visible)::before { background: var(--accent); }
   .runner-pane-left {
     position: sticky;
-    top: 66px;
-    max-height: calc(100vh - 146px);
+    top: var(--runner-sticky-top, 66px);
+    max-height: calc(100dvh - var(--runner-sticky-top, 66px) - 24px);
     display: flex;
     flex-direction: column;
     background: var(--panel);
@@ -1216,6 +1227,7 @@ html[data-theme="dark"] .preset-chip.active {
 }
 
 @media (max-width: 1019px) {
+  .runner-divider { display: none; }
   .runner-pane-left, .runner-pane-right {
     margin-bottom: 14px;
   }
@@ -1307,17 +1319,44 @@ html[data-theme="dark"][data-pdf-dark="1"] .pdf-figure-scroll {
   border-radius: 9px;
   font-size: 12px;
 }
-.inline-pdf-frame {
-  width: 100%;
-  height: calc(100vh - 265px);
-  min-height: 540px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #ffffff;
+.pdf-page-tools, .pdf-zoom-tools, .pdf-page-tools form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
 }
-.inline-pdf-frame.pdf-invert-frame {
-  filter: invert(0.9) hue-rotate(180deg);
+.pdf-page-tools, .pdf-zoom-tools { padding: 6px 8px; background: var(--panel-alt); }
+.pdf-page-tools input { width: 4.5em; min-width: 0; padding: 2px 4px; }
+.pdf-status { margin: 4px 8px; }
+.pdf-status:empty { display: none; }
+.pdf-zoom-scroll { overflow: auto; max-height: min(68vh, 860px); }
+.pdf-document-scroll { background: #fff; }
+.pdf-zoom-page { position: relative; overflow: hidden; margin-inline: auto; }
+.pdf-zoom-page :is(canvas, img) { position: absolute; display: block; cursor: default; }
+.pdf-ink-inverted canvas { filter: invert(0.9) hue-rotate(180deg); }
+.pdf-zoom-page .textLayer {
+  position: absolute;
+  inset: 0 auto auto 0;
+  overflow: hidden;
+  line-height: 1;
+  text-size-adjust: none;
+  transform-origin: 0 0;
 }
+.pdf-zoom-page .textLayer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0 0;
+}
+.pdf-zoom-page .textLayer :is(span:not(.markedContent), br) {
+  font-size: calc(var(--total-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate, 0deg)) scaleX(var(--scale-x, 1));
+}
+.pdf-zoom-page .textLayer ::selection { background: #5688b75c; }
+.room-players { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 6px; }
+.room-players li { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: space-between; }
 
 /* Quiet 1-Tap Perceived Difficulty & Similar Drill Bar */
 .difficulty-rate-bar {

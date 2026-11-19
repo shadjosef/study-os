@@ -678,6 +678,7 @@ window.StudyUI = (() => {
     window.StudyCommunity?.clockTick?.();
     window.StudyLayout?.clockTick?.();
     window.StudySets?.clockTick?.();
+    window.StudyRooms?.clockTick?.();
   }
 
   // ---------------------------------------------------------------------------
@@ -1392,7 +1393,7 @@ window.StudyUI = (() => {
       if (pop && !pop.hidden && !pop.contains(e.target) && !e.target?.closest?.('.sound-toggle-btn')) {
         closeSoundPopover();
       }
-      const figImg = e.target?.closest?.('.pdf-figure img');
+      const figImg = e.target?.closest?.('.pdf-figure:not([data-pdf-excerpt]) img');
       if (figImg && figImg.src) {
         openLightbox(figImg.src, figImg.alt);
       }

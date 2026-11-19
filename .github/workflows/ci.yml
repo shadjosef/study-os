@@ -40,11 +40,14 @@ jobs:
           node --check app/public/js/render.js
           node --check app/public/js/layouts.js
           node --check app/public/js/runner.js
+          node --check app/public/js/pdf-reader.js
+          node --check app/public/js/rooms.js
           node --check app/public/js/app.js
           node --check app/public/js/members.js
           node --check app/public/js/study-sets.js
           node --check app/public/js/community.js
           node --check community/worker.mjs
+          node --check community/rooms.mjs
           node --check obsidian-plugin/main.js
 
       - name: Fresh-clone CLI & HTTP smoke test (zero data/)

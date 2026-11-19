@@ -1,0 +1,1 @@
+Study-OS uses the official Mozilla PDF.js 6.5.438 legacy browser distribution. The bundled viewer modules and resources came from `pdfjs-dist@6.5.438`. See the included Apache 2.0 license and asset-specific licenses. [PDF.js release](https://github.com/mozilla/pdf.js/releases/tag/v6.5.438)

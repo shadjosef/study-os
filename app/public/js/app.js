@@ -477,7 +477,7 @@ window.StudyApp = (() => {
   }
 
   function showRawView(name) {
-    for (const v of ['home', 'references', 'schedule', 'exams', 'course', 'runner', 'analytics', 'community']) {
+    for (const v of ['home', 'references', 'schedule', 'exams', 'course', 'runner', 'analytics', 'community', 'room']) {
       const sec = document.getElementById(`view-${v}`);
       if (sec) sec.hidden = v !== name;
     }
@@ -501,6 +501,7 @@ window.StudyApp = (() => {
     } else if (viewName === 'course') await renderCourseExplorer(selectedCourseId, opts.preset || '');
     else if (viewName === 'analytics') renderAnalytics();
     else if (viewName === 'community') await window.StudyCommunity.render();
+    else if (viewName === 'room') await window.StudyRooms.render();
   }
 
   function daysUntilDateStr(isoDate) {
@@ -3005,7 +3006,10 @@ window.StudyApp = (() => {
       const attempt = { ...payload, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio };
       ws.attempts.push(attempt);
       const saved = saveWebState(ws);
-      if (saved) window.StudyCommunity.queueStatsSync();
+      if (saved) {
+        window.StudyCommunity.queueStatsSync();
+        window.StudyRooms.recordAttempt();
+      }
       recomputeWebAnalytics();
       updateHeaderStats();
       return { ok: saved, attempt, record: rec, analytics: boot.analytics };
@@ -3087,6 +3091,10 @@ window.StudyApp = (() => {
     bindGlobalChrome();
     window.StudyRunner.bindRunnerGlobals();
     document.querySelector('[data-nav="community"]').hidden = !window.StudyCommunity.enabled;
+    document.getElementById('runner-room-btn').onclick = () => {
+      document.getElementById('run-exit-btn').click();
+      navigate('room');
+    };
     window.StudyCommunity.queueStatsSync();
     if (isStaticWeb) window.addEventListener('pagehide', flushWebDrafts);
 
@@ -3119,6 +3127,7 @@ window.StudyApp = (() => {
           flushWebDrafts();
           const message = restoreWebBackup(data);
           if (message) {
+            window.StudyCommunity.queueStatsSync();
             await refreshBootstrap();
             toast(message);
           }
@@ -3134,6 +3143,8 @@ window.StudyApp = (() => {
     });
 
     try {
+      await window.StudyCommunity.requireProfile();
+      await window.StudyRooms.restore();
       await members.restore();
       await refreshBootstrap(false);
       const openedStudySet = await window.StudySets.activateDraft();

@@ -10,10 +10,13 @@
 - Added break-time layout presets with optional dlPFC labels and a daily practice budget. Share a preset as a copyable code.
 - Break tools lock at zero before 20:00 Oslo time. Add one minute to reopen them or start your next session. Evening access runs until midnight.
 - Added the option to remember the full-library key on this browser.
+- Added inline zoom and margin trimming for task excerpts and source PDFs. Drag the split divider to change the pane widths.
+- Added the 4 December Mathematics for Data Science exam date and countdown.
 
 ## Community awaiting deployment
 
 - Every Community profile appears on the members-only leaderboard with hours, completed questions, attempts and practice accuracy.
 - The leaderboard, global chat and direct messages open during a timed Study-OS break. The leaderboard also shows the current timer status of active Community members.
-- Community has its own invite code. Solo practice works without a Community profile.
+- The Community-enabled site requires a display name on the study leaderboard. The invite code is separate from the course library key.
 - Members can share study sets on break and save them for solo practice. Custom sets stay outside community and Elo scoring.
+- Group study rooms sync a 25-minute session and live practice counts. Rated maths duels have a five-minute round and a separate Elo leaderboard.

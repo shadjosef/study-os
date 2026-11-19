@@ -13,6 +13,7 @@ window.StudyCommunity = (() => {
   let lastChatAt = 0;
   let chatLoading = false;
   let openingBreak = false;
+  const canUse = () => workClock.canUseBreakTools() && !window.StudyRooms?.running();
   try { token = localStorage.getItem(keyName) || ''; } catch {}
 
   function useProfile(key) {
@@ -95,13 +96,13 @@ window.StudyCommunity = (() => {
     if (state.mode !== 'idle' || (lastPresence && lastPresence !== 'idle')) syncPresence(state).catch(() => {});
     const root = document.getElementById('community-root');
     if (document.getElementById('view-community').hidden) return;
-    const canUse = workClock.canUseBreakTools();
-    if (!canUse && root.querySelector('#community-social')) {
+    const available = canUse();
+    if (!available && root.querySelector('#community-social')) {
       renderLocked(root, root.querySelector('#community-signed-in').textContent);
-    } else if (canUse && root.querySelector('#community-locked') && !openingBreak) {
+    } else if (available && root.querySelector('#community-locked') && !openingBreak) {
       openingBreak = true;
       render().finally(() => { openingBreak = false; });
-    } else if (canUse && Date.now() - lastChatAt >= 30_000) {
+    } else if (available && Date.now() - lastChatAt >= 30_000) {
       refreshChat(root).catch(() => {});
     }
   }
@@ -126,20 +127,19 @@ window.StudyCommunity = (() => {
     <details class="panel">
       <summary>Community privacy and rules</summary>
       <p>Study-OS Community is run by the Study-OS project, independently of BI. Use a nickname. Keep private information, restricted course files and material from active assessments out of messages.</p>
-      <p>Cloudflare stores your nickname, study totals, chat posts, direct messages, shared study sets and block list. Members can see your totals, timer and shared sets while on a break. Only the sender and recipient see each direct message in the app.</p>
+      <p>Cloudflare stores your display name, study totals, room results, duel rating, chat posts, direct messages, shared study sets and block list. Only the sender and recipient see each direct message in the app.</p>
       <p>Study-OS keeps your most recent timer status, which expires when updates stop. Delete your profile to remove your leaderboard entry and message history from the active database. Cloudflare may retain database backups for a limited period.</p>
     </details>`;
 
-  function renderEntry(root, error = '') {
+  function renderEntry(root, error = '', onSignedIn = render) {
     root.innerHTML = `
       <section class="panel">
-        <h1>Study community</h1>
-        <p class="muted">Join with an invite code to use the leaderboard and direct messages.</p>
-        <p id="community-stats-notice">Every Community profile shows its nickname, practice hours, completed questions, attempts, accuracy and current Study-OS timer to other members on break. You can study without creating a profile.</p>
+        <h1>Create your Study-OS profile</h1>
+        <p id="community-stats-notice">Your display name, study hours, completed questions, attempts, accuracy and current study timer are visible to members during break access.</p>
         <form id="community-join" class="row-actions">
-          <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
+          <label class="field-label">Name on leaderboard <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
           <label class="field-label">Community invite code <input name="invite" type="password" required autocomplete="off"></label>
-          <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Join Community</button>
+          <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Create profile</button>
         </form>
         <form id="community-sign-in" class="row-actions">
           <label class="field-label">Personal profile key <input name="key" type="password" required autocomplete="off"></label>
@@ -156,26 +156,55 @@ window.StudyCommunity = (() => {
       const proof = [...hash].map((value) => value.toString(16).padStart(2, '0')).join('');
       const result = await request('/join', { nickname: form.get('nickname'), proof }, '');
       useProfile(result.token);
-      await render();
+      await onSignedIn();
     }, status);
     action(root.querySelector('#community-sign-in'), async (form) => {
       const key = form.get('key').trim();
       await request('/profile', null, key);
       useProfile(key);
-      await render();
+      await onSignedIn();
     }, status);
   }
 
+  async function requireProfile() {
+    if (!api) return;
+    if (token) {
+      try {
+        await request('/profile');
+        return;
+      } catch (error) {
+        if (error.status !== 401) return;
+        useProfile('');
+      }
+    }
+    const gate = document.getElementById('profile-gate');
+    return new Promise((resolve) => {
+      renderEntry(gate, '', () => {
+        gate.close();
+        queueStatsSync();
+        resolve();
+      });
+      gate.oncancel = (event) => event.preventDefault();
+      if (!gate.open) gate.showModal();
+    });
+  }
+
   function profileActions(root) {
-    root.querySelector('#community-logout').onclick = () => {
+    root.querySelector('#community-logout').onclick = async () => {
       useProfile('');
-      render();
+      window.StudyRooms?.reset();
+      await requireProfile();
+      await window.StudyRooms?.restore();
+      await render();
     };
     root.querySelector('#community-delete').onclick = async () => {
       if (!window.confirm('Delete your Community profile, study totals and messages?')) return;
       try {
         await request('/delete-profile', { confirm: true });
         useProfile('');
+        window.StudyRooms?.reset();
+        await requireProfile();
+        await window.StudyRooms?.restore();
         await render();
         toast('Community profile deleted.');
       } catch (error) {
@@ -207,7 +236,7 @@ window.StudyCommunity = (() => {
 
   async function refreshChat(root) {
     const list = root.querySelector('#community-chat-list');
-    if (chatLoading || !list || !workClock.canUseBreakTools()) return;
+    if (chatLoading || !list || !canUse()) return;
     chatLoading = true;
     lastChatAt = Date.now();
     try {
@@ -280,6 +309,7 @@ window.StudyCommunity = (() => {
         <p class="muted">Keep your profile key to use your account on another device.</p>
         <p id="community-status" role="status"></p>
       </section>
+      ${window.StudyRooms.lobbyHtml()}
       <section class="panel">
         <h2>Leaderboard</h2>
         <p class="muted">All Community profiles appear here. Practice stats use the browser with the most recorded attempts and update while you’re signed in.</p>
@@ -334,6 +364,7 @@ window.StudyCommunity = (() => {
       status.textContent = 'Profile key copied. Keep it somewhere private.';
     });
     profileActions(root);
+    window.StudyRooms.bindLobby(root);
     doAction(root.querySelector('#community-refresh'), () => render(offset));
     doAction(root.querySelector('#community-stats'), () => render(offset));
     doAction(root.querySelector('#community-ranks-prev'), () => render(offset - 50));
@@ -376,7 +407,7 @@ window.StudyCommunity = (() => {
     try {
       await syncStats().catch(() => {});
       const state = timerStatus();
-      if (!workClock.canUseBreakTools()) {
+      if (!canUse()) {
         const { nickname } = await request('/profile');
         renderLocked(root, nickname);
         return;
@@ -385,19 +416,33 @@ window.StudyCommunity = (() => {
       await syncPresence(state);
       const result = await request('/dashboard?offset=' + offset);
       if (generation !== token) return;
-      if (workClock.canUseBreakTools()) renderDashboard(root, result, offset);
+      if (canUse()) renderDashboard(root, result, offset);
       else renderLocked(root, result.me.nickname);
     } catch (error) {
-      renderEntry(root, error.status === 401 ? 'Enter a current profile key or create a new profile.' : 'The community is unavailable. Please try again.');
+      if (error.status === 401) {
+        useProfile('');
+        await requireProfile();
+        await render(offset);
+      } else if (error.status === 423) {
+        const { nickname } = await request('/profile');
+        renderLocked(root, nickname);
+      } else {
+        root.innerHTML = '<section class="panel"><h1>Study community</h1><p>Community is unavailable. Open the Community tab to retry.</p></section>';
+      }
     }
   }
   const canShareSet = () => Boolean(api && token);
   async function shareSet(set) {
-    if (!canShareSet() || !workClock.canUseBreakTools()) throw new Error('Sign in to Community and share during a break.');
+    if (!canShareSet() || !canUse()) throw new Error('Sign in to Community and share during break access.');
     await syncPresence();
-    if (!workClock.canUseBreakTools()) throw new Error('Your break has ended.');
+    if (!canUse()) throw new Error('Your break has ended.');
     return request('/sets', { title: set.title, cards: set.cards });
   }
 
-  return { enabled: Boolean(api), render, queueStatsSync, clockTick, canShareSet, shareSet };
+  async function roomRequest(path = '', data) {
+    if (canUse()) await syncPresence();
+    return request('/rooms' + path, data);
+  }
+
+  return { enabled: Boolean(api), render, queueStatsSync, clockTick, canShareSet, shareSet, requireProfile, roomRequest };
 })();

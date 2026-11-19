@@ -1,7 +1,8 @@
-# Study Duels beta
+# Study rooms and rated maths duels
 
-Use Community invitations during a break to pair two members by mutual agreement. Both enter a timed run with the same freshly assigned questions and the same allowed aids. During the run, show each participant their opponent's completed count and remaining time. Keep chat and messages closed until their next break. An unrated study-together mode can use the same progress view with independent question sets.
+Create or join a room from **Community** during break access. The host shares the eight-character code. Everyone marks themselves ready before the host starts the round. Community chat stays closed while a room is running.
 
-Keep the rating separate from the study leaderboard. Start rated players at 1200 Elo. Grade on accuracy using the same question set and scoring rules for both participants. Treat equal scores as a draw. A disconnect after the agreed deadline can count as a forfeit once both players have confirmed they are ready. Rules and stakes should be visible before acceptance.
+- **Group study** runs for 25 minutes with two to eight members. Choose any Study-OS subject and return to **My study room** to see each participant’s practice count. Group activity carries no Elo.
+- **Rated maths duels** give two players the same six generated calculations and five minutes. The server accepts one answer per question. During play, members see how many answers each player has submitted. Scores, worked answer values and Elo changes appear after both players finish or time runs out.
 
-Build the unrated match first. Rated matches need a server-held answer key for an original duel question pool, server-side grading, a match deadline, and one atomic rating update per match. The existing downloadable practice banks expose their answers and suit unrated practice. Test reconnection, duplicate submissions, draws, and a no-contest when a match fails to start.
+Ratings start at 1200, use a K-factor of 32, and are listed separately from the study leaderboard. Equal scores draw. Both players must submit at least one answer for the round to count toward Elo. Group totals come from each browser. The duel deadline and grading are enforced by the server.

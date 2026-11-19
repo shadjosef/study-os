@@ -30,6 +30,7 @@
         <button type="button" class="tab-btn" data-nav="course">Courses</button>
         <button type="button" class="tab-btn" data-nav="analytics">Metrics &amp; AI</button>
         <button type="button" class="tab-btn" data-nav="community" hidden>Community</button>
+        <button type="button" class="tab-btn" data-nav="room" hidden>My study room</button>
       </nav>
 
       <div class="topbar-stats">
@@ -62,6 +63,7 @@
         <button type="button" class="primary-btn" id="run-submit-exam-btn" hidden style="padding:6px 13px;font-size:13px">Submit Paper</button>
         <span class="live-clock-pill" id="run-work-pill" title="Universal working interval (capped at 75:00)">Session 0:00 / 75m</span>
         <button type="button" class="ghost-btn" id="run-break-btn" title="Take scaled 1:5 off-screen recovery break (B)">Break (3m)</button>
+        <button type="button" class="ghost-btn" id="runner-room-btn" hidden>Study room</button>
         <button type="button" class="live-clock-pill item-clock-pill" id="run-live-pill" title="Click or press P to pause/resume timer">Q 0:00</button>
         <button type="button" class="ghost-btn" id="run-autopause-btn" title="Auto-pause is OFF by default so timers keep running while Excel, Jupyter, Calculator, or Obsidian are open over the browser">Auto: Off</button>
         <button type="button" class="ghost-btn" id="run-fullscreen-btn" title="Toggle Fullscreen focus lock (F11)">Full</button>
@@ -74,6 +76,7 @@
     </div>
   </header>
 
+  <dialog id="profile-gate" class="member-dialog" aria-label="Study-OS profile"></dialog>
   <main class="container">
     <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
     <dialog id="member-dialog" class="member-dialog" aria-labelledby="member-title">
@@ -166,6 +169,9 @@
     </section>
     <section id="view-community" class="view-section" hidden>
       <div id="community-root"></div>
+    </section>
+    <section id="view-room" class="view-section" hidden>
+      <div id="study-room-root"></div>
     </section>
   </main>
 
@@ -352,11 +358,13 @@
   <script src="./vendor/katex.min.js"></script>
   <script src="./vendor/auto-render.min.js"></script>
   <script src="./js/render.js"></script>
+  <script src="./js/pdf-reader.js"></script>
   <script src="./js/layouts.js"></script>
   <script src="./js/runner.js"></script>
   <script src="./js/members.js"></script>
   <script src="./js/study-sets.js"></script>
   <script src="./js/community.js"></script>
+  <script src="./js/rooms.js"></script>
   <script src="./js/app.js"></script>
 </body>
 </html>
