@@ -1043,21 +1043,7 @@ window.StudyRunner = (() => {
           </div>
           ${
             curPdf.isPdf ? `
-              <div id="source-pdf-reader">
-                <div class="pdf-page-tools">
-                  <button type="button" class="mini-tool-btn" data-pdf-prev aria-label="Previous PDF page">‹</button>
-                  <form data-pdf-page-form><label>Page <input name="page" type="number" min="1" value="${curPdf.page}"></label>
-                    <button type="submit" class="mini-tool-btn">Go</button></form>
-                  <span data-pdf-page-count></span>
-                  <button type="button" class="mini-tool-btn" data-pdf-next aria-label="Next PDF page">›</button>
-                </div>
-                ${window.StudyPdf.toolbar()}
-                <p class="muted pdf-status" data-pdf-status role="status">Loading PDF…</p>
-                <div class="pdf-zoom-scroll pdf-document-scroll ${st.invertPdfFrame ? 'pdf-ink-inverted' : ''}"
-                    tabindex="0" aria-label="Scrollable source PDF">
-                  <div class="pdf-zoom-page"><canvas aria-hidden="true"></canvas><div class="textLayer"></div></div>
-                </div>
-              </div>`
+              <div id="source-pdf-reader">${window.StudyPdf.viewer(curPdf.page, st.invertPdfFrame)}</div>`
             : memberFile && !memberFile.mime.startsWith('image/')
               ? '<p class="muted">Download this file to open it on your device.</p>'
               : `<figure class="pdf-figure" data-pdf-excerpt="${esc(curPdf.key)}">${window.StudyPdf.toolbar()}

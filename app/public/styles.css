@@ -1692,6 +1692,10 @@ body.runner-foveal-compact .runner-topbar-inner {
 
 .member-dialog::backdrop { background: rgba(4, 13, 10, .68); }
 .member-dialog input { width: 100%; }
+#canvas-sync-dialog input[type="checkbox"] { width: auto; }
+#local-book-dialog { width: min(940px, calc(100% - 24px)); }
+#canvas-session-fields > details { margin: 8px 0; }
+#course-local-documents li { padding-block: 3px; }
 #canvas-sync-log {
   max-height: 14rem;
   overflow: auto;

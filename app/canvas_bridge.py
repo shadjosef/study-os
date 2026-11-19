@@ -35,6 +35,8 @@ from dlpfc import classify_intrinsic_dlpfc
 OSLO_TZ = ZoneInfo("Europe/Oslo")
 _RESYNC_URLS: dict[Path, str] = {}
 _RESYNC_LOCK = threading.Lock()
+COURSE_DOCUMENT_TYPES = {".pdf", ".epub", ".ppt", ".pptx"}
+MAX_DOCUMENT_BYTES = 200 * 1024 * 1024
 
 COURSE_COLORS = [
     "#28654d",
@@ -247,7 +249,7 @@ def _discover_archive_courses(archive_dir: Path) -> list[dict[str, str]]:
     for sub in sorted(archive_dir.iterdir()):
         if not sub.is_dir():
             continue
-        m = re.match(r"^(.+)--(\d+)$", sub.name)
+        m = re.match(r"^(.+)--(\d+|local-[1-9]\d*)$", sub.name)
         if m and m.group(2) not in found:
             found[m.group(2)] = {
                 "canvasId": m.group(2),
@@ -255,6 +257,23 @@ def _discover_archive_courses(archive_dir: Path) -> list[dict[str, str]]:
                 "folder": sub.name,
             }
     return list(found.values())
+
+
+def canvas_course_documents(archive_dir: Path, canvas_id: str) -> list[dict[str, str]]:
+    course = next((entry for entry in _discover_archive_courses(archive_dir)
+                   if entry["canvasId"] == canvas_id), None)
+    if not course:
+        return []
+    folder = (archive_dir / course["folder"] / "Files").resolve()
+    if archive_dir not in folder.parents:
+        return []
+    return [
+        {"name": path.name, "path": path.relative_to(archive_dir).as_posix(),
+         "kind": path.suffix.lower()[1:]}
+        for path in sorted(folder.rglob("*"), key=lambda path: (path.name.casefold(), path))
+        if path.suffix.lower() in COURSE_DOCUMENT_TYPES and not path.name.startswith(".")
+        and path.is_file() and archive_dir in path.resolve().parents
+    ]
 
 
 def inspect_canvas_archive(
@@ -488,7 +507,14 @@ class _RejectRedirects(HTTPRedirectHandler):
         return None
 
 
-def canvas_resync(archive_dir: Path, session: str | None = None) -> tuple[int, dict[str, Any]]:
+def _engine_request(url: str, route: str, data: Any = None, headers: dict[str, str] | None = None) -> Request:
+    if data is None:
+        return Request(url + route)
+    origin, key = url.rstrip("/").rsplit("/", 1)
+    return Request(url + route, data, headers={"Origin": origin, "X-Canvas-Client": key, **(headers or {})})
+
+
+def canvas_resync(archive_dir: Path, options: dict[str, Any] | None = None) -> tuple[int, dict[str, Any]]:
     """Use the installed, loopback-only Canvas Sync process for status and start."""
     try:
         url = _resync_url(archive_dir)
@@ -497,19 +523,17 @@ def canvas_resync(archive_dir: Path, session: str | None = None) -> tuple[int, d
     except (OSError, subprocess.SubprocessError):
         return 503, {"error": "Canvas Sync could not start. Try again or open the standalone app."}
 
-    origin, key = url.rstrip("/").rsplit("/", 1)
-    req = Request(url + "status")
-    if session is not None:
-        req = Request(url + "start", json.dumps({"session": session}).encode("utf-8"), headers={
-            "Origin": origin, "X-Canvas-Client": key, "Content-Type": "application/json",
-        })
+    req = _engine_request(url, "status")
+    if options is not None:
+        req = _engine_request(url, "start", json.dumps(options).encode("utf-8"),
+                              {"Content-Type": "application/json"})
     try:
         # The broker follows only its validated loopback URL. In particular, a
         # redirect must never forward the session or engine authorization key.
         opener = build_opener(ProxyHandler({}), _RejectRedirects())
         with opener.open(req, timeout=8) as response:
             result = json.load(response)
-        if session is not None:
+        if options is not None:
             return 202, {"started": True}
         if not isinstance(result, dict) or result.get("archive") != str(archive_dir.resolve()):
             raise ValueError("Canvas Sync archive mismatch")
@@ -520,10 +544,13 @@ def canvas_resync(archive_dir: Path, session: str | None = None) -> tuple[int, d
             "log": (result.get("log") or "")[-16000:],
         }
     except HTTPError as exc:
-        if session is not None and exc.code == 409:
-            return 409, {"error": "A Canvas sync is already running. Reopen the dialog to see its progress."}
-        if session is not None and exc.code == 400:
-            return 400, {"error": "Enter the canvas_session value from your signed-in Canvas browser."}
+        if options is not None and exc.code == 409:
+            return 409, {"error": "A sync is already running. Reopen the dialog to see its progress."}
+        if options is not None and exc.code == 400:
+            label = "Canvas session and Ed token" if options.get("ed_include") else "Canvas session"
+            if options.get("ed_only"):
+                label = "Ed token and region"
+            return 400, {"error": f"Check your {label} and try again."}
     except (URLError, TimeoutError, ValueError):
         pass
 
@@ -531,6 +558,36 @@ def canvas_resync(archive_dir: Path, session: str | None = None) -> tuple[int, d
         if _RESYNC_URLS.get(archive_dir) == url:
             _RESYNC_URLS.pop(archive_dir)
     return 502, {"error": "Lost the connection to Canvas Sync. Reopen the dialog to reconnect."}
+
+
+def add_canvas_document(archive_dir: Path, canvas_id: str, encoded_name: str,
+                        stream: Any, size: int) -> tuple[int, dict[str, Any]]:
+    def chunks():
+        remaining = size
+        while remaining:
+            chunk = stream.read(min(remaining, 1024 * 1024))
+            if not chunk:
+                raise OSError("Incomplete file")
+            remaining -= len(chunk)
+            yield chunk
+
+    try:
+        url = _resync_url(archive_dir)
+        req = _engine_request(url, "library/upload", chunks(), {
+            "Content-Type": "application/octet-stream", "Content-Length": str(size),
+            "X-Study-Course": canvas_id, "X-Study-Name": encoded_name,
+        })
+        with build_opener(ProxyHandler({}), _RejectRedirects()).open(req, timeout=40) as response:
+            result = json.load(response)
+        return 201, {"name": result["name"], "reused": bool(result.get("reused"))}
+    except HTTPError as error:
+        if error.code == 409:
+            return 409, {"error": "Wait for the running sync or file import to finish."}
+        if error.code == 400:
+            return 400, {"error": "Canvas Sync could not copy this file. Check the course and available disk space."}
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+        pass
+    return 502, {"error": "Could not add the file. Check the Canvas Sync app and try again."}
 
 
 def _strip_id_prefix(filename: str) -> str:

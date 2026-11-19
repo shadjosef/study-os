@@ -29,6 +29,7 @@ window.StudyApp = (() => {
 
   let currentView = 'home';
   let openCanvasSync;
+  let openCanvasFiles;
   let selectedCourseId = '';
   let selectedSemester = 'all';
   let selectedRefFile = '';
@@ -885,7 +886,8 @@ window.StudyApp = (() => {
                 }</small>
               </div>
               <div class="row-actions">
-                ${ca.hasResyncApp ? '<button type="button" class="primary-btn" id="btn-open-canvas-resync">Sync Canvas</button>' : '<a class="ghost-btn" href="https://github.com/shadjosef/canvas-study-sync" target="_blank" rel="noopener">Get Canvas Sync ↗</a>'}
+                ${ca.hasResyncApp ? '<button type="button" class="primary-btn" id="btn-open-canvas-resync">Sync Canvas</button><button type="button" class="ghost-btn" id="btn-open-ed-sync">Sync Ed</button>' : '<a class="ghost-btn" href="https://github.com/shadjosef/canvas-study-sync" target="_blank" rel="noopener">Get Canvas Sync ↗</a>'}
+                ${ca.hasResyncApp && ca.courses?.length ? '<button type="button" class="ghost-btn" id="btn-add-canvas-files">Add books or PDFs</button>' : ''}
                 <button type="button" class="ghost-btn" id="btn-set-archive-path">Set Folder Path</button>
               </div>
             </div>
@@ -927,7 +929,8 @@ window.StudyApp = (() => {
             }</small>
           </div>
           <div class="row-actions">
-            ${ca.hasResyncApp ? '<button type="button" class="ghost-btn" style="padding:5px 11px;font-size:12.5px" id="btn-open-canvas-resync">Sync Canvas</button>' : ''}
+            ${ca.hasResyncApp ? '<button type="button" class="ghost-btn" id="btn-open-canvas-resync">Sync Canvas</button><button type="button" class="ghost-btn" id="btn-open-ed-sync">Sync Ed</button>' : ''}
+            ${ca.hasResyncApp && ca.courses?.length ? '<button type="button" class="ghost-btn" id="btn-add-canvas-files">Add books or PDFs</button>' : ''}
             ${
               unimported > 0
                 ? `<button type="button" class="primary-btn" style="padding:5px 11px;font-size:12.5px" id="btn-import-canvas-courses">Import ${unimported} New Course${unimported > 1 ? 's' : ''} →</button>`
@@ -939,7 +942,9 @@ window.StudyApp = (() => {
       `;
     }
 
-    document.getElementById('btn-open-canvas-resync')?.addEventListener('click', openCanvasSync);
+    document.getElementById('btn-open-canvas-resync')?.addEventListener('click', () => openCanvasSync('canvas'));
+    document.getElementById('btn-open-ed-sync')?.addEventListener('click', () => openCanvasSync('ed'));
+    document.getElementById('btn-add-canvas-files')?.addEventListener('click', () => openCanvasFiles());
 
     document.getElementById('btn-set-archive-path')?.addEventListener('click', async () => {
       const p = prompt('Enter full path to your local Canvas-Archive folder:', ca.configuredPath || ca.archivePath || '');
@@ -963,9 +968,9 @@ window.StudyApp = (() => {
     document.getElementById('btn-onboard-sched')?.addEventListener('click', () => navigate('schedule'));
   }
 
-  async function importCanvasCourses() {
+  async function importCanvasCourses(canvasIds) {
     toast('Importing courses from Canvas-Archive…');
-    const result = await apiPost('/api/canvas/import', {});
+    const result = await apiPost('/api/canvas/import', { canvasIds });
     if (result.bootstrap) boot = result.bootstrap;
     if (currentView === 'home') renderHome();
     const count = result.imported?.length || 0;
@@ -973,9 +978,104 @@ window.StudyApp = (() => {
     return count;
   }
 
+  function bindCanvasFiles() {
+    const dialog = document.getElementById('canvas-files-dialog');
+    const form = document.getElementById('canvas-files-form');
+    const feedback = document.getElementById('canvas-files-feedback');
+    const openLibrary = document.getElementById('canvas-open-library');
+    const submit = form.querySelector('button[type="submit"]');
+    const { course, files } = form.elements;
+    let uploading = false;
+    let addedTo = '';
+    const linkedCourse = (canvasId) => boot.catalog.find((item) => String(item.canvasId) === canvasId);
+
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      if (uploading) return;
+      const selected = Array.from(files.files);
+      if (!selected.length) return;
+      const canvasId = course.value;
+      const failures = [];
+      let copied = 0;
+      let reused = 0;
+      uploading = submit.disabled = course.disabled = files.disabled = true;
+      openLibrary.hidden = true;
+      for (const [index, file] of selected.entries()) {
+        feedback.textContent = `Adding ${index + 1} of ${selected.length} · ${file.name}`;
+        try {
+          const response = await fetch('/api/canvas/add-file', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'X-Study-Course': canvasId,
+              'X-Study-Name': encodeURIComponent(file.name),
+            },
+            body: file,
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error);
+          if (result.reused) reused += 1;
+          else copied += 1;
+        } catch (error) {
+          failures.push(`${file.name} · ${error.message}`);
+        }
+      }
+      uploading = submit.disabled = course.disabled = files.disabled = false;
+      feedback.textContent = [`${copied} added`, reused ? `${reused} already in this course` : '',
+        ...failures].filter(Boolean).join(' · ');
+      if (!failures.length) files.value = '';
+      if (copied || reused) {
+        addedTo = canvasId;
+        openLibrary.hidden = false;
+        openLibrary.textContent = linkedCourse(canvasId) ? 'Open course files' : 'Import course and open files';
+        if (currentView === 'course' && linkedCourse(canvasId)?.courseId === selectedCourseId) {
+          await renderCourseExplorer(selectedCourseId);
+          document.getElementById('course-local-documents')?.setAttribute('open', '');
+        }
+      }
+    };
+
+    openLibrary.onclick = async () => {
+      openLibrary.disabled = true;
+      try {
+        if (!linkedCourse(addedTo)) await importCanvasCourses([addedTo]);
+        const courseId = linkedCourse(addedTo)?.courseId;
+        if (!courseId) throw new Error('The course could not be opened.');
+        dialog.close();
+        await navigate('course', { courseId });
+        document.getElementById('course-local-documents')?.setAttribute('open', '');
+      } catch (error) {
+        feedback.textContent = error.message;
+      } finally {
+        openLibrary.disabled = false;
+      }
+    };
+    return (canvasId) => {
+      if (!uploading) {
+        course.innerHTML = (boot.canvasArchive?.courses || []).map((item) =>
+          `<option value="${esc(item.canvasId)}">${esc(item.title)}</option>`).join('');
+        if (canvasId) course.value = canvasId;
+        files.value = '';
+        feedback.textContent = '';
+        openLibrary.hidden = true;
+      }
+      if (!dialog.open) dialog.showModal();
+    };
+  }
+
+  function openLocalPdf(name, rawUrl) {
+    const dialog = document.getElementById('local-book-dialog');
+    const reader = document.getElementById('local-book-reader');
+    document.getElementById('local-book-title').textContent = name;
+    reader.innerHTML = window.StudyPdf.viewer();
+    dialog.showModal();
+    window.StudyPdf.mount(reader, { rawUrl, page: 1 }, { page: 1, zoom: 100, trim: false });
+  }
+
   function bindCanvasSync() {
     const dialog = document.getElementById('canvas-sync-dialog');
     const form = document.getElementById('canvas-sync-form');
+    const { mode, session, edToken, edRegion, rememberEd } = form.elements;
     const submit = form.querySelector('button[type="submit"]');
     const status = document.getElementById('canvas-sync-status');
     const log = document.getElementById('canvas-sync-log');
@@ -986,10 +1086,38 @@ window.StudyApp = (() => {
     let submitting = false;
     let refreshedRun;
 
-    async function request(action, session) {
+    function updateFields() {
+      document.getElementById('canvas-session-fields').hidden = mode.value === 'ed';
+      document.getElementById('canvas-ed-fields').hidden = mode.value === 'canvas';
+      session.disabled = mode.value === 'ed';
+      session.required = !session.disabled;
+      document.getElementById('canvas-ed-token-link').href = `https://edstem.org/${edRegion.value}/settings/api-tokens`;
+    }
+
+    function clearCredentials() {
+      session.value = '';
+      edToken.value = '';
+    }
+
+    mode.onchange = updateFields;
+    edRegion.onchange = updateFields;
+    for (const button of form.querySelectorAll('[data-paste-credential]')) {
+      button.onclick = async () => {
+        const field = form.elements[button.dataset.pasteCredential];
+        field.focus();
+        try {
+          const value = (await navigator.clipboard.readText()).trim();
+          if (dialog.open && field.offsetWidth && value) field.value = value;
+        } catch {
+          status.textContent = 'Paste into the selected field with ⌘V or Ctrl+V.';
+        }
+      };
+    }
+
+    async function request(action, options) {
       const response = await fetch('/api/canvas/sync', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, session }),
+        body: JSON.stringify({ action, ...options }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
@@ -1031,12 +1159,18 @@ window.StudyApp = (() => {
       submitting = true;
       submit.disabled = true;
       importBtn.hidden = true;
-      status.textContent = 'Starting Canvas Sync…';
-      const session = form.elements.session.value.trim();
-      form.reset();
+      status.textContent = 'Starting sync…';
+      const options = { mode: mode.value };
+      if (mode.value !== 'ed') options.session = session.value.trim();
+      if (mode.value !== 'canvas') {
+        options.edToken = edToken.value.trim();
+        options.edRegion = edRegion.value;
+        options.rememberEd = rememberEd.checked;
+      }
+      clearCredentials();
       let started = false;
       try {
-        await request('start', session);
+        await request('start', options);
         started = true;
       } catch (error) {
         status.textContent = error.message;
@@ -1067,9 +1201,14 @@ window.StudyApp = (() => {
         status.textContent = 'Could not launch the standalone app. Open it from Canvas-Archive.';
       }
     };
-    dialog.addEventListener('close', () => form.reset());
-    return () => {
-      if (!dialog.open) dialog.showModal();
+    dialog.addEventListener('close', clearCredentials);
+    return (source) => {
+      mode.value = source;
+      updateFields();
+      if (!dialog.open) {
+        dialog.showModal();
+        (source === 'ed' ? edToken : session).focus();
+      }
       if (!submitting && !checking) {
         status.textContent = 'Connecting to Canvas Sync…';
         submit.disabled = true;
@@ -1669,6 +1808,25 @@ window.StudyApp = (() => {
     }
     if (selectedCourseId !== courseId || currentView !== 'course') return;
     const cMeta = boot.catalog.find((c) => c.courseId === courseId) || { courseId, title: bank.title, shortTitle: bank.shortTitle };
+    const localCanvasId = String(cMeta.canvasId || bank.canvasId || '');
+    const localCourse = !isStaticWeb && boot.canvasArchive?.courses?.some((item) => String(item.canvasId) === localCanvasId);
+    const localFiles = localCourse
+      ? await apiGet(`/api/canvas/documents?course=${encodeURIComponent(localCanvasId)}`)
+        .then((result) => result.files || []).catch(() => [])
+      : [];
+    if (selectedCourseId !== courseId || currentView !== 'course') return;
+    const localLibrary = localCourse ? `<details class="curriculum" id="course-local-documents">
+      <summary>Course files on this device (${localFiles.length})</summary>
+      ${boot.canvasArchive.hasResyncApp ? '<button type="button" class="ghost-btn" id="exp-add-canvas-files">Add books or PDFs</button>' : ''}
+      ${localFiles.length ? `
+        <label class="field-label">Find a local file <input type="search" id="exp-find-local-file"></label>
+        <ul>${localFiles.map((file, index) => {
+          const url = `/api/canvas-file?path=${encodeURIComponent(file.path)}`;
+          return `<li>${file.kind === 'pdf'
+            ? `<button type="button" class="member-file" data-local-pdf="${index}">${esc(file.name)}</button>`
+            : `<a href="${esc(url)}" download>${esc(file.name)}</a>`}</li>`;
+        }).join('')}</ul>` : ''}
+    </details>` : '';
     const autoMode = getCircadianAutoTarget().mode;
     const defaultSort = autoMode === 'high_dlpfc' ? 'deep_first' : 'smart_priority';
     const documents = members.course(courseId)?.documents || [];
@@ -1746,6 +1904,7 @@ window.StudyApp = (() => {
           <input type="search" id="member-file-search" aria-label="Find course files" placeholder="Find a book, slide deck or exam">
           ${library}
         </details>` : ''}
+        ${localLibrary}
 
         <div class="preset-chips-bar" role="group" aria-label="Practice difficulty presets">
           <small class="muted" style="font-weight:700;margin-right:4px">PRESETS:</small>
@@ -2137,6 +2296,20 @@ window.StudyApp = (() => {
     });
 
     members.bindDownloads(root);
+    root.querySelector('#exp-add-canvas-files')?.addEventListener('click', () => openCanvasFiles(localCanvasId));
+    for (const button of root.querySelectorAll('[data-local-pdf]')) {
+      button.onclick = () => {
+        const file = localFiles[Number(button.dataset.localPdf)];
+        openLocalPdf(file.name, `/api/canvas-file?path=${encodeURIComponent(file.path)}`);
+      };
+    }
+    const localSearch = root.querySelector('#exp-find-local-file');
+    if (localSearch) localSearch.oninput = () => {
+      const query = localSearch.value.trim().toLowerCase();
+      for (const file of root.querySelectorAll('#course-local-documents li')) {
+        file.hidden = !file.textContent.toLowerCase().includes(query);
+      }
+    };
     const fileSearch = root.querySelector('#member-file-search');
     if (fileSearch) fileSearch.oninput = () => {
       const query = fileSearch.value.trim().toLowerCase();
@@ -3187,7 +3360,11 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   async function init() {
     bindGlobalChrome();
-    if (!isStaticWeb) openCanvasSync = bindCanvasSync();
+    if (!isStaticWeb) {
+      openCanvasSync = bindCanvasSync();
+      openCanvasFiles = bindCanvasFiles();
+      document.getElementById('local-book-dialog').addEventListener('close', () => window.StudyPdf.dispose());
+    }
     window.StudyRunner.bindRunnerGlobals();
     document.querySelector('[data-nav="community"]').hidden = !window.StudyCommunity.enabled;
     document.getElementById('runner-room-btn').onclick = () => {

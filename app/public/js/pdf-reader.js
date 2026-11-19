@@ -122,6 +122,21 @@ window.StudyPdf = (() => {
     </div>`;
   }
 
+  function viewer(page = 1, invert = false) {
+    return `<div class="pdf-page-tools">
+      <button type="button" class="mini-tool-btn" data-pdf-prev aria-label="Previous PDF page">‹</button>
+      <form data-pdf-page-form><label>Page <input name="page" type="number" min="1" value="${Number(page) || 1}"></label>
+        <button type="submit" class="mini-tool-btn">Go</button></form>
+      <span data-pdf-page-count></span>
+      <button type="button" class="mini-tool-btn" data-pdf-next aria-label="Next PDF page">›</button>
+    </div>
+    ${toolbar()}
+    <p class="muted pdf-status" data-pdf-status role="status">Loading PDF…</p>
+    <div class="pdf-zoom-scroll pdf-document-scroll ${invert ? 'pdf-ink-inverted' : ''}" tabindex="0" aria-label="Scrollable source PDF">
+      <div class="pdf-zoom-page"><canvas aria-hidden="true"></canvas><div class="textLayer"></div></div>
+    </div>`;
+  }
+
   function bindZoom(root, scroller, paper, surface, state, sourceSize, textLayer) {
     function paint() {
       const { width, height } = sourceSize();
@@ -306,5 +321,5 @@ window.StudyPdf = (() => {
     }
   }
 
-  return { toolbar, bindExcerpts, mount, dispose, textForPage, clearText: () => pageText.clear() };
+  return { toolbar, viewer, bindExcerpts, mount, dispose, textForPage, clearText: () => pageText.clear() };
 })();

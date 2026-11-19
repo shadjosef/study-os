@@ -78,16 +78,46 @@
 
   <dialog id="profile-gate" class="member-dialog" aria-label="Study-OS profile"></dialog>
   <dialog id="canvas-sync-dialog" class="member-dialog" aria-labelledby="canvas-sync-title">
-    <h2 id="canvas-sync-title">Sync Canvas</h2>
+    <h2 id="canvas-sync-title">Sync course materials</h2>
     <form method="dialog" id="canvas-sync-form">
-      <label class="field-label">Canvas session
-        <input name="session" type="password" required autocomplete="off" spellcheck="false">
+      <label class="field-label">Sync from
+        <select name="mode">
+          <option value="canvas">Canvas</option>
+          <option value="ed">Ed Discussion</option>
+          <option value="both">Canvas and Ed Discussion</option>
+        </select>
       </label>
-      <p class="muted">Paste the <code>canvas_session</code> value from your signed-in Canvas browser. This sync runs on your device.</p>
-      <div class="row-actions">
-        <button type="submit" class="primary-btn" disabled>Start sync</button>
-        <a class="ghost-btn" href="https://github.com/shadjosef/canvas-study-sync#option-b-run-the-python-sync-with-your-own-session" target="_blank" rel="noopener">Find my Canvas session</a>
+      <div id="canvas-session-fields">
+        <label class="field-label">Canvas session
+          <input name="session" type="password" required autocomplete="off" spellcheck="false">
+        </label>
+        <div class="row-actions">
+          <button type="button" class="ghost-btn" data-paste-credential="session">Paste session</button>
+          <a class="ghost-btn" href="https://canvas.bi.no/" target="_blank" rel="noopener">Open BI Canvas</a>
+        </div>
+        <details>
+          <summary>Find the session in Chrome, Vivaldi, or Edge</summary>
+          <p class="muted">On your signed-in Canvas tab, open Developer Tools. Under Application → Cookies → your Canvas address, select <code>canvas_session</code> and copy its Value.</p>
+        </details>
       </div>
+      <div id="canvas-ed-fields" hidden>
+        <label class="field-label">Ed region
+          <select name="edRegion">
+            <option value="eu">Europe (BI)</option>
+            <option value="us">United States</option>
+            <option value="au">Australia</option>
+          </select>
+        </label>
+        <label class="field-label">Ed API token
+          <input name="edToken" type="password" autocomplete="off" spellcheck="false" placeholder="Leave blank to use a saved token">
+        </label>
+        <div class="row-actions">
+          <button type="button" class="ghost-btn" data-paste-credential="edToken">Paste token</button>
+          <a class="ghost-btn" id="canvas-ed-token-link" href="https://edstem.org/eu/settings/api-tokens" target="_blank" rel="noopener">Get Ed token</a>
+        </div>
+        <label class="check-row"><input name="rememberEd" type="checkbox"> Remember this token on this computer</label>
+      </div>
+      <p><button type="submit" class="primary-btn" disabled>Start sync</button></p>
     </form>
     <p id="canvas-sync-status" role="status"></p>
     <details id="canvas-sync-details" hidden>
@@ -99,6 +129,29 @@
       <button type="button" id="canvas-sync-standalone" class="ghost-btn">Open standalone sync</button>
       <button type="submit" class="ghost-btn">Close</button>
     </form>
+  </dialog>
+  <dialog id="canvas-files-dialog" class="member-dialog" aria-labelledby="canvas-files-title">
+    <h2 id="canvas-files-title">Add books and course files</h2>
+    <form id="canvas-files-form" method="dialog">
+      <label class="field-label">Course <select name="course" required></select></label>
+      <label class="field-label">Files
+        <input name="files" type="file" accept=".pdf,.epub,.ppt,.pptx" multiple required>
+      </label>
+      <p class="muted">Choose PDFs, EPUBs or PowerPoint files up to 200 MB each. Canvas Sync adds them to the selected course folder on this device.</p>
+      <button class="primary-btn" type="submit">Add files</button>
+    </form>
+    <p id="canvas-files-feedback" role="status"></p>
+    <form method="dialog" class="row-actions">
+      <button id="canvas-open-library" class="ghost-btn" type="button" hidden>Open course files</button>
+      <button class="ghost-btn" type="submit">Close</button>
+    </form>
+  </dialog>
+  <dialog id="local-book-dialog" class="member-dialog" aria-labelledby="local-book-title">
+    <div class="row-between">
+      <h2 id="local-book-title"></h2>
+      <form method="dialog"><button type="submit" class="ghost-btn">Close PDF</button></form>
+    </div>
+    <div id="local-book-reader"></div>
   </dialog>
   <dialog id="question-copy-preview" class="member-dialog" aria-label="Copy question and answers">
     <h2>Copy question and answers</h2>

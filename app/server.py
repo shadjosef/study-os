@@ -15,6 +15,7 @@ import json
 import mimetypes
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import threading
@@ -43,6 +44,10 @@ from calendar_sync import (  # noqa: E402
     refresh_calendar_cache,
 )
 from canvas_bridge import (  # noqa: E402
+    COURSE_DOCUMENT_TYPES,
+    MAX_DOCUMENT_BYTES,
+    add_canvas_document,
+    canvas_course_documents,
     canvas_resync,
     import_courses_from_canvas_archive,
     inspect_canvas_archive,
@@ -330,7 +335,9 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
 
     def end_headers(self) -> None:
         # Allow local Obsidian Desktop plugin (`app://obsidian.md`) & localhost access
-        if self.path.partition("?")[0] != "/api/canvas/sync":
+        if self.path.partition("?")[0] not in {
+            "/api/canvas/sync", "/api/canvas/add-file", "/api/canvas/documents", "/api/canvas-file"
+        }:
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
@@ -356,14 +363,43 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         ctype, _ = mimetypes.guess_type(str(file_path))
         if file_path.suffix.lower() == ".pdf":
             ctype = "application/pdf"
-        data = file_path.read_bytes()
-        self.send_response(200)
-        self.send_header("Content-Type", ctype or "application/octet-stream")
-        if file_path.suffix.lower() in {".pdf", ".png", ".jpg", ".jpeg", ".svg", ".webp"}:
-            self.send_header("Content-Disposition", f'inline; filename="{file_path.name}"')
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
+        with file_path.open("rb") as source:
+            size = os.fstat(source.fileno()).st_size
+            start, stop = 0, size
+            is_pdf = ctype == "application/pdf"
+            byte_range = re.fullmatch(r"bytes=([0-9]{0,20})-([0-9]{0,20})", self.headers.get("Range", "")) if is_pdf else None
+            if byte_range and (byte_range[1] or byte_range[2]):
+                if byte_range[1]:
+                    start = int(byte_range[1])
+                    if byte_range[2]:
+                        stop = min(size, int(byte_range[2]) + 1)
+                else:
+                    start = max(0, size - int(byte_range[2]))
+                if start >= stop:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{size}")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                self.send_response(206)
+                self.send_header("Content-Range", f"bytes {start}-{stop - 1}/{size}")
+            else:
+                self.send_response(200)
+            self.send_header("Content-Type", ctype or "application/octet-stream")
+            if is_pdf:
+                self.send_header("Accept-Ranges", "bytes")
+            if file_path.suffix.lower() in {".pdf", ".png", ".jpg", ".jpeg", ".svg", ".webp"}:
+                self.send_header("Content-Disposition", "inline; filename*=UTF-8''" + urllib.parse.quote(file_path.name))
+            self.send_header("Content-Length", str(stop - start))
+            self.end_headers()
+            source.seek(start)
+            try:
+                remaining = stop - start
+                while remaining and (chunk := source.read(min(remaining, 1024 * 1024))):
+                    self.wfile.write(chunk)
+                    remaining -= len(chunk)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def read_json_body(self) -> dict[str, Any]:
         length = int(self.headers.get("Content-Length") or 0)
@@ -479,6 +515,15 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             self.send_json(inspect_canvas_archive(ROOT_DIR, STORE.data_dir, courses_by_id))
             return
 
+        if route == "/api/canvas/documents":
+            if not self.is_local_canvas_request(require_origin=False):
+                self.send_json({"error": "Open course files from local Study-OS."}, status=403)
+                return
+            archive = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
+            canvas_id = (qs.get("course") or [""])[0]
+            self.send_json({"files": canvas_course_documents(archive, canvas_id) if archive else []})
+            return
+
         if route == "/api/schedule/export.ics":
             boot = STORE.build_bootstrap(force_calendar=False)
             ics_body = export_blocks_to_ics(boot.get("calendar", {}).get("blocks") or []).encode("utf-8")
@@ -505,14 +550,18 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         # Serve SPA static files (fallback to index.html for client-side routes)
         super().do_GET()
 
-    def handle_canvas_sync(self) -> None:
+    def is_local_canvas_request(self, *, require_origin: bool = True) -> bool:
         port = self.server.server_address[1]
         host = self.headers.get("Host")
-        if (
-            self.client_address[0] != "127.0.0.1"
-            or host not in {f"127.0.0.1:{port}", f"localhost:{port}"}
-            or self.headers.get("Origin") != f"http://{host}"
-        ):
+        origin = self.headers.get("Origin")
+        return (
+            self.client_address[0] == "127.0.0.1"
+            and host in {f"127.0.0.1:{port}", f"localhost:{port}"}
+            and (origin == f"http://{host}" or (origin is None and not require_origin))
+        )
+
+    def handle_canvas_sync(self) -> None:
+        if not self.is_local_canvas_request():
             self.send_json({"error": "Open Canvas Sync from the local Study-OS app."}, status=403)
             return
         try:
@@ -522,11 +571,27 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             body = self.read_json_body()
             if not isinstance(body, dict) or body.get("action") not in ("status", "start"):
                 raise ValueError
-            session = None
+            options = None
             if body["action"] == "start":
-                session = body.get("session")
-                if not isinstance(session, str) or not session.strip():
+                mode = body.get("mode", "canvas")
+                if mode not in ("canvas", "ed", "both"):
                     raise ValueError
+                options = {"session": ""}
+                if mode != "ed":
+                    session = body.get("session")
+                    if not isinstance(session, str) or not session.strip():
+                        raise ValueError
+                    options["session"] = session.strip()
+                if mode != "canvas":
+                    token = body.get("edToken", "")
+                    region = body.get("edRegion", "eu")
+                    remember = body.get("rememberEd", False)
+                    if not isinstance(token, str) or region not in ("eu", "us", "au") or not isinstance(remember, bool):
+                        raise ValueError
+                    options.update(
+                        ed_token=token.strip(), ed_region=region, ed_only=(mode == "ed"),
+                        ed_include=True, ed_remember=(remember and bool(token.strip())),
+                    )
         except ValueError:
             self.send_json({"error": "Invalid Canvas Sync request."}, status=400)
             return
@@ -534,7 +599,36 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         if archive is None:
             self.send_json({"error": "Connect your Canvas-Archive folder first."}, status=404)
             return
-        status, result = canvas_resync(archive, session)
+        status, result = canvas_resync(archive, options)
+        self.send_json(result, status=status)
+
+    def handle_canvas_add_file(self) -> None:
+        if not self.is_local_canvas_request():
+            self.send_json({"error": "Add books and PDFs from local Study-OS."}, status=403)
+            return
+        try:
+            size = int(self.headers.get("Content-Length", "-1"))
+            canvas_id = self.headers.get("X-Study-Course", "")
+            encoded_name = self.headers.get("X-Study-Name", "")
+            name = urllib.parse.unquote(encoded_name, errors="strict")
+            if (
+                not 0 < size <= MAX_DOCUMENT_BYTES
+                or self.headers.get("Transfer-Encoding")
+                or self.headers.get_content_type() != "application/octet-stream"
+                or not re.fullmatch(r"(?:local-)?[0-9]{1,20}", canvas_id)
+                or not name or name.startswith(".") or "/" in name or "\\" in name or any(ord(ch) < 32 for ch in name)
+                or Path(name).suffix.lower() not in COURSE_DOCUMENT_TYPES
+            ):
+                raise ValueError
+        except ValueError:
+            self.send_json({"error": "Choose a PDF, EPUB or PowerPoint file up to 200 MB."}, status=400)
+            return
+        archive = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
+        if archive is None:
+            self.send_json({"error": "Connect your Canvas-Archive folder first."}, status=404)
+            return
+        self.connection.settimeout(35)
+        status, result = add_canvas_document(archive, canvas_id, encoded_name, self.rfile, size)
         self.send_json(result, status=status)
 
     def do_POST(self) -> None:
@@ -543,6 +637,10 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
 
         if route == "/api/canvas/sync":
             self.handle_canvas_sync()
+            return
+
+        if route == "/api/canvas/add-file":
+            self.handle_canvas_add_file()
             return
 
         try:

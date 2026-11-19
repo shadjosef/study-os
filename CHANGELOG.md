@@ -3,6 +3,8 @@
 ## 19 November 2026
 
 - Start Canvas Sync, follow sync progress, and import new courses from the desktop Study-OS hub.
+- Paste credentials from the clipboard and sync Ed alone or alongside Canvas. Reuse an Ed token saved in the computer's secure store.
+- Add your own books and slides to a course through Canvas Sync. Open local PDFs in the course library.
 
 ## 18 November 2026
 
