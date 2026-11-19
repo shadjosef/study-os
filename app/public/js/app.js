@@ -2623,7 +2623,7 @@ window.StudyApp = (() => {
           <div class="row-between" style="margin:0 0 14px;padding-bottom:12px;border-bottom:1px solid var(--line)">
             <div>
               <span class="eyebrow" id="ref-pane-eyebrow">${esc(activeEntry?.code || '')} · ${esc(activeEntry?.semester || '')}</span>
-              <h2 id="ref-pane-title" style="margin:2px 0 0">${esc(activeEntry?.title || 'Reference')}</h2>
+              <h2 id="ref-pane-title" tabindex="-1" style="margin:2px 0 0">${esc(activeEntry?.title || 'Reference')}</h2>
             </div>
             <div class="row-actions">
               <select id="ref-pane-doc-sel" aria-label="Reference document" style="max-width:210px;font-size:13px"></select>
@@ -2686,9 +2686,14 @@ window.StudyApp = (() => {
     };
 
     root.querySelectorAll('[data-ref-pick]').forEach((card) => {
-      card.addEventListener('click', () => {
-        selectedRefFile = card.dataset.refPick;
-        renderReferencesHub();
+      card.addEventListener('click', async () => {
+        const file = card.dataset.refPick;
+        selectedRefFile = file;
+        await renderReferencesHub();
+        if (selectedRefFile === file && currentView === 'references' && matchMedia('(max-width: 980px)').matches) {
+          root.querySelector('#ref-pane-title')?.focus({ preventScroll: true });
+          root.querySelector('.ref-reader-pane')?.scrollIntoView({ block: 'start' });
+        }
       });
     });
 
@@ -3360,6 +3365,10 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   async function init() {
     bindGlobalChrome();
+    const globalHeader = document.getElementById('global-header');
+    new ResizeObserver(() => {
+      document.documentElement.style.setProperty('--notes-header-height', `${globalHeader.offsetHeight}px`);
+    }).observe(globalHeader);
     if (!isStaticWeb) {
       openCanvasSync = bindCanvasSync();
       openCanvasFiles = bindCanvasFiles();

@@ -349,22 +349,24 @@
   </div>
 
   <!-- SCALED 1:5 OFF-SCREEN RECOVERY BREAK MODAL (TIED TO UNIVERSAL 75M WORKING CAP) -->
-  <div id="break-modal" class="modal-wrap" hidden role="dialog" aria-modal="true" aria-labelledby="break-modal-title">
-    <div class="modal-card" style="max-width:480px">
-      <h3 id="break-modal-title" style="margin:4px 0 8px">Study break</h3>
-      <div class="break-timer-display" id="break-countdown-lbl">05:00</div>
-      <p class="muted" id="break-ratio-note" style="margin:0 0 12px;font-size:13.5px">Scaled 1:5 from your working interval (capped at 75m / 15m break).</p>
-      <div class="modal-actions">
-        <button type="button" class="ghost-btn" id="break-end-session-btn" title="Finish studying and stop universal timer until your next session">End Session</button>
-        <button type="button" class="ghost-btn" id="break-add-1m">+1 min</button>
-        <button type="button" class="ghost-btn" id="break-close-btn" hidden>Close</button>
-        <button type="button" class="ghost-btn" id="break-layout-btn" hidden>Layout presets</button>
-        <button type="button" class="ghost-btn" id="break-sets-btn" hidden>My study sets</button>
-        <button type="button" class="ghost-btn" id="break-community-btn" hidden>Open Community</button>
-        <button type="button" class="primary-btn" id="break-resume-btn">Start Next 75m</button>
-      </div>
+  <dialog id="break-modal" class="break-dialog" closedby="none" aria-labelledby="break-modal-title" aria-describedby="break-ratio-note">
+    <h2 id="break-modal-title">Study break</h2>
+    <div class="break-timer-display" id="break-countdown-lbl" role="timer" aria-label="Break time remaining">05:00</div>
+    <p class="muted" id="break-ratio-note"></p>
+    <div class="break-session-actions">
+      <button type="button" class="primary-btn" id="break-resume-btn">Start next 75 min</button>
+      <button type="button" class="ghost-btn" id="break-add-1m">+1 minute</button>
     </div>
-  </div>
+    <div class="break-tool-list" id="break-tool-list" role="group" aria-label="Break tools" hidden>
+      <button type="button" class="ghost-btn" id="break-community-btn" hidden>Community</button>
+      <button type="button" class="ghost-btn" id="break-sets-btn">My study sets</button>
+      <button type="button" class="ghost-btn" id="break-layout-btn">Layout presets</button>
+    </div>
+    <div class="break-footer" id="break-footer" hidden>
+      <button type="button" class="ghost-btn" id="break-end-session-btn" hidden>End session</button>
+      <button type="button" class="ghost-btn" id="break-close-btn" hidden>Close</button>
+    </div>
+  </dialog>
 
   <dialog id="layout-dialog" class="member-dialog" aria-labelledby="layout-title">
     <form id="layout-form">

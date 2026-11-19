@@ -376,21 +376,9 @@ window.StudyUI = (() => {
     return Number(osloHour.format(now)) >= 20;
   }
 
-  function showBreakModalUi(isAutoCap = false) {
-    const bm = document.getElementById('break-modal');
-    const titleEl = document.getElementById('break-modal-title');
-    const noteEl = document.getElementById('break-ratio-note');
-    const mins = Math.round((workState.breakTotalSec || 300) / 60);
-    const workedMin = Math.max(1, Math.round((workState.lastWaveSec || 0) / 60));
-    if (titleEl) {
-      titleEl.textContent = isAutoCap ? '75-minute session complete' : 'Study break';
-    }
-    if (noteEl) {
-      noteEl.textContent = isAutoCap
-        ? 'Take a 15-minute break before your next session.'
-        : `${mins}-minute break after ${workedMin} minutes of study.`;
-    }
-    if (bm) bm.hidden = false;
+  function showBreakModalUi() {
+    const dialog = document.getElementById('break-modal');
+    if (!dialog.open) dialog.showModal();
   }
 
   const workClock = {
@@ -421,8 +409,7 @@ window.StudyUI = (() => {
       workState.wavePauseReason = '';
       workState.breakEndsAtMs = null;
       saveWorkState();
-      const bm = document.getElementById('break-modal');
-      if (bm) bm.hidden = true;
+      document.getElementById('break-modal').close();
       soundMasker.syncWithWorkMode('working');
       renderWorkClockDom();
     },
@@ -464,8 +451,8 @@ window.StudyUI = (() => {
       saveWorkState();
       window.StudyRunner?.onBreakStateChange?.(true);
       soundMasker.syncWithWorkMode('break');
-      showBreakModalUi(isAutoCap);
       renderWorkClockDom();
+      showBreakModalUi();
     },
     startNextInterval() {
       workState.dayKey = localDayKey();
@@ -476,8 +463,7 @@ window.StudyUI = (() => {
       workState.wavePauseReason = '';
       workState.breakEndsAtMs = null;
       saveWorkState();
-      const bm = document.getElementById('break-modal');
-      if (bm) bm.hidden = true;
+      document.getElementById('break-modal').close();
       window.StudyRunner?.onBreakStateChange?.(false);
       soundMasker.syncWithWorkMode('working');
       renderWorkClockDom();
@@ -498,8 +484,7 @@ window.StudyUI = (() => {
       workState.wavePauseReason = '';
       workState.breakEndsAtMs = null;
       saveWorkState();
-      const bm = document.getElementById('break-modal');
-      if (bm) bm.hidden = true;
+      document.getElementById('break-modal').close();
       window.StudyRunner?.onBreakStateChange?.(false, true);
       soundMasker.syncWithWorkMode('idle');
       renderWorkClockDom();
@@ -615,7 +600,7 @@ window.StudyUI = (() => {
       }
     } else if (workState.mode === 'break') {
       const remSec = Math.max(0, Math.ceil(((workState.breakEndsAtMs || now) - now) / 1000));
-      const txt = remSec > 0 ? `Break ${clockSec(remSec)} · Screen ${scr.screenLabel}` : `Break Ready · Screen ${scr.screenLabel}`;
+      const txt = remSec > 0 ? `Break ${clockSec(remSec)} · Screen ${scr.screenLabel}` : `Break ended · Screen ${scr.screenLabel}`;
       const tip = `Off-screen recovery break · Screen today: ${scr.screenLabel} · Off-screen: ${scr.offScreenLabel}`;
       if (gPill) {
         gPill.className = 'live-clock-pill non-interactive flow-pill-warn';
@@ -629,7 +614,7 @@ window.StudyUI = (() => {
       }
       if (gBtn) gBtn.textContent = remSec > 0 ? 'In Break' : 'Break ended';
       if (rBtn) rBtn.textContent = remSec > 0 ? 'In Break' : 'Break ended';
-      if (cdEl) cdEl.textContent = clockSec(remSec);
+      if (cdEl) cdEl.textContent = remSec ? clockSec(remSec) : '00:00';
     } else {
       const cls = 'live-clock-pill non-interactive idle-work-pill';
       const txt = `Screen ${scr.screenLabel} · 0:00 / 75m`;
@@ -653,32 +638,42 @@ window.StudyUI = (() => {
       }
     }
     const evening = eveningBreakAccess(now);
+    const breakDialog = document.getElementById('break-modal');
     if (!evening && lastEveningAccess && workState.mode !== 'break') {
-      document.getElementById('break-modal').hidden = true;
+      breakDialog.close();
     }
+    if (lastEveningAccess !== evening) breakDialog.setAttribute('closedby', evening ? 'closerequest' : 'none');
     lastEveningAccess = evening;
     const canUseBreakTools = workClock.canUseBreakTools(now);
+    const breakEnded = workState.mode === 'break' && !canUseBreakTools;
+    const isWorking = workState.mode === 'working';
+    const endSession = canUseBreakTools && workState.mode !== 'idle';
+    const community = document.getElementById('break-community-btn');
     document.getElementById('evening-break-tools-btn').hidden = !evening;
+    document.getElementById('break-tool-list').hidden = !canUseBreakTools;
+    document.getElementById('break-footer').hidden = !(endSession || evening);
     document.getElementById('break-close-btn').hidden = !evening;
     document.getElementById('break-add-1m').hidden = evening;
-    document.getElementById('break-end-session-btn').hidden = !canUseBreakTools;
-    document.getElementById('break-layout-btn').hidden = !canUseBreakTools;
-    document.getElementById('break-sets-btn').hidden = !canUseBreakTools;
-    document.getElementById('break-community-btn').hidden = !canUseBreakTools || !window.StudyCommunity?.enabled;
-    if (evening && cdEl) {
-      cdEl.textContent = 'Evening access';
-      document.getElementById('break-ratio-note').textContent = 'Break tools are open until midnight Oslo time.';
-    }
-    const breakEnded = workState.mode === 'break' && !canUseBreakTools;
+    document.getElementById('break-end-session-btn').hidden = !endSession;
+    document.getElementById('break-resume-btn').textContent = isWorking ? 'Continue studying' : 'Start next 75 min';
+    community.hidden = !canUseBreakTools || !window.StudyCommunity?.enabled || Boolean(window.StudyRooms?.running());
+    community.textContent = document.getElementById('view-community').hidden ? 'Community' : 'Back to Community';
+    cdEl.hidden = evening;
+    document.getElementById('break-modal-title').textContent = evening ? 'Evening break tools'
+      : breakEnded ? 'Break ended' : 'Study break';
+    const workedMin = Math.round((workState.lastWaveSec || 0) / 60);
+    document.getElementById('break-ratio-note').textContent = evening ? 'Available until midnight Oslo time.'
+      : breakEnded ? 'Add a minute to reopen break tools, or start your next session.'
+      : workedMin ? `After ${workedMin} ${workedMin === 1 ? 'minute' : 'minutes'} of study.`
+      : 'Take a moment before your next session.';
     document.querySelector('main').inert = breakEnded;
     document.getElementById('global-header').inert = breakEnded;
     document.getElementById('runner-header').inert = breakEnded;
     if (breakEnded && expiredBreakShown !== workState.breakEndsAtMs) {
       expiredBreakShown = workState.breakEndsAtMs;
-      showBreakModalUi(false);
+      showBreakModalUi();
       document.getElementById('break-add-1m').focus();
     }
-    if (breakEnded) document.getElementById('break-ratio-note').textContent = 'Break ended. Add one minute or start your next session.';
     window.StudyCommunity?.clockTick?.();
     window.StudyLayout?.clockTick?.();
     window.StudySets?.clockTick?.();
@@ -1331,7 +1326,7 @@ window.StudyUI = (() => {
       if (workState.mode === 'working') {
         workClock.triggerBreak(false);
       } else if (workState.mode === 'break') {
-        showBreakModalUi(false);
+        showBreakModalUi();
       } else {
         workClock.ensureWorking();
         toast('75m working interval started (1:5 recovery break at cap).');
@@ -1341,16 +1336,22 @@ window.StudyUI = (() => {
     document.getElementById('run-break-btn')?.addEventListener('click', onWorkActionClick);
     document.getElementById('break-add-1m')?.addEventListener('click', () => {
       workClock.addBreakSeconds(60);
-      showBreakModalUi(false);
     });
-    document.getElementById('evening-break-tools-btn')?.addEventListener('click', () => showBreakModalUi(false));
+    const breakDialog = document.getElementById('break-modal');
+    breakDialog.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !eveningBreakAccess()) event.preventDefault();
+    });
+    breakDialog.addEventListener('cancel', (event) => {
+      if (!eveningBreakAccess()) event.preventDefault();
+    });
+    document.getElementById('evening-break-tools-btn')?.addEventListener('click', showBreakModalUi);
     document.getElementById('break-close-btn')?.addEventListener('click', () => {
-      document.getElementById('break-modal').hidden = true;
+      breakDialog.close();
     });
     document.getElementById('break-layout-btn')?.addEventListener('click', () => window.StudyLayout.open());
     document.getElementById('break-sets-btn')?.addEventListener('click', () => {
       if (!workClock.canUseBreakTools()) return;
-      document.getElementById('break-modal').hidden = true;
+      breakDialog.close();
       if (!document.getElementById('view-runner').hidden) document.getElementById('run-exit-btn').click();
       window.StudyApp.navigate('home');
       const sets = document.getElementById('my-study-sets');
@@ -1358,12 +1359,16 @@ window.StudyUI = (() => {
       sets.scrollIntoView({ block: 'start' });
     });
     document.getElementById('break-community-btn')?.addEventListener('click', () => {
-      if (!workClock.canUseBreakTools()) return;
-      document.getElementById('break-modal').hidden = true;
+      if (!workClock.canUseBreakTools() || window.StudyRooms?.running()) return;
+      breakDialog.close();
+      if (!document.getElementById('view-community').hidden) return;
       if (!document.getElementById('view-runner').hidden) document.getElementById('run-exit-btn').click();
       window.StudyApp.navigate('community');
     });
-    document.getElementById('break-resume-btn')?.addEventListener('click', () => workClock.startNextInterval());
+    document.getElementById('break-resume-btn')?.addEventListener('click', () => {
+      if (workState.mode === 'working') breakDialog.close();
+      else workClock.startNextInterval();
+    });
     document.getElementById('break-end-session-btn')?.addEventListener('click', () => {
       workClock.endSession();
       toast('Working session ended.');
@@ -1387,7 +1392,7 @@ window.StudyUI = (() => {
 
     renderWorkClockDom();
     if (workState.mode === 'break' && (workState.breakEndsAtMs || 0) > Date.now()) {
-      showBreakModalUi(false);
+      showBreakModalUi();
     }
     clearInterval(workTickHandle);
     workTickHandle = setInterval(renderWorkClockDom, 1000);

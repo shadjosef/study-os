@@ -68,7 +68,7 @@ window.StudyLayout = (() => {
     edit(active);
     codeInput.value = '';
     status.textContent = '';
-    document.getElementById('break-modal').hidden = true;
+    document.getElementById('break-modal').close();
     dialog.showModal();
   }
 
@@ -126,7 +126,8 @@ window.StudyLayout = (() => {
   };
   document.getElementById('layout-close').onclick = close;
   dialog.addEventListener('close', () => {
-    if (onBreak()) document.getElementById('break-modal').hidden = false;
+    const breakDialog = document.getElementById('break-modal');
+    if (onBreak() && !breakDialog.open) breakDialog.showModal();
   });
   applyFlags();
   return { open, clockTick, label };

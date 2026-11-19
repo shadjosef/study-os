@@ -2396,14 +2396,7 @@ window.StudyRunner = (() => {
 
     // Keyboard shortcuts inside Runner
     document.addEventListener('keydown', (e) => {
-      const breakModal = document.getElementById('break-modal');
-      if (breakModal && !breakModal.hidden) {
-        if (e.key === 'Escape') {
-          workClock?.startNextInterval?.();
-          e.preventDefault();
-        }
-        return;
-      }
+      if (document.getElementById('break-modal').open) return;
       if (!activeRun || document.getElementById('view-runner').hidden || !document.getElementById('checkin-modal').hidden) return;
       if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-page-tools, .pdf-zoom-tools')) return;
       if (!document.getElementById('img-lightbox')?.hidden) return;
