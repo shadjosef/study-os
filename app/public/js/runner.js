@@ -257,28 +257,19 @@ window.StudyRunner = (() => {
   let intentionalFsExit = false;
 
   function renderAutoPauseHeaderUi() {
-    const apBtn = document.getElementById('run-autopause-btn');
-    if (apBtn) {
-      const lbl = autoPauseMode === 'window' ? 'Auto: Win' : autoPauseMode === 'tab' ? 'Auto: Tab' : 'Auto: Off';
-      apBtn.textContent = lbl;
-      apBtn.classList.toggle('active', autoPauseMode !== 'off');
-      apBtn.title =
-        autoPauseMode === 'window'
-          ? 'Auto-Pause ON (Window + Tab): pauses & logs whenever another app or tab takes display focus. Click to switch to Tab-only.'
-          : autoPauseMode === 'tab'
-          ? 'Auto-Pause ON (Tab-only): pauses when this tab/Space is hidden (allows side-by-side IDE/Obsidian). Click to turn Off.'
-          : 'Auto-Pause OFF: click to re-enable automatic focus-loss pause & logging.';
-    }
-    const fsBtn = document.getElementById('run-fullscreen-btn');
-    if (fsBtn) {
-      const inFs = Boolean(document.fullscreenElement);
-      fsBtn.textContent = inFs ? 'Exit Full' : 'Full';
-      fsBtn.classList.toggle('active', inFs);
-    }
+    document.querySelectorAll('#settings-autopause-seg [data-autopause-val]').forEach((btn) => {
+      const active = btn.dataset.autopauseVal === autoPauseMode;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    const inFs = Boolean(document.fullscreenElement);
+    const fsToggle = document.getElementById('settings-fullscreen-toggle');
+    if (fsToggle) fsToggle.checked = inFs;
   }
 
-  function cycleAutoPauseMode() {
-    autoPauseMode = autoPauseMode === 'window' ? 'tab' : autoPauseMode === 'tab' ? 'off' : 'window';
+  function setAutoPauseMode(nextMode) {
+    if (!['off', 'tab', 'window'].includes(nextMode)) return;
+    autoPauseMode = nextMode;
     try {
       localStorage.setItem(AUTOPAUSE_KEY, autoPauseMode);
     } catch {}
@@ -288,11 +279,25 @@ window.StudyRunner = (() => {
     renderAutoPauseHeaderUi();
     const msg =
       autoPauseMode === 'window'
-        ? 'Auto-Pause: Window + Tab (pauses & logs when any other window/tab takes focus)'
+        ? 'Auto-Pause: Window + Tab (pauses when another window or tab takes focus)'
         : autoPauseMode === 'tab'
-        ? 'Auto-Pause: Tab/Space Only (side-by-side apps stay unpaused)'
+        ? 'Auto-Pause: Tab Only (side-by-side apps stay unpaused)'
         : 'Auto-Pause: Off (manual pause P still active)';
     toast(msg);
+  }
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        intentionalFsExit = true;
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch {
+      toast('Fullscreen is blocked by browser settings.');
+    }
+    renderAutoPauseHeaderUi();
   }
 
   function pauseCurrentTimer() {
@@ -2284,6 +2289,8 @@ window.StudyRunner = (() => {
     document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-foveal-compact');
     document.getElementById('runner-header').hidden = true;
     document.getElementById('global-header').hidden = false;
+    const obsLink = document.getElementById('run-obsidian-app-link');
+    if (obsLink) obsLink.hidden = true;
     toast('Session logged & Dashboard updated.');
     await window.StudyApp.refreshBootstrap();
     window.StudyApp.navigate(wasExam ? 'exams' : 'home');
@@ -2295,6 +2302,8 @@ window.StudyRunner = (() => {
     document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-foveal-compact');
     document.getElementById('runner-header').hidden = true;
     document.getElementById('global-header').hidden = false;
+    const obsLink = document.getElementById('run-obsidian-app-link');
+    if (obsLink) obsLink.hidden = true;
     window.StudyApp.navigate('home');
   }
 
@@ -2335,20 +2344,6 @@ window.StudyRunner = (() => {
     document.getElementById('run-layout-btn')?.addEventListener('click', toggleSplitWorkspace);
     document.getElementById('run-submit-exam-btn')?.addEventListener('click', () => promptSubmitFullExam());
     document.getElementById('run-live-pill')?.addEventListener('click', toggleManualPause);
-    document.getElementById('run-autopause-btn')?.addEventListener('click', cycleAutoPauseMode);
-    document.getElementById('run-fullscreen-btn')?.addEventListener('click', async () => {
-      try {
-        if (document.fullscreenElement) {
-          intentionalFsExit = true;
-          await document.exitFullscreen();
-        } else {
-          await document.documentElement.requestFullscreen();
-        }
-      } catch {
-        toast('Fullscreen is blocked by browser settings.');
-      }
-      renderAutoPauseHeaderUi();
-    });
 
     // Automatic Display / Window / Tab Focus-Loss Pause & Resume
     document.addEventListener('visibilitychange', () => {
@@ -2411,7 +2406,7 @@ window.StudyRunner = (() => {
 
     // Keyboard shortcuts inside Runner
     document.addEventListener('keydown', (e) => {
-      if (document.getElementById('break-modal').open) return;
+      if (document.querySelector('dialog[open]')) return;
       if (!activeRun || document.getElementById('view-runner').hidden || !document.getElementById('checkin-modal').hidden) return;
       if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-page-tools, .pdf-zoom-tools')) return;
       if (!document.getElementById('img-lightbox')?.hidden) return;
@@ -2522,5 +2517,8 @@ window.StudyRunner = (() => {
     resumePausedRun,
     bindRunnerGlobals,
     onBreakStateChange,
+    setAutoPauseMode,
+    getAutoPauseMode: () => autoPauseMode,
+    toggleFullscreen,
   };
 })();

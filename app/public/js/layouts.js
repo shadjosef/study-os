@@ -13,6 +13,7 @@ window.StudyLayout = (() => {
   const status = document.getElementById('layout-status');
   let saved = [];
   let active = standard;
+  let returnToBreak = false;
 
   function clean(preset) {
     const title = typeof preset?.title === 'string' ? preset.title.trim() : '';
@@ -62,13 +63,15 @@ window.StudyLayout = (() => {
     picker.value = String(Math.max(0, options.findIndex((preset) => preset.title === active.title)));
   }
 
-  function open() {
+  function open(fromBreak = true) {
     if (!onBreak()) return;
+    returnToBreak = Boolean(fromBreak);
     refreshPicker();
     edit(active);
     codeInput.value = '';
     status.textContent = '';
-    document.getElementById('break-modal').close();
+    const breakDialog = document.getElementById('break-modal');
+    if (breakDialog?.open) breakDialog.close();
     dialog.showModal();
   }
 
@@ -127,8 +130,10 @@ window.StudyLayout = (() => {
   document.getElementById('layout-close').onclick = close;
   dialog.addEventListener('close', () => {
     const breakDialog = document.getElementById('break-modal');
-    if (onBreak() && !breakDialog.open) breakDialog.showModal();
+    if (returnToBreak && onBreak() && !breakDialog.open) breakDialog.showModal();
+    returnToBreak = false;
+    window.StudyUI?.updateSettingsIndicators?.();
   });
   applyFlags();
-  return { open, clockTick, label };
+  return { open, clockTick, label, getActiveTitle: () => active.title };
 })();

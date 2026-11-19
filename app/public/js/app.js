@@ -477,9 +477,83 @@ window.StudyApp = (() => {
   function updateHeaderStats() {
     const a = boot.analytics || {};
     const upi = a.overall?.upi;
-    document.getElementById('hdr-upi').textContent = upi != null ? String(upi) : '—';
-    document.getElementById('hdr-streak').textContent = `${a.streakDays || 0}d`;
-    document.getElementById('hdr-xp').textContent = `${a.totalXp || 0} XP`;
+    const upiEl = document.getElementById('hdr-upi');
+    if (upiEl) upiEl.textContent = upi != null ? String(upi) : '—';
+    const streakEl = document.getElementById('hdr-streak');
+    if (streakEl) streakEl.textContent = `${a.streakDays || 0}d`;
+    const xpEl = document.getElementById('hdr-xp');
+    if (xpEl) xpEl.textContent = `${a.totalXp || 0} XP`;
+    syncSettingsRows();
+  }
+
+  function syncSettingsRows() {
+    const modeBadge = document.getElementById('settings-mode-badge');
+    if (modeBadge) modeBadge.textContent = isStaticWeb ? 'Web' : 'Desktop';
+
+    const profileChevron = document.getElementById('settings-profile-chevron');
+    if (profileChevron) profileChevron.hidden = !window.StudyCommunity?.enabled;
+    const profileCard = document.getElementById('settings-profile-card');
+    if (profileCard) profileCard.classList.toggle('ios-row-static', !window.StudyCommunity?.enabled);
+
+    const refreshCal = document.getElementById('btn-refresh-cal');
+    if (refreshCal) refreshCal.hidden = isStaticWeb;
+
+    const adminBtn = document.getElementById('btn-study-admin');
+    if (adminBtn) adminBtn.hidden = isStaticWeb;
+
+    const desktopSetup = document.getElementById('settings-desktop-setup-link');
+    if (desktopSetup) desktopSetup.hidden = !isStaticWeb;
+
+    const memberButton = document.getElementById('btn-member-library');
+    if (memberButton) {
+      const unlocked = members.isUnlocked();
+      memberButton.hidden = !members.enabled;
+      const valEl = document.getElementById('settings-member-value');
+      if (valEl) {
+        valEl.textContent = unlocked ? 'Unlocked' : 'Locked';
+        valEl.classList.toggle('ios-val-live', unlocked);
+      }
+      const subEl = document.getElementById('settings-member-sub');
+      if (subEl) {
+        subEl.textContent = unlocked
+          ? 'Full library active — tap to lock on this browser'
+          : 'Unlock question banks, sources & worked answers';
+      }
+    }
+
+    const offlineBtn = document.getElementById('btn-save-offline');
+    if (offlineBtn) {
+      offlineBtn.hidden = !isStaticWeb;
+      const saved = offlineStatus === 'Saved for offline';
+      const statusEl = document.getElementById('offline-status');
+      if (statusEl) statusEl.textContent = offlineStatus || 'Save notes & questions to this browser';
+      const valEl = document.getElementById('settings-offline-value');
+      if (valEl) {
+        valEl.textContent = saved ? 'Saved' : 'Save';
+        valEl.classList.toggle('ios-val-live', saved);
+      }
+    }
+
+    const ca = boot.canvasArchive || {};
+    const syncTime = ca.lastSyncAt ? ca.lastSyncAt.slice(0, 16).replace('T', ' ') : 'Not synced yet';
+    const canvasSyncBtn = document.getElementById('settings-canvas-sync-btn');
+    if (canvasSyncBtn) {
+      canvasSyncBtn.hidden = isStaticWeb || !ca.hasResyncApp;
+      const sub = document.getElementById('settings-canvas-sync-sub');
+      if (sub) sub.textContent = ca.connected ? `Last sync: ${syncTime}` : 'Pull updated slides, handouts & PDFs';
+    }
+    const edSyncBtn = document.getElementById('settings-ed-sync-btn');
+    if (edSyncBtn) edSyncBtn.hidden = isStaticWeb || !ca.hasResyncApp;
+    const addFilesBtn = document.getElementById('settings-add-files-btn');
+    if (addFilesBtn) addFilesBtn.hidden = isStaticWeb || !(ca.hasResyncApp && ca.courses?.length);
+    const archivePathBtn = document.getElementById('settings-archive-path-btn');
+    if (archivePathBtn) {
+      archivePathBtn.hidden = isStaticWeb;
+      const sub = document.getElementById('settings-archive-path-sub');
+      if (sub) sub.textContent = ca.connected ? (ca.archivePath || 'Connected') : 'Not connected — tap to choose folder';
+    }
+
+    window.StudyUI.updateSettingsIndicators?.();
   }
 
   function showRawView(name) {
@@ -524,10 +598,7 @@ window.StudyApp = (() => {
   // VIEW 1: COMMAND CENTER (Zero-Decision-Fatigue Calendar Hero + Courses Grid)
   // ---------------------------------------------------------------------------
   function renderHome() {
-    document.getElementById('btn-refresh-cal').hidden = isStaticWeb;
-    const memberButton = document.getElementById('btn-member-library');
-    memberButton.hidden = !members.enabled;
-    memberButton.textContent = members.isUnlocked() ? 'Lock full library' : 'Unlock full library';
+    syncSettingsRows();
     document.getElementById('home-metrics-strip').hidden = isStaticWeb && !boot.analytics.totalAttempts;
     // 1. Paused Run Banner
     const paused = window.StudyRunner.getRun();
@@ -807,8 +878,7 @@ window.StudyApp = (() => {
             <button type="button" class="primary-btn" data-smart-course="${esc(c.courseId)}">${
               isStaticWeb ? 'Quick practice' : resolvedFocus === 'high_dlpfc' ? 'Hard 45m' : resolvedFocus === 'low_dlpfc' ? 'Recall 25m' : 'Procedural 40m'
             }</button>
-            ${isStaticWeb ? '' : `<button type="button" class="ghost-btn" data-deep-course="${esc(c.courseId)}" title="Filter to Hard · Multi-step tasks">Hard</button>`}
-            <button type="button" class="ghost-btn" data-open-course="${esc(c.courseId)}">${isStaticWeb ? 'Topics &amp; practice' : `All (${c.questionCount})`}</button>
+            <button type="button" class="ghost-btn" data-open-course="${esc(c.courseId)}">${isStaticWeb ? 'Topics' : `All (${c.questionCount})`}</button>
             <button type="button" class="ghost-btn" data-exam-course="${esc(c.courseId)}">Exams</button>
             <button type="button" class="ghost-btn" data-ref-course="${esc(c.courseId)}">Notes</button>
           </div>
@@ -852,20 +922,7 @@ window.StudyApp = (() => {
     if (!strip) return;
 
     if (isStaticWeb) {
-      strip.innerHTML = `
-        <div class="canvas-connect-bar">
-          <div>
-            <strong>Study offline</strong>
-            <small class="muted">Save the notes and questions to this browser. Use its Install app or Add to Home Screen option if you want an icon on your device.</small>
-            <small id="offline-status" role="status">${esc(offlineStatus)}</small>
-          </div>
-          <div class="row-actions">
-            <button type="button" class="ghost-btn" id="btn-save-offline">${offlineStatus === 'Saved for offline' ? 'Check offline copy' : 'Save for offline'}</button>
-            <a class="ghost-btn" href="https://github.com/shadjosef/study-os#desktop-setup" target="_blank" rel="noopener">Desktop setup for Canvas and Obsidian ↗</a>
-          </div>
-        </div>
-      `;
-      document.getElementById('btn-save-offline').addEventListener('click', saveForOffline);
+      strip.innerHTML = '';
       return;
     }
 
@@ -920,31 +977,21 @@ window.StudyApp = (() => {
           </div>
         </div>
       `;
-    } else {
+    } else if (unimported > 0) {
       strip.innerHTML = `
         <div class="canvas-connect-bar">
           <div>
-            <span class="badge ${ca.connected ? 'live' : ''}">${ca.connected ? 'Canvas-Archive Linked' : 'Canvas-Archive'}</span>
-            <small class="muted" style="margin-left:8px">${
-              ca.connected
-                ? `Last sync: <b>${esc(syncTime)}</b> · ${(ca.courses || []).filter((c) => !c.isProgramHub).length} courses${
-                    unimported ? ` (<b>${unimported}</b> ready to import)` : ''
-                  }`
-                : 'Connect a sibling Canvas-Archive folder to sync PDFs &amp; TimeEdit via cookie session.'
-            }</small>
+            <span class="badge live">Canvas-Archive</span>
+            <small class="muted" style="margin-left:8px"><b>${unimported}</b> new course${unimported > 1 ? 's' : ''} ready to import</small>
           </div>
           <div class="row-actions">
-            ${ca.hasResyncApp ? '<button type="button" class="ghost-btn" id="btn-open-canvas-resync">Sync Canvas</button><button type="button" class="ghost-btn" id="btn-open-ed-sync">Sync Ed</button>' : ''}
-            ${ca.hasResyncApp && ca.courses?.length ? '<button type="button" class="ghost-btn" id="btn-add-canvas-files">Add books or PDFs</button>' : ''}
-            ${
-              unimported > 0
-                ? `<button type="button" class="primary-btn" style="padding:5px 11px;font-size:12.5px" id="btn-import-canvas-courses">Import ${unimported} New Course${unimported > 1 ? 's' : ''} →</button>`
-                : ''
-            }
-            ${!ca.connected ? '<button type="button" class="ghost-btn" style="padding:5px 11px;font-size:12.5px" id="btn-set-archive-path">Connect Canvas-Archive</button>' : ''}
+            <button type="button" class="primary-btn" style="padding:5px 12px;font-size:12.5px" id="btn-import-canvas-courses">Import ${unimported} New Course${unimported > 1 ? 's' : ''} →</button>
           </div>
         </div>
       `;
+    } else {
+      strip.innerHTML = '';
+      return;
     }
 
     document.getElementById('btn-open-canvas-resync')?.addEventListener('click', () => openCanvasSync('canvas'));
@@ -1135,6 +1182,7 @@ window.StudyApp = (() => {
 
     button.hidden = false;
     button.onclick = () => {
+      window.StudyUI.closeSettings?.();
       course.innerHTML = boot.catalog.map((entry) =>
         `<option value="${esc(entry.courseId)}">${esc(entry.title)}</option>`).join('');
       if (selectedCourseId) course.value = selectedCourseId;
@@ -1342,17 +1390,22 @@ window.StudyApp = (() => {
 
   async function saveForOffline(event) {
     const button = event.currentTarget;
-    const showStatus = (message) => {
+    const valEl = document.getElementById('settings-offline-value');
+    const showStatus = (message, valLabel = '') => {
       offlineStatus = message;
       const status = document.getElementById('offline-status');
       if (status) status.textContent = message;
+      if (valEl && valLabel) {
+        valEl.textContent = valLabel;
+        valEl.classList.toggle('ios-val-live', valLabel === 'Saved');
+      }
     };
     if (!navigator.serviceWorker) {
-      showStatus('Offline saving is unavailable in this browser.');
+      showStatus('Offline saving is unavailable in this browser.', 'Unavailable');
       return;
     }
     button.disabled = true;
-    showStatus('Saving notes and questions…');
+    showStatus('Saving notes and questions…', 'Saving…');
     try {
       const registration = await navigator.serviceWorker.register('./offline-worker.js');
       const worker = registration.installing || registration.waiting || registration.active;
@@ -1369,12 +1422,15 @@ window.StudyApp = (() => {
           onStateChange();
         });
       }
-      showStatus('Saved for offline');
-      button.textContent = 'Check offline copy';
+      showStatus('Saved for offline', 'Saved');
+      toast('Saved notes & questions for offline use.');
     } catch {
-      showStatus(navigator.serviceWorker.controller
-        ? 'The saved copy is available. Connect to update it.'
-        : 'Could not save. Check your connection and try again.');
+      showStatus(
+        navigator.serviceWorker.controller
+          ? 'The saved copy is available. Connect to update it.'
+          : 'Could not save. Check your connection and try again.',
+        navigator.serviceWorker.controller ? 'Saved' : 'Retry'
+      );
     } finally {
       button.disabled = false;
     }
@@ -1393,12 +1449,14 @@ window.StudyApp = (() => {
       dialog.close();
     };
     const show = () => {
+      window.StudyUI.closeSettings?.();
       feedback.textContent = '';
       dialog.showModal();
     };
     dialog.addEventListener('cancel', dismiss);
     document.getElementById('member-dismiss').onclick = dismiss;
     document.getElementById('btn-member-library').onclick = async () => {
+      window.StudyUI.closeSettings?.();
       if (members.isUnlocked()) {
         try {
           await members.forget();
@@ -2045,103 +2103,105 @@ window.StudyApp = (() => {
           <button type="button" class="preset-chip active" data-exp-preset="reset">All Tasks</button>
         </div>
 
-        <div class="filter-grid" style="margin-top:12px">
-          <label class="field-label">Topic / Chapter
-            <select id="flt-topic">${topicOptions}</select>
-          </label>
-          <label class="field-label">Source / Paper
-            <select id="flt-coll">${collOptions}</select>
-          </label>
-          <label class="field-label">Format
-            <select id="flt-kind">
-              <option value="all">All Formats</option>
-              <option value="no_mcq">No Multiple Choice (Deep Work)</option>
-              <option value="wiseflow">Worksheets</option>
-              <option value="calculation">Calculation / Problem</option>
-              <option value="written">Written / Analytical Case</option>
-              <option value="coding">Coding</option>
-              <option value="mcq">Multiple Choice (MCQ) Only</option>
-            </select>
-          </label>
-          <label class="field-label">Difficulty
-            <select id="flt-diff">
-              <option value="all">All difficulty levels</option>
-              <option value="3" data-layout-tier="3">${window.StudyLayout.label(3)}</option>
-              <option value="2plus" data-layout-tier-group>${window.StudyLayout.label(2)} and ${window.StudyLayout.label(3)}</option>
-              <option value="2" data-layout-tier="2">${window.StudyLayout.label(2)}</option>
-              <option value="1" data-layout-tier="1">${window.StudyLayout.label(1)}</option>
-            </select>
-          </label>
-          <label class="field-label">Time / Effort Horizon
-            <select id="flt-horizon">
-              <option value="all">All Time Horizons</option>
-              <option value="6plus">6m+ Sustained (≥6m Par)</option>
-              <option value="10plus">10m+ Deep Problem (≥10m Par)</option>
-              <option value="15plus">15m+ Heavy Case (≥15m Par)</option>
-              <option value="under6">Quick (&lt;6m Par)</option>
-            </select>
-          </label>
-          <label class="field-label">Completion Status
-            <select id="flt-status">
-              <option value="all">All Statuses</option>
-              <option value="unfinished">Unfinished (Todo + Revisit)</option>
-              <option value="not_started">Uncomplete (Not started)</option>
-              <option value="in_progress">In Progress</option>
-              <option value="revisit">Revisit / Mistakes</option>
-              <option value="due_fsrs">Due FSRS Review</option>
-              <option value="done">Done</option>
-            </select>
-          </label>
-          <label class="field-label">Sort Tasks By
-            <select id="flt-sort">
-              <option value="deep_first" ${defaultSort === 'deep_first' ? 'selected' : ''}>Hard First (Interleaved)</option>
-              <option value="horizon_desc">Longest Horizon First (AI Par ↓)</option>
-              <option value="diff_desc">Difficulty: hard first</option>
-              <option value="smart_priority" ${defaultSort === 'smart_priority' ? 'selected' : ''}>Smart Priority (Revisit → Due → Todo)</option>
-              <option value="horizon_asc">Quickest First (AI Par ↑)</option>
-              <option value="bank_order">Original Paper / Bank Order</option>
-            </select>
-          </label>
-          <label class="field-label">Run Mode &amp; Size
-            <select id="flt-budget">
-              <option value="budget:20">20 min Sprint</option>
-              <option value="budget:45" selected>45 min Deep Wave</option>
-              <option value="budget:65">65 min Extended Wave</option>
-              <option value="count:5">Top 5 Matching Tasks</option>
-              <option value="count:12">Top 12 Matching Tasks</option>
-              <option value="all">All Matching (Full Set)</option>
-              <option value="exam_sim">Blind Exam Sit (Countdown + Submit)</option>
-            </select>
-          </label>
+        <div class="explorer-primary-bar" style="margin-top:12px">
+          <input type="search" id="flt-search" placeholder="Search concepts, formulas, question IDs…" style="min-width:210px;flex:1.4">
+          <select id="flt-topic" aria-label="Topic or chapter" style="min-width:170px;flex:1">${topicOptions}</select>
+          <select id="flt-status" aria-label="Completion status" style="min-width:145px">
+            <option value="all">All Statuses</option>
+            <option value="unfinished">Unfinished (Todo + Revisit)</option>
+            <option value="not_started">Uncomplete (Not started)</option>
+            <option value="in_progress">In Progress</option>
+            <option value="revisit">Revisit / Mistakes</option>
+            <option value="due_fsrs">Due FSRS Review</option>
+            <option value="done">Done</option>
+          </select>
+          <button type="button" class="primary-btn" id="btn-start-filtered">Start Selected Run →</button>
         </div>
 
-        <div class="row-between" style="margin:10px 0 0">
-          <div class="row-actions" style="flex:1">
-            <input type="search" id="flt-search" placeholder="Search concepts, formulas, question IDs…" style="min-width:240px;flex:1">
-            <select id="flt-profile" title="AI Pace Benchmark" style="padding:7px 10px;font-size:13px">
-              <option value="learning">Learning Par</option>
-              <option value="exam">Exam Mastery Par</option>
-            </select>
-            <label style="font-size:13px;display:inline-flex;align-items:center;gap:6px">
-              <input type="checkbox" id="flt-shuffle"> Shuffle
+        <div class="row-between" style="margin:8px 0 0">
+          <span id="flt-summary-lbl" class="muted" style="font-size:13px"></span>
+        </div>
+
+        <details class="explorer-advanced-filters">
+          <summary>More filters, run size &amp; bulk actions</summary>
+          <div class="filter-grid" style="margin-top:12px">
+            <label class="field-label">Source / Paper
+              <select id="flt-coll">${collOptions}</select>
+            </label>
+            <label class="field-label">Format
+              <select id="flt-kind">
+                <option value="all">All Formats</option>
+                <option value="no_mcq">No Multiple Choice (Deep Work)</option>
+                <option value="wiseflow">Worksheets</option>
+                <option value="calculation">Calculation / Problem</option>
+                <option value="written">Written / Analytical Case</option>
+                <option value="coding">Coding</option>
+                <option value="mcq">Multiple Choice (MCQ) Only</option>
+              </select>
+            </label>
+            <label class="field-label">Difficulty
+              <select id="flt-diff">
+                <option value="all">All difficulty levels</option>
+                <option value="3" data-layout-tier="3">${window.StudyLayout.label(3)}</option>
+                <option value="2plus" data-layout-tier-group>${window.StudyLayout.label(2)} and ${window.StudyLayout.label(3)}</option>
+                <option value="2" data-layout-tier="2">${window.StudyLayout.label(2)}</option>
+                <option value="1" data-layout-tier="1">${window.StudyLayout.label(1)}</option>
+              </select>
+            </label>
+            <label class="field-label">Time / Effort Horizon
+              <select id="flt-horizon">
+                <option value="all">All Time Horizons</option>
+                <option value="6plus">6m+ Sustained (≥6m Par)</option>
+                <option value="10plus">10m+ Deep Problem (≥10m Par)</option>
+                <option value="15plus">15m+ Heavy Case (≥15m Par)</option>
+                <option value="under6">Quick (&lt;6m Par)</option>
+              </select>
+            </label>
+            <label class="field-label">Sort Tasks By
+              <select id="flt-sort">
+                <option value="deep_first" ${defaultSort === 'deep_first' ? 'selected' : ''}>Hard First (Interleaved)</option>
+                <option value="horizon_desc">Longest Horizon First (AI Par ↓)</option>
+                <option value="diff_desc">Difficulty: hard first</option>
+                <option value="smart_priority" ${defaultSort === 'smart_priority' ? 'selected' : ''}>Smart Priority (Revisit → Due → Todo)</option>
+                <option value="horizon_asc">Quickest First (AI Par ↑)</option>
+                <option value="bank_order">Original Paper / Bank Order</option>
+              </select>
+            </label>
+            <label class="field-label">Run Mode &amp; Size
+              <select id="flt-budget">
+                <option value="budget:20">20 min Sprint</option>
+                <option value="budget:45" selected>45 min Deep Wave</option>
+                <option value="budget:65">65 min Extended Wave</option>
+                <option value="count:5">Top 5 Matching Tasks</option>
+                <option value="count:12">Top 12 Matching Tasks</option>
+                <option value="all">All Matching (Full Set)</option>
+                <option value="exam_sim">Blind Exam Sit (Countdown + Submit)</option>
+              </select>
+            </label>
+            <label class="field-label">AI Pace Benchmark
+              <select id="flt-profile">
+                <option value="learning">Learning Par</option>
+                <option value="exam">Exam Mastery Par</option>
+              </select>
             </label>
           </div>
-          <div class="row-actions">
-            <span id="flt-summary-lbl" class="muted" style="font-size:13px"></span>
-            <button type="button" class="primary-btn" id="btn-start-filtered">Start Selected Run →</button>
+          <div class="row-between" style="margin:10px 0 0">
+            <label style="font-size:13px;display:inline-flex;align-items:center;gap:6px">
+              <input type="checkbox" id="flt-shuffle"> Shuffle question order
+            </label>
+            <div class="row-actions">
+              <button type="button" class="ghost-btn" id="btn-bulk-uncomplete">Mark Matching Uncomplete</button>
+              <button type="button" class="ghost-btn" id="btn-bulk-revisit">Mark Matching Revisit</button>
+            </div>
           </div>
-        </div>
+        </details>
       </div>
 
       <div class="panel">
         <div class="row-between" style="margin-top:0">
           <div>
-            <h3>Exercise Inventory &amp; Instant Status Controls</h3>
-            <small class="muted">Difficulty can change as you practise and master a question.</small>
-          </div>
-          <div class="row-actions">
-            <button type="button" class="ghost-btn" id="btn-bulk-uncomplete">Mark Matching Uncomplete</button>
-            <button type="button" class="ghost-btn" id="btn-bulk-revisit">Mark Matching Revisit</button>
+            <h3>Exercises</h3>
+            <small class="muted">Click any status dot or Practice to launch straight into a question.</small>
           </div>
         </div>
         <div class="task-table-wrap">
@@ -3517,11 +3577,46 @@ window.StudyApp = (() => {
       btn.addEventListener('click', () => navigate(btn.dataset.nav));
     });
     document.getElementById('nav-brand')?.addEventListener('click', () => navigate('home'));
-    document.getElementById('btn-open-schedule-studio')?.addEventListener('click', () => navigate('schedule'));
-    document.getElementById('btn-export-backup')?.addEventListener('click', exportBackupFile);
-    document.getElementById('btn-home-tutor')?.addEventListener('click', window.StudyTutor.open);
+    document.getElementById('btn-export-backup')?.addEventListener('click', () => {
+      exportBackupFile();
+      toast('Exported Study-OS backup.');
+    });
+    document.getElementById('btn-home-tutor')?.addEventListener('click', () => {
+      window.StudyUI.closeSettings?.();
+      window.StudyTutor.open();
+    });
+    document.getElementById('btn-save-offline')?.addEventListener('click', saveForOffline);
+    document.getElementById('settings-profile-card')?.addEventListener('click', () => {
+      if (!window.StudyCommunity?.enabled) return;
+      window.StudyUI.closeSettings?.();
+      if (!document.getElementById('view-runner').hidden) document.getElementById('run-exit-btn').click();
+      navigate('community');
+    });
+    document.getElementById('settings-canvas-sync-btn')?.addEventListener('click', () => {
+      window.StudyUI.closeSettings?.();
+      openCanvasSync?.('canvas');
+    });
+    document.getElementById('settings-ed-sync-btn')?.addEventListener('click', () => {
+      window.StudyUI.closeSettings?.();
+      openCanvasSync?.('ed');
+    });
+    document.getElementById('settings-add-files-btn')?.addEventListener('click', () => {
+      window.StudyUI.closeSettings?.();
+      openCanvasFiles?.();
+    });
+    document.getElementById('settings-archive-path-btn')?.addEventListener('click', async () => {
+      window.StudyUI.closeSettings?.();
+      const ca = boot.canvasArchive || {};
+      const p = prompt('Enter full path to your local Canvas-Archive folder:', ca.configuredPath || ca.archivePath || '');
+      if (p === null) return;
+      boot = await apiPost('/api/canvas/config', { canvasArchivePath: p.trim() });
+      toast('Updated Canvas-Archive path!');
+      syncSettingsRows();
+      if (currentView === 'home') renderHome();
+    });
 
     document.getElementById('btn-refresh-cal')?.addEventListener('click', async () => {
+      window.StudyUI.closeSettings?.();
       if (isStaticWeb) {
         navigate('schedule');
         return;
@@ -3537,6 +3632,7 @@ window.StudyApp = (() => {
     impFile?.addEventListener('change', async () => {
       const f = impFile.files?.[0];
       if (!f) return;
+      window.StudyUI.closeSettings?.();
       try {
         const data = JSON.parse(await f.text());
         if (isStaticWeb) {
@@ -3630,6 +3726,7 @@ window.StudyApp = (() => {
     effectiveDifficulty,
     effectiveDlpfc,
     refreshBootstrap,
+    syncSettingsRows,
     navigate,
     showRawView,
     setQuestionStatus,

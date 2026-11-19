@@ -75,12 +75,16 @@ window.StudyTutor = (() => {
     }
   }
 
+  function isSharing() {
+    return Boolean(web ? paired && !popup?.closed : localSharing);
+  }
+
   function open() {
     const connect = document.getElementById('tutor-pair');
     const localControls = document.getElementById('tutor-local-controls');
     connect.hidden = !web;
     localControls.hidden = web;
-    status.textContent = (web ? paired && !popup?.closed : localSharing)
+    status.textContent = isSharing()
       ? 'Live exercise sharing is on.' : '';
     document.getElementById('tutor-copy-text').hidden = true;
     if (!dialog.open) dialog.showModal();
@@ -94,12 +98,14 @@ window.StudyTutor = (() => {
     paired = false;
     popup = window.open(`${localOrigin}/tutor-bridge.html`, '_blank', 'popup,width=510,height=600');
     status.textContent = popup ? 'Confirm sharing in the desktop window.' : 'Allow the desktop window to open, then retry.';
+    window.StudyUI?.updateSettingsIndicators?.();
   };
   document.getElementById('tutor-enable').onclick = () => {
     localSharing = true;
     try { sessionStorage.setItem(sharingKey, 'yes'); } catch {}
     status.textContent = 'Live exercise sharing is on.';
     publish(true);
+    window.StudyUI?.updateSettingsIndicators?.();
   };
   document.getElementById('tutor-disable').onclick = () => {
     send({ mode: 'waiting' }, true);
@@ -107,6 +113,7 @@ window.StudyTutor = (() => {
     if (popup && !popup.closed) popup.close();
     try { sessionStorage.removeItem(sharingKey); } catch {}
     status.textContent = 'Live exercise sharing is off.';
+    window.StudyUI?.updateSettingsIndicators?.();
   };
   document.getElementById('tutor-copy-prompt').onclick = () => copyText(prompt);
   document.getElementById('tutor-copy-codex').onclick = () => copySetup(true);
@@ -117,10 +124,11 @@ window.StudyTutor = (() => {
     paired = true;
     status.textContent = 'Live exercise sharing is on. Keep the desktop window open.';
     publish(true);
+    window.StudyUI?.updateSettingsIndicators?.();
   });
   document.getElementById('view-runner').addEventListener('input', changed);
   window.addEventListener('pagehide', () => send({ mode: 'waiting' }, true));
   // Renew the local lease while studying, even when the AI window has keyboard focus.
   setInterval(() => publish(true), 10_000);
-  return { open, changed };
+  return { open, changed, isSharing };
 })();

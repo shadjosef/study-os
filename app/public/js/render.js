@@ -117,20 +117,26 @@ window.StudyUI = (() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.pdfDark = pdfDark ? '1' : '0';
 
-    const hdrTheme = document.getElementById('hdr-theme');
-    if (hdrTheme) hdrTheme.textContent = theme === 'dark' ? 'Light' : 'Dark';
-    const runTheme = document.getElementById('run-theme-btn');
-    if (runTheme) runTheme.textContent = theme === 'dark' ? 'Light' : 'Dark';
+    const darkToggle = document.getElementById('settings-dark-toggle');
+    if (darkToggle) darkToggle.checked = theme === 'dark';
+    const themeSub = document.getElementById('settings-theme-sub');
+    if (themeSub) themeSub.textContent = theme === 'dark' ? 'Dark appearance active' : 'Light appearance active';
 
-    document.querySelectorAll('.pdf-theme-toggle').forEach((btn) => {
-      btn.textContent = pdfDark ? 'PDF: Dark' : 'PDF: Light';
-    });
+    const pdfToggle = document.getElementById('settings-pdf-dark-toggle');
+    if (pdfToggle) pdfToggle.checked = pdfDark;
+    const pdfRow = document.getElementById('settings-pdf-dark-row');
+    if (pdfRow) pdfRow.classList.toggle('ios-row-muted', theme !== 'dark');
+    const pdfSub = document.getElementById('settings-pdf-dark-sub');
+    if (pdfSub) {
+      pdfSub.textContent = theme === 'dark'
+        ? 'Turns white exam excerpts dark'
+        : 'Applies automatically when Dark Mode is on';
+    }
   }
 
-  function toggleTheme() {
+  function setTheme(theme) {
     const p = getThemePrefs();
-    const cur = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
-    p.theme = cur === 'dark' ? 'light' : 'dark';
+    p.theme = theme === 'dark' ? 'dark' : 'light';
     if (p.pdfDark === undefined) p.pdfDark = true;
     try {
       localStorage.setItem(THEME_KEY, JSON.stringify(p));
@@ -138,14 +144,22 @@ window.StudyUI = (() => {
     applyTheme(p);
   }
 
-  function togglePdfDark() {
+  function setPdfDark(enabled) {
     const p = getThemePrefs();
     p.theme = document.documentElement.dataset.theme || 'dark';
-    p.pdfDark = document.documentElement.dataset.pdfDark !== '1';
+    p.pdfDark = Boolean(enabled);
     try {
       localStorage.setItem(THEME_KEY, JSON.stringify(p));
     } catch {}
     applyTheme(p);
+  }
+
+  function toggleTheme() {
+    setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  }
+
+  function togglePdfDark() {
+    setPdfDark(document.documentElement.dataset.pdfDark !== '1');
   }
 
   // Slide-Over Obsidian Reference Drawer
@@ -641,6 +655,8 @@ window.StudyUI = (() => {
     if (homeScrEl) homeScrEl.textContent = scr.screenLabel;
     const homeOffEl = document.getElementById('home-offscreen-today-val');
     if (homeOffEl) homeOffEl.textContent = scr.offScreenLabel;
+    const setScrEl = document.getElementById('settings-screen-val');
+    if (setScrEl) setScrEl.textContent = scr.screenLabel;
 
     if (workState.mode === 'working') {
       const elSec = currentWaveElapsedSec(now);
@@ -650,9 +666,7 @@ window.StudyUI = (() => {
         ? 'live-clock-pill non-interactive flow-pill-warn'
         : 'live-clock-pill non-interactive' +
           (elSec >= 65 * 60 ? ' flow-pill-warn' : elSec >= 45 * 60 ? ' flow-pill-prime' : '');
-      const txt = isPaused
-        ? `Paused ${clockSec(elSec)} / 75m · Screen ${scr.screenLabel}`
-        : `${clockSec(elSec)} / 75m · Screen ${scr.screenLabel}`;
+      const txt = isPaused ? `Paused ${clockSec(elSec)}` : `${clockSec(elSec)} / 75m`;
       const tip = isPaused
         ? `Session paused (${workState.wavePauseReason || 'focus away'}) — resumes on focus · Screen today: ${scr.screenLabel} · Off-screen: ${scr.offScreenLabel}`
         : `75m working interval (15m break at 75:00) · Screen today: ${scr.screenLabel} · Off-screen: ${scr.offScreenLabel}`;
@@ -675,7 +689,7 @@ window.StudyUI = (() => {
       }
     } else if (workState.mode === 'break') {
       const remSec = Math.max(0, Math.ceil(((workState.breakEndsAtMs || now) - now) / 1000));
-      const txt = remSec > 0 ? `Break ${clockSec(remSec)} · Screen ${scr.screenLabel}` : `Break ended · Screen ${scr.screenLabel}`;
+      const txt = remSec > 0 ? `Break ${clockSec(remSec)}` : 'Break ended';
       const tip = `Off-screen recovery break · Screen today: ${scr.screenLabel} · Off-screen: ${scr.offScreenLabel}`;
       if (gPill) {
         gPill.className = 'live-clock-pill non-interactive flow-pill-warn';
@@ -692,7 +706,7 @@ window.StudyUI = (() => {
       if (cdEl) cdEl.textContent = remSec ? clockSec(remSec) : '00:00';
     } else {
       const cls = 'live-clock-pill non-interactive idle-work-pill';
-      const txt = `Screen ${scr.screenLabel} · 0:00 / 75m`;
+      const txt = '0:00 / 75m';
       const tip = `Accumulated screen time today: ${scr.screenLabel} · Off-screen (breaks/away): ${scr.offScreenLabel}. Auto-starts 75m interval when you begin any run.`;
       if (gPill) {
         gPill.className = cls;
@@ -746,6 +760,7 @@ window.StudyUI = (() => {
     document.getElementById('runner-header').inert = breakEnded;
     if (breakEnded && expiredBreakShown !== workState.breakEndsAtMs) {
       expiredBreakShown = workState.breakEndsAtMs;
+      closeSettings();
       showBreakModalUi();
       document.getElementById('break-add-1m').focus();
     }
@@ -1187,19 +1202,8 @@ window.StudyUI = (() => {
 
     function updateDom() {
       const presetMeta = SOUND_PRESETS[prefs.preset] || SOUND_PRESETS.brown;
-      const btns = [document.getElementById('hdr-sound-btn'), document.getElementById('run-sound-btn')];
-      btns.forEach((b) => {
-        if (!b) return;
-        b.classList.toggle('active', isPlaying && !suspendedForBreak);
-        b.classList.toggle('break-muted', isPlaying && suspendedForBreak);
-        if (isPlaying && suspendedForBreak) {
-          b.textContent = 'Sound: Break';
-        } else if (isPlaying) {
-          b.textContent = `Sound: ${presetMeta.short}`;
-        } else {
-          b.textContent = 'Sound';
-        }
-      });
+      const toggleEl = document.getElementById('settings-sound-toggle');
+      if (toggleEl) toggleEl.checked = Boolean(isPlaying && !suspendedForBreak);
 
       const statusEl = document.getElementById('sound-status-lbl');
       if (statusEl) {
@@ -1207,12 +1211,11 @@ window.StudyUI = (() => {
           ? `Off · ${presetMeta.name}`
           : suspendedForBreak
           ? `Auto-muted for 1:5 break · ${presetMeta.name}`
-          : `Playing · ${presetMeta.name}`;
+          : `Playing · ${presetMeta.name} · ${prefs.volume}%`;
       }
-      const playBtn = document.getElementById('sound-play-btn');
-      if (playBtn) {
-        playBtn.textContent = isPlaying && !suspendedForBreak ? 'Stop (M)' : 'Play (M)';
-      }
+      const presetValEl = document.getElementById('settings-sound-preset-val');
+      if (presetValEl) presetValEl.textContent = presetMeta.name;
+
       const descEl = document.getElementById('sound-preset-desc');
       if (descEl) descEl.textContent = presetMeta.desc;
 
@@ -1232,6 +1235,8 @@ window.StudyUI = (() => {
 
       const breakChk = document.getElementById('sound-break-mute');
       if (breakChk) breakChk.checked = Boolean(prefs.muteOnBreak);
+
+      updateSettingsIndicators();
     }
 
     return {
@@ -1267,6 +1272,9 @@ window.StudyUI = (() => {
         }
         this.play(prefs.preset);
         return true;
+      },
+      isActive() {
+        return Boolean(isPlaying && !suspendedForBreak);
       },
       setPreset(presetId) {
         if (!SOUND_PRESETS[presetId]) return;
@@ -1329,57 +1337,159 @@ window.StudyUI = (() => {
     };
   })();
 
-  function toggleSoundPopover(anchorBtn) {
-    const pop = document.getElementById('sound-popover');
-    if (!pop) return;
-    if (!pop.hidden && pop.dataset.anchorId === anchorBtn?.id) {
-      pop.hidden = true;
-      return;
-    }
-    pop.hidden = false;
-    pop.dataset.anchorId = anchorBtn?.id || '';
-    if (anchorBtn) {
-      const rect = anchorBtn.getBoundingClientRect();
-      const popWidth = Math.min(316, window.innerWidth - 24);
-      const left = Math.max(12, Math.min(window.innerWidth - popWidth - 12, rect.right - popWidth));
-      pop.style.top = `${Math.round(rect.bottom + 8)}px`;
-      pop.style.left = `${Math.round(left)}px`;
-      pop.style.right = 'auto';
-    }
-    soundMasker.renderUi();
+  // ---------------------------------------------------------------------------
+  // iOS-Style Settings Sheet
+  // ---------------------------------------------------------------------------
+  let soundDrawerExpanded = false;
+
+  function setSoundDrawerExpanded(expanded) {
+    const panel = document.getElementById('settings-sound-panel');
+    const btn = document.getElementById('settings-sound-expand-btn');
+    if (!panel || !btn) return;
+    panel.hidden = !expanded;
+    btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    btn.classList.toggle('is-expanded', Boolean(expanded));
   }
 
-  function closeSoundPopover() {
-    const pop = document.getElementById('sound-popover');
-    if (pop) pop.hidden = true;
+  function filterSettingsRows(rawQuery) {
+    const body = document.getElementById('settings-body');
+    if (!body) return;
+    const q = String(rawQuery || '').trim().toLowerCase();
+    const soundPanel = document.getElementById('settings-sound-panel');
+    const items = body.querySelectorAll('[data-settings-item]');
+    let visibleCount = 0;
+
+    items.forEach((el) => {
+      if (!q) {
+        el.classList.remove('ios-search-hidden');
+        if (!el.hidden) visibleCount += 1;
+        return;
+      }
+      const hay = `${el.dataset.settingsItem || ''} ${el.textContent || ''}`.toLowerCase();
+      const matched = hay.includes(q);
+      el.classList.toggle('ios-search-hidden', !matched);
+      if (el === soundPanel) {
+        setSoundDrawerExpanded(matched);
+      }
+      if (matched && !el.hidden) visibleCount += 1;
+    });
+
+    if (!q) {
+      setSoundDrawerExpanded(soundDrawerExpanded);
+    }
+
+    body.querySelectorAll('[data-settings-group]').forEach((group) => {
+      const hasVisible = [...group.querySelectorAll('[data-settings-item]')].some(
+        (el) => !el.hidden && !el.classList.contains('ios-search-hidden')
+      );
+      group.classList.toggle('ios-search-hidden', !hasVisible);
+    });
+
+    const empty = document.getElementById('settings-search-empty');
+    if (empty) empty.hidden = !q || visibleCount > 0;
+  }
+
+  function updateSettingsIndicators() {
+    const soundOn = soundMasker.isActive();
+    const tutorOn = Boolean(window.StudyTutor?.isSharing?.());
+    const anyLive = soundOn || tutorOn;
+    document.querySelectorAll('.settings-active-dot').forEach((dot) => {
+      dot.hidden = !anyLive;
+    });
+    const tutorVal = document.getElementById('settings-tutor-value');
+    if (tutorVal) {
+      tutorVal.textContent = tutorOn ? 'Live' : 'Off';
+      tutorVal.classList.toggle('ios-val-live', tutorOn);
+    }
+    const layoutVal = document.getElementById('settings-layout-value');
+    if (layoutVal && window.StudyLayout?.getActiveTitle) {
+      layoutVal.textContent = window.StudyLayout.getActiveTitle();
+    }
+    const layoutSub = document.getElementById('settings-layout-sub');
+    if (layoutSub) {
+      layoutSub.textContent = workClock.canUseBreakTools()
+        ? 'Customize visible metrics & difficulty labels'
+        : 'Opens during breaks or after 20:00 Oslo';
+    }
+  }
+
+  function openSettings() {
+    const dialog = document.getElementById('settings-dialog');
+    if (!dialog) return;
+    const search = document.getElementById('settings-search');
+    if (search) search.value = '';
+    filterSettingsRows('');
+    applyTheme();
+    soundMasker.renderUi();
+    updateSettingsIndicators();
+    window.StudyApp?.syncSettingsRows?.();
+    if (!dialog.open) {
+      dialog.showModal();
+      dialog.focus({ preventScroll: true });
+    }
+    const body = document.getElementById('settings-body');
+    if (body) body.scrollTop = 0;
+  }
+
+  function closeSettings() {
+    const dialog = document.getElementById('settings-dialog');
+    if (dialog?.open) dialog.close();
   }
 
   function bindGlobalChrome() {
     applyTheme();
-    document.getElementById('hdr-theme')?.addEventListener('click', toggleTheme);
-    document.getElementById('run-theme-btn')?.addEventListener('click', toggleTheme);
-    document.querySelectorAll('.pdf-theme-toggle').forEach((b) => b.addEventListener('click', togglePdfDark));
+    document.getElementById('settings-dark-toggle')?.addEventListener('change', (ev) => {
+      setTheme(ev.target.checked ? 'dark' : 'light');
+    });
+    document.getElementById('settings-pdf-dark-toggle')?.addEventListener('change', (ev) => {
+      setPdfDark(ev.target.checked);
+    });
     document.getElementById('ref-drawer-close')?.addEventListener('click', closeReferenceDrawer);
     document.getElementById('ref-backdrop')?.addEventListener('click', closeReferenceDrawer);
     document.getElementById('img-lightbox')?.addEventListener('click', closeLightbox);
     document.getElementById('img-lightbox-close')?.addEventListener('click', closeLightbox);
 
-    // Background Sound Masking Controls
-    soundMasker.renderUi();
-    ['hdr-sound-btn', 'run-sound-btn'].forEach((id) => {
-      const btn = document.getElementById(id);
-      btn?.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (ev.shiftKey) {
-          const on = soundMasker.toggle();
-          toast(on ? `Sound: ${soundMasker.getSummaryLabel()}` : 'Sound off');
-        } else {
-          toggleSoundPopover(btn);
-        }
+    // iOS Settings Sheet Triggers & Controls
+    ['hdr-settings-btn', 'run-settings-btn'].forEach((id) => {
+      document.getElementById(id)?.addEventListener('click', openSettings);
+    });
+    document.getElementById('settings-close-btn')?.addEventListener('click', closeSettings);
+    const settingsDialog = document.getElementById('settings-dialog');
+    settingsDialog?.addEventListener('click', (ev) => {
+      if (ev.target === settingsDialog) closeSettings();
+    });
+    document.getElementById('settings-search')?.addEventListener('input', (ev) => {
+      filterSettingsRows(ev.target.value);
+    });
+    document.getElementById('settings-sound-expand-btn')?.addEventListener('click', () => {
+      soundDrawerExpanded = !soundDrawerExpanded;
+      setSoundDrawerExpanded(soundDrawerExpanded);
+    });
+    document.getElementById('settings-layout-btn')?.addEventListener('click', () => {
+      if (!workClock.canUseBreakTools()) {
+        toast('Layout presets open during breaks or after 20:00 Oslo.');
+        return;
+      }
+      closeSettings();
+      window.StudyLayout.open(false);
+    });
+    document.getElementById('settings-fullscreen-toggle')?.addEventListener('change', () => {
+      window.StudyRunner?.toggleFullscreen?.();
+    });
+    document.querySelectorAll('#settings-autopause-seg [data-autopause-val]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        window.StudyRunner?.setAutoPauseMode?.(btn.dataset.autopauseVal);
       });
     });
-    document.getElementById('sound-play-btn')?.addEventListener('click', () => {
-      soundMasker.toggle();
+
+    // Background Sound Masking Controls (inside Settings)
+    soundMasker.renderUi();
+    document.getElementById('settings-sound-toggle')?.addEventListener('change', (ev) => {
+      if (ev.target.checked) {
+        soundMasker.play();
+      } else {
+        soundMasker.stop();
+      }
     });
     document.querySelectorAll('[data-sound-preset]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -1423,7 +1533,7 @@ window.StudyUI = (() => {
     document.getElementById('break-close-btn')?.addEventListener('click', () => {
       breakDialog.close();
     });
-    document.getElementById('break-layout-btn')?.addEventListener('click', () => window.StudyLayout.open());
+    document.getElementById('break-layout-btn')?.addEventListener('click', () => window.StudyLayout.open(true));
     document.getElementById('break-sets-btn')?.addEventListener('click', () => {
       if (!workClock.canUseBreakTools()) return;
       breakDialog.close();
@@ -1473,10 +1583,6 @@ window.StudyUI = (() => {
     workTickHandle = setInterval(renderWorkClockDom, 1000);
 
     document.addEventListener('click', (e) => {
-      const pop = document.getElementById('sound-popover');
-      if (pop && !pop.hidden && !pop.contains(e.target) && !e.target?.closest?.('.sound-toggle-btn')) {
-        closeSoundPopover();
-      }
       const figImg = e.target?.closest?.('.pdf-figure:not([data-pdf-excerpt]) img');
       if (figImg && figImg.src) {
         openLightbox(figImg.src, figImg.alt);
@@ -1484,11 +1590,6 @@ window.StudyUI = (() => {
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
-        if (!document.getElementById('sound-popover')?.hidden) {
-          closeSoundPopover();
-          e.preventDefault();
-          return;
-        }
         if (!document.getElementById('img-lightbox')?.hidden) {
           closeLightbox();
           e.preventDefault();
@@ -1505,6 +1606,9 @@ window.StudyUI = (() => {
         const on = soundMasker.toggle();
         toast(on ? `Sound: ${soundMasker.getSummaryLabel()}` : 'Sound off');
         e.preventDefault();
+      } else if (e.key === ',' && !document.querySelector('dialog[open]')) {
+        openSettings();
+        e.preventDefault();
       }
     });
   }
@@ -1517,6 +1621,11 @@ window.StudyUI = (() => {
     renderMarkdownWithMath,
     toast,
     applyTheme,
+    toggleTheme,
+    togglePdfDark,
+    openSettings,
+    closeSettings,
+    updateSettingsIndicators,
     openReferenceDrawer,
     closeReferenceDrawer,
     bindGlobalChrome,

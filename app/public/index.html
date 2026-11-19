@@ -25,27 +25,26 @@
       <nav class="main-tabs" aria-label="Primary views">
         <button type="button" class="tab-btn active" data-nav="home" aria-current="page">Home</button>
         <button type="button" class="tab-btn" data-nav="references">Notes</button>
-        <button type="button" class="tab-btn" data-nav="schedule">Schedule</button>
         <button type="button" class="tab-btn" data-nav="exams">Exams</button>
         <button type="button" class="tab-btn" data-nav="course">Courses</button>
-        <button type="button" class="tab-btn" data-nav="analytics">Metrics &amp; AI</button>
+        <button type="button" class="tab-btn" data-nav="schedule">Schedule</button>
+        <button type="button" class="tab-btn" data-nav="analytics">Metrics</button>
         <button type="button" class="tab-btn" data-nav="community" hidden>Community</button>
-        <button type="button" class="tab-btn" data-nav="room" hidden>My study room</button>
+        <button type="button" class="tab-btn" data-nav="room" hidden>Room</button>
       </nav>
 
       <div class="topbar-stats">
-        <span class="live-clock-pill" id="global-work-pill" title="Universal non-pausable working interval (capped at 75:00 · 1:5 recovery break)">Session 0:00 / 75m</span>
-        <button type="button" class="ghost-btn" id="global-work-action-btn" title="Start 75m working interval or take scaled 1:5 recovery break">Start 75m</button>
-        <button type="button" class="ghost-btn" id="evening-break-tools-btn" hidden>Break tools</button>
-        <span class="kpi-pill" data-layout-performance title="Universal Productivity Index (100 = matching AI Par at 100% accuracy)">
-          <small>UPI</small> <b id="hdr-upi">—</b>
-        </span>
-        <span class="kpi-pill" title="Active day streak &amp; cumulative XP">
-          <b id="hdr-streak">0d</b> <small id="hdr-xp">0 XP</small>
-        </span>
-        <button type="button" class="ghost-btn sound-toggle-btn" id="hdr-sound-btn" title="Background sound masking (Shift+Click or M to quick-toggle)">Sound</button>
-        <button type="button" class="ghost-btn pdf-theme-toggle" id="hdr-pdf-dark" title="Invert white PDF crops in dark mode">PDF: Dark</button>
-        <button type="button" class="ghost-btn" id="hdr-theme" title="Switch light / dark theme">Light</button>
+        <span class="live-clock-pill" id="global-work-pill" title="Universal non-pausable working interval (capped at 75:00 · 1:5 recovery break)">0:00 / 75m</span>
+        <button type="button" class="ghost-btn topbar-action-btn" id="global-work-action-btn" title="Start 75m working interval or take scaled 1:5 recovery break">Start 75m</button>
+        <button type="button" class="ghost-btn topbar-action-btn" id="evening-break-tools-btn" hidden>Break tools</button>
+        <button type="button" class="ghost-btn settings-trigger-btn" id="hdr-settings-btn" title="Settings (,)" aria-label="Open Settings">
+          <svg class="settings-gear-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span class="settings-trigger-label">Settings</span>
+          <span class="settings-active-dot" hidden aria-hidden="true"></span>
+        </button>
       </div>
     </div>
   </header>
@@ -53,7 +52,7 @@
   <!-- Sticky Distraction-Free Runner Bar (visible ONLY during active study run) -->
   <header id="runner-header" class="runner-topbar" hidden>
     <div class="runner-topbar-inner">
-      <button type="button" class="ghost-btn" id="run-exit-btn" title="Return to Command Center">← Hub</button>
+      <button type="button" class="ghost-btn" id="run-exit-btn" title="Return to Hub">← Hub</button>
       <div class="runner-title-wrap">
         <b id="run-header-title">Course · Question</b>
         <small id="run-header-sub">Question 1 of 10</small>
@@ -61,17 +60,18 @@
       <div class="runner-header-actions">
         <span class="exam-clock-pill" id="run-exam-countdown" hidden title="Total WISEflow Exam Paper Time Remaining">180:00</span>
         <button type="button" class="primary-btn" id="run-submit-exam-btn" hidden style="padding:6px 13px;font-size:13px">Submit Paper</button>
-        <span class="live-clock-pill" id="run-work-pill" title="Universal working interval (capped at 75:00)">Session 0:00 / 75m</span>
-        <button type="button" class="ghost-btn" id="run-break-btn" title="Take scaled 1:5 off-screen recovery break (B)">Break (3m)</button>
-        <button type="button" class="ghost-btn" id="runner-room-btn" hidden>Study room</button>
         <button type="button" class="live-clock-pill item-clock-pill" id="run-live-pill" title="Click or press P to pause/resume timer">Q 0:00</button>
-        <button type="button" class="ghost-btn" id="run-autopause-btn" title="Auto-pause is OFF by default so timers keep running while Excel, Jupyter, Calculator, or Obsidian are open over the browser">Auto: Off</button>
-        <button type="button" class="ghost-btn" id="run-fullscreen-btn" title="Toggle Fullscreen focus lock (F11)">Full</button>
+        <span class="live-clock-pill" id="run-work-pill" title="Universal working interval (capped at 75:00)">0:00 / 75m</span>
+        <button type="button" class="ghost-btn" id="run-break-btn" title="Take scaled 1:5 off-screen recovery break (B)">Break (3m)</button>
+        <button type="button" class="ghost-btn" id="runner-room-btn" hidden>Room</button>
         <button type="button" class="ghost-btn" id="run-layout-btn" title="Foveal Focus Column (default) — click or press V for Side-by-Side Split View">Focus</button>
-        <a id="run-obsidian-app-link" class="ghost-btn" href="#" title="Jump to exact section in Obsidian Desktop app">Obsidian ↗</a>
-        <button type="button" class="ghost-btn sound-toggle-btn" id="run-sound-btn" title="Background sound masking (Shift+Click or M to quick-toggle)">Sound</button>
-        <button type="button" class="ghost-btn pdf-theme-toggle" id="run-pdf-dark">PDF: Dark</button>
-        <button type="button" class="ghost-btn" id="run-theme-btn">Light</button>
+        <button type="button" class="ghost-btn settings-trigger-btn settings-icon-only" id="run-settings-btn" title="Settings (,)" aria-label="Open Settings">
+          <svg class="settings-gear-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span class="settings-active-dot" hidden aria-hidden="true"></span>
+        </button>
       </div>
     </div>
   </header>
@@ -242,15 +242,6 @@
         </div>
         <div class="row-actions">
           <select id="home-semester-filter" title="Filter by semester" style="padding:7px 10px;font-size:13px" hidden></select>
-          <button type="button" class="ghost-btn" id="btn-open-schedule-studio">Schedule / TimeEdit</button>
-          <button type="button" class="ghost-btn" id="btn-member-library" hidden>Unlock full library</button>
-          <button type="button" class="ghost-btn" id="btn-refresh-cal">↻ Sync Calendar</button>
-          <button type="button" class="ghost-btn" id="btn-import-json">Import Backup</button>
-          <input type="file" id="file-import-json" accept="application/json,.json" hidden>
-          <button type="button" class="ghost-btn" id="btn-export-backup">Export Backup</button>
-          <button type="button" class="ghost-btn" id="btn-home-tutor">AI tutor</button>
-          <button type="button" class="ghost-btn" id="btn-study-admin" hidden>Admin</button>
-          <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/CHANGELOG.md">What’s new</a>
         </div>
       </div>
       <div id="courses-grid" class="courses-grid"></div>
@@ -433,49 +424,491 @@
     </form>
   </dialog>
 
-  <!-- LOW-FATIGUE BACKGROUND SOUND MASKING POPOVER -->
-  <aside id="sound-popover" class="sound-popover" hidden role="dialog" aria-label="Background Sound Masking">
-    <div class="sound-popover-head">
-      <div>
-        <span class="eyebrow" style="margin:0">Acoustic Masking</span>
-        <strong id="sound-status-lbl" style="display:block;font-size:14px">Off · Ready</strong>
+  <!-- iOS-STYLE SETTINGS SHEET (All Preferences, Sound, AI, Sync & Backup) -->
+  <dialog id="settings-dialog" class="ios-settings-dialog" tabindex="-1" aria-labelledby="settings-title">
+    <div class="ios-settings-header">
+      <div class="ios-settings-header-spacer" aria-hidden="true"></div>
+      <h2 id="settings-title">Settings</h2>
+      <button type="button" class="ios-done-btn" id="settings-close-btn">Done</button>
+    </div>
+
+    <div class="ios-search-wrap">
+      <div class="ios-search-box">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input type="search" id="settings-search" placeholder="Search settings" aria-label="Search settings" autocomplete="off">
       </div>
-      <button type="button" class="primary-btn" id="sound-play-btn" style="padding:6px 14px;font-size:13px">Play (M)</button>
     </div>
 
-    <div class="sound-preset-grid" id="sound-preset-grid">
-      <button type="button" class="sound-preset-btn active" data-sound-preset="brown">Deep Brown</button>
-      <button type="button" class="sound-preset-btn" data-sound-preset="speech">Speech Blocker</button>
-      <button type="button" class="sound-preset-btn" data-sound-preset="pink">Warm Pink</button>
-      <button type="button" class="sound-preset-btn" data-sound-preset="rain">Soft Rain</button>
-      <button type="button" class="sound-preset-btn" data-sound-preset="cabin">Cabin Hum</button>
-      <button type="button" class="sound-preset-btn" data-sound-preset="gamma40">Brown + 40Hz</button>
-    </div>
-    <p class="muted" id="sound-preset-desc" style="margin:6px 0 12px;font-size:12px;line-height:1.4">
-      Deep -6 dB/oct rumble · masks room noise with minimal ear fatigue over 75m blocks.
-    </p>
-
-    <div class="sound-slider-row">
-      <div class="row-between" style="margin:0 0 3px;font-size:12.5px">
-        <span>Volume</span>
-        <strong id="sound-vol-lbl">38%</strong>
+    <div class="ios-settings-body" id="settings-body">
+      <!-- Top Summary Card (iOS Account-Style Card) -->
+      <div class="ios-group ios-profile-group" data-settings-group>
+        <button type="button" class="ios-row ios-row-btn ios-profile-card" id="settings-profile-card" data-settings-item="profile account stats upi streak xp screen">
+          <span class="ios-profile-emblem" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+          </span>
+          <span class="ios-row-copy">
+            <strong class="ios-profile-title" id="settings-profile-name">Study-OS</strong>
+            <small class="ios-row-sub ios-stats-line">
+              <span data-layout-performance>UPI <b id="hdr-upi">—</b> · </span><b id="hdr-streak">0d</b> · <span id="hdr-xp">0 XP</span> · Screen <span id="settings-screen-val">0m</span>
+            </small>
+          </span>
+          <span class="ios-row-trailing">
+            <span class="ios-row-value" id="settings-mode-badge">Desktop</span>
+            <span class="ios-chevron" id="settings-profile-chevron" hidden aria-hidden="true">›</span>
+          </span>
+        </button>
       </div>
-      <input type="range" id="sound-vol-slider" min="0" max="100" value="38" aria-label="Sound volume">
-    </div>
 
-    <div class="sound-slider-row" style="margin-top:9px">
-      <div class="row-between" style="margin:0 0 3px;font-size:12.5px">
-        <span>Tone (ear warmth)</span>
-        <strong id="sound-tone-lbl">Warm · 2.0 kHz</strong>
-      </div>
-      <input type="range" id="sound-tone-slider" min="0" max="100" value="52" aria-label="Sound warmth and treble cutoff">
-    </div>
+      <!-- GROUP 1: APPEARANCE -->
+      <section class="ios-section" data-settings-group>
+        <h3 class="ios-group-title">Appearance</h3>
+        <div class="ios-group">
+          <label class="ios-row ios-row-switch" data-settings-item="dark mode light theme appearance colors">
+            <span class="ios-icon ios-icon-indigo" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Dark Mode</span>
+              <small class="ios-row-sub" id="settings-theme-sub">Easy on the eyes in low light</small>
+            </span>
+            <span class="ios-switch-wrap">
+              <input type="checkbox" id="settings-dark-toggle" class="ios-switch" role="switch" aria-label="Dark Mode">
+            </span>
+          </label>
 
-    <label class="sound-check-row" style="margin-top:11px">
-      <input type="checkbox" id="sound-break-mute" checked>
-      <span>Auto-mute during 1:5 breaks</span>
-    </label>
-  </aside>
+          <label class="ios-row ios-row-switch" id="settings-pdf-dark-row" data-settings-item="pdf dark invert night reading crops">
+            <span class="ios-icon ios-icon-amber" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Invert PDFs in Dark Mode</span>
+              <small class="ios-row-sub" id="settings-pdf-dark-sub">Turns white exam excerpts dark</small>
+            </span>
+            <span class="ios-switch-wrap">
+              <input type="checkbox" id="settings-pdf-dark-toggle" class="ios-switch" role="switch" aria-label="Invert PDFs in Dark Mode">
+            </span>
+          </label>
+
+          <button type="button" class="ios-row ios-row-btn" id="settings-layout-btn" data-settings-item="layout presets dlpfc metrics display">
+            <span class="ios-icon ios-icon-orange" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+                <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+                <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Layout Presets</span>
+              <small class="ios-row-sub" id="settings-layout-sub">Customize visible metrics &amp; difficulty labels</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-row-value" id="settings-layout-value">Standard</span>
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <!-- GROUP 2: FOCUS & SOUND -->
+      <section class="ios-section" data-settings-group>
+        <h3 class="ios-group-title">Focus &amp; Sound</h3>
+        <div class="ios-group">
+          <label class="ios-row ios-row-switch" data-settings-item="sound masking brown noise pink rain cabin 40hz audio focus">
+            <span class="ios-icon ios-icon-teal" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Background Sound <kbd class="ios-kbd">M</kbd></span>
+              <small class="ios-row-sub" id="sound-status-lbl">Off · Deep Brown</small>
+            </span>
+            <span class="ios-switch-wrap">
+              <input type="checkbox" id="settings-sound-toggle" class="ios-switch" role="switch" aria-label="Background Sound">
+            </span>
+          </label>
+
+          <button type="button" class="ios-row ios-row-btn" id="settings-sound-expand-btn" aria-expanded="false" aria-controls="settings-sound-panel" data-settings-item="soundscape eq preset volume tone warmth brown speech pink rain cabin gamma40">
+            <span class="ios-icon ios-icon-mint" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="4" y1="21" x2="4" y2="14"></line>
+                <line x1="4" y1="10" x2="4" y2="3"></line>
+                <line x1="12" y1="21" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12" y2="3"></line>
+                <line x1="20" y1="21" x2="20" y2="16"></line>
+                <line x1="20" y1="12" x2="20" y2="3"></line>
+                <line x1="1" y1="14" x2="7" y2="14"></line>
+                <line x1="9" y1="8" x2="15" y2="8"></line>
+                <line x1="17" y1="16" x2="23" y2="16"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Soundscape &amp; Tone</span>
+              <small class="ios-row-sub">Choose noise profile, volume &amp; ear warmth</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-row-value" id="settings-sound-preset-val">Deep Brown</span>
+              <span class="ios-chevron ios-chevron-expand" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <div class="ios-sound-drawer" id="settings-sound-panel" hidden data-settings-item="soundscape eq preset volume tone warmth brown speech pink rain cabin gamma40 mute break">
+            <div class="sound-preset-grid" id="sound-preset-grid">
+              <button type="button" class="sound-preset-btn active" data-sound-preset="brown">Deep Brown</button>
+              <button type="button" class="sound-preset-btn" data-sound-preset="speech">Speech Blocker</button>
+              <button type="button" class="sound-preset-btn" data-sound-preset="pink">Warm Pink</button>
+              <button type="button" class="sound-preset-btn" data-sound-preset="rain">Soft Rain</button>
+              <button type="button" class="sound-preset-btn" data-sound-preset="cabin">Cabin Hum</button>
+              <button type="button" class="sound-preset-btn" data-sound-preset="gamma40">Brown + 40Hz</button>
+            </div>
+            <p class="muted ios-sound-desc" id="sound-preset-desc">
+              Deep -6 dB/oct rumble · masks room noise with minimal ear fatigue over 75m blocks.
+            </p>
+            <div class="ios-slider-block">
+              <div class="ios-slider-head">
+                <span>Volume</span>
+                <strong id="sound-vol-lbl">38%</strong>
+              </div>
+              <input type="range" id="sound-vol-slider" class="ios-range" min="0" max="100" value="38" aria-label="Sound volume">
+            </div>
+            <div class="ios-slider-block">
+              <div class="ios-slider-head">
+                <span>Tone (Ear Warmth)</span>
+                <strong id="sound-tone-lbl">Warm · 2.0 kHz</strong>
+              </div>
+              <input type="range" id="sound-tone-slider" class="ios-range" min="0" max="100" value="52" aria-label="Sound warmth and treble cutoff">
+            </div>
+            <label class="ios-inline-switch-row">
+              <span>Auto-mute during 1:5 breaks</span>
+              <input type="checkbox" id="sound-break-mute" class="ios-switch ios-switch-sm" role="switch" checked>
+            </label>
+          </div>
+
+          <div class="ios-row ios-row-stackable" data-settings-item="auto pause timer focus window tab runner">
+            <span class="ios-icon ios-icon-blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"></circle>
+                <polyline points="12 7 12 12 15 15"></polyline>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Auto-Pause Timer</span>
+              <small class="ios-row-sub">Pause automatically when you leave the tab or window</small>
+            </span>
+            <div class="ios-segmented" id="settings-autopause-seg" role="group" aria-label="Auto-pause mode">
+              <button type="button" data-autopause-val="off" class="active">Off</button>
+              <button type="button" data-autopause-val="tab">Tab</button>
+              <button type="button" data-autopause-val="window">Win</button>
+            </div>
+          </div>
+
+          <label class="ios-row ios-row-switch" data-settings-item="fullscreen focus screen lock f11">
+            <span class="ios-icon ios-icon-slate" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <polyline points="9 21 3 21 3 15"></polyline>
+                <line x1="21" y1="3" x2="14" y2="10"></line>
+                <line x1="3" y1="21" x2="10" y2="14"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Fullscreen Mode</span>
+              <small class="ios-row-sub">Hide browser tabs &amp; chrome while studying</small>
+            </span>
+            <span class="ios-switch-wrap">
+              <input type="checkbox" id="settings-fullscreen-toggle" class="ios-switch" role="switch" aria-label="Fullscreen Mode">
+            </span>
+          </label>
+
+          <a id="run-obsidian-app-link" class="ios-row ios-row-btn" href="#" hidden data-settings-item="obsidian desktop notes jump">
+            <span class="ios-icon ios-icon-purple" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Open Current Question in Obsidian</span>
+              <small class="ios-row-sub">Jump directly to the linked vault section</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">↗</span>
+            </span>
+          </a>
+        </div>
+      </section>
+
+      <!-- GROUP 3: AI & INTEGRATIONS -->
+      <section class="ios-section" data-settings-group>
+        <h3 class="ios-group-title">AI &amp; Integrations</h3>
+        <div class="ios-group">
+          <button type="button" class="ios-row ios-row-btn" id="btn-home-tutor" data-settings-item="ai tutor mcp codex claude live share">
+            <span class="ios-icon ios-icon-purple" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">AI Tutor</span>
+              <small class="ios-row-sub">Live MCP exercise sharing &amp; tutor prompts</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-row-value" id="settings-tutor-value">Off</span>
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="btn-study-admin" hidden data-settings-item="admin pdf source link desktop exercises">
+            <span class="ios-icon ios-icon-rose" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Course Admin &amp; PDF Links</span>
+              <small class="ios-row-sub">Link local PDF pages to exercises</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="settings-canvas-sync-btn" hidden data-settings-item="sync canvas courses archive download">
+            <span class="ios-icon ios-icon-red" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Sync Canvas</span>
+              <small class="ios-row-sub" id="settings-canvas-sync-sub">Pull updated slides, handouts &amp; PDFs</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="settings-ed-sync-btn" hidden data-settings-item="sync ed discussion forum threads">
+            <span class="ios-icon ios-icon-indigo" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Sync Ed Discussion</span>
+              <small class="ios-row-sub">Archive Q&amp;A threads for offline search</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="settings-add-files-btn" hidden data-settings-item="add books pdfs files course upload">
+            <span class="ios-icon ios-icon-green" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                <line x1="12" y1="11" x2="12" y2="17"></line>
+                <line x1="9" y1="14" x2="15" y2="14"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Add Books &amp; Course Files</span>
+              <small class="ios-row-sub">Import local PDFs, EPUBs or slides</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="btn-refresh-cal" hidden data-settings-item="sync calendar google timeedit schedule refresh">
+            <span class="ios-icon ios-icon-blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Sync Calendar</span>
+              <small class="ios-row-sub">Refresh upcoming study blocks &amp; lectures</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="settings-archive-path-btn" hidden data-settings-item="canvas archive folder path directory local">
+            <span class="ios-icon ios-icon-slate" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Canvas-Archive Folder</span>
+              <small class="ios-row-sub" id="settings-archive-path-sub">Set local archive path</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <a class="ios-row ios-row-btn" id="settings-desktop-setup-link" href="https://github.com/shadjosef/study-os#desktop-setup" target="_blank" rel="noopener" hidden data-settings-item="desktop setup canvas obsidian local app">
+            <span class="ios-icon ios-icon-slate" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Desktop App Setup</span>
+              <small class="ios-row-sub">Connect Canvas Sync &amp; Obsidian locally</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">↗</span>
+            </span>
+          </a>
+        </div>
+      </section>
+
+      <!-- GROUP 4: DATA, LIBRARY & BACKUP -->
+      <section class="ios-section" data-settings-group>
+        <h3 class="ios-group-title">Data &amp; Backup</h3>
+        <div class="ios-group">
+          <button type="button" class="ios-row ios-row-btn" id="btn-member-library" hidden data-settings-item="unlock lock full library access string member key">
+            <span class="ios-icon ios-icon-green" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Full Course Library</span>
+              <small class="ios-row-sub" id="settings-member-sub">Unlock question banks, sources &amp; worked answers</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-row-value" id="settings-member-value">Locked</span>
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="btn-save-offline" hidden data-settings-item="save offline pwa install cache download">
+            <span class="ios-icon ios-icon-sky" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Offline Copy</span>
+              <small class="ios-row-sub" id="offline-status" role="status">Save notes &amp; questions to this browser</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-row-value" id="settings-offline-value">Save</span>
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="btn-export-backup" data-settings-item="export backup json download progress save">
+            <span class="ios-icon ios-icon-blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Export Backup</span>
+              <small class="ios-row-sub">Download progress, attempts &amp; schedule as JSON</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+
+          <button type="button" class="ios-row ios-row-btn" id="btn-import-json" data-settings-item="import backup json restore merge progress">
+            <span class="ios-icon ios-icon-teal" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 16 12 12 8 16"></polyline>
+                <line x1="12" y1="12" x2="12" y2="21"></line>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Import Backup</span>
+              <small class="ios-row-sub">Restore or merge a Study-OS JSON backup</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">›</span>
+            </span>
+          </button>
+          <input type="file" id="file-import-json" accept="application/json,.json" hidden>
+        </div>
+      </section>
+
+      <!-- GROUP 5: ABOUT -->
+      <section class="ios-section" data-settings-group>
+        <h3 class="ios-group-title">About</h3>
+        <div class="ios-group">
+          <a class="ios-row ios-row-btn" href="https://github.com/shadjosef/study-os/blob/main/CHANGELOG.md" target="_blank" rel="noopener" data-settings-item="whats new changelog updates version release">
+            <span class="ios-icon ios-icon-slate" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">What’s New</span>
+              <small class="ios-row-sub">Release notes &amp; changelog</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">↗</span>
+            </span>
+          </a>
+
+          <a class="ios-row ios-row-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/ai-tutor.md" target="_blank" rel="noopener" data-settings-item="ai tutor guide docs help setup">
+            <span class="ios-icon ios-icon-purple" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">AI Tutor Setup Guide</span>
+              <small class="ios-row-sub">Connect Claude, Codex or Antigravity via MCP</small>
+            </span>
+            <span class="ios-row-trailing">
+              <span class="ios-chevron" aria-hidden="true">↗</span>
+            </span>
+          </a>
+        </div>
+      </section>
+
+      <p class="ios-search-empty muted" id="settings-search-empty" hidden>No matching settings.</p>
+      <p class="ios-settings-footnote">Shortcuts: <kbd>,</kbd> Settings · <kbd>M</kbd> Sound · <kbd>P</kbd> Pause timer · <kbd>V</kbd> Split view</p>
+    </div>
+  </dialog>
 
   <!-- RETINA FIGURE ZOOM LIGHTBOX -->
   <div id="img-lightbox" class="img-lightbox" hidden role="dialog" aria-modal="true" aria-label="Zoomed figure preview">
