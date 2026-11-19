@@ -24,6 +24,12 @@ Use the [Study-OS MCP tool](../docs/study-sets-mcp.md) to create a study set lin
 
 To rotate the Community invite code, update its digest. Existing personal profile keys retain access to their own stats and messages.
 
+## Enable Google sign-in
+
+In [Google Auth Platform](https://console.cloud.google.com/auth/clients), create a Web application client for Study-OS. Add your deployed site's HTTPS origin, with no path, under Authorized JavaScript origins. Set up the consent screen for the students you intend to invite. The popup uses Google Identity Services, so it needs no redirect URI or client secret. See [Google's setup guide](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid).
+
+Apply `migrate_google_auth.sql` to the existing D1 database if it was created before Google sign-in shipped. Set the Web client ID on the deployed Worker with `npx wrangler secret put GOOGLE_CLIENT_ID`. Reload the site to check that **Continue with Google** appears. Existing members can link Google in **Settings → Passkeys & Linked Devices** to keep their current profile. New members still need a Community invite.
+
 ## Profile editing, avatars (PFPs) & admin nickname override
 
 - Members can edit their **profile picture (PFP)** (upload a square-cropped photo or pick a built-in preset) and short **bio** anytime via **Edit profile** on the Community tab.

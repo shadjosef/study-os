@@ -102,6 +102,7 @@ window.StudyTutor = (() => {
   };
   document.getElementById('tutor-enable').onclick = () => {
     localSharing = true;
+    lastSnapshot = '';
     try { sessionStorage.setItem(sharingKey, 'yes'); } catch {}
     status.textContent = 'Live exercise sharing is on.';
     publish(true);
@@ -122,6 +123,7 @@ window.StudyTutor = (() => {
   if (web && location.origin === siteOrigin) window.addEventListener('message', (event) => {
     if (event.origin !== localOrigin || event.source !== popup || event.data !== 'study-os:tutor-ready') return;
     paired = true;
+    lastSnapshot = '';
     status.textContent = 'Live exercise sharing is on. Keep the desktop window open.';
     publish(true);
     window.StudyUI?.updateSettingsIndicators?.();

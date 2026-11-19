@@ -36,6 +36,7 @@ OSLO_TZ = ZoneInfo("Europe/Oslo")
 _RESYNC_URLS: dict[Path, str] = {}
 _RESYNC_LOCK = threading.Lock()
 COURSE_DOCUMENT_TYPES = {".pdf", ".epub", ".ppt", ".pptx"}
+TUTOR_DOCUMENT_TYPES = COURSE_DOCUMENT_TYPES | {".md", ".txt", ".csv", ".py", ".ipynb"}
 MAX_DOCUMENT_BYTES = 200 * 1024 * 1024
 
 COURSE_COLORS = [
@@ -259,19 +260,21 @@ def _discover_archive_courses(archive_dir: Path) -> list[dict[str, str]]:
     return list(found.values())
 
 
-def canvas_course_documents(archive_dir: Path, canvas_id: str) -> list[dict[str, str]]:
+def canvas_course_documents(archive_dir: Path, canvas_id: str, *, tutoring: bool = False) -> list[dict[str, str]]:
     course = next((entry for entry in _discover_archive_courses(archive_dir)
                    if entry["canvasId"] == canvas_id), None)
     if not course:
         return []
-    folder = (archive_dir / course["folder"] / "Files").resolve()
+    course_folder = archive_dir / course["folder"]
+    folder = (course_folder if tutoring else course_folder / "Files").resolve()
     if archive_dir not in folder.parents:
         return []
+    types = TUTOR_DOCUMENT_TYPES if tutoring else COURSE_DOCUMENT_TYPES
     return [
         {"name": path.name, "path": path.relative_to(archive_dir).as_posix(),
          "kind": path.suffix.lower()[1:]}
         for path in sorted(folder.rglob("*"), key=lambda path: (path.name.casefold(), path))
-        if path.suffix.lower() in COURSE_DOCUMENT_TYPES and not path.name.startswith(".")
+        if path.suffix.lower() in types and not any(part.startswith(".") for part in path.relative_to(folder).parts)
         and path.is_file() and archive_dir in path.resolve().parents
     ]
 

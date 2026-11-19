@@ -549,7 +549,8 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 return
             archive = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
             canvas_id = (qs.get("course") or [""])[0]
-            self.send_json({"files": canvas_course_documents(archive, canvas_id) if archive else []})
+            tutoring = qs.get("for") == ["tutor"]
+            self.send_json({"files": canvas_course_documents(archive, canvas_id, tutoring=tutoring) if archive else []})
             return
 
         if route == "/api/schedule/export.ics":
