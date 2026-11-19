@@ -3391,6 +3391,58 @@ window.StudyApp = (() => {
         navigate('course', { courseId: btn.dataset.refPractice });
       });
     });
+
+    // Show user's personal synced curriculum PDFs & materials cleanly in the Notes sidebar
+    if (isStaticWeb && window.StudyCommunity?.isSignedIn?.() && window.StudyCommunity?.listMaterials) {
+      const aside = root.querySelector('.ref-sidebar');
+      if (aside) {
+        const box = document.createElement('div');
+        box.className = 'ref-personal-materials';
+        box.innerHTML = `
+          <div class="row-between" style="margin:0 0 8px;gap:8px">
+            <strong style="font-size:13px">My synced PDFs &amp; materials</strong>
+            <button type="button" class="ghost-btn" id="ref-add-materials-btn" style="padding:4px 10px;font-size:12px">+ Add PDFs</button>
+          </div>
+          <div id="ref-personal-materials-list"><small class="muted">Loading…</small></div>
+        `;
+        aside.appendChild(box);
+        box.querySelector('#ref-add-materials-btn').onclick = () => openBiSyncHub({ focusMaterials: true });
+        window.StudyCommunity.listMaterials().then((res) => {
+          const listEl = box.querySelector('#ref-personal-materials-list');
+          if (!listEl || !listEl.isConnected) return;
+          const items = Array.isArray(res?.items) ? res.items : [];
+          if (!items.length) {
+            listEl.innerHTML = '<small class="muted">No personal PDFs uploaded yet. Tap + Add PDFs to sync curriculum files to your profile.</small>';
+            return;
+          }
+          listEl.innerHTML = items.map((m) => `
+            <div class="bi-material-row">
+              <div class="bi-material-meta">
+                ${m.courseCode ? `<span class="badge">${esc(m.courseCode)}</span>` : ''}
+                <span class="bi-material-title" title="${esc(m.title)}">${esc(m.title)}</span>
+              </div>
+              <button type="button" class="ghost-btn bi-mat-mini-btn" data-open-mat="${esc(m.id)}" data-mat-title="${esc(m.title)}">Open ↗</button>
+            </div>
+          `).join('');
+          listEl.querySelectorAll('[data-open-mat]').forEach((btn) => {
+            btn.onclick = async () => {
+              btn.disabled = true;
+              try {
+                await window.StudyCommunity.openMaterial(btn.dataset.openMat, btn.dataset.matTitle);
+              } catch (err) {
+                toast(err?.message || 'Could not open file.');
+              } finally {
+                btn.disabled = false;
+              }
+            };
+          });
+        }).catch(() => {
+          const listEl = box.querySelector('#ref-personal-materials-list');
+          if (listEl) listEl.innerHTML = '<small class="muted">Could not load personal materials.</small>';
+        });
+      }
+    }
+
     await loadReader(activeEntry, initialFile, initialHeading);
   }
 
@@ -4707,7 +4759,14 @@ window.StudyApp = (() => {
 
   document.addEventListener('DOMContentLoaded', init);
 
-  function openBiSyncHub() {
+  function formatFileSize(bytes) {
+    const n = Number(bytes || 0);
+    if (n >= 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+    if (n >= 1024) return `${Math.max(1, Math.round(n / 1024))} KB`;
+    return `${n} B`;
+  }
+
+  function openBiSyncHub(opts = {}) {
     if (!isStaticWeb) {
       openCanvasSync?.('canvas');
       return;
@@ -4725,6 +4784,43 @@ window.StudyApp = (() => {
       document.body.appendChild(dlg);
     }
 
+    let materialsState = { loaded: false, items: [], usedBytes: 0, maxBytes: 40 * 1024 * 1024 };
+    let selectedMatCourse = '';
+    let uploadStatusText = '';
+
+    const getCourseChoices = () => {
+      const seen = new Set();
+      const out = [];
+      for (const c of boot.catalog || []) {
+        const code = String(c.code || '').trim();
+        if (!code || seen.has(code)) continue;
+        seen.add(code);
+        out.push({ code, title: c.title || code });
+      }
+      const snap = loadWebState().canvasSnapshot;
+      for (const c of snap?.courses || []) {
+        const code = String(c.code || '').trim() || String(c.name || '').slice(0, 18);
+        if (!code || seen.has(code)) continue;
+        seen.add(code);
+        out.push({ code, title: c.name || code });
+      }
+      return out;
+    };
+
+    const loadPersonalMaterials = async (linkCode) => {
+      if (!window.StudyCommunity?.isSignedIn?.() || !window.StudyCommunity?.listMaterials) return;
+      try {
+        const res = await window.StudyCommunity.listMaterials();
+        materialsState = {
+          loaded: true,
+          items: Array.isArray(res?.items) ? res.items : [],
+          usedBytes: Number(res?.usedBytes || 0),
+          maxBytes: Number(res?.maxBytes || 40 * 1024 * 1024),
+        };
+        if (dlg.open) renderBiDialog(linkCode);
+      } catch {}
+    };
+
     const renderBiDialog = (linkCode = null) => {
       const signedIn = Boolean(window.StudyCommunity?.isSignedIn?.());
       const ws = loadWebState();
@@ -4735,6 +4831,8 @@ window.StudyApp = (() => {
       const formattedCode = linkCode?.code
         ? String(linkCode.code).replace(/^([A-Z0-9]{3})([A-Z0-9]{3})$/, '$1-$2')
         : '';
+      const courseChoices = getCourseChoices();
+      const usedLabel = `${(materialsState.usedBytes / (1024 * 1024)).toFixed(1)} / ${Math.round(materialsState.maxBytes / (1024 * 1024))} MB`;
 
       dlg.innerHTML = `
         <div class="playbook-head">
@@ -4758,7 +4856,7 @@ window.StudyApp = (() => {
               <a class="primary-btn" href="./downloads/study-os-sync-extension.zip" download="study-os-sync-extension.zip">Download Extension (.zip)</a>
               <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Install steps ↗</a>
             </div>
-            <small class="muted" style="display:block;margin-top:8px">Unzip → open <code>chrome://extensions</code> → turn on <b>Developer mode</b> → <b>Load unpacked</b> (1-click Chrome Web Store listing coming soon).</small>
+            <small class="muted" style="display:block;margin-top:8px">Unzip → open <code>chrome://extensions</code> → turn on <b>Developer mode</b> → <b>Load unpacked</b> (Chrome Web Store listing coming soon).</small>
           </article>
 
           <article class="playbook-card">
@@ -4769,7 +4867,7 @@ window.StudyApp = (() => {
             <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
               ${signedIn
                 ? 'Generate a 5-minute pairing code and paste it into the Study-OS Sync extension once.'
-                : 'Sign in with Google or a Passkey first so your synced courses and TimeEdit schedule carry across desktop and phone.'}
+                : 'Sign in with Google or a Passkey first so your synced courses, TimeEdit schedule, and personal PDFs carry across desktop and phone.'}
             </p>
             ${formattedCode ? `
               <div class="row-between" style="padding:10px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--accent);margin-bottom:8px;gap:10px">
@@ -4799,15 +4897,63 @@ window.StudyApp = (() => {
               ${signedIn ? '<button type="button" class="ghost-btn" id="bi-refresh-sync">Refresh synced data</button>' : ''}
             </div>
           </article>
+
+          <article class="playbook-card" id="bi-materials-card">
+            <div class="row-between" style="margin:0 0 6px;gap:8px">
+              <h3 style="margin:0;font-size:15px">4. Add external curriculum PDFs &amp; materials</h3>
+              <span class="badge">${signedIn ? esc(usedLabel) : 'Private to profile'}</span>
+            </div>
+            <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
+              Drop your own lecture slides, syllabi, compendiums, or notes here. Files stay <b>100% private to your profile</b> and sync across desktop and phone (also accessible under <b>Notes</b>).
+            </p>
+            ${signedIn ? `
+              <div style="margin-bottom:8px">
+                <select id="bi-mat-course" aria-label="Course tag for uploaded files" style="width:100%;font-size:13px;padding:7px 10px">
+                  <option value="">General / All courses</option>
+                  ${courseChoices.map((c) => `<option value="${esc(c.code)}" data-title="${esc(c.title)}" ${selectedMatCourse === c.code ? 'selected' : ''}>${esc(c.code)} · ${esc(c.title)}</option>`).join('')}
+                </select>
+              </div>
+              <label class="bi-dropzone" id="bi-mat-dropzone" tabindex="0">
+                <input type="file" id="bi-mat-file-input" multiple accept=".pdf,.md,.txt,.csv,.png,.jpg,.jpeg,.webp,.docx,.pptx" hidden>
+                <strong>Drop PDFs, slides, or notes here — or click to choose files</strong>
+                <small class="muted">PDF, MD, TXT, PNG, JPG, DOCX, PPTX · up to 12 MB per file · private profile locker</small>
+              </label>
+              ${uploadStatusText ? `<p class="muted" id="bi-mat-upload-status" style="margin:8px 0 0;font-size:12.5px;color:var(--accent);font-weight:600">${esc(uploadStatusText)}</p>` : ''}
+              <div class="bi-materials-list" id="bi-materials-list">
+                ${!materialsState.loaded
+                  ? '<small class="muted">Loading your synced files…</small>'
+                  : materialsState.items.length
+                    ? materialsState.items.map((m) => `
+                        <div class="bi-material-row">
+                          <div class="bi-material-meta">
+                            ${m.courseCode ? `<span class="badge">${esc(m.courseCode)}</span>` : ''}
+                            <span class="bi-material-title" title="${esc(m.title)}">${esc(m.title)}</span>
+                            <small class="muted">${esc(formatFileSize(m.sizeBytes))}</small>
+                          </div>
+                          <div class="row-actions" style="gap:4px;flex-shrink:0">
+                            <button type="button" class="ghost-btn bi-mat-mini-btn" data-bi-open-mat="${esc(m.id)}" data-bi-mat-title="${esc(m.title)}">Open ↗</button>
+                            <button type="button" class="ghost-btn bi-mat-mini-btn" data-bi-del-mat="${esc(m.id)}">Remove</button>
+                          </div>
+                        </div>
+                      `).join('')
+                    : '<small class="muted">No external files added yet.</small>'}
+              </div>
+            ` : `
+              <button type="button" class="ghost-btn" id="bi-mat-signin-btn">Sign in to add &amp; sync your PDFs</button>
+            `}
+          </article>
         </div>
       `;
 
       dlg.querySelector('#bi-sync-done')?.addEventListener('click', () => dlg.close());
-      dlg.querySelector('#bi-signin-btn')?.addEventListener('click', async () => {
+      const triggerSignin = async () => {
         dlg.close();
         const ok = await window.StudyCommunity?.requireProfile?.({ allowDemo: true, forcePrompt: true });
-        if (ok) openBiSyncHub();
-      });
+        if (ok) openBiSyncHub(opts);
+      };
+      dlg.querySelector('#bi-signin-btn')?.addEventListener('click', triggerSignin);
+      dlg.querySelector('#bi-mat-signin-btn')?.addEventListener('click', triggerSignin);
+
       dlg.querySelector('#bi-gen-code')?.addEventListener('click', async (ev) => {
         const btn = ev.currentTarget;
         btn.disabled = true;
@@ -4837,6 +4983,7 @@ window.StudyApp = (() => {
         try {
           await renderCourseDirectory();
           await syncCloudProgress({ interactive: true });
+          await loadPersonalMaterials(linkCode);
           renderBiDialog(linkCode);
           if (currentView === 'home') renderHome();
           else if (currentView === 'schedule') renderScheduleStudio();
@@ -4844,12 +4991,95 @@ window.StudyApp = (() => {
           btn.disabled = false;
         }
       });
+
+      const courseSel = dlg.querySelector('#bi-mat-course');
+      courseSel?.addEventListener('change', () => {
+        selectedMatCourse = courseSel.value;
+      });
+
+      const handleUploadFiles = async (fileList) => {
+        const files = Array.from(fileList || []).filter(Boolean);
+        if (!files.length) return;
+        const opt = courseSel?.selectedOptions?.[0];
+        const courseCode = courseSel?.value || '';
+        const courseTitle = opt?.dataset?.title || '';
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          uploadStatusText = `Uploading ${file.name}…`;
+          renderBiDialog(linkCode);
+          try {
+            await window.StudyCommunity.uploadMaterial(file, {
+              courseCode,
+              courseTitle,
+              onProgress: (done, total) => {
+                const st = dlg.querySelector('#bi-mat-upload-status');
+                if (st) st.textContent = `Uploading ${file.name} (${done}/${total})…`;
+              },
+            });
+            toast(`Synced "${file.name}" to your profile.`);
+          } catch (err) {
+            toast(err?.message || `Could not upload ${file.name}.`);
+          }
+        }
+        uploadStatusText = '';
+        await loadPersonalMaterials(linkCode);
+        if (currentView === 'references') renderReferencesHub();
+      };
+
+      const fileInput = dlg.querySelector('#bi-mat-file-input');
+      fileInput?.addEventListener('change', () => {
+        handleUploadFiles(fileInput.files);
+      });
+      const dropzone = dlg.querySelector('#bi-mat-dropzone');
+      if (dropzone) {
+        dropzone.addEventListener('dragover', (ev) => {
+          ev.preventDefault();
+          dropzone.classList.add('is-dragover');
+        });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragover'));
+        dropzone.addEventListener('drop', (ev) => {
+          ev.preventDefault();
+          dropzone.classList.remove('is-dragover');
+          handleUploadFiles(ev.dataTransfer?.files);
+        });
+      }
+
+      dlg.querySelectorAll('[data-bi-open-mat]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          try {
+            await window.StudyCommunity.openMaterial(btn.dataset.biOpenMat, btn.dataset.biMatTitle);
+          } catch (err) {
+            toast(err?.message || 'Could not open file.');
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+      dlg.querySelectorAll('[data-bi-del-mat]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          try {
+            await window.StudyCommunity.deleteMaterial(btn.dataset.biDelMat);
+            toast('Removed file from your profile.');
+            await loadPersonalMaterials(linkCode);
+            if (currentView === 'references') renderReferencesHub();
+          } catch (err) {
+            toast(err?.message || 'Could not remove file.');
+            btn.disabled = false;
+          }
+        });
+      });
     };
 
     renderBiDialog();
     if (!dlg.open) {
       dlg.showModal();
       dlg.focus({ preventScroll: true });
+    }
+    loadPersonalMaterials();
+    if (opts.focusMaterials) {
+      setTimeout(() => dlg.querySelector('#bi-materials-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
     }
   }
 

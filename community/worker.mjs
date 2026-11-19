@@ -6,6 +6,8 @@ import { checkHuman } from './human.mjs';
 import { readTimeEdit, pushTimeEditFeed, getTimeEditFeed } from './timeedit.mjs';
 import { handleCourses } from './courses.mjs';
 import { handleAi } from './ai.mjs';
+import { handleFeedback } from './feedback.mjs';
+import { handleMaterials } from './materials.mjs';
 
 const encoder = new TextEncoder();
 const hex = (bytes) => [...bytes].map((n) => n.toString(16).padStart(2, '0')).join('');
@@ -155,7 +157,7 @@ export default {
     if (request.method === 'POST') {
       const limit = path === '/schedule/timeedit-push'
         ? maxIcsBytes
-        : (path === '/sync' || path === '/courses/sync') ? maxSyncBytes : maxInputBytes;
+        : (path === '/sync' || path === '/courses/sync' || path === '/materials/chunk') ? maxSyncBytes : maxInputBytes;
       try { data = await readJson(request, limit); }
       catch { return reply({ error: 'Invalid request.' }, 400); }
     }
@@ -232,6 +234,15 @@ export default {
     }
     if (path.startsWith('/ai/')) {
       return handleAi({ request, path, db, env, me, isAdmin, now, data, reply });
+    }
+    if (path === '/feedback' || path === '/admin/feedback') {
+      return handleFeedback({ request, path, db, me, isAdmin, now, data, reply });
+    }
+    if (path === '/materials' || path.startsWith('/materials/')) {
+      const corsHeaders = headers['Access-Control-Allow-Origin']
+        ? { 'Access-Control-Allow-Origin': headers['Access-Control-Allow-Origin'], Vary: 'Origin' }
+        : { Vary: 'Origin' };
+      return handleMaterials({ request, url, path, db, me, now, data, reply, corsHeaders });
     }
     if (path.startsWith('/admin/')) {
       return handleAdmin({ request, url, db, env, me, isAdmin, now, data, reply, digest, nicknamePattern });

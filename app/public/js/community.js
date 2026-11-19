@@ -1197,11 +1197,49 @@ window.StudyCommunity = (() => {
       if (!body) return;
       body.innerHTML = '<p class="muted">Loading admin controls…</p>';
       try {
-        const [overview, courseList] = await Promise.all([
-          request('/admin/overview'), request('/admin/courses').catch(() => ({ courses: [] })),
+        const [overview, courseList, feedbackRes] = await Promise.all([
+          request('/admin/overview'),
+          request('/admin/courses').catch(() => ({ courses: [] })),
+          request('/feedback').catch(() => ({ items: [] })),
         ]);
         if (!body.isConnected) return;
         renderAdminBody(body, overview);
+
+        const fbItems = Array.isArray(feedbackRes?.items) ? feedbackRes.items : [];
+        const fbSec = document.createElement('section');
+        fbSec.className = 'panel course-review';
+        const openFbCount = fbItems.filter((f) => f.status !== 'done').length;
+        fbSec.innerHTML = `<h3>Feedback inbox (${openFbCount} open · ${fbItems.length} total)</h3>${fbItems.length
+          ? fbItems.map((f) => `<div class="row-between" style="gap:8px;padding:8px 0;border-bottom:1px solid var(--line);align-items:flex-start">
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:3px">
+                  <span class="badge ${f.status === 'done' ? '' : 'gold'}">${esc(f.category || 'idea')}</span>
+                  <strong>${esc(f.nickname || 'Student')}</strong>
+                  <small class="muted">${esc(new Date(f.createdAt).toLocaleString())}</small>
+                  ${f.status === 'done' ? '<span class="badge good">Done</span>' : ''}
+                </div>
+                <p style="margin:2px 0 0;font-size:13.5px;white-space:pre-wrap;word-break:break-word">${esc(f.message)}</p>
+              </div>
+              <div class="row-actions" style="flex-shrink:0">
+                <button type="button" class="ghost-btn" data-fb-act="${f.status === 'done' ? 'open' : 'done'}" data-fb-id="${esc(f.id)}">${f.status === 'done' ? 'Reopen' : 'Done'}</button>
+                <button type="button" class="ghost-btn" data-fb-act="delete" data-fb-id="${esc(f.id)}">Delete</button>
+              </div>
+            </div>`).join('')
+          : '<p class="muted">No user feedback yet.</p>'}`;
+        body.prepend(fbSec);
+        fbSec.querySelectorAll('[data-fb-act]').forEach((btn) => {
+          btn.onclick = async () => {
+            btn.disabled = true;
+            try {
+              await request('/admin/feedback', { id: btn.dataset.fbId, action: btn.dataset.fbAct });
+              await loadAdmin();
+            } catch (err) {
+              toast(err.message || 'Could not update feedback.');
+              btn.disabled = false;
+            }
+          };
+        });
+
         const courses = document.createElement('section');
         courses.className = 'panel course-review';
         courses.innerHTML = `<h3>Community-synced courses (${courseList.courses.length})</h3>${courseList.courses.length
@@ -1467,6 +1505,215 @@ window.StudyCommunity = (() => {
     };
   }
 
+  function feedbackPanelHtml() {
+    return `
+      <details class="panel community-feedback-box" id="community-feedback-panel">
+        <summary><strong>Send feedback</strong> <small class="muted" style="font-weight:500;margin-left:6px">Ideas, bugs &amp; missing courses</small></summary>
+        <form id="community-feedback-form" style="margin-top:12px">
+          <div class="row-actions" style="margin-bottom:8px;gap:6px">
+            <label class="field-label" style="margin:0;flex:1;min-width:150px">Type
+              <select name="category">
+                <option value="idea">Feature idea</option>
+                <option value="bug">Bug / issue</option>
+                <option value="course">Course / exam request</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+          </div>
+          <label class="field-label">Your feedback
+            <textarea name="message" rows="3" maxlength="1500" minlength="6" placeholder="What would make Study-OS better for your studying?" required></textarea>
+          </label>
+          <div class="row-actions" style="margin-top:8px">
+            <button type="submit" class="primary-btn">Send feedback</button>
+            <span class="muted" id="community-feedback-status" role="status" style="font-size:12.5px"></span>
+          </div>
+        </form>
+      </details>`;
+  }
+
+  function bindFeedbackPanel(root) {
+    const form = root.querySelector('#community-feedback-form');
+    const status = root.querySelector('#community-feedback-status');
+    if (!form) return;
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(form);
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) btn.disabled = true;
+      if (status) status.textContent = 'Sending…';
+      try {
+        await request('/feedback', {
+          category: String(fd.get('category') || 'idea'),
+          message: String(fd.get('message') || '').trim(),
+          page: 'community',
+        });
+        form.reset();
+        if (status) status.textContent = 'Sent — thanks for helping improve Study-OS!';
+        toast('Feedback sent — thank you!');
+      } catch (err) {
+        if (status) status.textContent = err?.message || 'Could not send feedback.';
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+  }
+
+  async function openFeedbackDialog() {
+    if (!api) {
+      toast('Feedback requires the hosted Study-OS site.');
+      return;
+    }
+    if (!token) {
+      const ok = await requireProfile({ allowDemo: true, forcePrompt: true });
+      if (!ok) return;
+    }
+    let dlg = document.getElementById('feedback-modal-dialog');
+    if (!dlg) {
+      dlg = document.createElement('dialog');
+      dlg.id = 'feedback-modal-dialog';
+      dlg.className = 'member-dialog playbook-sheet';
+      dlg.tabIndex = -1;
+      dlg.setAttribute('aria-labelledby', 'feedback-modal-title');
+      dlg.addEventListener('click', (ev) => {
+        if (ev.target === dlg) dlg.close();
+      });
+      document.body.appendChild(dlg);
+    }
+    dlg.innerHTML = `
+      <div class="playbook-head">
+        <div>
+          <span class="eyebrow">Study-OS</span>
+          <h2 id="feedback-modal-title" style="margin:2px 0 4px">Send Feedback</h2>
+          <p class="muted" style="margin:0;font-size:13px">Report a bug, suggest a feature, or request a BI course.</p>
+        </div>
+        <button type="button" class="ios-done-btn" id="feedback-modal-done">Done</button>
+      </div>
+      <div class="playbook-body">
+        <form id="feedback-modal-form" class="playbook-card" style="display:flex;flex-direction:column;gap:10px">
+          <label class="field-label" style="margin:0">Category
+            <select name="category">
+              <option value="idea">Feature idea</option>
+              <option value="bug">Bug / issue</option>
+              <option value="course">Course / exam request</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label class="field-label" style="margin:0">Message
+            <textarea name="message" rows="4" maxlength="1500" minlength="6" placeholder="Share what worked, what broke, or what you want next…" required></textarea>
+          </label>
+          <div class="row-actions">
+            <button type="submit" class="primary-btn">Send feedback</button>
+            <span class="muted" id="feedback-modal-status" role="status" style="font-size:12.5px"></span>
+          </div>
+        </form>
+      </div>
+    `;
+    dlg.querySelector('#feedback-modal-done')?.addEventListener('click', () => dlg.close());
+    const form = dlg.querySelector('#feedback-modal-form');
+    const status = dlg.querySelector('#feedback-modal-status');
+    form?.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(form);
+      const btn = form.querySelector('button[type="submit"]');
+      if (btn) btn.disabled = true;
+      if (status) status.textContent = 'Sending…';
+      try {
+        await request('/feedback', {
+          category: String(fd.get('category') || 'idea'),
+          message: String(fd.get('message') || '').trim(),
+          page: 'settings',
+        });
+        toast('Feedback sent — thank you!');
+        dlg.close();
+      } catch (err) {
+        if (status) status.textContent = err?.message || 'Could not send feedback.';
+        if (btn) btn.disabled = false;
+      }
+    });
+    if (!dlg.open) {
+      dlg.showModal();
+      dlg.focus({ preventScroll: true });
+    }
+  }
+
+  function bytesToBase64(bytes) {
+    let bin = '';
+    const step = 0x8000;
+    for (let i = 0; i < bytes.length; i += step) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + step));
+    }
+    return btoa(bin);
+  }
+
+  async function listMaterials() {
+    if (!api || !token) return { items: [], usedBytes: 0, maxBytes: 40 * 1024 * 1024, maxFileBytes: 12 * 1024 * 1024 };
+    return request('/materials');
+  }
+
+  async function uploadMaterial(file, { courseCode = '', courseTitle = '', onProgress } = {}) {
+    if (!api || !token) throw new Error('Sign in to sync curriculum files to your profile.');
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    const chunkSize = 245_760;
+    const chunkCount = Math.max(1, Math.ceil(bytes.byteLength / chunkSize));
+    const init = await request('/materials/init', {
+      title: file.name || 'document.pdf',
+      mimeType: file.type || '',
+      sizeBytes: bytes.byteLength,
+      chunkCount,
+      courseCode,
+      courseTitle,
+    });
+    const actualChunk = Number(init.chunkBytes || chunkSize);
+    for (let i = 0; i < chunkCount; i++) {
+      const slice = bytes.subarray(i * actualChunk, Math.min(bytes.byteLength, (i + 1) * actualChunk));
+      await request('/materials/chunk', {
+        id: init.id,
+        index: i,
+        data: bytesToBase64(slice),
+      });
+      onProgress?.(i + 1, chunkCount);
+    }
+    return request('/materials/complete', { id: init.id });
+  }
+
+  async function deleteMaterial(id) {
+    if (!api || !token) throw new Error('Sign in first.');
+    return request('/materials/delete', { id });
+  }
+
+  async function openMaterial(id, title = 'material') {
+    if (!api || !token) throw new Error('Sign in first.');
+    const res = await fetch(`${api}/materials/download?id=${encodeURIComponent(id)}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'omit',
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Could not download file.');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const disp = res.headers.get('Content-Disposition') || '';
+    if (disp.startsWith('attachment')) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = title;
+      a.click();
+    } else {
+      const win = window.open(url, '_blank', 'noopener');
+      if (!win) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = title;
+        a.click();
+      }
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 120_000);
+  }
+
   function renderLocked(root, profile) {
     const me = typeof profile === 'string' ? { nickname: profile, avatar: '', bio: '', isAdmin: false, nextNicknameChangeAt: 0 } : profile;
     root.innerHTML = `
@@ -1489,10 +1736,12 @@ window.StudyCommunity = (() => {
           <button type="button" class="ghost-btn" id="community-delete">Delete my profile</button>
         </div>
       </section>
+      ${feedbackPanelHtml()}
       ${adminPanelHtml(me)}
       ${privacyNote}`;
     profileActions(root);
     bindProfileEditor(root, me, () => render());
+    bindFeedbackPanel(root);
     bindAdminPanel(root, me);
   }
 
@@ -1641,6 +1890,7 @@ window.StudyCommunity = (() => {
         <summary>Shared study sets</summary>
         <div id="community-study-sets"></div>
       </details>
+      ${feedbackPanelHtml()}
       ${privacyNote}
       <button type="button" class="ghost-btn" id="community-delete">Delete my profile</button>`;
     const status = root.querySelector('#community-status');
@@ -1658,6 +1908,7 @@ window.StudyCommunity = (() => {
     });
     profileActions(root);
     bindProfileEditor(root, me, () => render(offset));
+    bindFeedbackPanel(root);
     bindAdminPanel(root, me);
     window.StudyRooms.bindLobby(root);
     doAction(root.querySelector('#community-refresh'), () => render(offset));
@@ -1773,5 +2024,10 @@ window.StudyCommunity = (() => {
     fetchExtensionTimeEdit,
     approvedCourses,
     proposeCourses,
+    openFeedbackDialog,
+    listMaterials,
+    uploadMaterial,
+    deleteMaterial,
+    openMaterial,
   };
 })();

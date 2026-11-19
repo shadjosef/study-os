@@ -1647,6 +1647,10 @@ window.StudyUI = (() => {
       closeSettings();
       window.StudyPlaybook?.open?.();
     });
+    document.getElementById('settings-feedback-btn')?.addEventListener('click', () => {
+      closeSettings();
+      window.StudyCommunity?.openFeedbackDialog?.();
+    });
     document.getElementById('settings-layout-btn')?.addEventListener('click', () => {
       if (!workClock.canUseBreakTools()) {
         toast('Layout presets open during breaks or after 20:00 Oslo.');
