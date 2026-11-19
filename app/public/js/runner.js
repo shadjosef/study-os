@@ -1312,16 +1312,18 @@ window.StudyRunner = (() => {
         `;
       }
 
+      const itemUpi = st.loggedAttempt?.itemUpi;
+      const attemptUpi = itemUpi == null ? '' : ` · UPI ${itemUpi}`;
       const attemptBanner = st.loggedAttempt
         ? `<div class="badge ${st.loggedAttempt.beatAi ? 'live' : 'warn'}" style="margin-bottom:10px;font-size:12.5px;padding:5px 11px">
             ${
               st.loggedAttempt.beatAi
                 ? `Beat AI Par · ${clockSec(st.loggedAttempt.effectiveSec)} vs ${clockSec(
                     st.loggedAttempt.aiParSec
-                  )} · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}% · UPI ${st.loggedAttempt.itemUpi}`
+                  )} · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}%${attemptUpi}`
                 : `Logged · ${clockSec(st.loggedAttempt.effectiveSec)} vs ${clockSec(
                     st.loggedAttempt.aiParSec
-                  )} Par · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}% · UPI ${st.loggedAttempt.itemUpi}`
+                  )} Par · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}%${attemptUpi}`
             }
           </div>`
         : '';

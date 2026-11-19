@@ -2265,15 +2265,15 @@ window.StudyApp = (() => {
           <button type="button" class="preset-chip" data-exp-preset="low_dlpfc" data-layout-tier="1">${window.StudyLayout.label(1)}</button>
           <button type="button" class="preset-chip" data-exp-preset="long_horizon">Long Horizon (10m+)</button>
           ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-exp-preset="wiseflow_only">Worksheets</button>' : ''}
-          <button type="button" class="preset-chip active" data-exp-preset="reset">All Tasks</button>
+          <button type="button" class="preset-chip active" data-exp-preset="reset">Reset filters</button>
         </div>
 
         <div class="explorer-primary-bar" style="margin-top:12px">
           <input type="search" id="flt-search" placeholder="Search concepts, formulas, question IDs…" style="min-width:210px;flex:1.4">
           <select id="flt-topic" aria-label="Topic or chapter" style="min-width:170px;flex:1">${topicOptions}</select>
           <select id="flt-status" aria-label="Completion status" style="min-width:145px">
-            <option value="all">All Statuses</option>
             <option value="unfinished">Unfinished (Todo + Revisit)</option>
+            <option value="all">All Statuses</option>
             <option value="not_started">Uncomplete (Not started)</option>
             <option value="in_progress">In Progress</option>
             <option value="revisit">Revisit / Mistakes</option>
@@ -2409,14 +2409,14 @@ window.StudyApp = (() => {
         kEl.value = 'all';
         dEl.value = '2';
         hEl.value = 'all';
-        sEl.value = 'all';
+        sEl.value = 'unfinished';
         sortEl.value = 'smart_priority';
         bEl.value = 'budget:45';
       } else if (presetName === 'low_dlpfc') {
         kEl.value = 'all';
         dEl.value = '1';
         hEl.value = 'all';
-        sEl.value = 'all';
+        sEl.value = 'unfinished';
         sortEl.value = 'horizon_asc';
         bEl.value = 'budget:20';
       } else if (presetName === 'long_horizon') {
@@ -2430,7 +2430,7 @@ window.StudyApp = (() => {
         kEl.value = 'wiseflow';
         dEl.value = 'all';
         hEl.value = 'all';
-        sEl.value = 'all';
+        sEl.value = 'unfinished';
         sortEl.value = 'horizon_desc';
       } else {
         document.getElementById('flt-topic').value = 'all';
@@ -2438,7 +2438,7 @@ window.StudyApp = (() => {
         kEl.value = 'all';
         dEl.value = 'all';
         hEl.value = 'all';
-        sEl.value = 'all';
+        sEl.value = 'unfinished';
         sortEl.value = defaultSort;
         document.getElementById('flt-search').value = '';
       }
