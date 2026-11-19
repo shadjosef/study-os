@@ -932,6 +932,17 @@ window.StudyApp = (() => {
     }
 
     const ca = boot.canvasArchive || {};
+    const biSyncBtn = document.getElementById('settings-bi-sync-btn');
+    if (biSyncBtn) {
+      biSyncBtn.hidden = !isStaticWeb;
+      const biSub = document.getElementById('settings-bi-sync-sub');
+      const snap = isStaticWeb ? loadWebState().canvasSnapshot : null;
+      if (biSub) {
+        biSub.textContent = snap?.courses?.length
+          ? `${snap.courses.length} synced courses · click to pair or refresh`
+          : '1-click Chrome extension for BI Canvas, TimeEdit & Ed';
+      }
+    }
     const canvasBrowserLink = document.getElementById('settings-canvas-browser-link');
     if (canvasBrowserLink) canvasBrowserLink.hidden = isStaticWeb;
     const syncTime = ca.lastSyncAt ? ca.lastSyncAt.slice(0, 16).replace('T', ' ') : 'Not synced yet';
@@ -1161,10 +1172,12 @@ window.StudyApp = (() => {
           <div class="row-actions">
             <button type="button" class="primary-btn" id="btn-web-refs">Course notes</button>
             <button type="button" class="ghost-btn" id="btn-web-exams">Mock exams</button>
+            <button type="button" class="ghost-btn" id="btn-web-bi-sync">Sync BI</button>
           </div>
         </div>`;
       document.getElementById('btn-web-refs').onclick = () => navigate('references');
       document.getElementById('btn-web-exams').onclick = () => navigate('exams');
+      document.getElementById('btn-web-bi-sync').onclick = () => openBiSyncHub();
       if (nextExam) {
         document.getElementById('btn-hero-next-exam').onclick = () => navigate('exams', { focusCourseId: nextExam.c.courseId });
       }
@@ -3936,13 +3949,7 @@ window.StudyApp = (() => {
       renderScheduleStudio();
     });
 
-    document.getElementById('btn-pair-sync-ext')?.addEventListener('click', async () => {
-      if (!window.StudyCommunity?.isSignedIn?.()) {
-        const ok = await window.StudyCommunity?.requireProfile?.({ allowDemo: true, forcePrompt: true });
-        if (!ok) return;
-      }
-      window.StudyCommunity.openSecuritySheet();
-    });
+    document.getElementById('btn-pair-sync-ext')?.addEventListener('click', () => openBiSyncHub());
 
     async function applyExtensionTimeEdit(silent = false) {
       if (!isStaticWeb || !window.StudyCommunity?.isSignedIn?.()) {
@@ -4309,6 +4316,13 @@ window.StudyApp = (() => {
       out.push(
         {
           group: 'Actions',
+          title: 'Sync BI (Canvas · TimeEdit · Ed)',
+          sub: 'Pair 1-click Chrome extension for courses, deadlines & schedule',
+          keywords: 'canvas sync timeedit ed discussion chrome extension pair code bi',
+          run: () => openBiSyncHub(),
+        },
+        {
+          group: 'Actions',
           title: 'Study Playbook',
           sub: 'DLPFC energy routing, working blocks & study habits',
           keywords: 'study playbook habits dlpfc guide reading method',
@@ -4550,6 +4564,10 @@ window.StudyApp = (() => {
       toast('Signed out on this browser.');
       if (currentView === 'community') navigate('home');
     });
+    document.getElementById('settings-bi-sync-btn')?.addEventListener('click', () => {
+      window.StudyUI.closeSettings?.();
+      openBiSyncHub();
+    });
     document.getElementById('settings-canvas-sync-btn')?.addEventListener('click', () => {
       window.StudyUI.closeSettings?.();
       openCanvasSync?.('canvas');
@@ -4688,6 +4706,152 @@ window.StudyApp = (() => {
   }
 
   document.addEventListener('DOMContentLoaded', init);
+
+  function openBiSyncHub() {
+    if (!isStaticWeb) {
+      openCanvasSync?.('canvas');
+      return;
+    }
+    let dlg = document.getElementById('bi-sync-dialog');
+    if (!dlg) {
+      dlg = document.createElement('dialog');
+      dlg.id = 'bi-sync-dialog';
+      dlg.className = 'member-dialog playbook-sheet';
+      dlg.tabIndex = -1;
+      dlg.setAttribute('aria-labelledby', 'bi-sync-title');
+      dlg.addEventListener('click', (ev) => {
+        if (ev.target === dlg) dlg.close();
+      });
+      document.body.appendChild(dlg);
+    }
+
+    const renderBiDialog = (linkCode = null) => {
+      const signedIn = Boolean(window.StudyCommunity?.isSignedIn?.());
+      const ws = loadWebState();
+      const snap = ws.canvasSnapshot;
+      const syncedCourses = snap?.courses?.length || 0;
+      const syncedDeadlines = (snap?.courses || []).reduce((n, c) => n + (c.assignments?.length || 0), 0);
+      const hasTe = Boolean(ws.customSchedule?.enabled && ws.customSchedule?.blocks?.length);
+      const formattedCode = linkCode?.code
+        ? String(linkCode.code).replace(/^([A-Z0-9]{3})([A-Z0-9]{3})$/, '$1-$2')
+        : '';
+
+      dlg.innerHTML = `
+        <div class="playbook-head">
+          <div>
+            <span class="eyebrow">1-Click Multi-Tab Browser Sync</span>
+            <h2 id="bi-sync-title" style="margin:2px 0 4px">Sync BI Canvas · TimeEdit · Ed</h2>
+            <p class="muted" style="margin:0;font-size:13px">Uses your already signed-in browser tabs — no Canvas OAuth or session token copying needed.</p>
+          </div>
+          <button type="button" class="ios-done-btn" id="bi-sync-done">Done</button>
+        </div>
+        <div class="playbook-body">
+          <article class="playbook-card">
+            <div class="row-between" style="margin:0 0 6px;gap:8px">
+              <h3 style="margin:0;font-size:15px">1. Install Study-OS Sync extension</h3>
+              <span class="badge live">v1.3.0 · MV3</span>
+            </div>
+            <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
+              Works in Chrome, Brave, Edge, and Vivaldi. One click pulls <b>BI Canvas</b> courses &amp; deadlines, <b>TimeEdit</b> lectures, and <b>Ed Discussion</b> courses from all open signed-in tabs at once.
+            </p>
+            <div class="row-actions">
+              <a class="primary-btn" href="./downloads/study-os-sync-extension.zip" download="study-os-sync-extension.zip">Download Extension (.zip)</a>
+              <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Install steps ↗</a>
+            </div>
+            <small class="muted" style="display:block;margin-top:8px">Unzip → open <code>chrome://extensions</code> → turn on <b>Developer mode</b> → <b>Load unpacked</b> (1-click Chrome Web Store listing coming soon).</small>
+          </article>
+
+          <article class="playbook-card">
+            <div class="row-between" style="margin:0 0 6px;gap:8px">
+              <h3 style="margin:0;font-size:15px">2. Pair once with a 6-char code</h3>
+              ${signedIn ? '<span class="badge live">Signed in</span>' : '<span class="badge gold">Sign in needed</span>'}
+            </div>
+            <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
+              ${signedIn
+                ? 'Generate a 5-minute pairing code and paste it into the Study-OS Sync extension once.'
+                : 'Sign in with Google or a Passkey first so your synced courses and TimeEdit schedule carry across desktop and phone.'}
+            </p>
+            ${formattedCode ? `
+              <div class="row-between" style="padding:10px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--accent);margin-bottom:8px;gap:10px">
+                <strong style="font-size:20px;letter-spacing:0.12em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">${esc(formattedCode)}</strong>
+                <button type="button" class="ghost-btn" id="bi-copy-code">Copy code</button>
+              </div>
+            ` : ''}
+            <div class="row-actions">
+              ${signedIn
+                ? `<button type="button" class="primary-btn" id="bi-gen-code">${formattedCode ? 'New 6-char code' : 'Generate 6-char pairing code'}</button>`
+                : '<button type="button" class="primary-btn" id="bi-signin-btn">Sign in to Study-OS</button>'}
+            </div>
+          </article>
+
+          <article class="playbook-card">
+            <div class="row-between" style="margin:0 0 6px;gap:8px">
+              <h3 style="margin:0;font-size:15px">3. Keep signed-in tabs open &amp; click Sync</h3>
+              <span class="badge ${syncedCourses || hasTe ? 'live' : ''}">${syncedCourses ? `${syncedCourses} courses · ${syncedDeadlines} deadlines` : hasTe ? 'TimeEdit active' : 'Ready'}</span>
+            </div>
+            <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
+              Open whichever tabs you want to sync, stay signed in, and click the <b>Study-OS Sync</b> icon once — TimeEdit only needs to be synced once per semester.
+            </p>
+            <div class="row-actions">
+              <a class="ghost-btn" href="https://canvas.bi.no/" target="_blank" rel="noopener">BI Canvas ↗</a>
+              <a class="ghost-btn" href="https://cloud.timeedit.net/bi/web/public/" target="_blank" rel="noopener">BI TimeEdit ↗</a>
+              <a class="ghost-btn" href="https://eu.edstem.org/" target="_blank" rel="noopener">Ed Discussion ↗</a>
+              ${signedIn ? '<button type="button" class="ghost-btn" id="bi-refresh-sync">Refresh synced data</button>' : ''}
+            </div>
+          </article>
+        </div>
+      `;
+
+      dlg.querySelector('#bi-sync-done')?.addEventListener('click', () => dlg.close());
+      dlg.querySelector('#bi-signin-btn')?.addEventListener('click', async () => {
+        dlg.close();
+        const ok = await window.StudyCommunity?.requireProfile?.({ allowDemo: true, forcePrompt: true });
+        if (ok) openBiSyncHub();
+      });
+      dlg.querySelector('#bi-gen-code')?.addEventListener('click', async (ev) => {
+        const btn = ev.currentTarget;
+        btn.disabled = true;
+        btn.textContent = 'Generating…';
+        try {
+          const res = await window.StudyCommunity.createLinkCode();
+          renderBiDialog(res);
+          toast('6-character pairing code ready (valid 5 min).');
+        } catch (err) {
+          toast(err?.message || 'Could not generate pairing code.');
+          btn.disabled = false;
+          btn.textContent = 'Generate 6-char pairing code';
+        }
+      });
+      dlg.querySelector('#bi-copy-code')?.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(formattedCode);
+          toast('Copied pairing code.');
+        } catch {
+          toast('Select and copy the code above.');
+        }
+      });
+      dlg.querySelector('#bi-refresh-sync')?.addEventListener('click', async (ev) => {
+        const btn = ev.currentTarget;
+        btn.disabled = true;
+        btn.textContent = 'Refreshing…';
+        try {
+          await renderCourseDirectory();
+          await syncCloudProgress({ interactive: true });
+          renderBiDialog(linkCode);
+          if (currentView === 'home') renderHome();
+          else if (currentView === 'schedule') renderScheduleStudio();
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    };
+
+    renderBiDialog();
+    if (!dlg.open) {
+      dlg.showModal();
+      dlg.focus({ preventScroll: true });
+    }
+  }
 
   function onDevModeChange(active) {
     if (!active) {

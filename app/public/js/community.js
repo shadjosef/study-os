@@ -1765,6 +1765,7 @@ window.StudyCommunity = (() => {
     roomRequest,
     aiRequest,
     openSecuritySheet,
+    createLinkCode: () => request('/auth/link-code', {}),
     signOut,
     fetchCloudBackup,
     pushCloudBackup,

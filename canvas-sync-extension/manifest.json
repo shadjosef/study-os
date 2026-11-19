@@ -1,16 +1,32 @@
 {
   "manifest_version": 3,
   "name": "Study-OS Sync",
-  "version": "1.2.0",
-  "description": "One-click sync for BI Canvas courses & deadlines, TimeEdit schedules, and Ed Discussion courses directly to Study-OS.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "version": "1.3.0",
+  "description": "One-click multi-tab sync for BI Canvas courses & deadlines, TimeEdit schedules, and Ed Discussion directly to Study-OS.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["scripting", "storage"],
   "host_permissions": [
+    "https://canvas.bi.no/*",
+    "https://cloud.timeedit.net/*",
+    "https://edstem.org/*",
+    "https://eu.edstem.org/*",
+    "https://us.edstem.org/*",
+    "https://au.edstem.org/*",
     "https://shadjosef-study-os.shadjosef-study-os.workers.dev/*",
     "http://127.0.0.1/*"
   ],
   "action": {
-    "default_title": "Sync Canvas, TimeEdit or Ed to Study-OS",
-    "default_popup": "popup.html"
+    "default_title": "Sync BI Canvas, TimeEdit & Ed to Study-OS",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "background": {
     "service_worker": "background.js"

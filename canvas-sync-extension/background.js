@@ -3,9 +3,18 @@ const TIMEEDIT_ORIGIN = 'https://cloud.timeedit.net';
 const ED_ORIGINS = new Set(['https://edstem.org', 'https://eu.edstem.org', 'https://us.edstem.org', 'https://au.edstem.org']);
 const CLOUD_API = 'https://shadjosef-study-os.shadjosef-study-os.workers.dev';
 const DESKTOP = 'http://127.0.0.1:8765';
+const TARGET_URL_PATTERNS = [
+  'https://canvas.bi.no/*',
+  'https://cloud.timeedit.net/*',
+  'https://edstem.org/*',
+  'https://eu.edstem.org/*',
+  'https://us.edstem.org/*',
+  'https://au.edstem.org/*',
+];
 let syncJob = null;
 
-// Serialized into the open BI Canvas tab — reads courses, personal deadlines, and copyright-safe module titles.
+// Runs inside the user's already signed-in BI Canvas tab using browser same-origin cookies.
+// Never extracts, copies, or transmits raw Canvas session tokens.
 async function collectCanvas() {
   const canvasOrigin = 'https://canvas.bi.no';
   const capturedAt = new Date().toISOString();
@@ -29,12 +38,12 @@ async function collectCanvas() {
       });
       if (response.type === 'opaqueredirect' || response.status === 401 || response.status === 403 ||
           (response.ok && !response.headers.get('Content-Type')?.includes('json'))) {
-        throw new Error('Sign in to BI Canvas and open one of your courses, then try again.');
+        throw new Error('Sign in to BI Canvas in that tab, then click Sync again.');
       }
-      if (!response.ok) throw new Error('Canvas could not load the course list or assignments. Try again.');
+      if (!response.ok) throw new Error('Canvas could not load courses or assignments.');
       const items = JSON.parse((await response.text()).replace(/^\s*while\s*\(1\)\s*;\s*/, ''));
       if (!Array.isArray(items) || rows.length + items.length > maximum) {
-        throw new Error('Canvas returned an invalid list or too many items for one sync.');
+        throw new Error('Canvas returned an invalid list or too many items.');
       }
       rows.push(...items);
       const next = response.headers.get('Link')?.match(/<([^>]+)>\s*;\s*rel\s*=\s*"?next"?(?=\s*[,;]|\s*$)/i)?.[1];
@@ -45,7 +54,7 @@ async function collectCanvas() {
 
   function id(value) {
     const result = String(value);
-    if (!/^[1-9]\d{0,19}$/.test(result)) throw new Error('Canvas returned an invalid course or assignment ID.');
+    if (!/^[1-9]\d{0,19}$/.test(result)) throw new Error('Canvas returned an invalid ID.');
     return result;
   }
 
@@ -87,13 +96,13 @@ async function collectCanvas() {
   } catch (error) {
     return {
       error: error.name === 'TimeoutError' || error instanceof TypeError || error instanceof SyntaxError
-        ? 'Canvas could not load your courses. Check the Canvas tab and try again.'
+        ? 'Could not load BI Canvas. Make sure you are signed in.'
         : error.message,
     };
   }
 }
 
-// Serialized into the open BI TimeEdit tab — extracts the .ics timetable feed directly.
+// Runs inside the open BI TimeEdit tab — extracts the .ics timetable feed directly.
 async function collectTimeEdit() {
   if (location.origin !== 'https://cloud.timeedit.net') {
     return { error: 'Open your BI TimeEdit timetable tab first.' };
@@ -118,11 +127,9 @@ async function collectTimeEdit() {
     if (el.tagName === 'A') addCandidate(el.getAttribute('href'));
   });
 
-  // Also scan raw page text/scripts for an embedded .ics subscription link
   const htmlMatches = document.documentElement.innerHTML.match(/(?:https?|webcal):\/\/cloud\.timeedit\.net\/[^\s"'<>\\]+\.ics/gi) || [];
   htmlMatches.slice(0, 8).forEach(addCandidate);
 
-  // TimeEdit schedule views (*.html) serve their exact iCal feed at the same path with .ics!
   if (/\.html$/i.test(location.pathname)) {
     const derived = new URL(location.href);
     derived.pathname = derived.pathname.replace(/\.html$/i, '.ics');
@@ -146,11 +153,11 @@ async function collectTimeEdit() {
   }
 
   return {
-    error: 'Open your actual BI TimeEdit schedule view (after selecting your courses / "Show schedule"), then click Sync again.',
+    error: 'Open your BI TimeEdit schedule view ("Show schedule"), then click Sync again.',
   };
 }
 
-// Serialized into the open Ed Discussion tab — reads active course metadata (no private posts/files).
+// Runs inside the open Ed Discussion tab — reads active course outlines (no private posts/files).
 async function collectEd() {
   const host = location.hostname.toLowerCase();
   const capturedAt = new Date().toISOString();
@@ -161,9 +168,9 @@ async function collectEd() {
       signal: AbortSignal.timeout(12_000),
     });
     if (res.status === 401 || res.status === 403) {
-      return { error: 'Sign in to Ed Discussion in this tab, then click Sync again.' };
+      return { error: 'Sign in to Ed Discussion in that tab, then try again.' };
     }
-    if (!res.ok) return { error: 'Could not read your Ed Discussion courses. Try refreshing the Ed tab.' };
+    if (!res.ok) return { error: 'Could not read Ed Discussion courses.' };
     const payload = await res.json();
     const rawCourses = Array.isArray(payload?.courses) ? payload.courses : [];
     const courses = rawCourses
@@ -251,14 +258,31 @@ function detectSite(urlStr) {
   return 'other';
 }
 
-async function runSync(tabId, site, sharePublic) {
-  const stored = await chrome.storage.local.get(['cloudToken', 'token']);
-  const cloudToken = stored.cloudToken || '';
-  const desktopToken = stored.token || '';
+async function findOpenStudyTabs() {
+  const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS }).catch(() => []);
+  const found = { canvas: null, timeedit: null, ed: null };
+  // Prefer active tab in current window, then most recently accessed / schedule-view TimeEdit tabs
+  const sorted = [...tabs].sort((a, b) => {
+    if (a.active !== b.active) return a.active ? -1 : 1;
+    if (a.lastAccessed && b.lastAccessed) return b.lastAccessed - a.lastAccessed;
+    return 0;
+  });
+  for (const tab of sorted) {
+    const site = detectSite(tab.url || '');
+    if (!site || site === 'other') continue;
+    if (!found[site]) {
+      found[site] = tab;
+    } else if (site === 'timeedit' && /\.html(\?|$)/i.test(tab.url || '') && !/\.html(\?|$)/i.test(found[site].url || '')) {
+      found[site] = tab;
+    }
+  }
+  return found;
+}
 
+async function syncSingleSite(tabId, site, sharePublic, cloudToken, desktopToken) {
   if (site === 'canvas') {
     const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: collectCanvas });
-    if (!result || result.error) throw new Error(result?.error || 'Canvas closed during sync. Try again.');
+    if (!result || result.error) throw new Error(result?.error || 'BI Canvas tab closed during sync.');
 
     let cloudSummary = null;
     if (cloudToken) {
@@ -274,7 +298,7 @@ async function runSync(tabId, site, sharePublic) {
       desktopSummary = await desktopRequest('snapshot', result.snapshot, desktopToken).catch(() => null);
     }
     if (!cloudSummary && !desktopSummary) {
-      throw new Error('Connect your Study-OS account first (paste a 6-char device code from studyos.no).');
+      throw new Error('Pair your Study-OS account first (paste a 6-char code from studyos.no).');
     }
     return {
       site: 'canvas',
@@ -289,7 +313,7 @@ async function runSync(tabId, site, sharePublic) {
 
   if (site === 'timeedit') {
     if (!cloudToken) {
-      throw new Error('Link your studyos.no profile (6-char device code) to sync TimeEdit across devices.');
+      throw new Error('Link your studyos.no profile (6-char code) to sync TimeEdit.');
     }
     const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: collectTimeEdit });
     if (!result || result.error) throw new Error(result?.error || 'Could not read TimeEdit schedule.');
@@ -305,10 +329,10 @@ async function runSync(tabId, site, sharePublic) {
 
   if (site === 'ed') {
     if (!cloudToken) {
-      throw new Error('Link your studyos.no profile (6-char device code) to sync Ed Discussion courses.');
+      throw new Error('Link your studyos.no profile (6-char code) to sync Ed Discussion.');
     }
     const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: collectEd });
-    if (!result || result.error) throw new Error(result?.error || 'Could not read Ed Discussion courses.');
+    if (!result || result.error) throw new Error(result?.error || 'Could not read Ed Discussion.');
     const pushed = await cloudRequest('/courses/sync', {
       source: 'ed',
       sharePublic,
@@ -324,19 +348,46 @@ async function runSync(tabId, site, sharePublic) {
     };
   }
 
-  return { state: 'openSite' };
+  throw new Error('Unsupported tab.');
+}
+
+async function runSyncAll(sharePublic) {
+  const stored = await chrome.storage.local.get(['cloudToken', 'token']);
+  const cloudToken = stored.cloudToken || '';
+  const desktopToken = stored.token || '';
+  if (!cloudToken && !desktopToken) return { state: 'pair' };
+
+  const openTabs = await findOpenStudyTabs();
+  const targets = ['canvas', 'timeedit', 'ed'].filter((k) => Boolean(openTabs[k]?.id));
+  if (!targets.length) return { state: 'openSite' };
+
+  const results = [];
+  for (const site of targets) {
+    try {
+      const summary = await syncSingleSite(openTabs[site].id, site, sharePublic, cloudToken, desktopToken);
+      results.push({ site, ok: true, summary });
+    } catch (err) {
+      if (err.needsPair) throw err;
+      results.push({ site, ok: false, error: err.message || 'Sync failed.' });
+    }
+  }
+  return { state: 'synced', results };
 }
 
 async function handle(message) {
   if (message.action === 'status') {
     const stored = await chrome.storage.local.get(['cloudToken', 'cloudNickname', 'token', 'sharePublic']);
-    const tab = Number.isInteger(message.tabId) ? await chrome.tabs.get(message.tabId).catch(() => null) : null;
+    const openTabs = await findOpenStudyTabs();
     return {
       connectedCloud: Boolean(stored.cloudToken),
       nickname: stored.cloudNickname || '',
       connectedDesktop: Boolean(stored.token),
       sharePublic: stored.sharePublic !== false,
-      site: detectSite(tab?.url || ''),
+      openSites: {
+        canvas: Boolean(openTabs.canvas),
+        timeedit: Boolean(openTabs.timeedit),
+        ed: Boolean(openTabs.ed),
+      },
     };
   }
 
@@ -372,20 +423,18 @@ async function handle(message) {
       await chrome.storage.local.set({ token: linked.token });
       return { state: 'linked', mode: 'desktop' };
     }
-    throw new Error('Enter a 6-character Study-OS device code (e.g. K7M-9P2) or 24-char desktop code.');
+    throw new Error('Enter a 6-character Study-OS pairing code (e.g. K7M-9P2).');
   }
 
-  if (message.action !== 'sync') return { error: 'Unknown action.' };
-  const stored = await chrome.storage.local.get(['cloudToken', 'token', 'sharePublic']);
-  if (!stored.cloudToken && !stored.token) return { state: 'pair' };
+  if (message.action === 'syncAll' || message.action === 'sync') {
+    const stored = await chrome.storage.local.get(['cloudToken', 'token', 'sharePublic']);
+    if (!stored.cloudToken && !stored.token) return { state: 'pair' };
+    const sharePublic = typeof message.sharePublic === 'boolean' ? message.sharePublic : stored.sharePublic !== false;
+    if (!syncJob) syncJob = runSyncAll(sharePublic).finally(() => { syncJob = null; });
+    return await syncJob;
+  }
 
-  const tab = Number.isInteger(message.tabId) ? await chrome.tabs.get(message.tabId).catch(() => null) : null;
-  const site = detectSite(tab?.url || '');
-  if (site === 'other') return { state: 'openSite' };
-
-  const sharePublic = typeof message.sharePublic === 'boolean' ? message.sharePublic : stored.sharePublic !== false;
-  if (!syncJob) syncJob = runSync(message.tabId, site, sharePublic).finally(() => { syncJob = null; });
-  return { state: 'synced', summary: await syncJob };
+  return { error: 'Unknown action.' };
 }
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {

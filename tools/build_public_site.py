@@ -27,7 +27,7 @@ import shutil
 import sys
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 APP_DIR = ROOT_DIR / "app"
@@ -269,12 +269,25 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
     html = re.sub(r'(href|src)="\./((?:styles\.css|js/[A-Za-z0-9._-]+\.js))"', _stamp_asset, html)
     index.write_text(html, encoding="utf-8")
 
+    # Package the in-house Study-OS Sync Chrome extension (Manifest V3) for direct download / Chrome Web Store upload.
+    ext_src = ROOT_DIR / "canvas-sync-extension"
+    if ext_src.is_dir():
+        dl_dir = out_dir / "downloads"
+        dl_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = dl_dir / "study-os-sync-extension.zip"
+        with ZipFile(zip_path, "w", compression=ZIP_DEFLATED) as zf:
+            for item in sorted(ext_src.rglob("*")):
+                if item.is_file() and not any(part.startswith(".") for part in item.relative_to(ext_src).parts):
+                    zf.write(item, item.relative_to(ext_src).as_posix())
+
     template = (ROOT_DIR / "tools" / "offline-worker.js").read_bytes()
     fingerprint = hashlib.sha256(template)
     assets = []
     for path in sorted(out_dir.rglob("*")):
         if path.is_file() and path.name not in {".nojekyll", "CNAME"}:
             rel = path.relative_to(out_dir).as_posix()
+            if rel.startswith("downloads/"):
+                continue
             assets.append(quote(rel, safe="/"))
             fingerprint.update(rel.encode() + b"\0" + hashlib.sha256(path.read_bytes()).digest())
     (out_dir / "offline-worker.js").write_bytes(
