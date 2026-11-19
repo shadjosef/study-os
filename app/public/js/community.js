@@ -156,7 +156,9 @@ window.StudyCommunity = (() => {
         });
         gsiInitializedClient = googleClientId;
       }
-      const targetWidth = Math.min(width, Math.max(240, Math.floor(container.clientWidth || width)));
+      const rectW = Math.floor(container.getBoundingClientRect().width || container.clientWidth || 0);
+      const viewportCap = Math.max(220, Math.floor(window.innerWidth - 88));
+      const targetWidth = Math.max(220, Math.min(width, rectW > 40 ? rectW - 4 : viewportCap, viewportCap));
       gsi.renderButton(container, {
         type: 'standard',
         theme: dark ? 'filled_black' : 'outline',
@@ -398,9 +400,9 @@ window.StudyCommunity = (() => {
               <path d="M18 5l2 2"></path>
               <path d="M15 8l2 2"></path>
             </svg>
-            <span>Use an existing passkey</span>
+            <span>Sign in with Passkey</span>
           </button>
-          <button type="button" class="ghost-btn" id="community-passkey-create">Create a profile and passkey</button>
+          <button type="button" class="ghost-btn auth-passkey-create-btn" id="community-passkey-create">New profile + Passkey</button>
         ` : ''}
         <div class="auth-or" id="community-auth-or" ${passkeyReady ? '' : 'hidden'}><span>or</span></div>
 
@@ -1720,6 +1722,10 @@ window.StudyCommunity = (() => {
     return request('/rooms' + path, data);
   }
 
+  async function aiRequest(path = '', data) {
+    return request('/ai' + path, data);
+  }
+
   return {
     enabled: Boolean(api),
     hasProfile: () => !api || Boolean(token),
@@ -1733,6 +1739,7 @@ window.StudyCommunity = (() => {
     shareSet,
     requireProfile,
     roomRequest,
+    aiRequest,
     openSecuritySheet,
     signOut,
     fetchCloudBackup,

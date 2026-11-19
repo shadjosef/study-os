@@ -118,6 +118,24 @@ window.StudyQuestionCopy = (() => {
     };
   }
 
+  function tutorPayload({ includeSolution = false } = {}) {
+    if (!current?.card.isConnected || document.getElementById('view-runner').hidden) return { mode: 'waiting' };
+    const { model, transcript } = current;
+    if (model.blind) return { mode: 'blind' };
+    const state = { ...model.state, wiseflow: { ...model.state.wiseflow } };
+    return {
+      mode: 'practice', courseId: model.courseId, questionId: model.question.id,
+      course: model.course, title: model.question.title,
+      revealed: Boolean(model.revealed),
+      context: compose({
+        ...model,
+        state,
+        revealed: Boolean(includeSolution || model.revealed),
+        transcript: transcript || [],
+      }).slice(0, 14_000),
+    };
+  }
+
   function textForCopy(context) {
     const model = context.model;
     // Preserve the answer values at the moment the learner asks to copy.
@@ -150,5 +168,5 @@ window.StudyQuestionCopy = (() => {
     }
   });
 
-  return { bind, tutorContext };
+  return { bind, tutorContext, tutorPayload };
 })();

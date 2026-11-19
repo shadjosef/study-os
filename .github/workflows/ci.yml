@@ -55,7 +55,9 @@ jobs:
           node --check app/public/js/members.js
           node --check app/public/js/study-sets.js
           node --check app/public/js/community.js
+          node --check app/public/js/ai-tutor.js
           node --check community/worker.mjs
+          node --check community/ai.mjs
           node --check community/rooms.mjs
           node --check community/admin.mjs
           node --check community/auth.mjs

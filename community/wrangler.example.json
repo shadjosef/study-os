@@ -9,6 +9,9 @@
     "WEB_ORIGIN": "https://shadjosef.github.io",
     "WEB_ADDITIONAL_ORIGIN": "https://studyos.no"
   },
+  "ai": {
+    "binding": "AI"
+  },
   "d1_databases": [
     {
       "binding": "DB",

@@ -5,6 +5,7 @@ import { handleSync } from './sync.mjs';
 import { checkHuman } from './human.mjs';
 import { readTimeEdit } from './timeedit.mjs';
 import { handleCourses } from './courses.mjs';
+import { handleAi } from './ai.mjs';
 
 const encoder = new TextEncoder();
 const hex = (bytes) => [...bytes].map((n) => n.toString(16).padStart(2, '0')).join('');
@@ -204,6 +205,9 @@ export default {
     }
     if (path === '/sync') {
       return handleSync({ request, db, me, now, data, reply });
+    }
+    if (path.startsWith('/ai/')) {
+      return handleAi({ request, path, db, env, me, isAdmin, now, data, reply });
     }
     if (path.startsWith('/admin/')) {
       return handleAdmin({ request, url, db, env, me, isAdmin, now, data, reply, digest, nicknamePattern });

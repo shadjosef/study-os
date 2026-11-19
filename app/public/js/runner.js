@@ -1421,7 +1421,7 @@ window.StudyRunner = (() => {
            <summary class="st-btn runner-more-btn" title="Question tools" aria-label="More question tools">•••</summary>
            <div class="runner-tools-popover">
              <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for AI</span></button>
-             <button type="button" class="runner-menu-item" id="btn-open-tutor"><span>AI Tutor</span></button>
+             <button type="button" class="runner-menu-item" id="btn-open-tutor"><span>Desktop MCP Tutor</span></button>
              ${instantMcqToggleHtml}
              <div class="runner-menu-divider"></div>
              <label class="runner-menu-select-row">
@@ -1445,6 +1445,8 @@ window.StudyRunner = (() => {
           ${q.points ? `<span class="badge gold">${q.points} pts</span>` : ''}
         </div>
         <div class="runner-meta-actions" role="group" aria-label="Question actions">
+          ${!isBlindUnfinished
+            ? '<button type="button" class="st-btn runner-pill-tool runner-ai-pill" id="btn-ai-tutor-pill" title="Open built-in AI Tutor (T)">✨ AI</button>' : ''}
           ${!isBlindUnfinished && (q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference)
             ? '<button type="button" class="st-btn runner-pill-tool" id="btn-question-notes" title="Open course notes (O)">Notes</button>' : ''}
           ${
@@ -1619,6 +1621,7 @@ window.StudyRunner = (() => {
       sources: sourcePdfs.filter((source) => source.isPdf && promptSourceKeys.has(source.key)),
     });
     card.querySelector('#btn-open-tutor')?.addEventListener('click', window.StudyTutor.open);
+    card.querySelector('#btn-ai-tutor-pill')?.addEventListener('click', () => window.StudyAiTutor?.open?.());
     if (inlinePdf) {
       const view = st.pdfViews[inlinePdf.key] ||= { page: inlinePdf.page, zoom: 100, trim: false };
       window.StudyPdf.mount(card.querySelector('#source-pdf-reader'), inlinePdf, view);
@@ -2227,10 +2230,18 @@ window.StudyRunner = (() => {
     }
   }
 
+  const CHECKIN_MIN_ACTIVE_SEC = 45 * 60; // Only ask for session feedback on long 45m+ study blocks or full submitted exams
+
   function openEndRunModal() {
     if (!activeRun) return;
     pauseCurrentTimer();
     const m = computeRunSummary();
+    const isSubmittedExam = activeRun.mode === 'exam' && Boolean(activeRun.paperSubmitted);
+    const shouldPromptFeedback = isSubmittedExam || m.activeSec >= CHECKIN_MIN_ACTIVE_SEC;
+    if (!shouldPromptFeedback) {
+      finalizeSession(false);
+      return;
+    }
     const ps = activeRun.paperScoreSummary;
     const scr = workClock?.getScreenStats?.() || {};
     const hdr = document.getElementById('checkin-summary-header');
@@ -2308,7 +2319,10 @@ window.StudyRunner = (() => {
     document.getElementById('global-header').hidden = false;
     const obsLink = document.getElementById('run-obsidian-app-link');
     if (obsLink) obsLink.hidden = true;
-    toast('Session logged & Dashboard updated.');
+    const summaryToast = m.reviewed
+      ? `Saved · ${m.reviewed}/${m.total} verified${m.avgAcc != null ? ` · ${Math.round(m.avgAcc * 100)}%` : ''} (${clockSec(m.activeSec)})`
+      : 'Session saved.';
+    toast(includeCheckIn ? 'Check-in & session logged.' : summaryToast);
     await window.StudyApp.refreshBootstrap();
     window.StudyApp.navigate(wasExam ? 'exams' : 'home');
   }
@@ -2496,6 +2510,12 @@ window.StudyRunner = (() => {
         }
       } else if (key === 'h') {
         document.getElementById('btn-hint')?.click();
+      } else if (key === 't') {
+        const isBlind = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
+        if (!isBlind) {
+          e.preventDefault();
+          window.StudyAiTutor?.open?.();
+        }
       } else if (key === 's') {
         document.getElementById('btn-reveal-sol')?.click();
       } else if (key === 'o') {

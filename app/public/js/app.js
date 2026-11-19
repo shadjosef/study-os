@@ -33,6 +33,14 @@ window.StudyApp = (() => {
   let openCanvasFiles;
   let selectedCourseId = '';
   let selectedSemester = 'all';
+  let homeDifficulty = (() => {
+    try {
+      const saved = localStorage.getItem('study-os-home-diff-v1') || 'all';
+      return ['all', '1', '2', '3'].includes(saved) ? saved : 'all';
+    } catch {
+      return 'all';
+    }
+  })();
   let selectedRefFile = '';
   let selectedRefSemester = 'all';
   let selectedExamStyle = 'blind'; // 'blind' (Strict WISEflow Sit) | 'guided' (Instant Section Check)
@@ -823,11 +831,12 @@ window.StudyApp = (() => {
   }
 
   function showRawView(name) {
+    document.body.classList.toggle('in-runner', name === 'runner');
     for (const v of ['home', 'references', 'schedule', 'exams', 'course', 'runner', 'analytics', 'community', 'room']) {
       const sec = document.getElementById(`view-${v}`);
       if (sec) sec.hidden = v !== name;
     }
-    document.querySelectorAll('.tab-btn').forEach((b) => {
+    document.querySelectorAll('.tab-btn, .mobile-dock-btn').forEach((b) => {
       b.classList.toggle('active', b.dataset.nav === name);
       if (b.dataset.nav === name) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
@@ -1044,7 +1053,7 @@ window.StudyApp = (() => {
           </div>
           <div class="row-actions">
             <button type="button" class="primary-btn btn-lg" id="btn-hero-smart">${
-              resolvedFocus === 'high_dlpfc' ? 'Start 45m Hard Run' : resolvedFocus === 'low_dlpfc' ? 'Start 25m Recall Run' : 'Start 40m Procedural Run'
+              homeDifficulty === '1' ? 'Start Easy 75m' : homeDifficulty === '2' ? 'Start Medium 75m' : homeDifficulty === '3' ? 'Start Hard 75m' : 'Start 75m Block'
             }</button>
             <button type="button" class="ghost-btn btn-lg" id="btn-hero-exams">Exam Simulator</button>
           </div>
@@ -1052,8 +1061,9 @@ window.StudyApp = (() => {
       `;
       document.getElementById('btn-hero-smart')?.addEventListener('click', () => {
         if (boot.catalog[0]) {
-          const m = getResolvedFocusMode();
-          launchSmartCourseRun(boot.catalog[0].courseId, m === 'high_dlpfc' ? 45 : m === 'low_dlpfc' ? 25 : 40, 'learning', '', m);
+          const exactDiff = homeDifficulty === 'all' ? 0 : Number(homeDifficulty);
+          const m = exactDiff === 3 ? 'high_dlpfc' : exactDiff === 2 ? 'med_dlpfc' : exactDiff === 1 ? 'low_dlpfc' : getResolvedFocusMode();
+          launchSmartCourseRun(boot.catalog[0].courseId, 75, 'learning', '', m, false, exactDiff);
         }
       });
       document.getElementById('btn-hero-exams')?.addEventListener('click', () => navigate('exams'));
@@ -1106,7 +1116,29 @@ window.StudyApp = (() => {
     // 3B. Canvas-Archive Cookie-Session Strip & Fresh-Clone Onboarding
     renderCanvasBridgeStrip();
 
-    // 4. Semester Filter + Courses Grid
+    // 4. Difficulty Picker + Semester Filter + Courses Grid
+    const diffSeg = document.getElementById('home-difficulty-seg');
+    if (diffSeg) {
+      diffSeg.querySelectorAll('[data-home-diff]').forEach((btn) => {
+        const active = btn.dataset.homeDiff === homeDifficulty;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+        btn.onclick = () => {
+          if (homeDifficulty === btn.dataset.homeDiff) return;
+          homeDifficulty = btn.dataset.homeDiff;
+          try { localStorage.setItem('study-os-home-diff-v1', homeDifficulty); } catch {}
+          renderHome();
+        };
+      });
+    }
+    const primaryCtaLabel = homeDifficulty === '1'
+      ? 'Easy 75m'
+      : homeDifficulty === '2'
+      ? 'Medium 75m'
+      : homeDifficulty === '3'
+      ? 'Hard 75m'
+      : 'Start 75m';
+
     const semesters = [...new Set((boot.catalog || []).map((c) => c.semester).filter(Boolean))];
     const semSel = document.getElementById('home-semester-filter');
     if (semSel) {
@@ -1159,9 +1191,7 @@ window.StudyApp = (() => {
             </div>
           </div>
           <div class="course-actions">
-            <button type="button" class="primary-btn" data-smart-course="${esc(c.courseId)}">${
-              isStaticWeb ? 'Quick practice' : resolvedFocus === 'high_dlpfc' ? 'Hard 45m' : resolvedFocus === 'low_dlpfc' ? 'Recall 25m' : 'Procedural 40m'
-            }</button>
+            <button type="button" class="primary-btn" data-smart-course="${esc(c.courseId)}">${primaryCtaLabel}</button>
             <button type="button" class="ghost-btn" data-open-course="${esc(c.courseId)}">${isStaticWeb ? 'Topics' : `All (${c.questionCount})`}</button>
             <button type="button" class="ghost-btn" data-exam-course="${esc(c.courseId)}">Exams</button>
             <button type="button" class="ghost-btn" data-ref-course="${esc(c.courseId)}">Notes</button>
@@ -1171,12 +1201,12 @@ window.StudyApp = (() => {
       .join('');
 
     grid.querySelectorAll('[data-smart-course]').forEach((b) => {
-      const m = getResolvedFocusMode();
-      const mins = m === 'high_dlpfc' ? 45 : m === 'low_dlpfc' ? 25 : 40;
       b.addEventListener('click', async () => {
         b.disabled = true;
         try {
-          await launchSmartCourseRun(b.dataset.smartCourse, isStaticWeb ? 10 : mins, 'learning', '', m, isStaticWeb);
+          const exactDiff = homeDifficulty === 'all' ? 0 : Number(homeDifficulty);
+          const m = exactDiff === 3 ? 'high_dlpfc' : exactDiff === 2 ? 'med_dlpfc' : exactDiff === 1 ? 'low_dlpfc' : getResolvedFocusMode();
+          await launchSmartCourseRun(b.dataset.smartCourse, 75, 'learning', '', m, false, exactDiff);
         } catch {
           toast('Could not load this course. Check your connection and try again.');
         } finally {
@@ -2111,7 +2141,7 @@ window.StudyApp = (() => {
     return out;
   }
 
-  function buildEffortSortedQueue(questions, budgetMinutes = 40, profile = 'learning', filterTopics = [], effortMode = 'auto', quick = false) {
+  function buildEffortSortedQueue(questions, budgetMinutes = 75, profile = 'learning', filterTopics = [], effortMode = 'auto', quick = false, exactDifficulty = 0) {
     const rawMode = effortMode === 'auto' ? getResolvedFocusMode() : effortMode;
     const mode =
       rawMode === 'deep'
@@ -2123,22 +2153,23 @@ window.StudyApp = (() => {
         : rawMode;
     const nowIso = new Date().toISOString();
     const topicSet = new Set((filterTopics || []).filter(Boolean).map(String));
+    const qTier = (q) => effectiveDlpfc(q).tier;
 
     let pool = (questions || []).filter((q) => {
       if (q.available === false) return false;
       if (getProgressRecord(q.id)?.status === 'done') return false;
       if (topicSet.size && !topicSet.has(String(q.topicId))) return false;
+      if (exactDifficulty && qTier(q) !== exactDifficulty) return false;
       return true;
     });
 
     const qMin = (q) => Number(q.pacing?.[profile]?.target || q.pacing?.learning?.target || (q.kind === 'mcq' ? 2 : 8));
-    const qTier = (q) => effectiveDlpfc(q).tier;
     if (quick) {
       const short = pool.filter((q) => qMin(q) <= budgetMinutes);
       pool = short.length ? short : pool.sort((a, b) => qMin(a) - qMin(b)).slice(0, 1);
     }
 
-    if (mode === 'high_dlpfc') {
+    if (!exactDifficulty && mode === 'high_dlpfc') {
       const highMedUnfinished = pool.filter(
         (q) => qTier(q) >= 2 && (getProgressRecord(q.id)?.status || 'not_started') !== 'done'
       );
@@ -2148,7 +2179,7 @@ window.StudyApp = (() => {
         const highMedAny = pool.filter((q) => qTier(q) >= 2);
         if (highMedAny.length >= 2) pool = highMedAny;
       }
-    } else if (mode === 'low_dlpfc') {
+    } else if (!exactDifficulty && mode === 'low_dlpfc') {
       const lowMedPool = pool.filter((q) => qTier(q) <= 2 || qMin(q) <= 8);
       if (lowMedPool.length >= 3) pool = lowMedPool;
     }
@@ -2197,17 +2228,18 @@ window.StudyApp = (() => {
     // Interleave distinct topics within each (statusBucket, dlpfcTier) band
     pool = interleaveByTopic(pool, (q) => `${bucketRank(q)}:${tierRank(q)}`);
 
+    const maxItems = Math.max(24, Math.min(50, Math.round(budgetMinutes * 0.7)));
     const chosen = [];
     let accMin = 0;
     for (const q of pool) {
       const qm = qMin(q);
-      if (chosen.length && (accMin + qm > budgetMinutes * 1.28 || chosen.length >= 16)) {
-        if (chosen.length >= (accMin >= budgetMinutes * 0.65 ? 1 : 2)) break;
+      if (chosen.length && (accMin + qm > budgetMinutes * 1.25 || chosen.length >= maxItems)) {
+        if (chosen.length >= (accMin >= budgetMinutes * 0.7 ? 1 : 2)) break;
         continue;
       }
       chosen.push(q.id);
       accMin += qm;
-      if (accMin >= budgetMinutes * 0.92) break;
+      if (accMin >= budgetMinutes * 0.94) break;
     }
     if (!chosen.length && pool.length) chosen.push(pool[0].id);
     return chosen;
@@ -2221,7 +2253,7 @@ window.StudyApp = (() => {
     if (sessionFocusMode !== 'auto' || !qids.length) {
       qids = buildEffortSortedQueue(
         bank.questions || [],
-        Number(block.attemptBudgetMinutes || block.focusMinutes || 40),
+        Number(block.attemptBudgetMinutes || block.focusMinutes || 75),
         prof,
         block.topicIds || [],
         getResolvedFocusMode()
@@ -2237,7 +2269,7 @@ window.StudyApp = (() => {
     });
   }
 
-  async function launchSmartCourseRun(courseId, budgetMinutes = 40, profile = 'learning', filterTopic = '', effortMode = 'auto', quick = false) {
+  async function launchSmartCourseRun(courseId, budgetMinutes = 75, profile = 'learning', filterTopic = '', effortMode = 'auto', quick = false, exactDifficulty = 0) {
     const bank = await ensureCourseBank(courseId);
     const cMeta = boot.catalog.find((c) => c.courseId === courseId);
     const chosen = buildEffortSortedQueue(
@@ -2246,10 +2278,14 @@ window.StudyApp = (() => {
       profile,
       filterTopic ? [filterTopic] : [],
       quick ? 'med_dlpfc' : effortMode,
-      quick
+      quick,
+      exactDifficulty
     );
     if (!chosen.length) {
-      toast('No unfinished questions here. Open Topics & practice to review completed questions.');
+      const diffLbl = exactDifficulty === 1 ? 'Easy' : exactDifficulty === 2 ? 'Medium' : exactDifficulty === 3 ? 'Hard' : '';
+      toast(diffLbl
+        ? `No unfinished ${diffLbl} questions left in ${cMeta?.code || 'this course'}. Switch to All or open Topics.`
+        : 'No unfinished questions here. Open Topics & practice to review completed questions.');
       return;
     }
 
@@ -2458,10 +2494,9 @@ window.StudyApp = (() => {
             </label>
             <label class="field-label">Run Mode &amp; Size
               <select id="flt-budget">
-                <option value="budget:20">20 min Sprint</option>
-                <option value="budget:45" selected>45 min Deep Wave</option>
-                <option value="budget:65">65 min Extended Wave</option>
-                <option value="count:5">Top 5 Matching Tasks</option>
+                <option value="budget:75" selected>75 min Full Block (AI Par)</option>
+                <option value="budget:45">45 min Focused Block</option>
+                <option value="budget:20">20 min Quick Drill</option>
                 <option value="count:12">Top 12 Matching Tasks</option>
                 <option value="all">All Matching (Full Set)</option>
                 <option value="exam_sim">Blind Exam Sit (Countdown + Submit)</option>
@@ -2528,28 +2563,28 @@ window.StudyApp = (() => {
         hEl.value = 'all';
         sEl.value = 'unfinished';
         sortEl.value = 'deep_first';
-        bEl.value = 'budget:45';
+        bEl.value = 'budget:75';
       } else if (presetName === 'med_dlpfc') {
         kEl.value = 'all';
         dEl.value = '2';
         hEl.value = 'all';
         sEl.value = 'unfinished';
         sortEl.value = 'smart_priority';
-        bEl.value = 'budget:45';
+        bEl.value = 'budget:75';
       } else if (presetName === 'low_dlpfc') {
         kEl.value = 'all';
         dEl.value = '1';
         hEl.value = 'all';
         sEl.value = 'unfinished';
         sortEl.value = 'horizon_asc';
-        bEl.value = 'budget:20';
+        bEl.value = 'budget:75';
       } else if (presetName === 'long_horizon') {
         kEl.value = 'no_mcq';
         dEl.value = 'all';
         hEl.value = '10plus';
         sEl.value = 'unfinished';
         sortEl.value = 'horizon_desc';
-        bEl.value = 'budget:65';
+        bEl.value = 'budget:75';
       } else if (presetName === 'wiseflow_only') {
         kEl.value = 'wiseflow';
         dEl.value = 'all';
@@ -4147,6 +4182,10 @@ window.StudyApp = (() => {
     }
     window.StudyRunner.bindRunnerGlobals();
     document.querySelector('[data-nav="community"]').hidden = !window.StudyCommunity.enabled;
+    const mobComm = document.getElementById('mobile-dock-community');
+    const mobExams = document.getElementById('mobile-dock-exams');
+    if (mobComm) mobComm.hidden = !window.StudyCommunity.enabled;
+    if (mobExams) mobExams.hidden = Boolean(window.StudyCommunity.enabled);
     document.getElementById('runner-room-btn').onclick = () => {
       document.getElementById('run-exit-btn').click();
       navigate('room');
@@ -4159,7 +4198,7 @@ window.StudyApp = (() => {
       }
     });
 
-    document.querySelectorAll('.tab-btn').forEach((btn) => {
+    document.querySelectorAll('.tab-btn, .mobile-dock-btn').forEach((btn) => {
       btn.addEventListener('click', () => navigate(btn.dataset.nav));
     });
     document.getElementById('nav-brand')?.addEventListener('click', () => navigate('home'));
@@ -4169,7 +4208,8 @@ window.StudyApp = (() => {
     });
     document.getElementById('btn-home-tutor')?.addEventListener('click', () => {
       window.StudyUI.closeSettings?.();
-      window.StudyTutor.open();
+      if (window.StudyAiTutor?.open) window.StudyAiTutor.open();
+      else window.StudyTutor.open();
     });
     document.getElementById('btn-save-offline')?.addEventListener('click', saveForOffline);
     document.getElementById('settings-profile-card')?.addEventListener('click', async () => {
