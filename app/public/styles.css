@@ -4712,6 +4712,10 @@ dialog.playbook-sheet:focus { outline: none; }
   padding-top: 12px;
   border-top: 1px solid var(--line);
 }
+.exam-countdown-live {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .community-feedback-box > summary {
   cursor: pointer;
   list-style: none;

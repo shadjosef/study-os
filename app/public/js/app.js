@@ -1006,10 +1006,86 @@ window.StudyApp = (() => {
     return Math.round((targetUtc - todayUtc) / 86400000);
   }
 
+  function osloDateTimeMs(isoDate, hhmm = '09:00') {
+    if (!isoDate || !/^\d{4}-\d{2}-\d{2}/.test(isoDate)) return null;
+    const [y, m, d] = isoDate.slice(0, 10).split('-').map(Number);
+    const match = String(hhmm || '09:00').match(/^(\d{1,2}):(\d{2})$/);
+    const hh = match ? Number(match[1]) : 9;
+    const mm = match ? Number(match[2]) : 0;
+    const guessUtc = Date.UTC(y, m - 1, d, hh, mm, 0);
+    try {
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Oslo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }).formatToParts(new Date(guessUtc));
+      const p = Object.fromEntries(parts.map((x) => [x.type, Number(x.value)]));
+      const osloAsUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, 0);
+      return guessUtc - (osloAsUtc - guessUtc);
+    } catch {
+      return guessUtc - 3600000;
+    }
+  }
+
+  function examTargetMs(examInfo) {
+    if (!examInfo?.date) return null;
+    const startTime =
+      examInfo.startTime ||
+      String(examInfo.notes || '').match(/\b(\d{2}:\d{2})\s*[–-]\s*\d{2}:\d{2}\b/)?.[1] ||
+      '09:00';
+    return osloDateTimeMs(examInfo.date, startTime);
+  }
+
+  function formatExamCountdown(targetMs, mode = 'card', nowMs = Date.now()) {
+    if (!Number.isFinite(targetMs)) return '';
+    const diffSec = Math.floor((targetMs - nowMs) / 1000);
+    if (diffSec <= 0) return diffSec > -14400 ? 'Live now' : 'Done';
+    const d = Math.floor(diffSec / 86400);
+    const h = Math.floor((diffSec % 86400) / 3600);
+    const m = Math.floor((diffSec % 3600) / 60);
+    const s = diffSec % 60;
+    const totalH = Math.floor(diffSec / 3600);
+    const pad = (n) => String(n).padStart(2, '0');
+    if (mode === 'exam') {
+      const core = d > 0 ? `${d}d ${pad(h)}h ${pad(m)}m ${pad(s)}s` : `${pad(h)}h ${pad(m)}m ${pad(s)}s`;
+      return `${core} · ${totalH}h left`;
+    }
+    if (mode === 'hero' || d <= 7) {
+      return d > 0 ? `${d}d ${pad(h)}h ${pad(m)}m ${pad(s)}s` : `${pad(h)}h ${pad(m)}m ${pad(s)}s`;
+    }
+    return `${d}d ${pad(h)}h ${pad(m)}m`;
+  }
+
+  let examTickerStarted = false;
+  function tickExamCountdowns() {
+    if (document.hidden) return;
+    const nowMs = Date.now();
+    document.querySelectorAll('[data-exam-target-ms]').forEach((el) => {
+      const targetMs = Number(el.dataset.examTargetMs);
+      if (!Number.isFinite(targetMs)) return;
+      const mode = el.dataset.examCountdownMode || 'card';
+      const next = formatExamCountdown(targetMs, mode, nowMs);
+      if (el.textContent !== next) el.textContent = next;
+    });
+  }
+  function ensureExamCountdownTicker() {
+    if (examTickerStarted) return;
+    examTickerStarted = true;
+    setInterval(tickExamCountdowns, 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) tickExamCountdowns();
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // VIEW 1: COMMAND CENTER (Zero-Decision-Fatigue Calendar Hero + Courses Grid)
   // ---------------------------------------------------------------------------
   function renderHome() {
+    ensureExamCountdownTicker();
     syncSettingsRows();
     document.getElementById('home-metrics-strip').hidden = isStaticWeb && !boot.analytics.totalAttempts;
     // 1. Paused Run Banner
@@ -1155,13 +1231,14 @@ window.StudyApp = (() => {
     } else if (isStaticWeb) {
       const questionCount = boot.catalog.reduce((count, c) => count + c.questionCount, 0);
       const nextExam = [...boot.catalog]
-        .map((c) => ({ c, days: daysUntilDateStr(c.examInfo?.date) }))
-        .filter((x) => x.days !== null && x.days >= 0)
-        .sort((x, y) => x.days - y.days)[0];
+        .map((c) => ({ c, targetMs: examTargetMs(c.examInfo), days: daysUntilDateStr(c.examInfo?.date) }))
+        .filter((x) => Number.isFinite(x.targetMs) && x.targetMs > Date.now() - 14400_000)
+        .sort((x, y) => x.targetMs - y.targetMs)[0];
+      const nextExamHours = nextExam ? Math.max(0, Math.floor((nextExam.targetMs - Date.now()) / 3600000)) : 0;
       const nextExamChip = nextExam
-        ? `<button type="button" class="hero-exam-chip" id="btn-hero-next-exam">
+        ? `<button type="button" class="hero-exam-chip" id="btn-hero-next-exam" title="${nextExamHours} hours until ${esc(nextExam.c.code)} exam (${esc(nextExam.c.examInfo.date)} Oslo)">
              <span class="hero-exam-dot" style="background:${esc(nextExam.c.color)}"></span>
-             <span>Next exam · <b>${esc(nextExam.c.code)}</b> in ${nextExam.days === 0 ? 'today' : `${nextExam.days}d`}</span>
+             <span>Next exam · <b>${esc(nextExam.c.code)}</b> in <b class="exam-countdown-live" data-exam-target-ms="${nextExam.targetMs}" data-exam-countdown-mode="hero">${esc(formatExamCountdown(nextExam.targetMs, 'hero'))}</b></span>
              <span aria-hidden="true">→</span>
            </button>`
         : '';
@@ -1338,9 +1415,13 @@ window.StudyApp = (() => {
           : (a.subgroups?.byCourse?.[c.courseId] || {});
         const pct = cp.total ? Math.round((cp.done / cp.total) * 100) : 0;
         const daysLeft = daysUntilDateStr(c.examInfo?.date);
+        const targetMs = examTargetMs(c.examInfo);
+        const totalHours = Number.isFinite(targetMs) ? Math.max(0, Math.floor((targetMs - Date.now()) / 3600000)) : null;
         const examBadge = c.examInfo?.date
-          ? `<span class="badge ${daysLeft !== null && daysLeft >= 0 && daysLeft <= 14 ? 'warn' : ''}">Exam ${esc(c.examInfo.date)}${
-              daysLeft !== null && daysLeft >= 0 ? ` (${daysLeft}d)` : ''
+          ? `<span class="badge ${daysLeft !== null && daysLeft >= 0 && daysLeft <= 14 ? 'warn' : ''}" title="${totalHours !== null ? `${totalHours} hours left · Exam ${esc(c.examInfo.date)} (Oslo)` : `Exam ${esc(c.examInfo.date)}`}">Exam ${esc(c.examInfo.date)}${
+              Number.isFinite(targetMs) && targetMs > Date.now() - 14400_000
+                ? ` · <span class="exam-countdown-live" data-exam-target-ms="${targetMs}" data-exam-countdown-mode="card">${esc(formatExamCountdown(targetMs, 'card'))}</span>`
+                : ''
             }</span>`
           : '';
         const noItemsInDiff = homeDifficulty !== 'all' && cp.total === 0;
@@ -2012,6 +2093,7 @@ window.StudyApp = (() => {
     }
 
     // Order courses chronologically by upcoming exam date
+    ensureExamCountdownTicker();
     const sortedCourses = [...boot.catalog].sort((a, b) => {
       const da = daysUntilDateStr(a.examInfo?.date);
       const db = daysUntilDateStr(b.examInfo?.date);
@@ -2023,10 +2105,13 @@ window.StudyApp = (() => {
     const cardsHtml = sortedCourses
       .map((c) => {
         const daysLeft = daysUntilDateStr(c.examInfo?.date);
+        const targetMs = examTargetMs(c.examInfo);
         const daysPill =
-          daysLeft !== null
-            ? `<span class="badge ${daysLeft <= 14 && daysLeft >= 0 ? 'warn' : 'gold'}">${esc(c.examInfo.date)}${
-                daysLeft >= 0 ? ` · ${daysLeft}d left` : ''
+          c.examInfo?.date
+            ? `<span class="badge ${daysLeft !== null && daysLeft <= 14 && daysLeft >= 0 ? 'warn' : 'gold'}">${esc(c.examInfo.date)}${
+                Number.isFinite(targetMs) && targetMs > Date.now() - 14400_000
+                  ? ` · <span class="exam-countdown-live" data-exam-target-ms="${targetMs}" data-exam-countdown-mode="exam">${esc(formatExamCountdown(targetMs, 'exam'))}</span>`
+                  : ''
               }</span>`
             : '';
         const durMin = c.examInfo?.durationMinutes || 180;
