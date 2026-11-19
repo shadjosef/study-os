@@ -178,10 +178,6 @@ function cleanLabel(raw, fallback = 'Browser session') {
   return cleaned ? cleaned.slice(0, 48) : fallback;
 }
 
-function getRpId(env) {
-  return new URL(env.WEB_ORIGIN).hostname;
-}
-
 async function importPasskeySpki(spkiBytes, algorithm) {
   if (algorithm === -7) {
     return crypto.subtle.importKey('spki', spkiBytes, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
@@ -226,7 +222,8 @@ export async function handlePublicAuth({
     return reply({ googleClientId });
   }
   if (request.method !== 'POST') return reply({ error: 'Method not allowed.' }, 405);
-  const rpId = getRpId(env);
+  const webOrigin = request.headers.get('Origin');
+  const rpId = new URL(webOrigin).hostname;
 
   if (path === '/auth/google') {
     const clientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
@@ -358,7 +355,7 @@ export async function handlePublicAuth({
       return reply({ error: 'Invalid passkey assertion.' }, 400);
     }
     const { type, origin, challenge } = clientData.json || {};
-    if (type !== 'webauthn.get' || origin !== env.WEB_ORIGIN || typeof challenge !== 'string') {
+    if (type !== 'webauthn.get' || origin !== webOrigin || typeof challenge !== 'string') {
       return reply({ error: 'Passkey origin or type mismatch.' }, 400);
     }
 
@@ -480,7 +477,8 @@ export async function handlePublicAuth({
 }
 
 export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, now, data, reply, digest }) {
-  const rpId = getRpId(env);
+  const webOrigin = request.headers.get('Origin');
+  const rpId = new URL(webOrigin).hostname;
 
   if (path === '/auth/devices' && request.method === 'GET') {
     const [keysRes, sessRes, googleRow] = await Promise.all([
@@ -589,7 +587,7 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
       return reply({ error: 'Incomplete passkey registration data.' }, 400);
     }
     const { type, origin, challenge } = clientData.json || {};
-    if (type !== 'webauthn.create' || origin !== env.WEB_ORIGIN || typeof challenge !== 'string') {
+    if (type !== 'webauthn.create' || origin !== webOrigin || typeof challenge !== 'string') {
       return reply({ error: 'Passkey origin or type mismatch.' }, 400);
     }
 

@@ -1987,7 +1987,7 @@ window.StudyApp = (() => {
     return out;
   }
 
-  function buildEffortSortedQueue(questions, budgetMinutes = 40, profile = 'learning', filterTopics = [], effortMode = 'auto') {
+  function buildEffortSortedQueue(questions, budgetMinutes = 40, profile = 'learning', filterTopics = [], effortMode = 'auto', quick = false) {
     const rawMode = effortMode === 'auto' ? getResolvedFocusMode() : effortMode;
     const mode =
       rawMode === 'deep'
@@ -2002,15 +2002,17 @@ window.StudyApp = (() => {
 
     let pool = (questions || []).filter((q) => {
       if (q.available === false) return false;
+      if (getProgressRecord(q.id)?.status === 'done') return false;
       if (topicSet.size && !topicSet.has(String(q.topicId))) return false;
       return true;
     });
-    if (!pool.length && topicSet.size) {
-      pool = (questions || []).filter((q) => q.available !== false);
-    }
 
     const qMin = (q) => Number(q.pacing?.[profile]?.target || q.pacing?.learning?.target || (q.kind === 'mcq' ? 2 : 8));
     const qTier = (q) => effectiveDlpfc(q).tier;
+    if (quick) {
+      const short = pool.filter((q) => qMin(q) <= budgetMinutes);
+      pool = short.length ? short : pool.sort((a, b) => qMin(a) - qMin(b)).slice(0, 1);
+    }
 
     if (mode === 'high_dlpfc') {
       const highMedUnfinished = pool.filter(
@@ -2091,7 +2093,7 @@ window.StudyApp = (() => {
     const bank = await ensureCourseBank(block.courseId);
     const cMeta = boot.catalog.find((c) => c.courseId === block.courseId);
     const prof = block.recommendedProfile || 'learning';
-    let qids = block.autoQueue?.questionIds || [];
+    let qids = (block.autoQueue?.questionIds || []).filter((id) => getProgressRecord(id)?.status !== 'done');
     if (sessionFocusMode !== 'auto' || !qids.length) {
       qids = buildEffortSortedQueue(
         bank.questions || [],
@@ -2114,20 +2116,18 @@ window.StudyApp = (() => {
   async function launchSmartCourseRun(courseId, budgetMinutes = 40, profile = 'learning', filterTopic = '', effortMode = 'auto', quick = false) {
     const bank = await ensureCourseBank(courseId);
     const cMeta = boot.catalog.find((c) => c.courseId === courseId);
-    let pool = bank.questions || [];
-    if (quick) {
-      const minutes = (q) => Number(q.pacing?.learning?.target || (q.kind === 'mcq' ? 2 : 8));
-      const available = pool.filter((q) => q.available !== false);
-      const short = available.filter((q) => minutes(q) <= budgetMinutes);
-      pool = short.length ? short : available.sort((a, b) => minutes(a) - minutes(b)).slice(0, 1);
-    }
     const chosen = buildEffortSortedQueue(
-      pool,
+      bank.questions || [],
       budgetMinutes,
       profile,
       filterTopic ? [filterTopic] : [],
-      quick ? 'med_dlpfc' : effortMode
+      quick ? 'med_dlpfc' : effortMode,
+      quick
     );
+    if (!chosen.length) {
+      toast('No unfinished questions here. Open Topics & practice to review completed questions.');
+      return;
+    }
 
     window.StudyRunner.startRun({
       courseMeta: cMeta,

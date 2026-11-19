@@ -109,8 +109,9 @@ export default {
       'X-Content-Type-Options': 'nosniff',
       'Vary': 'Origin',
     };
-    if (request.headers.get('Origin') === env.WEB_ORIGIN) {
-      headers['Access-Control-Allow-Origin'] = env.WEB_ORIGIN;
+    const webOrigin = request.headers.get('Origin');
+    if (webOrigin && (webOrigin === env.WEB_ORIGIN || webOrigin === env.WEB_ADDITIONAL_ORIGIN)) {
+      headers['Access-Control-Allow-Origin'] = webOrigin;
     }
     const reply = (data, status = 200) => Response.json(data, { status, headers });
     if (!headers['Access-Control-Allow-Origin']) return reply({ error: 'Origin not allowed.' }, 403);

@@ -3,7 +3,8 @@
   "main": "worker.mjs",
   "compatibility_date": "2026-11-18",
   "vars": {
-    "WEB_ORIGIN": "https://shadjosef.github.io"
+    "WEB_ORIGIN": "https://shadjosef.github.io",
+    "WEB_ADDITIONAL_ORIGIN": "https://studyos.no"
   },
   "d1_databases": [
     {

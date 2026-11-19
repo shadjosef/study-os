@@ -3,7 +3,7 @@
 window.StudyTutor = (() => {
   const web = document.documentElement.dataset.studyMode === 'web';
   const localOrigin = 'http://127.0.0.1:8765';
-  const siteOrigin = 'https://shadjosef.github.io';
+  const siteOrigins = ['https://shadjosef.github.io', 'https://studyos.no'];
   const prompt = 'Use Study-OS get_current_exercise to see what I am working on. Tutor me with one next step or hint at a time. Check my working and cite the relevant notes or page when helpful. Give the full solution only if I explicitly ask.';
   const sharingKey = 'study-os-live-tutor';
   const tab = crypto.randomUUID();
@@ -96,7 +96,7 @@ window.StudyTutor = (() => {
       return;
     }
     paired = false;
-    popup = window.open(`${localOrigin}/tutor-bridge.html`, '_blank', 'popup,width=510,height=600');
+    popup = window.open(`${localOrigin}/tutor-bridge.html?site=${encodeURIComponent(location.origin)}`, '_blank', 'popup,width=510,height=600');
     status.textContent = popup ? 'Confirm sharing in the desktop window.' : 'Allow the desktop window to open, then retry.';
     window.StudyUI?.updateSettingsIndicators?.();
   };
@@ -120,7 +120,7 @@ window.StudyTutor = (() => {
   document.getElementById('tutor-copy-codex').onclick = () => copySetup(true);
   document.getElementById('tutor-copy-config').onclick = () => copySetup(false);
 
-  if (web && location.origin === siteOrigin) window.addEventListener('message', (event) => {
+  if (web && siteOrigins.includes(location.origin)) window.addEventListener('message', (event) => {
     if (event.origin !== localOrigin || event.source !== popup || event.data !== 'study-os:tutor-ready') return;
     paired = true;
     lastSnapshot = '';

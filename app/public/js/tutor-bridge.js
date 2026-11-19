@@ -1,7 +1,8 @@
 'use strict';
 
 (() => {
-  const hosted = 'https://shadjosef.github.io';
+  const siteOrigins = ['https://shadjosef.github.io', 'https://studyos.no'];
+  const hosted = new URLSearchParams(location.search).get('site') || siteOrigins[0];
   const connect = document.getElementById('bridge-connect');
   const status = document.getElementById('bridge-status');
   const codex = document.getElementById('bridge-codex');
@@ -31,7 +32,7 @@
     if (!response.ok) throw new Error();
     const { script, port } = await response.json();
     const args = ['run', '--script', script, '--port', String(port)];
-    connect.disabled = !window.opener;
+    connect.disabled = !window.opener || !siteOrigins.includes(hosted);
     codex.disabled = json.disabled = false;
     codex.onclick = () => copy(`[mcp_servers.study-os]\ncommand = "uv"\nargs = ${JSON.stringify(args)}`);
     json.onclick = () => copy(JSON.stringify({ mcpServers: { 'study-os': { command: 'uv', args } } }, null, 2));

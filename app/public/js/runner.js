@@ -190,6 +190,8 @@ window.StudyRunner = (() => {
     if (!activeRun.items[qid]) {
       const q = activeRun.questionsById[qid];
       const rec = window.StudyApp.getProgressRecord(qid) || {};
+      const resumeDraft = !activeRun.freshExamSit && rec.status !== 'done'
+        && (rec.status === 'in_progress' || (!rec.lastAttemptAt && !rec.attemptCount && !rec.pbEffectiveSec));
       const prof = activeRun.profile || 'learning';
       const pSpec = q?.pacing?.[prof] || q?.pacing?.learning || { target: 3, min: 2, max: 5 };
       activeRun.items[qid] = {
@@ -201,14 +203,12 @@ window.StudyRunner = (() => {
         stuckSec: Math.round((Number(q?.pacing?.stuckMinutes) || 2) * 60),
         handicapPerHintSec: Number(q?.pacing?.hintHandicapSeconds ?? 30),
         hintsUsed: 0,
-        choice: activeRun.freshExamSit ? null : rec.savedChoice !== undefined ? rec.savedChoice : null,
-        draft: activeRun.freshExamSit ? '' : rec.savedDraft || '',
-        wiseflow: activeRun.freshExamSit ? {} : rec.savedWiseflow ? { ...rec.savedWiseflow } : {},
+        choice: resumeDraft ? rec.savedChoice ?? null : null,
+        draft: resumeDraft ? rec.savedDraft || '' : '',
+        wiseflow: resumeDraft ? { ...rec.savedWiseflow } : {},
         wfGrade: null,
         numericInput: '',
-        checkedRubrics: activeRun.freshExamSit
-          ? []
-          : Array.isArray(rec.checkedRubricIndices)
+        checkedRubrics: resumeDraft && Array.isArray(rec.checkedRubricIndices)
           ? [...rec.checkedRubricIndices]
           : [],
         flagged: false,
