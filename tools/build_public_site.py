@@ -1020,6 +1020,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
                 rdata = json.loads(rjson.read_text(encoding="utf-8"))
                 for h in (rdata.get("toc") or []):
                     htext = str(h.get("text") or h.get("title") or "").strip() if isinstance(h, dict) else str(h).strip()
+                    htext = re.sub(r"[$*`]", "", htext).strip()
                     if htext and len(htext) >= 3:
                         toc_items.append(htext)
             except Exception:
