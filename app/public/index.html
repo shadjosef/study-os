@@ -330,17 +330,20 @@
     </aside>
     <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
     <dialog id="member-dialog" class="member-dialog" aria-labelledby="member-title">
-      <form id="member-form">
-        <h2 id="member-title">Unlock the full Study-OS library</h2>
-        <p class="muted">Enter your access string to open the full question banks, source files, books and worked answers.</p>
-        <label class="field-label">Access string
-          <input id="member-key" type="password" autocomplete="off" spellcheck="false" required autofocus>
+      <form id="member-form" novalidate>
+        <h2 id="member-title">Unlock private PDF archive</h2>
+        <p class="muted">All course practice questions &amp; past exams are already open to every signed-in and demo user. Only enter a 48-character <code>sos1_…</code> archive key here if you own the private encrypted PDF pack — otherwise use <strong>Sync BI Canvas</strong> or drop your own PDF book inside any exercise.</p>
+        <label class="field-label">Archive access string
+          <div class="member-key-row">
+            <input id="member-key" type="password" placeholder="sos1_…" autocomplete="off" spellcheck="false" required autofocus>
+            <button type="button" class="ghost-btn member-key-toggle" id="member-key-toggle" aria-label="Show access string">Show</button>
+          </div>
         </label>
         <label class="check-row"><input id="member-remember" type="checkbox" checked> Remember on this browser</label>
-        <p id="member-feedback" role="status"></p>
+        <p id="member-feedback" class="member-feedback" role="alert" aria-live="polite" hidden></p>
         <div class="row-actions">
-          <button type="submit" class="primary-btn">Unlock Study-OS</button>
-          <button type="button" class="ghost-btn" id="member-dismiss">Continue with public practice</button>
+          <button type="submit" class="primary-btn" id="member-submit-btn">Unlock Archive</button>
+          <button type="button" class="ghost-btn" id="member-dismiss">Close</button>
         </div>
       </form>
     </dialog>
@@ -1317,6 +1320,7 @@
   <script defer src="./vendor/katex.min.js"></script>
   <script defer src="./vendor/auto-render.min.js"></script>
   <script defer src="./js/render.js"></script>
+  <script defer src="./js/local-sources.js"></script>
   <script defer src="./js/pdf-reader.js"></script>
   <script defer src="./js/question-copy.js"></script>
   <script defer src="./js/study-tutor.js"></script>

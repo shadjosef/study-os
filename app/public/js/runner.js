@@ -30,8 +30,8 @@ window.StudyRunner = (() => {
 
   function needsSplitByContent(q, st) {
     if (!q) return false;
-    // Keep the task visible alongside inline PDFs and references.
-    if (st?.readerTab === 'pdf' || st?.readerTab === 'ref') return true;
+    // Keep the task visible alongside inline PDFs, source context gates, and references.
+    if (st?.readerTab === 'pdf' || st?.readerTab === 'context' || st?.readerTab === 'ref') return true;
     return false;
   }
 
@@ -626,7 +626,141 @@ window.StudyRunner = (() => {
         out.push(fallback);
       }
     }
+    // Check user's private browser-local BYOC PDFs (books & downloaded Canvas PDFs)
+    if (window.StudyLocalSources && Array.isArray(q.sourceRefs)) {
+      for (const ref of q.sourceRefs) {
+        if (!ref) continue;
+        if (isBlindUnfinished && ref.isSolution) continue;
+        if (!includeSolutionPdfs && ref.role === 'solution') continue;
+        const localRec = window.StudyLocalSources.match(q.courseId, ref);
+        if (!localRec) continue;
+        const page = Math.max(1, Number(ref.page) || 1);
+        const key = `local:${localRec.key}#p${page}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({
+          key,
+          localSourceKey: localRec.key,
+          localFile: localRec,
+          sourceId: ref.sourceId,
+          title: ref.title || localRec.title,
+          label: ref.caption || `${ref.title || localRec.filename} · p. ${page}`,
+          page,
+          isPdf: true,
+          pathStr: localRec.filename,
+        });
+      }
+    }
     return out;
+  }
+
+  function getQuestionLockedSources(q, isBlindUnfinished, includeSolutionPdfs, unlockedPdfs = []) {
+    const refs = Array.isArray(q?.sourceRefs) ? q.sourceRefs : [];
+    if (!refs.length) return [];
+    const unlockedIds = new Set(unlockedPdfs.map((p) => `${p.sourceId || ''}:${p.page || 1}`));
+    const hasMemberOrDesktop = unlockedPdfs.some((p) => !p.localSourceKey);
+    if (hasMemberOrDesktop) return [];
+    const out = [];
+    const seen = new Set();
+    for (const ref of refs) {
+      if (!ref) continue;
+      if (isBlindUnfinished && ref.isSolution) continue;
+      if (!includeSolutionPdfs && ref.role === 'solution') continue;
+      if (unlockedIds.has(`${ref.sourceId}:${ref.page || 1}`)) continue;
+      if (window.StudyLocalSources?.match(q.courseId, ref)) continue;
+      const dedupeKey = `${ref.sourceId}:${ref.page || 1}:${ref.role || ''}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      out.push(ref);
+    }
+    return out;
+  }
+
+  function renderSourceContextGate(q, lockedRefs, compact = false) {
+    if (!Array.isArray(lockedRefs) || !lockedRefs.length) return '';
+    const syncSt = window.StudyApp?.getBiSyncStatus?.() || { hasEverSynced: false };
+    const isSynced = Boolean(syncSt.hasEverSynced);
+    const books = lockedRefs.filter((r) => r.kind === 'book');
+    const canvasRefs = lockedRefs.filter((r) => r.kind !== 'book');
+
+    const bookCard = books.length ? (() => {
+      const b = books[0];
+      const pages = [...new Set(books.map((x) => `p. ${x.page || 1}`))].join(', ');
+      if (compact) {
+        return `<div class="source-gate-card source-gate-compact source-gate-book" data-local-dropzone data-course-id="${esc(q.courseId)}" data-source-id="${esc(b.sourceId)}" data-source-kind="book" data-source-title="${esc(b.title)}" data-source-page="${esc(b.page || 1)}">
+          <div class="source-gate-copy">
+            <strong>Textbook context · ${esc(b.title)} (${esc(pages)})</strong>
+            <small class="muted">Drop your own PDF copy of the book here to read ${esc(pages)} inline — stays 100% private in your browser.</small>
+          </div>
+          <div class="row-actions">
+            <label class="primary-btn source-gate-upload-btn" style="padding:6px 12px;font-size:12.5px">
+              Drop / Choose PDF Book
+              <input type="file" accept=".pdf,application/pdf" hidden data-local-pdf-input data-course-id="${esc(q.courseId)}" data-source-id="${esc(b.sourceId)}" data-source-kind="book" data-source-title="${esc(b.title)}" data-source-page="${esc(b.page || 1)}">
+            </label>
+          </div>
+        </div>`;
+      }
+      return `<div class="source-gate-card source-gate-book" data-local-dropzone data-course-id="${esc(q.courseId)}" data-source-id="${esc(b.sourceId)}" data-source-kind="book" data-source-title="${esc(b.title)}" data-source-page="${esc(b.page || 1)}">
+        <span class="prov-badge prov-book">Bring Your Own Book · ${esc(pages)}</span>
+        <h3 style="margin:8px 0 6px">Drop your own PDF copy of ${esc(b.title)}</h3>
+        <p class="muted" style="margin:0 0 12px;font-size:13.5px">Study-OS never distributes copyrighted publisher textbooks. Drop your own PDF copy once to unlock instant inline reading &amp; automatic page jumps (${esc(pages)}) across every textbook exercise in this course. Your PDF stays <strong>100% private in this browser</strong> (IndexedDB) and is never uploaded.</p>
+        <label class="source-dropzone-box">
+          <strong>Drop your textbook PDF here or click to choose file</strong>
+          <small class="muted">PDF only · jumps automatically to ${esc(pages)} · never leaves your device</small>
+          <input type="file" accept=".pdf,application/pdf" hidden data-local-pdf-input data-course-id="${esc(q.courseId)}" data-source-id="${esc(b.sourceId)}" data-source-kind="book" data-source-title="${esc(b.title)}" data-source-page="${esc(b.page || 1)}">
+        </label>
+      </div>`;
+    })() : '';
+
+    const canvasCard = canvasRefs.length ? (() => {
+      const c = canvasRefs[0];
+      const fileChips = canvasRefs.slice(0, 4).map((r) =>
+        `<span class="badge">${esc(r.filename || r.title)}${r.page ? ` · p. ${r.page}` : ''}</span>`
+      ).join('');
+      if (compact) {
+        return `<div class="source-gate-card source-gate-compact source-gate-canvas" data-local-dropzone data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-source-kind="canvas" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">
+          <div class="source-gate-copy">
+            <strong>${isSynced ? 'BI Canvas source ready' : 'Sync with BI Canvas to unlock readable course material'}</strong>
+            <small class="muted">${esc(c.filename || c.title)} (p. ${esc(c.page || 1)}) · ${isSynced ? 'Open directly on BI Canvas or attach your downloaded PDF for inline split-screen.' : 'Course PDFs &amp; slides stay on BI Canvas to respect copyright.'}</small>
+          </div>
+          <div class="row-actions">
+            ${isSynced && c.canvasUrl
+              ? `<a class="primary-btn" style="padding:6px 12px;font-size:12.5px;text-decoration:none" href="${esc(c.canvasUrl)}" target="_blank" rel="noopener">Open on BI Canvas ↗</a>`
+              : `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-open-bi-sync>Sync BI Canvas</button>`}
+            <label class="ghost-btn source-gate-upload-btn" style="padding:6px 10px;font-size:12.5px">
+              Drop PDF
+              <input type="file" accept=".pdf,application/pdf" hidden data-local-pdf-input data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-source-kind="canvas" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">
+            </label>
+          </div>
+        </div>`;
+      }
+      return `<div class="source-gate-card source-gate-canvas" data-local-dropzone data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-source-kind="canvas" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">
+        <span class="prov-badge ${isSynced ? 'prov-exam' : 'prov-lecture'}">${isSynced ? 'BI Canvas Connected' : 'Copyright-Safe Course Context'}</span>
+        <h3 style="margin:8px 0 6px">${isSynced ? 'Open or attach your BI Canvas source PDF' : 'Sync with your BI Canvas to unlock readable course material'}</h3>
+        <div class="row-actions" style="gap:6px;margin:0 0 10px;flex-wrap:wrap">${fileChips}</div>
+        <p class="muted" style="margin:0 0 12px;font-size:13.5px">${isSynced
+          ? 'Your BI Canvas account is connected. Open the official course file directly on BI Canvas below, or drop your downloaded PDF here to view it side-by-side inside Study-OS at the exact page.'
+          : 'To keep BI course slides, exams, and handouts copyright-safe, Study-OS does not host raw university PDFs publicly. Connect your BI Canvas account to verify enrollment and jump straight to the official files — or drop your own downloaded PDF copy below for private inline viewing.'}</p>
+        <div class="row-actions" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          ${isSynced
+            ? canvasRefs.slice(0, 3).map((r) => r.canvasUrl
+                ? `<a class="primary-btn" style="text-decoration:none" href="${esc(r.canvasUrl)}" target="_blank" rel="noopener">Open ${esc(r.filename || r.title)} on BI Canvas ↗</a>`
+                : '').join('')
+            : `<button type="button" class="primary-btn" data-open-bi-sync>Sync with BI Canvas →</button>`}
+        </div>
+        <label class="source-dropzone-box">
+          <strong>Or drop your downloaded PDF copy here for side-by-side reading</strong>
+          <small class="muted">Saved only inside this browser · opens directly to p. ${esc(c.page || 1)}</small>
+          <input type="file" accept=".pdf,application/pdf" hidden data-local-pdf-input data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-source-kind="canvas" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">
+        </label>
+      </div>`;
+    })() : '';
+
+    const ownerFoot = !compact && window.StudyMembers?.enabled && !window.StudyMembers.isUnlocked()
+      ? `<p class="muted" style="font-size:12px;margin:10px 0 0">Owner of the private encrypted PDF archive? <button type="button" class="inline-link-btn" data-open-member-unlock>Enter archive key</button></p>`
+      : '';
+
+    return `${bookCard}${canvasCard}${ownerFoot}`;
   }
 
   async function ensureInlineRefLoaded(q, st, customFile = '', customHeading = null) {
@@ -925,12 +1059,14 @@ window.StudyRunner = (() => {
     const isBlindUnfinished = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
     const hasWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
     const sourcePdfs = getQuestionSourcePdfs(q, sourcesMap, isBlindUnfinished, st.revealed);
+    const lockedSourceRefs = getQuestionLockedSources(q, isBlindUnfinished, st.revealed, sourcePdfs);
     const uiPrefs = getRunnerUiPrefs();
     const splitRatio = ['balanced', 'custom'].includes(uiPrefs.splitRatio) ? uiPrefs.splitRatio : 'wide-left';
     const instantMcq = Boolean(uiPrefs.instantMcq) && !isBlindUnfinished;
 
     // Guard invalid reader tab (e.g. if switched to question without PDFs or blind exam locks reference)
-    if (st.readerTab === 'pdf' && !sourcePdfs.length) st.readerTab = 'task';
+    if (st.readerTab === 'pdf' && !sourcePdfs.length) st.readerTab = lockedSourceRefs.length ? 'context' : 'task';
+    if (st.readerTab === 'context' && !lockedSourceRefs.length) st.readerTab = sourcePdfs.length ? 'pdf' : 'task';
     if (st.readerTab === 'ref' && isBlindUnfinished) st.readerTab = 'task';
 
     const autoNeedsSplit = needsSplitByContent(q, st);
@@ -1020,7 +1156,9 @@ window.StudyRunner = (() => {
             <div>${selectorHtml}</div>
             <div class="row-actions" style="gap:6px">
               <button type="button" class="mini-tool-btn ${st.invertPdfFrame ? 'active' : ''}" id="btn-invert-pdf-frame" title="Invert embedded PDF colors for night reading">Invert PDF</button>
-              ${memberFile ? memberDownload(memberFile) : `
+              ${memberFile ? memberDownload(memberFile) : curPdf.localSourceKey ? `
+                <span class="badge good" style="font-size:11px">Private Local PDF</span>
+                <button type="button" class="mini-tool-btn" data-remove-local-pdf="${esc(curPdf.localSourceKey)}" title="Remove this local PDF from browser storage">Remove</button>` : `
                 <button type="button" class="mini-tool-btn" data-open-native-pdf="${esc(curPdf.openAppUrl)}">Open in PDF App</button>
                 <a class="mini-tool-btn" href="${esc(curPdf.embedUrl)}" target="_blank" rel="noopener">New Tab ↗</a>`}
             </div>
@@ -1035,6 +1173,12 @@ window.StudyRunner = (() => {
                     <div class="pdf-zoom-page"><img ${memberFile ? memberPreviewAttrs(memberFile) : `src="${esc(curPdf.rawUrl)}"`} alt="${esc(curPdf.title)}"></div>
                   </div></figure>`
           }
+        </div>
+      `;
+    } else if (st.readerTab === 'context' && lockedSourceRefs.length) {
+      readerBodyHtml = `
+        <div class="source-context-pane">
+          ${renderSourceContextGate(q, lockedSourceRefs, false)}
         </div>
       `;
     } else if (st.readerTab === 'ref' && !isBlindUnfinished) {
@@ -1083,18 +1227,31 @@ window.StudyRunner = (() => {
              <span class="exam-paper-pts">(${Number(q.points)} points in total)</span>
            </div>`
         : `<h2 style="margin-top:0">${esc(q.title)}</h2>`;
+      const inlineGateRefs = lockedSourceRefs.filter((r) => r.role !== 'solution');
+      const taskGateHtml = inlineGateRefs.length ? renderSourceContextGate(q, inlineGateRefs, true) : '';
+      const localReadyStrip = sourcePdfs.some((p) => p.localSourceKey)
+        ? `<div class="source-ready-strip">
+             <span class="badge good">Private Local PDF Ready · ${esc(sourcePdfs[0].label)}</span>
+             <button type="button" class="mini-tool-btn" data-reader-tab="pdf">Open Source PDF (p.${esc(sourcePdfs[0].page || 1)})</button>
+           </div>`
+        : '';
       readerBodyHtml = `
         <div class="${isExamSheet ? 'exam-paper-sheet' : ''}">
           ${headerHtml}
+          ${localReadyStrip}
           ${contextHtml}
           ${promptAssetsHtml}
           ${svgHtml}
           ${promptMdHtml}
+          ${taskGateHtml}
         </div>
       `;
     }
 
     const firstPdfPageLbl = sourcePdfs[0]?.isPdf ? ` (p.${sourcePdfs[0].page})` : '';
+    const firstLockedLbl = lockedSourceRefs[0]?.kind === 'book'
+      ? `Book PDF (p.${lockedSourceRefs[0].page || 1})`
+      : 'Source Context';
     const readerTabBarHtml = `
       <div class="reader-tabbar">
         <div class="reader-tabs" role="tablist" aria-label="Task & Source Reader">
@@ -1102,6 +1259,8 @@ window.StudyRunner = (() => {
           ${
             sourcePdfs.length
               ? `<button type="button" class="reader-tab-btn ${st.readerTab === 'pdf' ? 'active' : ''}" data-reader-tab="pdf">Source PDF${firstPdfPageLbl}</button>`
+              : lockedSourceRefs.length
+              ? `<button type="button" class="reader-tab-btn ${st.readerTab === 'context' ? 'active' : ''}" data-reader-tab="context">${esc(firstLockedLbl)}</button>`
               : ''
           }
           ${
@@ -1357,6 +1516,8 @@ window.StudyRunner = (() => {
         `;
       }
 
+      const solLockedRefs = lockedSourceRefs.filter((r) => r.role === 'solution' || r.isSolution);
+      const solGateHtml = solLockedRefs.length ? renderSourceContextGate(q, solLockedRefs, true) : '';
       solutionHtml = `
         <section class="solution-panel" id="solution-box">
           ${attemptBanner}
@@ -1365,6 +1526,7 @@ window.StudyRunner = (() => {
             ${topQuickActionsHtml}
           </div>
           ${solAssets}
+          ${solGateHtml}
           <div class="markdown-body">${renderMarkdownWithMath(q.solutionMarkdown || '')}</div>
           ${pitfallHtml}
           ${verificationHtml}
@@ -1417,10 +1579,14 @@ window.StudyRunner = (() => {
            </div>
          </details>`;
 
+    const provBadgeHtml = window.StudyProvenance
+      ? window.StudyProvenance.badgeHtml(q, activeRun.bank, { showModel: true })
+      : '';
     const statusBarHtml = `
       <div class="runner-card-meta-bar">
         <div class="runner-meta-crumb" ${questionCollection ? `title="${esc(examLabel(questionCollection.title))}"` : ''}>
           <span class="runner-topic-label">${esc(questionTopic?.title || 'Topic ' + q.topicId)}</span>
+          ${provBadgeHtml}
           ${diffBadgeHtml}
           ${q.points ? `<span class="badge gold">${q.points} pts</span>` : ''}
         </div>
@@ -1484,6 +1650,8 @@ window.StudyRunner = (() => {
           ${
             !isSplit && sourcePdfs.length
               ? `<button type="button" class="ghost-btn" id="btn-bottom-pdf" title="Open embedded Source PDF side-by-side">PDF</button>`
+              : !isSplit && lockedSourceRefs.length
+              ? `<button type="button" class="ghost-btn" id="btn-bottom-context" title="Open Source Context (Sync BI Canvas or Drop PDF)">Source</button>`
               : ''
           }
           <button type="button" class="ghost-btn" id="btn-end-run">${isBlindUnfinished ? 'Submit…' : 'End Run'}</button>
@@ -1671,6 +1839,77 @@ window.StudyRunner = (() => {
       st.readerTab = st.readerTab === 'pdf' ? 'task' : 'pdf';
       if (st.readerTab === 'pdf') st.layoutOverride = null; // Auto-expand into side-by-side split for PDF reading
       renderRunner();
+    });
+
+    document.getElementById('btn-bottom-context')?.addEventListener('click', () => {
+      st.readerTab = st.readerTab === 'context' ? 'task' : 'context';
+      if (st.readerTab === 'context') st.layoutOverride = null;
+      renderRunner();
+    });
+
+    // Local BYOC PDF drop / upload handlers (100% browser-private IndexedDB)
+    const handleLocalPdfAttach = async (file, el) => {
+      if (!file || !window.StudyLocalSources) return;
+      const cid = el.dataset.courseId || q.courseId;
+      const sid = el.dataset.sourceId || '';
+      const kind = el.dataset.sourceKind || 'canvas';
+      const title = el.dataset.sourceTitle || file.name;
+      const targetPage = Math.max(1, Number(el.dataset.sourcePage) || 1);
+      try {
+        await window.StudyLocalSources.save(cid, sid, file, { kind, title });
+        st.readerTab = 'pdf';
+        st.selectedPdfIdx = 0;
+        st.layoutOverride = null;
+        toast(`Saved "${file.name}" privately in this browser · opening p. ${targetPage}`);
+        renderRunner();
+      } catch (err) {
+        toast(err.message || 'Could not save PDF locally.');
+      }
+    };
+
+    card.querySelectorAll('[data-local-pdf-input]').forEach((inp) => {
+      inp.addEventListener('change', async () => {
+        const file = inp.files?.[0];
+        if (file) await handleLocalPdfAttach(file, inp);
+        inp.value = '';
+      });
+    });
+
+    card.querySelectorAll('[data-local-dropzone]').forEach((zone) => {
+      zone.addEventListener('dragover', (ev) => {
+        ev.preventDefault();
+        zone.classList.add('is-dragover');
+      });
+      zone.addEventListener('dragleave', () => zone.classList.remove('is-dragover'));
+      zone.addEventListener('drop', async (ev) => {
+        ev.preventDefault();
+        zone.classList.remove('is-dragover');
+        const file = ev.dataTransfer?.files?.[0];
+        if (file) await handleLocalPdfAttach(file, zone);
+      });
+    });
+
+    card.querySelectorAll('[data-remove-local-pdf]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const key = btn.dataset.removeLocalPdf;
+        if (!key || !window.StudyLocalSources) return;
+        await window.StudyLocalSources.remove(key);
+        st.readerTab = 'task';
+        toast('Removed local PDF copy from this browser.');
+        renderRunner();
+      });
+    });
+
+    card.querySelectorAll('[data-open-bi-sync]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        window.StudyApp?.openBiSyncHub?.();
+      });
+    });
+
+    card.querySelectorAll('[data-open-member-unlock]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.getElementById('btn-member-library')?.click();
+      });
     });
 
     document.getElementById('btn-toggle-instant-mcq')?.addEventListener('click', () => {

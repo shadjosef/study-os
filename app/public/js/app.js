@@ -1898,13 +1898,14 @@ window.StudyApp = (() => {
     };
   }
 
-  function openLocalPdf(name, rawUrl) {
+  function openLocalPdf(name, rawUrl, localSourceKey = '') {
     const dialog = document.getElementById('local-book-dialog');
     const reader = document.getElementById('local-book-reader');
     document.getElementById('local-book-title').textContent = name;
     reader.innerHTML = window.StudyPdf.viewer();
     dialog.showModal();
-    window.StudyPdf.mount(reader, { rawUrl, page: 1 }, { page: 1, zoom: 100, trim: false });
+    const src = localSourceKey ? { localSourceKey, page: 1 } : { rawUrl, page: 1 };
+    window.StudyPdf.mount(reader, src, { page: 1, zoom: 100, trim: false });
   }
 
   function bindStudyAdmin() {
@@ -2224,18 +2225,49 @@ window.StudyApp = (() => {
     const dialog = document.getElementById('member-dialog');
     const form = document.getElementById('member-form');
     const key = document.getElementById('member-key');
+    const toggleBtn = document.getElementById('member-key-toggle');
     const feedback = document.getElementById('member-feedback');
-    const submit = form.querySelector('button[type=submit]');
+    const submit = document.getElementById('member-submit-btn') || form.querySelector('button[type=submit]');
+
+    const setFeedback = (text, kind = '') => {
+      feedback.textContent = text || '';
+      feedback.hidden = !text;
+      feedback.classList.remove('is-error', 'is-success', 'is-loading', 'is-shake');
+      if (kind) feedback.classList.add(`is-${kind}`);
+      if (kind === 'error') {
+        void feedback.offsetWidth;
+        feedback.classList.add('is-shake');
+      }
+    };
+
     const dismiss = () => {
       try { sessionStorage.setItem('study-os-member-dismissed', '1'); } catch {}
       key.value = '';
+      key.type = 'password';
+      if (toggleBtn) toggleBtn.textContent = 'Show';
+      setFeedback('');
       dialog.close();
     };
     const show = () => {
       window.StudyUI.closeSettings?.();
-      feedback.textContent = '';
+      key.type = 'password';
+      if (toggleBtn) toggleBtn.textContent = 'Show';
+      setFeedback('');
       dialog.showModal();
+      setTimeout(() => key.focus(), 20);
     };
+
+    if (toggleBtn) {
+      toggleBtn.onclick = () => {
+        const nextVisible = key.type === 'password';
+        key.type = nextVisible ? 'text' : 'password';
+        toggleBtn.textContent = nextVisible ? 'Hide' : 'Show';
+        toggleBtn.setAttribute('aria-label', nextVisible ? 'Hide access string' : 'Show access string');
+      };
+    }
+    key.addEventListener('input', () => {
+      if (feedback.classList.contains('is-error')) setFeedback('');
+    });
     dialog.addEventListener('cancel', dismiss);
     document.getElementById('member-dismiss').onclick = dismiss;
     document.getElementById('btn-member-library').onclick = async () => {
@@ -2250,31 +2282,46 @@ window.StudyApp = (() => {
         try { sessionStorage.removeItem('study-os-member-dismissed'); } catch {}
         for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
         await refreshBootstrap();
+        toast('Private PDF archive locked.');
         show();
       } else {
-        if (!window.StudyCommunity.hasProfile()
-            && !await window.StudyCommunity.requireProfile({ allowDemo: true, forcePrompt: true })) return;
         await members.restore();
-        if (members.isUnlocked()) await refreshBootstrap();
-        else show();
+        if (members.isUnlocked()) {
+          for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
+          await refreshBootstrap();
+          toast('Private PDF archive restored.');
+        } else {
+          show();
+        }
       }
     };
     form.onsubmit = async (event) => {
       event.preventDefault();
+      const origLabel = submit.textContent;
       submit.disabled = true;
-      feedback.textContent = 'Opening your library…';
+      submit.textContent = 'Unlocking…';
+      setFeedback('Decrypting private PDF archive…', 'loading');
       try {
         const remember = document.getElementById('member-remember').checked;
         const remembered = await members.unlock(key.value, remember);
         key.value = '';
+        key.type = 'password';
+        if (toggleBtn) toggleBtn.textContent = 'Show';
         for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
         await refreshBootstrap();
+        const totalQ = (boot.catalog || []).reduce((s, c) => s + Number(c.questionCount || 0), 0);
+        setFeedback(`Archive unlocked (${totalQ} questions + original PDFs).`, 'success');
         dialog.close();
-        toast(remember && !remembered ? 'Library unlocked for this visit. This browser could not save the key.' : 'Full library unlocked.');
+        toast(remember && !remembered
+          ? `Private PDF archive unlocked for this visit (${totalQ} questions).`
+          : `Private PDF archive unlocked (${totalQ} questions + PDFs).`);
       } catch (error) {
-        feedback.textContent = error.message || 'Could not open the library.';
+        setFeedback(error.message || 'Could not open the private archive.', 'error');
+        key.focus();
+        key.select?.();
       } finally {
         submit.disabled = false;
+        submit.textContent = origLabel;
       }
     };
   }
@@ -2324,12 +2371,22 @@ window.StudyApp = (() => {
           ? publicReferenceUrl(c.obsidian.practiceNote)
           : '';
 
-        const packsHtml = examColls
+        const packsHtml = [...examColls]
+          .sort((a, b) => {
+            const pa = window.StudyProvenance?.describeCollection?.(a, c.courseId);
+            const pb = window.StudyProvenance?.describeCollection?.(b, c.courseId);
+            return (pa?.synthetic ? 1 : 0) - (pb?.synthetic ? 1 : 0);
+          })
           .map(
             (col) => {
               const colDur = Number(col.durationMinutes || durMin);
-              return `<div class="exam-pack-card">
+              const colProv = window.StudyProvenance?.describeCollection?.(col, c.courseId);
+              const provPill = colProv
+                ? `<span class="prov-badge ${colProv.badgeClass}" style="margin-bottom:4px" title="${esc(colProv.tooltip)}">${esc(colProv.badgeText)}</span>`
+                : '';
+              return `<div class="exam-pack-card ${colProv && !colProv.synthetic ? 'exam-pack-official' : ''}">
               <div>
+                ${provPill}
                 <strong>${esc(examLabel(col.title))}</strong>
                 <small class="muted">${colDur} min${col.description ? ` · ${esc(col.description)}` : ''}</small>
               </div>
@@ -2337,7 +2394,7 @@ window.StudyApp = (() => {
                 <button type="button" class="primary-btn" style="flex:1" data-sit-course="${esc(c.courseId)}" data-sit-coll="${esc(
               col.id
             )}" data-sit-dur="${colDur}" data-sit-title="${esc(examLabel(col.title))}">
-                  ${members.isUnlocked() && col.kind === 'exam' ? 'Review paper' : 'Start paper'}
+                  ${colProv && !colProv.synthetic ? 'Practice past exam' : 'Start AI mock'}
                 </button>
               </div>
             </div>`;
@@ -2394,15 +2451,18 @@ window.StudyApp = (() => {
             <span class="eyebrow">WISEflow &amp; Past Exam Simulator</span>
             <h1 class="hero-title" style="margin-bottom:6px">Mock exams and past papers</h1>
             <p class="muted" style="margin:0;font-size:14px">
-              Choose a timed mock or a guided practice session. Accounting mocks include numerical entry with a 2% tolerance.
+              Official BI past exams are listed first and clearly separated from AI-generated mocks (with model provenance). Open for all accounts &amp; demo — sync BI Canvas or drop your own PDFs inside any exercise to read original source sheets inline.
             </p>
             <div class="row-actions" style="margin-top:10px;flex-wrap:wrap">
-              ${isStaticWeb && members.enabled && !members.isUnlocked()
-                ? `<button type="button" class="primary-btn" id="btn-exams-unlock-member">Unlock full member library (past exams &amp; PDFs)</button>`
-                : isStaticWeb && members.enabled && members.isUnlocked()
-                ? `<span class="badge good">Full member library unlocked</span>`
+              ${isStaticWeb && !getBiSyncStatus().hasEverSynced
+                ? `<button type="button" class="primary-btn" id="btn-exams-sync-bi">Sync BI Canvas for course PDFs</button>`
                 : ''}
               <a class="ghost-btn" href="https://portal.bi.no/en/exams/former-examination-papers" target="_blank" rel="noopener">Official BI past papers portal ↗</a>
+              ${isStaticWeb && members.enabled && !members.isUnlocked()
+                ? `<button type="button" class="ghost-btn" id="btn-exams-unlock-member" style="font-size:12.5px">Owner PDF key</button>`
+                : isStaticWeb && members.enabled && members.isUnlocked()
+                ? `<span class="badge good">Private PDF archive unlocked</span>`
+                : ''}
             </div>
           </div>
           <div>
@@ -2421,6 +2481,9 @@ window.StudyApp = (() => {
       ${cardsHtml}
     `;
 
+    root.querySelector('#btn-exams-sync-bi')?.addEventListener('click', () => {
+      openBiSyncHub();
+    });
     root.querySelector('#btn-exams-unlock-member')?.addEventListener('click', () => {
       document.getElementById('btn-member-library')?.click();
     });
@@ -2675,6 +2738,17 @@ window.StudyApp = (() => {
       return t - 1; // 1 -> 2 -> 3
     };
 
+    const authenticRank = (q) => {
+      const p = window.StudyProvenance?.describe?.(q);
+      if (!p) return ['synthetic_drill', 'mock_exam'].includes(q.origin) ? 2 : 0;
+      if (!p.synthetic && p.category !== 'book') return 0; // Official BI Past Exams, Exercises, Tutoring, Lectures, Readings FIRST
+      if (p.category === 'book') {
+        const hasBook = window.StudyLocalSources?.match?.(q.courseId, { kind: 'book', sourceId: 'textbook-12e' });
+        return hasBook ? 0 : 1;
+      }
+      return 2; // AI Mocks & Synthetic Drills AFTER authentic BI items
+    };
+
     pool.sort((a, b) => {
       const ba = bucketRank(a);
       const bb = bucketRank(b);
@@ -2684,6 +2758,10 @@ window.StudyApp = (() => {
       const tb = tierRank(b);
       if (ta !== tb) return ta - tb;
 
+      const aa = authenticRank(a);
+      const ab = authenticRank(b);
+      if (aa !== ab) return aa - ab;
+
       if (mode === 'high_dlpfc') {
         const qa = qMin(a);
         const qb = qMin(b);
@@ -2692,9 +2770,6 @@ window.StudyApp = (() => {
         return qMin(a) - qMin(b);
       }
 
-      const sa = a.origin === 'synthetic_drill' ? 1 : 0;
-      const sb = b.origin === 'synthetic_drill' ? 1 : 0;
-      if (sa !== sb) return sa - sb;
       return effectiveDifficulty(b) - effectiveDifficulty(a);
     });
 
@@ -2894,10 +2969,38 @@ window.StudyApp = (() => {
           <input type="search" id="member-file-search" aria-label="Find course files" placeholder="Find a book, slide deck or exam">
           ${library}
         </details>` : ''}
+        ${isStaticWeb ? (() => {
+          const browserFiles = window.StudyLocalSources?.list?.(courseId) || [];
+          const hasBookSources = Object.values(bank.sources || {}).some((s) => s?.kind === 'book');
+          const syncNow = getBiSyncStatus().hasEverSynced;
+          return `<details class="curriculum" id="course-browser-vault">
+            <summary>Your local books &amp; BI PDFs in this browser (${browserFiles.length})</summary>
+            <p class="muted" style="font-size:13px;margin:6px 0 10px">
+              Drop your own ${hasBookSources ? 'textbook PDF (e.g. Atrill &amp; McLaney 12th ed.) or ' : ''}downloaded BI Canvas PDFs here to unlock side-by-side page reading across exercises. Files stay <strong>100% private in this browser</strong> (never uploaded).
+            </p>
+            <div class="row-actions" style="gap:8px;margin-bottom:10px;flex-wrap:wrap">
+              <label class="primary-btn source-gate-upload-btn" style="padding:7px 13px;font-size:13px">
+                + Add PDFs / Textbook to Browser
+                <input type="file" id="exp-browser-pdf-input" accept=".pdf,application/pdf" multiple hidden>
+              </label>
+              ${!syncNow ? '<button type="button" class="ghost-btn" id="exp-open-bi-sync">Sync BI Canvas →</button>' : '<span class="badge good">BI Canvas Connected</span>'}
+            </div>
+            ${browserFiles.length ? `<ul>${browserFiles.map((f) => `<li class="row-between" style="gap:8px">
+              <button type="button" class="member-file" data-browser-pdf-key="${esc(f.key)}" data-browser-pdf-title="${esc(f.title || f.filename)}">${esc(f.filename)} <small class="muted">(${esc(window.StudyLocalSources.formatBytes(f.size))})</small></button>
+              <button type="button" class="ghost-btn" style="padding:2px 8px;font-size:11.5px" data-browser-pdf-del="${esc(f.key)}">Remove</button>
+            </li>`).join('')}</ul>` : '<p class="muted" style="font-size:12.5px;margin:4px 0 0">No local PDFs attached to this course yet.</p>'}
+          </details>`;
+        })() : ''}
         ${localLibrary}
 
-        <div class="preset-chips-bar" role="group" aria-label="Practice difficulty presets">
-          <small class="muted" style="font-weight:700;margin-right:4px">PRESETS:</small>
+        <div class="preset-chips-bar" role="group" aria-label="Source and difficulty presets">
+          <small class="muted" style="font-weight:700;margin-right:4px">SOURCE:</small>
+          <button type="button" class="preset-chip" data-exp-preset="official_only">Official BI Only</button>
+          <button type="button" class="preset-chip" data-exp-preset="past_exams">Past Exams</button>
+          <button type="button" class="preset-chip" data-exp-preset="course_work">Exercises &amp; Tutoring</button>
+          ${(bank.questions || []).some((q) => (q.provenance?.category || q.origin) === 'book' || q.origin === 'textbook') ? '<button type="button" class="preset-chip" data-exp-preset="book_only">Book Exercises</button>' : ''}
+          <button type="button" class="preset-chip" data-exp-preset="ai_only">AI Practice</button>
+          <small class="muted" style="font-weight:700;margin:0 4px 0 8px">EFFORT:</small>
           <button type="button" class="preset-chip" data-exp-preset="high_dlpfc" data-layout-tier="3">${window.StudyLayout.label(3)}</button>
           <button type="button" class="preset-chip" data-exp-preset="med_dlpfc" data-layout-tier="2">${window.StudyLayout.label(2)}</button>
           <button type="button" class="preset-chip" data-exp-preset="low_dlpfc" data-layout-tier="1">${window.StudyLayout.label(1)}</button>
@@ -2907,8 +3010,18 @@ window.StudyApp = (() => {
         </div>
 
         <div class="explorer-primary-bar" style="margin-top:12px">
-          <input type="search" id="flt-search" placeholder="Search concepts, formulas, question IDs…" style="min-width:210px;flex:1.4">
-          <select id="flt-topic" aria-label="Topic or chapter" style="min-width:170px;flex:1">${topicOptions}</select>
+          <input type="search" id="flt-search" placeholder="Search concepts, formulas, question IDs…" style="min-width:190px;flex:1.2">
+          <select id="flt-origin" aria-label="Source provenance" style="min-width:165px">
+            <option value="all">All Sources (Official First)</option>
+            <option value="official_only">Official BI Only (Hide AI)</option>
+            <option value="past_exam">Past Exams Only</option>
+            <option value="exercise_tutoring">BI Exercises &amp; Tutoring</option>
+            <option value="tutoring">Tutoring Sessions Only</option>
+            <option value="lecture_reading">Lectures &amp; Readings</option>
+            <option value="book">Book Exercises (BYOB)</option>
+            <option value="ai_only">AI Mocks &amp; Synthetics</option>
+          </select>
+          <select id="flt-topic" aria-label="Topic or chapter" style="min-width:160px;flex:1">${topicOptions}</select>
           <select id="flt-status" aria-label="Completion status" style="min-width:145px">
             <option value="unfinished">Unfinished (Todo + Revisit)</option>
             <option value="all">All Statuses</option>
@@ -3028,6 +3141,7 @@ window.StudyApp = (() => {
 
     const applyPreset = (rawPreset) => {
       const presetName = rawPreset === 'pre15_deep' ? 'high_dlpfc' : rawPreset === 'post15_mcq' ? 'low_dlpfc' : rawPreset;
+      const oEl = document.getElementById('flt-origin');
       const kEl = document.getElementById('flt-kind');
       const dEl = document.getElementById('flt-diff');
       const hEl = document.getElementById('flt-horizon');
@@ -3035,7 +3149,38 @@ window.StudyApp = (() => {
       const sortEl = document.getElementById('flt-sort');
       const bEl = document.getElementById('flt-budget');
 
-      if (presetName === 'high_dlpfc' || presetName === 'hard_only') {
+      if (presetName === 'official_only') {
+        oEl.value = 'official_only';
+        kEl.value = 'all';
+        dEl.value = 'all';
+        hEl.value = 'all';
+        sEl.value = 'unfinished';
+      } else if (presetName === 'past_exams') {
+        oEl.value = 'past_exam';
+        kEl.value = 'all';
+        dEl.value = 'all';
+        hEl.value = 'all';
+        sEl.value = 'all';
+        sortEl.value = 'bank_order';
+      } else if (presetName === 'course_work') {
+        oEl.value = 'exercise_tutoring';
+        kEl.value = 'all';
+        dEl.value = 'all';
+        hEl.value = 'all';
+        sEl.value = 'unfinished';
+      } else if (presetName === 'book_only') {
+        oEl.value = 'book';
+        kEl.value = 'all';
+        dEl.value = 'all';
+        hEl.value = 'all';
+        sEl.value = 'unfinished';
+      } else if (presetName === 'ai_only') {
+        oEl.value = 'ai_only';
+        kEl.value = 'all';
+        dEl.value = 'all';
+        hEl.value = 'all';
+        sEl.value = 'unfinished';
+      } else if (presetName === 'high_dlpfc' || presetName === 'hard_only') {
         kEl.value = 'all';
         dEl.value = '3';
         hEl.value = 'all';
@@ -3070,6 +3215,7 @@ window.StudyApp = (() => {
         sEl.value = 'unfinished';
         sortEl.value = 'horizon_desc';
       } else {
+        oEl.value = 'all';
         document.getElementById('flt-topic').value = 'all';
         document.getElementById('flt-coll').value = 'all';
         kEl.value = 'all';
@@ -3086,6 +3232,7 @@ window.StudyApp = (() => {
     };
 
     const getMatching = () => {
+      const oVal = document.getElementById('flt-origin')?.value || 'all';
       const tVal = document.getElementById('flt-topic').value;
       const cVal = document.getElementById('flt-coll').value;
       const kVal = document.getElementById('flt-kind').value;
@@ -3102,6 +3249,22 @@ window.StudyApp = (() => {
 
       let filtered = (bank.questions || []).filter((q) => {
         if (q.available === false) return false;
+        const prov = window.StudyProvenance?.describe?.(q, bank);
+        if (oVal === 'official_only') {
+          if (prov?.synthetic || prov?.category === 'book') return false;
+        } else if (oVal === 'past_exam') {
+          if (prov?.category !== 'past_exam') return false;
+        } else if (oVal === 'exercise_tutoring') {
+          if (!['exercise', 'tutoring'].includes(prov?.category)) return false;
+        } else if (oVal === 'tutoring') {
+          if (prov?.category !== 'tutoring') return false;
+        } else if (oVal === 'lecture_reading') {
+          if (!['lecture', 'reading'].includes(prov?.category)) return false;
+        } else if (oVal === 'book') {
+          if (prov?.category !== 'book') return false;
+        } else if (oVal === 'ai_only') {
+          if (!prov?.synthetic) return false;
+        }
         if (tVal !== 'all' && String(q.topicId) !== tVal) return false;
         if (cVal !== 'all' && String(q.collectionId) !== cVal) return false;
         if (kVal === 'no_mcq') {
@@ -3151,6 +3314,7 @@ window.StudyApp = (() => {
         return 4;
       };
 
+      const provOrder = (q) => window.StudyProvenance?.describe?.(q, bank)?.priorityRank ?? 3;
       if (sortVal === 'deep_first') {
         filtered.sort((a, b) => {
           const da = effectiveDlpfc(a).tier;
@@ -3159,19 +3323,22 @@ window.StudyApp = (() => {
           const ba = smartBucket(a);
           const bb = smartBucket(b);
           if (ba !== bb) return ba - bb;
+          const pa = provOrder(a) >= 4 ? 1 : 0;
+          const pb = provOrder(b) >= 4 ? 1 : 0;
+          if (pa !== pb) return pa - pb;
           return qActiveMin(b) - qActiveMin(a);
         });
         if (tVal === 'all') {
-          filtered = interleaveByTopic(filtered, (q) => `${effectiveDlpfc(q).tier}:${smartBucket(q)}`);
+          filtered = interleaveByTopic(filtered, (q) => `${effectiveDlpfc(q).tier}:${smartBucket(q)}:${provOrder(q) >= 4 ? 1 : 0}`);
         }
       } else if (sortVal === 'horizon_desc') {
         filtered.sort((a, b) => qActiveMin(b) - qActiveMin(a) || effectiveDlpfc(b).tier - effectiveDlpfc(a).tier);
       } else if (sortVal === 'diff_desc') {
         filtered.sort((a, b) => effectiveDlpfc(b).tier - effectiveDlpfc(a).tier || qActiveMin(b) - qActiveMin(a));
       } else if (sortVal === 'smart_priority') {
-        filtered.sort((a, b) => smartBucket(a) - smartBucket(b) || effectiveDlpfc(b).tier - effectiveDlpfc(a).tier);
+        filtered.sort((a, b) => smartBucket(a) - smartBucket(b) || (provOrder(a) >= 4 ? 1 : 0) - (provOrder(b) >= 4 ? 1 : 0) || effectiveDlpfc(b).tier - effectiveDlpfc(a).tier);
         if (tVal === 'all') {
-          filtered = interleaveByTopic(filtered, (q) => `${smartBucket(q)}:${effectiveDlpfc(q).tier}`);
+          filtered = interleaveByTopic(filtered, (q) => `${smartBucket(q)}:${provOrder(q) >= 4 ? 1 : 0}:${effectiveDlpfc(q).tier}`);
         }
       } else if (sortVal === 'horizon_asc') {
         filtered.sort((a, b) => qActiveMin(a) - qActiveMin(b));
@@ -3238,8 +3405,11 @@ window.StudyApp = (() => {
           const dlpfc = effectiveDlpfc(q, rec);
           const diffBadge = `<span class="diff-badge diff-${dlpfc.tier}" data-layout-tier="${dlpfc.tier}"${dlpfc.chunked
             ? ' title="Previously mastered problem with fewer new steps"' : ''}>${window.StudyLayout.label(dlpfc.tier)}</span>`;
+          const provPill = window.StudyProvenance
+            ? window.StudyProvenance.badgeHtml(q, bank, { showModel: true, short: true })
+            : '';
           return `<tr>
-            <td><strong>${esc(q.title)}</strong><br><small class="muted">${esc(q.localId || q.id)}</small></td>
+            <td><strong>${esc(q.title)}</strong><div class="exp-row-meta">${provPill}<small class="muted">${esc(q.localId || q.id)}</small></div></td>
             <td><span class="badge">T${esc(q.topicId)}</span></td>
             <td>${diffBadge}</td>
             <td>${kindBadge}</td>
@@ -3287,6 +3457,32 @@ window.StudyApp = (() => {
     });
 
     members.bindDownloads(root);
+    root.querySelector('#exp-open-bi-sync')?.addEventListener('click', () => openBiSyncHub());
+    root.querySelector('#exp-browser-pdf-input')?.addEventListener('change', async (ev) => {
+      const files = ev.target.files;
+      if (!files?.length || !window.StudyLocalSources) return;
+      const res = await window.StudyLocalSources.saveBatch(courseId, files, bank.sources || {});
+      ev.target.value = '';
+      if (res.saved.length) {
+        toast(`Saved ${res.saved.length} PDF${res.saved.length === 1 ? '' : 's'} privately in this browser.`);
+        await renderCourseExplorer(courseId, initialPreset);
+        document.getElementById('course-browser-vault')?.setAttribute('open', '');
+      }
+      if (res.errors.length) toast(res.errors[0]);
+    });
+    root.querySelectorAll('[data-browser-pdf-key]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        openLocalPdf(btn.dataset.browserPdfTitle || 'Local PDF', '', btn.dataset.browserPdfKey);
+      });
+    });
+    root.querySelectorAll('[data-browser-pdf-del]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        await window.StudyLocalSources?.remove?.(btn.dataset.browserPdfDel);
+        toast('Removed local PDF from this browser.');
+        await renderCourseExplorer(courseId, initialPreset);
+        document.getElementById('course-browser-vault')?.setAttribute('open', '');
+      });
+    });
     root.querySelector('#exp-add-canvas-files')?.addEventListener('click', () => openCanvasFiles(localCanvasId));
     for (const button of root.querySelectorAll('[data-local-pdf]')) {
       button.onclick = () => {
@@ -3326,8 +3522,9 @@ window.StudyApp = (() => {
     document.getElementById('exp-course-sel').onchange = (e) => renderCourseExplorer(e.target.value, initialPreset);
     document.getElementById('exp-open-exams').onclick = () => navigate('exams', { focusCourseId: courseId });
     document.getElementById('exp-open-ref').onclick = () => openReferenceDrawer(cMeta);
-    for (const id of ['flt-topic', 'flt-coll', 'flt-kind', 'flt-diff', 'flt-horizon', 'flt-status', 'flt-sort', 'flt-profile', 'flt-budget', 'flt-shuffle']) {
-      document.getElementById(id).onchange = refreshTable;
+    for (const id of ['flt-origin', 'flt-topic', 'flt-coll', 'flt-kind', 'flt-diff', 'flt-horizon', 'flt-status', 'flt-sort', 'flt-profile', 'flt-budget', 'flt-shuffle']) {
+      const el = document.getElementById(id);
+      if (el) el.onchange = refreshTable;
     }
     document.getElementById('flt-search').oninput = refreshTable;
 
@@ -4990,6 +5187,7 @@ window.StudyApp = (() => {
     });
 
     try {
+      await window.StudyLocalSources?.init?.();
       const signedIn = await window.StudyCommunity.requireProfile({ allowDemo: true, silent: true });
       if (signedIn) {
         await window.StudyRooms.restore();
@@ -5430,6 +5628,8 @@ window.StudyApp = (() => {
     refreshBootstrap,
     syncSettingsRows,
     syncCloudProgress,
+    getBiSyncStatus,
+    openBiSyncHub,
     onDevModeChange,
     navigate,
     renderHome,

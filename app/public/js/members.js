@@ -42,8 +42,19 @@ window.StudyMembers = (() => {
   }
 
   async function unlock(accessString, remember) {
-    const match = /^sos1_([A-Za-z0-9_-]{43})$/.exec(accessString.trim());
-    if (!match || !crypto.subtle) throw new Error('Enter the Study-OS access string.');
+    const raw = String(accessString || '').trim().replace(/^["'`]+|["'`]+$/g, '').trim();
+    if (!raw) throw new Error('Paste your Study-OS archive access string first.');
+    if (/^[A-Z0-9]{3}-?[A-Z0-9]{3}$/i.test(raw)) {
+      throw new Error('That looks like a 6-character BI Canvas pairing code — enter it in the Study-OS Sync extension instead.');
+    }
+    if (!crypto.subtle) {
+      throw new Error('This browser context does not support Web Crypto decryption. Open https://studyos.no over HTTPS.');
+    }
+    const normalized = raw.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const match = /^(?:sos1_)?([A-Za-z0-9_-]{43})$/.exec(normalized);
+    if (!match) {
+      throw new Error(`Invalid archive key format (${raw.length} chars entered). Expected a 48-character key starting with sos1_.`);
+    }
     const bytes = Uint8Array.from(atob(match[1].replace(/-/g, '+').replace(/_/g, '/') + '='), (c) => c.charCodeAt(0));
     const key = await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['decrypt']);
     bytes.fill(0);

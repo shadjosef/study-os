@@ -132,39 +132,264 @@
   ],
   "collections": [
     {
-      "id": "foundation-01",
-      "title": "Foundation 01: Input, Strings & Conditionals",
-      "kind": "drill"
+      "id": "exam-2025h-2",
+      "title": "Autumn 2025 Official Home Exam 2 (100 pts · Debt, Username, Hotel & Oslo City Bike)",
+      "kind": "exam",
+      "durationMinutes": 180,
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null
+      }
     },
     {
-      "id": "foundation-02",
-      "title": "Foundation 02: Loops, Comprehensions & Simulations",
-      "kind": "drill"
+      "id": "exam-2024h-2",
+      "title": "Autumn 2024 Official Home Exam 2 (100 pts · Vacation, Password, Tips & London Bike)",
+      "kind": "exam",
+      "durationMinutes": 180,
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null
+      }
     },
     {
-      "id": "foundation-03",
-      "title": "Foundation 03: Functions, Tuples & Dictionaries",
-      "kind": "drill"
+      "id": "pandas-viz-exam2",
+      "title": "Home Exam 2: Pandas, DateTime & Visualisation",
+      "kind": "exam",
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null
+      }
+    },
+    {
+      "id": "debugging-practice",
+      "title": "Official Debugging Practice (D1–D5)",
+      "kind": "exercise",
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null
+      }
+    },
+    {
+      "id": "official-mock",
+      "title": "Official Short Mock Exam (Email & BMI)",
+      "kind": "exercise",
+      "durationMinutes": 45,
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null
+      }
     },
     {
       "id": "mock-exam-a",
       "title": "Midterm Mock Exam A (100 pts)",
       "kind": "mock",
-      "durationMinutes": 120
+      "durationMinutes": 120,
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)"
+      }
     },
     {
       "id": "mock-exam-b",
       "title": "Midterm Mock Exam B (100 pts)",
       "kind": "mock",
-      "durationMinutes": 120
+      "durationMinutes": 120,
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)"
+      }
+    },
+    {
+      "id": "foundation-01",
+      "title": "Foundation 01: Input, Strings & Conditionals",
+      "kind": "drill",
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)"
+      }
+    },
+    {
+      "id": "foundation-02",
+      "title": "Foundation 02: Loops, Comprehensions & Simulations",
+      "kind": "drill",
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)"
+      }
+    },
+    {
+      "id": "foundation-03",
+      "title": "Foundation 03: Functions, Tuples & Dictionaries",
+      "kind": "drill",
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)"
+      }
     },
     {
       "id": "concept-mcq",
       "title": "Python & Pandas Trap Diagnostics (MCQ)",
-      "kind": "drill"
+      "kind": "drill",
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)"
+      }
     }
   ],
-  "sources": {},
+  "sources": {
+    "NB01": {
+      "id": "NB01",
+      "title": "01_Foundation_Input_Strings_Conditionals.ipynb",
+      "filename": "01_Foundation_Input_Strings_Conditionals.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files",
+      "isSolution": false
+    },
+    "NB02": {
+      "id": "NB02",
+      "title": "02_Foundation_Loops_Comprehensions_Simulations.ipynb",
+      "filename": "02_Foundation_Loops_Comprehensions_Simulations.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files",
+      "isSolution": false
+    },
+    "NB03": {
+      "id": "NB03",
+      "title": "03_Foundation_Functions_Tuples_Dictionaries.ipynb",
+      "filename": "03_Foundation_Functions_Tuples_Dictionaries.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files",
+      "isSolution": false
+    },
+    "MOCKA": {
+      "id": "MOCKA",
+      "title": "04_Full_Midterm_Mock_Exam_A.ipynb",
+      "filename": "04_Full_Midterm_Mock_Exam_A.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files",
+      "isSolution": false
+    },
+    "MOCKB": {
+      "id": "MOCKB",
+      "title": "05_Full_Midterm_Mock_Exam_B.ipynb",
+      "filename": "05_Full_Midterm_Mock_Exam_B.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files",
+      "isSolution": false
+    },
+    "DEBUG": {
+      "id": "DEBUG",
+      "title": "175435--Debugging Practice.ipynb",
+      "filename": "Debugging Practice.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "175435",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files/175435",
+      "isSolution": false
+    },
+    "OFFMOCK": {
+      "id": "OFFMOCK",
+      "title": "175438--MockExam_solution.ipynb",
+      "filename": "MockExam_solution.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "175438",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files/175438",
+      "isSolution": true
+    },
+    "EXAM2": {
+      "id": "EXAM2",
+      "title": "2024H & 2025H Exam 2 + Pandas 11–15 Solutions",
+      "filename": "2025H_Exam2_EvaluationGuideline.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "155343",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files/155343",
+      "isSolution": true
+    },
+    "E25H2_QP": {
+      "id": "E25H2_QP",
+      "title": "Autumn 2025 Home Exam 2 Question Paper (100 pts)",
+      "filename": "2025H_EBA3400_Exam2.pdf",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "155347",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files/155347",
+      "isSolution": false
+    },
+    "E25H2_EG": {
+      "id": "E25H2_EG",
+      "title": "Autumn 2025 Home Exam 2 Evaluation Guideline (.ipynb)",
+      "filename": "2025H_Exam2_EvaluationGuideline.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "155343",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files/155343",
+      "isSolution": true
+    },
+    "E24H2_QP": {
+      "id": "E24H2_QP",
+      "title": "Autumn 2024 Home Exam 2 Question Paper (100 pts)",
+      "filename": "2024H_EBA3400_Exam02_QP.pdf",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "155348",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files/155348",
+      "isSolution": false
+    },
+    "E24H2_EG": {
+      "id": "E24H2_EG",
+      "title": "Autumn 2024 Home Exam 2 Evaluation Guideline (.ipynb)",
+      "filename": "2024H_Exam2_EvaluationGuideline.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "155350",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files/155350",
+      "isSolution": true
+    },
+    "L16_TS": {
+      "id": "L16_TS",
+      "title": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf)",
+      "filename": "16_Time Series.pdf",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "207234",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files/207234",
+      "isSolution": false
+    }
+  },
   "questions": [
     {
       "id": "prog-3021:F1.1",
@@ -224,7 +449,14 @@
       ],
       "dlpfcBase": 2,
       "cognitiveType": "procedural",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 01: Input, Strings & Conditionals"
+      }
     },
     {
       "id": "prog-3021:F1.2",
@@ -284,7 +516,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 01: Input, Strings & Conditionals"
+      }
     },
     {
       "id": "prog-3021:F1.3",
@@ -344,7 +583,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 01: Input, Strings & Conditionals"
+      }
     },
     {
       "id": "prog-3021:F1.4",
@@ -404,7 +650,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 01: Input, Strings & Conditionals"
+      }
     },
     {
       "id": "prog-3021:F1.5",
@@ -464,7 +717,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 01: Input, Strings & Conditionals"
+      }
     },
     {
       "id": "prog-3021:F1.6",
@@ -524,7 +784,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 01: Input, Strings & Conditionals"
+      }
     },
     {
       "id": "prog-3021:F2.1",
@@ -584,7 +851,14 @@
       ],
       "dlpfcBase": 2,
       "cognitiveType": "procedural",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 02: Loops, Comprehensions & Simulations"
+      }
     },
     {
       "id": "prog-3021:F2.2",
@@ -644,7 +918,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 02: Loops, Comprehensions & Simulations"
+      }
     },
     {
       "id": "prog-3021:F2.3",
@@ -704,7 +985,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 02: Loops, Comprehensions & Simulations"
+      }
     },
     {
       "id": "prog-3021:F2.4",
@@ -764,7 +1052,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 02: Loops, Comprehensions & Simulations"
+      }
     },
     {
       "id": "prog-3021:F2.5",
@@ -824,7 +1119,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 02: Loops, Comprehensions & Simulations"
+      }
     },
     {
       "id": "prog-3021:F3.1",
@@ -884,7 +1186,14 @@
       ],
       "dlpfcBase": 2,
       "cognitiveType": "procedural",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 03: Functions, Tuples & Dictionaries"
+      }
     },
     {
       "id": "prog-3021:F3.2",
@@ -944,7 +1253,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 03: Functions, Tuples & Dictionaries"
+      }
     },
     {
       "id": "prog-3021:F3.3",
@@ -1004,7 +1320,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 03: Functions, Tuples & Dictionaries"
+      }
     },
     {
       "id": "prog-3021:F3.4",
@@ -1064,7 +1387,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 03: Functions, Tuples & Dictionaries"
+      }
     },
     {
       "id": "prog-3021:F3.5",
@@ -1124,7 +1454,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Foundation 03: Functions, Tuples & Dictionaries"
+      }
     },
     {
       "id": "prog-3021:MA-1",
@@ -1184,7 +1521,14 @@
       ],
       "dlpfcBase": 2,
       "cognitiveType": "procedural",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam A (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MA-2",
@@ -1244,7 +1588,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam A (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MA-3",
@@ -1304,7 +1655,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam A (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MA-4",
@@ -1364,7 +1722,14 @@
       ],
       "dlpfcBase": 2,
       "cognitiveType": "procedural",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam A (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MA-5",
@@ -1424,7 +1789,14 @@
       ],
       "dlpfcBase": 2,
       "cognitiveType": "procedural",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam A (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MA-6",
@@ -1484,7 +1856,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam A (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MA-7",
@@ -1544,7 +1923,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam A (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MB-1",
@@ -1604,7 +1990,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam B (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MB-2",
@@ -1664,7 +2057,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam B (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MB-3",
@@ -1724,7 +2124,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam B (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MB-4",
@@ -1784,7 +2191,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam B (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MB-5",
@@ -1844,7 +2258,14 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam B (100 pts)"
+      }
     },
     {
       "id": "prog-3021:MB-6",
@@ -1904,7 +2325,1080 @@
       ],
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Mock Exam",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Midterm Mock Exam B (100 pts)"
+      }
+    },
+    {
+      "id": "prog-3021:DBG-1",
+      "localId": "DBG-1",
+      "courseId": "prog-3021",
+      "topicId": "4",
+      "collectionId": "debugging-practice",
+      "origin": "original_exercise",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "DBG-1 · Debug Scooter Rental Cost (Precedence & Name Case)",
+      "promptMarkdown": "Fix the two bugs in the scooter-rental code below so `Calculate_cost(t = 10)` returns `27.5`.\n- Ride time $\\le 5$ mins: `15` kr\n- Ride time $> 5$ mins: `15` kr for the first 5 minutes + `2.5` kr per extra minute above 5\n\n**Buggy Code:**\n```python\ndef Calculate_cost(t):\n    if t <= 5:\n        cost = 15\n    elif t < 30:\n        cost = 15 + t-5 * 2.5\n    return cost\n\ncalculate_cost(t = 10)\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Match function call capitalization (`Calculate_cost` / `calculate_cost`) to fix `NameError`",
+        "Parenthesize `(t - 5) * 2.5` to fix operator precedence bug (`12.5` instead of `27.5`)",
+        "Verify `t = 10` returns `27.5`"
+      ],
+      "hints": [
+        "Look at function capitalization (`def Calculate_cost` vs `calculate_cost(...)` raises `NameError`)!",
+        "Check arithmetic precedence in `15 + t - 5 * 2.5`: multiplication `*` runs before `-`, so wrap `(t - 5)` in parentheses (and use `else:` if `t >= 30` should also work)."
+      ],
+      "solutionMarkdown": "```python\ndef Calculate_cost(t):\n    if t <= 5:\n        cost = 15\n    else:\n        cost = 15 + (t - 5) * 2.5\n    return cost\n\nprint(Calculate_cost(t=10))  # 27.5\n```\n**Bugs fixed:** (1) `NameError` from calling lowercase `calculate_cost` instead of `Calculate_cost`; (2) missing parentheses around `(t - 5)` caused `5 * 2.5` to be subtracted from `15 + t`.",
+      "solutionAssets": [],
+      "pitfall": "Python variable and function names are strictly case-sensitive, and `*` always binds tighter than `+` and `-`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "07.1 `return` versus `print`"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "debugging",
+        "coding",
+        "topic-4"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {},
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Official Debugging Practice (D1–D5)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "DEBUG",
+          "kind": "canvas",
+          "title": "175435--Debugging Practice.ipynb",
+          "filename": "Debugging Practice.ipynb",
+          "page": 1,
+          "role": "prompt",
+          "caption": "175435--Debugging Practice.ipynb · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "175435",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/175435",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:DBG-2",
+      "localId": "DBG-2",
+      "courseId": "prog-3021",
+      "topicId": "4",
+      "collectionId": "debugging-practice",
+      "origin": "original_exercise",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "DBG-2 · Debug Silver Customer Collector (Tuple vs List)",
+      "promptMarkdown": "Fix the error in the code below so it collects all customer IDs with `'Silver'` status into `['C02', 'C06', 'C07']`.\n\n**Buggy Code:**\n```python\nmember_data = {\"C01\": \"Gold\", \"C02\": \"Silver\", \"C03\": \"Platinum\", \"C04\": \"Platinum\", \"C05\": \"Gold\", \"C06\": \"Silver\", \"C07\": \"Silver\"}\n\nsilver_members = ()\nfor member in member_data.items():\n    if member[1] == \"Silver\":\n        silver_members.append(member[0])\n\nprint(silver_members)\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Identify `AttributeError: 'tuple' object has no attribute 'append'`",
+        "Change `silver_members = ()` to `silver_members = []`",
+        "Verify output `['C02', 'C06', 'C07']`"
+      ],
+      "hints": [
+        "Run mentally: what data type is `silver_members = ()`, and does a tuple have an `.append()` method?",
+        "Initialize `silver_members = []` (an empty mutable list) instead of `()` (an immutable tuple)."
+      ],
+      "solutionMarkdown": "```python\nmember_data = {\"C01\": \"Gold\", \"C02\": \"Silver\", \"C03\": \"Platinum\", \"C04\": \"Platinum\", \"C05\": \"Gold\", \"C06\": \"Silver\", \"C07\": \"Silver\"}\n\nsilver_members = []\nfor cid, status in member_data.items():\n    if status == \"Silver\":\n        silver_members.append(cid)\n\nprint(silver_members)  # ['C02', 'C06', 'C07']\n```\n**Bug fixed:** `()` creates an immutable `tuple`, which lacks `.append()`. Use `[]` for a mutable `list`.",
+      "solutionAssets": [],
+      "pitfall": "`()` is an empty tuple (immutable), `{}` is an empty dict (not set!), and `[]` is an empty list.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "08.1 Tuples: unpack fixed items"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "debugging",
+        "coding",
+        "topic-4"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {},
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Official Debugging Practice (D1–D5)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "DEBUG",
+          "kind": "canvas",
+          "title": "175435--Debugging Practice.ipynb",
+          "filename": "Debugging Practice.ipynb",
+          "page": 1,
+          "role": "prompt",
+          "caption": "175435--Debugging Practice.ipynb · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "175435",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/175435",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:DBG-3",
+      "localId": "DBG-3",
+      "courseId": "prog-3021",
+      "topicId": "4",
+      "collectionId": "debugging-practice",
+      "origin": "original_exercise",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "DBG-3 · Debug Pass/Fail Grading Function (Colon & Return)",
+      "promptMarkdown": "Fix the two bugs in `grading(score)` so `grades` prints `['pass', 'pass', 'fail', 'pass', 'pass', 'fail', 'pass', 'pass']`.\n\n**Buggy Code:**\n```python\ndef grading(score)\n    if score >= 6:\n        result = \"pass\"\n    else:\n        result = \"fail\"\n\nscores = [6, 8, 5, 10, 6, 3, 9, 7]\ngrades = [grading(s) for s in scores]\nprint(grades)\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Add missing colon `:` to `def grading(score):`",
+        "Add `return result` at the end of `grading(score)` so it does not return `None`",
+        "Verify list comprehension outputs `['pass', 'pass', 'fail', 'pass', 'pass', 'fail', 'pass', 'pass']`"
+      ],
+      "hints": [
+        "Check the `def grading(score)` header line for `SyntaxError`.",
+        "Once the syntax error is fixed, what does `grading(s)` evaluate to if there is no `return` statement?"
+      ],
+      "solutionMarkdown": "```python\ndef grading(score):\n    if score >= 6:\n        result = \"pass\"\n    else:\n        result = \"fail\"\n    return result\n\nscores = [6, 8, 5, 10, 6, 3, 9, 7]\ngrades = [grading(s) for s in scores]\nprint(grades)\n```\n**Bugs fixed:** (1) Missing `:` after `def grading(score)`; (2) missing `return result` (which otherwise produced `[None, None, ...]`).",
+      "solutionAssets": [],
+      "pitfall": "A function without an explicit `return` silently returns `None`, filling a list comprehension with `None`s.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "07.1 `return` versus `print`"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "debugging",
+        "coding",
+        "topic-4"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {},
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Official Debugging Practice (D1–D5)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "DEBUG",
+          "kind": "canvas",
+          "title": "175435--Debugging Practice.ipynb",
+          "filename": "Debugging Practice.ipynb",
+          "page": 1,
+          "role": "prompt",
+          "caption": "175435--Debugging Practice.ipynb · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "175435",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/175435",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:DBG-4",
+      "localId": "DBG-4",
+      "courseId": "prog-3021",
+      "topicId": "4",
+      "collectionId": "debugging-practice",
+      "origin": "original_exercise",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "DBG-4 · Debug FizzBuzz Branch Ordering",
+      "promptMarkdown": "Fix the conditional logic below so numbers divisible by **both** 3 and 5 (e.g. `15`) print `'FizzBuzz'` instead of `'Fizz'`, and non-multiples print `'Skip'`.\n\n**Buggy Code:**\n```python\nn = int(input(\"Enter a number: \"))\n\nif n % 3 == 0:\n    print(\"Fizz\")\nelif n % 5 == 0:\n    print(\"Buzz\")\nelif n % 3 == 0 and n % 5 == 0:\n    print(\"FizzBuzz\")\nelse:\n    print(\"skip\")\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Move `if n % 3 == 0 and n % 5 == 0:` to the very first branch",
+        "Keep `elif n % 3 == 0:` and `elif n % 5 == 0:` beneath it",
+        "Match exact capitalization `'Skip'` in the `else` branch"
+      ],
+      "hints": [
+        "Trace `n = 15`: `if n % 3 == 0:` is `True` immediately, so Python never reaches the `elif n % 3 == 0 and n % 5 == 0:` branch!",
+        "Always place the most specific overlapping condition (`n % 3 == 0 and n % 5 == 0`) FIRST in an `if / elif` chain, and check capitalization of `'Skip'`."
+      ],
+      "solutionMarkdown": "```python\nn = int(input(\"Enter a number: \"))\n\nif n % 3 == 0 and n % 5 == 0:\n    print(\"FizzBuzz\")\nelif n % 3 == 0:\n    print(\"Fizz\")\nelif n % 5 == 0:\n    print(\"Buzz\")\nelse:\n    print(\"Skip\")\n```\n**Bug fixed:** In `if/elif/else`, Python executes only the *first* `True` branch. Overlapping compound conditions must always be tested before broader single conditions.",
+      "solutionAssets": [],
+      "pitfall": "Dead branch trap: putting `if n % 3 == 0` before `elif n % 3 == 0 and n % 5 == 0` makes `'FizzBuzz'` unreachable.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "04.3 Nested decisions and overlapping cases"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "debugging",
+        "coding",
+        "topic-4"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {},
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Official Debugging Practice (D1–D5)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "DEBUG",
+          "kind": "canvas",
+          "title": "175435--Debugging Practice.ipynb",
+          "filename": "Debugging Practice.ipynb",
+          "page": 1,
+          "role": "prompt",
+          "caption": "175435--Debugging Practice.ipynb · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "175435",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/175435",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:DBG-5",
+      "localId": "DBG-5",
+      "courseId": "prog-3021",
+      "topicId": "4",
+      "collectionId": "debugging-practice",
+      "origin": "original_exercise",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "DBG-5 · Debug Weighted Exam Score (0-Based Indexing)",
+      "promptMarkdown": "Each sublist in `scores` stores `[student_id, exam1, exam2]`. Fix the `IndexError` so the loop prints weighted scores (`0.3 * exam1 + 0.7 * exam2` = `7.7, 7.8, 6.7, 5.7, 7.4`).\n\n**Buggy Code:**\n```python\nscores = [[\"S01\", 7, 8], [\"S02\", 5, 9], [\"S03\", 6, 7], [\"S04\", 5, 6], [\"S05\", 6, 8]]\n\nfor i in scores:\n    final_score = i[2] * 0.3 + i[3] * 0.7\n    print(f\"{final_score:.1f}\")\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Identify 0-based indexing off-by-one error (`i[3]` out of range on 3-element list)",
+        "Use `i[1] * 0.3 + i[2] * 0.7` (or unpack `sid, e1, e2 = i`)",
+        "Verify printed outputs `7.7`, `7.8`, `6.7`, `5.7`, `7.4`"
+      ],
+      "hints": [
+        "In `['S01', 7, 8]`, what are the valid 0-based indices?",
+        "Index `0` is `'S01'`, index `1` is `exam1`, and index `2` is `exam2` (`i[3]` raises `IndexError: list index out of range`)."
+      ],
+      "solutionMarkdown": "```python\nscores = [[\"S01\", 7, 8], [\"S02\", 5, 9], [\"S03\", 6, 7], [\"S04\", 5, 6], [\"S05\", 6, 8]]\n\nfor sid, e1, e2 in scores:\n    final_score = e1 * 0.3 + e2 * 0.7\n    print(f\"{final_score:.1f}\")\n```\n**Bug fixed:** Python lists are 0-indexed (`i[0]` is ID, `i[1]` is Exam-1, `i[2]` is Exam-2). Unpacking `sid, e1, e2` makes index bugs impossible!",
+      "solutionAssets": [],
+      "pitfall": "3-element sublists only have indices `0, 1, 2`; accessing `i[3]` crashes with `IndexError`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "02.4 Strings indexing and slicing"
+      },
+      "pacing": {
+        "learning": {
+          "target": 11.0,
+          "min": 7.2,
+          "max": 14.9
+        },
+        "exam": {
+          "target": 6.5,
+          "min": 4.2,
+          "max": 8.8
+        },
+        "stuckMinutes": 3.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~10-point Jupyter WISEflow task (11m learning with syntax lookup, 6.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "debugging",
+        "coding",
+        "topic-4"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {},
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Official Debugging Practice (D1–D5)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "DEBUG",
+          "kind": "canvas",
+          "title": "175435--Debugging Practice.ipynb",
+          "filename": "Debugging Practice.ipynb",
+          "page": 1,
+          "role": "prompt",
+          "caption": "175435--Debugging Practice.ipynb · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "175435",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/175435",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:OM-1",
+      "localId": "OM-1",
+      "courseId": "prog-3021",
+      "topicId": "1",
+      "collectionId": "official-mock",
+      "origin": "original_exercise",
+      "kind": "coding",
+      "difficulty": 1,
+      "title": "OM-1 · BI Student Email Generator",
+      "promptMarkdown": "Write a program that asks the user for **first name**, **last name**, and **year of entry**, and prints a lowercase BI email address following:\n- First letter of first name + `'.'` + full last name + last 2 digits of entry year + `'@bi.no'`.\n\n**Example:** `Sarah`, `Johnson`, `2024` -> `Your email: s.johnson24@bi.no`",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Lowercase and strip `first_name` and `last_name`",
+        "Slice `first_name[0]` and `year[-2:]` accurately",
+        "Print `Your email: {first_name[0]}.{last_name}{year[-2:]}@bi.no`"
+      ],
+      "hints": [
+        "Keep `year` as a string so you can slice its last two characters cleanly with `year[-2:]`.",
+        "Apply `.lower().strip()` to `first_name` and `last_name`, and index `first_name[0]`."
+      ],
+      "solutionMarkdown": "```python\nfirst_name = input(\"First name: \").lower().strip()\nlast_name = input(\"Last name: \").lower().strip()\nyear = input(\"Year of entry: \").strip()\n\nprint(f\"Your email: {first_name[0]}.{last_name}{year[-2:]}@bi.no\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Casting `year` to `int` prevents string slicing `year[-2:]` (`TypeError: 'int' object is not subscriptable`).",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "02.4 Strings indexing and slicing"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "official-mock",
+        "coding",
+        "topic-1"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Official Short Mock Exam (Email & BMI)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "OFFMOCK",
+          "kind": "canvas",
+          "title": "175438--MockExam_solution.ipynb",
+          "filename": "MockExam_solution.ipynb",
+          "page": 1,
+          "role": "prompt",
+          "caption": "175438--MockExam_solution.ipynb · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "175438",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/175438",
+          "isSolution": true
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:OM-2",
+      "localId": "OM-2",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "official-mock",
+      "origin": "original_exercise",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "OM-2 · BMI Category Function & Tuple Batch Loop",
+      "promptMarkdown": "1. Write a function `bmi_category(weight, height)` that computes $\\text{BMI} = \\text{round}(\\text{weight} / \\text{height}^2, 1)$ and **returns**:\n   - `'Underweight'` if $\\text{BMI} < 18.5$\n   - `'Healthy Weight'` if $18.5 \\le \\text{BMI} < 25.0$\n   - `'Overweight'` if $\\text{BMI} \\ge 25.0$\n2. Loop over `data` below and print `Weight = 83, Height = 1.93, Healthy Weight` for each person.\n\n**Starter Code:**\n```python\ndata = [(83, 1.93), (42, 1.58), (87, 1.89), (59, 1.69), (63, 1.65), (45, 1.61), (68, 1.76), (77, 1.72), (58, 1.71), (81, 1.83)]\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Compute `round(weight / (height ** 2), 1)` with parentheses/exponent precedence",
+        "Use `return` for all 3 BMI categories (`< 18.5`, `< 25.0`, `else`)",
+        "Unpack `(w, h)` in loop and match `Weight = {w}, Height = {h}, {category}`"
+      ],
+      "hints": [
+        "Round `bmi = round(weight / (height ** 2), 1)` BEFORE comparing against `18.5` and `25.0`, and `return` the category string.",
+        "Unpack each tuple in `for w, h in data:` and call `bmi_category(w, h)`."
+      ],
+      "solutionMarkdown": "```python\ndef bmi_category(weight, height):\n    bmi = round(weight / (height ** 2), 1)\n    if bmi < 18.5:\n        return \"Underweight\"\n    elif bmi < 25.0:\n        return \"Healthy Weight\"\n    else:\n        return \"Overweight\"\n\ndata = [(83, 1.93), (42, 1.58), (87, 1.89), (59, 1.69), (63, 1.65), (45, 1.61), (68, 1.76), (77, 1.72), (58, 1.71), (81, 1.83)]\nfor w, h in data:\n    print(f\"Weight = {w}, Height = {h}, {bmi_category(w, h)}\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Writing `weight / height * height` divides by `height` and then multiplies by `height`—use `height ** 2`!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "07.2 Pattern: function with ranges, reused in a loop"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~20-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "official-mock",
+        "coding",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Official Short Mock Exam (Email & BMI)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "OFFMOCK",
+          "kind": "canvas",
+          "title": "175438--MockExam_solution.ipynb",
+          "filename": "MockExam_solution.ipynb",
+          "page": 1,
+          "role": "prompt",
+          "caption": "175438--MockExam_solution.ipynb · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "175438",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/175438",
+          "isSolution": true
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:PV-1",
+      "localId": "PV-1",
+      "courseId": "prog-3021",
+      "topicId": "5",
+      "collectionId": "pandas-viz-exam2",
+      "origin": "original_exercise",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "PV-1 · Pandas Multi-Condition `.loc` Filter & Top-N",
+      "promptMarkdown": "Given the `orders` DataFrame below:\n1. Select all orders in `'Oslo'` with `units >= 2`, keeping **only** columns `['order_id', 'price']`, stored as `oslo_big`.\n2. Add a column `'revenue'` equal to `units * price` on `orders` and display the top 2 highest-revenue rows.\n\n**Starter Code:**\n```python\nimport pandas as pd\n\norders = pd.DataFrame({\n    \"order_id\": [\"O01\", \"O02\", \"O03\", \"O04\", \"O05\", \"O06\"],\n    \"city\": [\"Oslo\", \"Bergen\", \"Oslo\", \"Bergen\", \"Oslo\", \"Bergen\"],\n    \"units\": [2, 1, 3, 2, 1, 4],\n    \"price\": [100.0, 100.0, 80.0, None, 120.0, 90.0],\n})\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Parenthesize both boolean conditions and combine with `&` (not `and`)",
+        "Select subset of columns `['order_id', 'price']` cleanly via `.loc[rows, cols]`",
+        "Compute `orders['revenue'] = orders['units'] * orders['price']` and retrieve top 2 rows"
+      ],
+      "hints": [
+        "In Pandas boolean filtering, wrap EACH condition in parentheses `(...)` and combine with `&` (never Python's `and`!).",
+        "Use `orders.loc[(cond1) & (cond2), ['order_id', 'price']]` and `orders.nlargest(2, 'revenue')` (or `sort_values(..., ascending=False).head(2)`)."
+      ],
+      "solutionMarkdown": "```python\noslo_big = orders.loc[\n    (orders[\"city\"] == \"Oslo\") & (orders[\"units\"] >= 2),\n    [\"order_id\", \"price\"],\n]\nprint(oslo_big)\n\norders[\"revenue\"] = orders[\"units\"] * orders[\"price\"]\nprint(orders.nlargest(2, \"revenue\"))\n```",
+      "solutionAssets": [],
+      "pitfall": "Omitting parentheses around `(orders['city'] == 'Oslo') & (orders['units'] >= 2)` raises `TypeError` because `&` binds tighter than `==`!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "12.2 Boolean filters"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "pandas-viz-exam2",
+        "coding",
+        "topic-5"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Home Exam 2: Pandas, DateTime & Visualisation"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "L16_TS",
+          "kind": "canvas",
+          "title": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf)",
+          "filename": "16_Time Series.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "207234",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/207234",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:PV-2",
+      "localId": "PV-2",
+      "courseId": "prog-3021",
+      "topicId": "5",
+      "collectionId": "pandas-viz-exam2",
+      "origin": "original_exercise",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "PV-2 · Merging Product Price & Sales Tables (`left` vs `inner`)",
+      "promptMarkdown": "Given `df_price` and `df_sales`:\n1. Merge them so **all** products in `df_price` are retained (`left_merged`), and identify which product is missing sales data.\n2. Create `complete_df` keeping only products present in **both** tables, sorted by `'sales'` in descending order.\n\n**Starter Code:**\n```python\nimport pandas as pd\n\ndf_price = pd.DataFrame({\"product_name\": [\"A\", \"B\", \"C\", \"D\", \"E\"], \"price\": [35, 10, 25, 30, 20]})\ndf_sales = pd.DataFrame({\"product_name\": [\"A\", \"B\", \"C\", \"E\", \"F\"], \"sales\": [360, 470, 150, 290, 210]})\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Use `pd.merge(..., how='left', on='product_name')` and identify Product `'D'` has `NaN` sales",
+        "Use `how='inner'` to retain only matched products (`A, B, C, E`)",
+        "Sort `complete_df` descending by `'sales'` (`ascending=False`)"
+      ],
+      "hints": [
+        "`pd.merge(df_price, df_sales, how='left', on='product_name')` keeps every row of `df_price` and fills unmatched `sales` with `NaN`.",
+        "Use `how='inner'` for the intersection, then `.sort_values(by='sales', ascending=False)`."
+      ],
+      "solutionMarkdown": "```python\nleft_merged = pd.merge(df_price, df_sales, how=\"left\", on=\"product_name\")\nprint(left_merged)  # Product D has NaN sales\n\ncomplete_df = pd.merge(df_price, df_sales, how=\"inner\", on=\"product_name\").sort_values(\n    by=\"sales\", ascending=False\n)\nprint(complete_df)\n```",
+      "solutionAssets": [],
+      "pitfall": "Default `pd.merge` uses `how='inner'`, silently dropping Product D before you can spot its missing sales!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "12.4 Merge: match a key"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "pandas-viz-exam2",
+        "coding",
+        "topic-5"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Home Exam 2: Pandas, DateTime & Visualisation"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "L16_TS",
+          "kind": "canvas",
+          "title": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf)",
+          "filename": "16_Time Series.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "207234",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/207234",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:PV-3",
+      "localId": "PV-3",
+      "courseId": "prog-3021",
+      "topicId": "5",
+      "collectionId": "pandas-viz-exam2",
+      "origin": "original_exercise",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "PV-3 · Missing Data Audit, Mean Imputation & Top-3 Months",
+      "promptMarkdown": "Using `oil_df` below:\n1. Print the count of missing values per column and display only the rows where `'price'` is missing.\n2. Fill missing `'price'` values with the mean price (rounded to 1 decimal place) into a new DataFrame `oil_filled`, and display the 3 months with the highest prices.\n\n**Starter Code:**\n```python\nimport pandas as pd\n\noil_df = pd.DataFrame({\n    \"month\": [\"Jan\",\"Feb\",\"Mar\",\"Apr\",\"May\",\"Jun\",\"Jul\",\"Aug\",\"Sep\",\"Oct\",\"Nov\",\"Dec\"],\n    \"price\": [63.9, None, 66.0, 71.5, 70.9, 61.9, None, 59.4, None, 58.5, 63.3, 64.5],\n})\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Count missing values via `.isna().sum()` (`3` missing in `price`) and filter `.isna()` rows",
+        "Impute missing prices with `round(oil_df['price'].mean(), 1)` without mutating raw data unexpectedly",
+        "Display top 3 highest-price rows using `.nlargest(3, 'price')` (`Apr, May, Mar`)"
+      ],
+      "hints": [
+        "Use `oil_df.isna().sum()` for column missing counts and `oil_df[oil_df['price'].isna()]` to inspect missing rows.",
+        "Compute `mean_p = round(oil_df['price'].mean(), 1)`, assign on a `.copy()` with `.fillna(mean_p)`, and call `.nlargest(3, 'price')`."
+      ],
+      "solutionMarkdown": "```python\nprint(oil_df.isna().sum())\nprint(oil_df[oil_df[\"price\"].isna()])\n\noil_filled = oil_df.copy()\nmean_price = round(oil_df[\"price\"].mean(), 1)\noil_filled[\"price\"] = oil_filled[\"price\"].fillna(mean_price)\nprint(oil_filled.nlargest(3, \"price\"))\n```",
+      "solutionAssets": [],
+      "pitfall": "Never test missingness with `oil_df['price'] == None` or `== np.nan` (always `False`); always use `.isna()`!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "13.2 Drop or fill"
+      },
+      "pacing": {
+        "learning": {
+          "target": 16.0,
+          "min": 10.4,
+          "max": 21.6
+        },
+        "exam": {
+          "target": 10.0,
+          "min": 6.5,
+          "max": 13.5
+        },
+        "stuckMinutes": 4.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~15-point Jupyter WISEflow task (16m learning with syntax lookup, 10.0m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "pandas-viz-exam2",
+        "coding",
+        "topic-5"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Home Exam 2: Pandas, DateTime & Visualisation"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "L16_TS",
+          "kind": "canvas",
+          "title": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf)",
+          "filename": "16_Time Series.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "207234",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/207234",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:PV-4",
+      "localId": "PV-4",
+      "courseId": "prog-3021",
+      "topicId": "5",
+      "collectionId": "pandas-viz-exam2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "PV-4 · Age-Group Binning (`pd.cut`), GroupBy & Crosstab",
+      "promptMarkdown": "Given `customers` below:\n1. Bin `'Age'` into `'Age_group'` with `18–35` -> `'young adults'`, `36–55` -> `'middle-aged adults'`, `56–75` -> `'older adults'` (inclusive of `18`!).\n2. Compute average `'Income'` per `'Age_group'` rounded to 2 decimals (`observed=False`).\n3. Build a 3×2 frequency table `customer_wide` counting customers by `'Age_group'` (rows) and `'Gender'` (columns).\n\n**Starter Code:**\n```python\nimport pandas as pd\n\ncustomers = pd.DataFrame({\n    \"Gender\": [\"Female\", \"Male\", \"Female\", \"Male\", \"Female\", \"Male\"],\n    \"Age\": [18, 35, 42, 55, 61, 75],\n    \"Income\": [32, 48, 72, 85, 64, 58],\n})\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Use `pd.cut` with `bins=[18, 35, 55, 75]` and `include_lowest=True` so age `18` is included",
+        "Pass `observed=False` in `.groupby('Age_group', observed=False)['Income'].mean().round(2)`",
+        "Construct wide count table via `pd.crosstab` or `.groupby(...).size().unstack(fill_value=0)`"
+      ],
+      "hints": [
+        "Pass `bins=[18, 35, 55, 75]`, `labels=[...]`, and `include_lowest=True` to `pd.cut(...)` so age `18` is NOT turned into `NaN`!",
+        "Use `customers.groupby('Age_group', observed=False)['Income'].mean().round(2)` and `pd.crosstab(customers['Age_group'], customers['Gender'])`."
+      ],
+      "solutionMarkdown": "```python\ncustomers[\"Age_group\"] = pd.cut(\n    customers[\"Age\"],\n    bins=[18, 35, 55, 75],\n    labels=[\"young adults\", \"middle-aged adults\", \"older adults\"],\n    include_lowest=True,\n)\n\navg_inc = customers.groupby(\"Age_group\", observed=False)[\"Income\"].mean().round(2)\nprint(avg_inc)\n\ncustomer_wide = pd.crosstab(customers[\"Age_group\"], customers[\"Gender\"])\nprint(customer_wide)\n```",
+      "solutionAssets": [],
+      "pitfall": "`pd.cut` intervals are `(left, right]` by default: without `include_lowest=True` (or starting the first bin at `17`), age `18` becomes `NaN`!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "13.4 Convert numbers into categories"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~20-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "pandas-viz-exam2",
+        "coding",
+        "topic-5"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Home Exam 2: Pandas, DateTime & Visualisation"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "L16_TS",
+          "kind": "canvas",
+          "title": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf)",
+          "filename": "16_Time Series.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "207234",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/207234",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:PV-5",
+      "localId": "PV-5",
+      "courseId": "prog-3021",
+      "topicId": "6",
+      "collectionId": "pandas-viz-exam2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "PV-5 · DateTime Index Parsing & Daily Trip Resampling (Exam 2 Pattern)",
+      "promptMarkdown": "Given raw trip records `trips` (one row = one bike trip):\n1. Convert `'started_at'` to `datetime`, set it as the DataFrame index, and add `'duration_min'` (`duration_sec / 60` rounded to 2 decimals).\n2. Compute **daily trip counts** AND **daily total riding minutes** using `.resample('D')`.\n\n**Starter Code:**\n```python\nimport pandas as pd\n\ntrips = pd.DataFrame({\n    \"started_at\": [\"2025-05-16 08:15\", \"2025-05-16 17:40\", \"2025-05-17 11:05\", \"2025-05-17 13:20\", \"2025-05-17 15:50\"],\n    \"duration_sec\": [540, 810, 1200, 950, 1110],\n})\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Convert `'started_at'` via `pd.to_datetime` and set as `DatetimeIndex`",
+        "Create `'duration_min'` = `(trips['duration_sec'] / 60).round(2)`",
+        "Distinguish `.resample('D').size()` (daily trip count) from `.resample('D')['duration_min'].sum()` (daily minutes)"
+      ],
+      "hints": [
+        "Parse timestamps with `pd.to_datetime(trips['started_at'])` and set the index with `.set_index('started_at')`.",
+        "Remember the Bike-Task rule: `.resample('D').size()` counts rows (trips), whereas `.resample('D')['duration_min'].sum()` totals riding time!"
+      ],
+      "solutionMarkdown": "```python\ntrips[\"started_at\"] = pd.to_datetime(trips[\"started_at\"])\ntrips = trips.set_index(\"started_at\")\ntrips[\"duration_min\"] = (trips[\"duration_sec\"] / 60).round(2)\n\ndaily_trips = trips.resample(\"D\").size()\ndaily_minutes = trips[\"duration_min\"].resample(\"D\").sum()\nprint(daily_trips)\nprint(daily_minutes)\n```",
+      "solutionAssets": [],
+      "pitfall": "Calling `.sum()` when the exam asks for *number of trips* sums durations/IDs instead of counting trip rows (`.size()`).",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "A.2 Datetime columns and indices"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~20-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "pandas-viz-exam2",
+        "coding",
+        "topic-6"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Home Exam 2: Pandas, DateTime & Visualisation"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "L16_TS",
+          "kind": "canvas",
+          "title": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf)",
+          "filename": "16_Time Series.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "207234",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/207234",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:PV-6",
+      "localId": "PV-6",
+      "courseId": "prog-3021",
+      "topicId": "6",
+      "collectionId": "pandas-viz-exam2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 3,
+      "title": "PV-6 · Side-by-Side Subplots & Annotated Seaborn Heatmap (Exam 2 Pattern)",
+      "promptMarkdown": "Using Seaborn's built-in `'tips'` dataset (`tips = sns.load_dataset('tips')`):\n1. Create a 1×2 figure (`figsize=(12, 4)`): on `axes[0]`, plot a histogram of `'total_bill'`; on `axes[1]`, plot an annotated heatmap (`annot=True, cmap='Blues'`) of transaction counts for each `'day'` × `'time'` combination.\n\n**Starter Code:**\n```python\nimport pandas as pd\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\ntips = sns.load_dataset(\"tips\")\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Initialize `fig, axes = plt.subplots(1, 2, figsize=(12, 4))`",
+        "Plot `'total_bill'` distribution on `axes[0]` with clear title/labels",
+        "Compute `pd.crosstab(tips['day'], tips['time'])` and render `sns.heatmap(..., annot=True, ax=axes[1])` with `plt.tight_layout()`"
+      ],
+      "hints": [
+        "Create subplots with `fig, axes = plt.subplots(1, 2, figsize=(12, 4))` and pass `ax=axes[0]` / `ax=axes[1]` to each plotting call.",
+        "Build the 2D frequency table first with `ct = pd.crosstab(tips['day'], tips['time'])`, then pass `ct` into `sns.heatmap(ct, annot=True, fmt='d', cmap='Blues', ax=axes[1])`."
+      ],
+      "solutionMarkdown": "```python\nimport pandas as pd\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\ntips = sns.load_dataset(\"tips\")\nfig, axes = plt.subplots(1, 2, figsize=(12, 4))\n\nsns.histplot(data=tips, x=\"total_bill\", ax=axes[0])\naxes[0].set_title(\"Total Bill Distribution\")\n\nct = pd.crosstab(tips[\"day\"], tips[\"time\"])\nsns.heatmap(ct, annot=True, fmt=\"d\", cmap=\"Blues\", ax=axes[1])\naxes[1].set_title(\"Transactions by Day and Time\")\n\nplt.tight_layout()\nplt.show()\n```",
+      "solutionAssets": [],
+      "pitfall": "Passing raw `tips` directly into `sns.heatmap(tips)` crashes—`heatmap` requires a 2D numeric matrix from `pd.crosstab` or `pivot_table`!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "15.5 Heatmap from counts or means"
+      },
+      "pacing": {
+        "learning": {
+          "target": 22.0,
+          "min": 14.3,
+          "max": 29.7
+        },
+        "exam": {
+          "target": 13.5,
+          "min": 8.8,
+          "max": 18.2
+        },
+        "stuckMinutes": 5.5,
+        "reviewMinutes": 2.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Calibrated for a ~20-point Jupyter WISEflow task (22m learning with syntax lookup, 13.5m timed execution + cell rerun)."
+      },
+      "available": true,
+      "tags": [
+        "pandas-viz-exam2",
+        "coding",
+        "topic-6"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Home Exam 2: Pandas, DateTime & Visualisation"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "L16_TS",
+          "kind": "canvas",
+          "title": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf)",
+          "filename": "16_Time Series.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "207234",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/207234",
+          "isSolution": false
+        }
+      ]
     },
     {
       "id": "prog-3021:MCQ-1",
@@ -1965,7 +3459,14 @@
       ],
       "dlpfcBase": 1,
       "cognitiveType": "recall",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Python & Pandas Trap Diagnostics (MCQ)"
+      }
     },
     {
       "id": "prog-3021:MCQ-2",
@@ -2026,7 +3527,14 @@
       ],
       "dlpfcBase": 1,
       "cognitiveType": "recall",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Python & Pandas Trap Diagnostics (MCQ)"
+      }
     },
     {
       "id": "prog-3021:MCQ-3",
@@ -2087,7 +3595,14 @@
       ],
       "dlpfcBase": 1,
       "cognitiveType": "recall",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Python & Pandas Trap Diagnostics (MCQ)"
+      }
     },
     {
       "id": "prog-3021:MCQ-4",
@@ -2148,7 +3663,14 @@
       ],
       "dlpfcBase": 1,
       "cognitiveType": "recall",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Python & Pandas Trap Diagnostics (MCQ)"
+      }
     },
     {
       "id": "prog-3021:MCQ-5",
@@ -2209,7 +3731,14 @@
       ],
       "dlpfcBase": 1,
       "cognitiveType": "recall",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Python & Pandas Trap Diagnostics (MCQ)"
+      }
     },
     {
       "id": "prog-3021:MCQ-6",
@@ -2270,7 +3799,912 @@
       ],
       "dlpfcBase": 1,
       "cognitiveType": "recall",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Python & Pandas Trap Diagnostics (MCQ)"
+      }
+    },
+    {
+      "id": "prog-3021:E25H2-1",
+      "localId": "E25H2-1",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "exam-2025h-2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "points": 15,
+      "title": "2025H Exam 2 · Task 1: Credit Card Debt Payoff Loop (15 pts)",
+      "promptMarkdown": "Assume you have a credit card debt of **`10000` NOK** with a monthly interest rate of **`1.5%`**. You pay **`1200` NOK** per month until the debt is fully paid off.\n\nWrite a program using a `while` loop to calculate and print the remaining debt at the end of each month:\n- Apply `1.5%` monthly interest (`debt *= 1.015`) while debt $> 0$.\n- If the debt after interest is greater than `1200` NOK, subtract `1200`; **otherwise, pay only the remaining debt** (so final balance reaches `0.00 NOK`, never negative!).\n- Format output exactly as: `Month-1: 8950.00 NOK`, `Month-2: 7884.25 NOK`, …",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Use `while debt > 0:` with `debt = 10000` and `month = 1`",
+        "Compound 1.5% interest *before* subtracting payment (`10000 * 1.015 - 1200 = 8950.00`)",
+        "Cap final payment (`if debt > 1200: debt -= 1200 else: debt = 0`) so debt never goes negative",
+        "Print every month with `f'Month-{month}: {debt:.2f} NOK'` and increment `month += 1`"
+      ],
+      "hints": [
+        "Check Month 1 arithmetic: `10000 * 1.015 = 10150`, minus `1200` = `8950.00`—so interest is applied *before* the monthly payment!",
+        "Guard the final month with `if debt > 1200: debt -= 1200` and `else: debt = 0` so the final line prints `0.00 NOK` and terminates cleanly."
+      ],
+      "solutionMarkdown": "**Official Evaluation Guideline (`2025H Exam 2, Task 1 — 15 pts`):**\n```python\ndebt = 10000\nmonth = 1\n\nwhile debt > 0:\n    debt *= 1.015\n    if debt > 1200:\n        debt -= 1200\n    else:\n        debt -= debt\n    print(f\"Month-{month}: {debt:.2f} NOK\")\n    month += 1\n```",
+      "solutionAssets": [],
+      "pitfall": "Subtracting 1200 unconditionally makes the final month negative; forgetting `:.2f` prints `8950.0` instead of `8950.00`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "05.2 `while`: repeat while the condition holds"
+      },
+      "pacing": {
+        "learning": {
+          "target": 31.5,
+          "min": 20.5,
+          "max": 42.5
+        },
+        "exam": {
+          "target": 23.2,
+          "min": 15.1,
+          "max": 30.2
+        },
+        "stuckMinutes": 6.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "15-point Home Exam 2 task (~23m timed budget leaving 25m for Restart & Run All + WISEflow upload >=10m early)."
+      },
+      "available": true,
+      "tags": [
+        "exam-2025h-2",
+        "coding",
+        "while-loop",
+        "topic-2"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Autumn 2025 Official Home Exam 2 (100 pts · Debt, Username, Hotel & Oslo City Bike)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "E25H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2025 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2025H_EBA3400_Exam2.pdf",
+          "page": 3,
+          "role": "prompt",
+          "caption": "2025H Home Exam 2 · Tasks 1–3 (PDF p. 3)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155347",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155347",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:E25H2-2",
+      "localId": "E25H2-2",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "exam-2025h-2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 1,
+      "points": 15,
+      "title": "2025H Exam 2 · Task 2: Lowercase Username Generator with Leading-Zero Digits (15 pts)",
+      "promptMarkdown": "Write a function `generate_username(first_name, last_name)` that generates and **prints** a lowercase username built from:\n- First letter of `first_name` (lowercase) + `'.'` + full `last_name` (lowercase) + **three random digits** (`0–9`, preserving leading zeros such as `a.brown045` or `s.johnson003`!).\n- Test the function with two different examples (e.g. `('Sarah', 'Johnson')` and `('Alex', 'Brown')`).",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Define `def generate_username(first_name, last_name):` using `first_name[0].lower() + '.' + last_name.lower()`",
+        "Generate 3 random digits preserving leading zeros (loop `3` times with `str(random.randint(0, 9))` or `f'{random.randint(0, 999):03d}'`)",
+        "Print the generated username and call the function twice with different test names so output is shown"
+      ],
+      "hints": [
+        "Why does `str(random.randint(100, 999))` lose points according to the official guideline? Because it can never produce leading-zero suffixes like `045` or `003`!",
+        "Append `str(random.randint(0, 9))` three times in a loop (or format `f'{random.randint(0, 999):03d}'`)."
+      ],
+      "solutionMarkdown": "**Official Evaluation Guideline (`2025H Exam 2, Task 2 — 15 pts`):**\n```python\nimport random\n\ndef generate_username(first_name, last_name):\n    user_name = first_name[0].lower() + \".\" + last_name.lower()\n    for i in range(3):\n        user_name += str(random.randint(0, 9))\n    print(user_name)\n\ngenerate_username(\"Alex\", \"Brown\")\ngenerate_username(\"Nora\", \"Hensen\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Using `random.randint(100, 999)` excludes `000`–`099` (`045` in the exam prompt explicitly tests leading-zero handling!).",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "07 Functions"
+      },
+      "pacing": {
+        "learning": {
+          "target": 31.5,
+          "min": 20.5,
+          "max": 42.5
+        },
+        "exam": {
+          "target": 23.2,
+          "min": 15.1,
+          "max": 30.2
+        },
+        "stuckMinutes": 6.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "15-point Home Exam 2 task (~23m timed budget leaving 25m for Restart & Run All + WISEflow upload >=10m early)."
+      },
+      "available": true,
+      "tags": [
+        "exam-2025h-2",
+        "coding",
+        "functions",
+        "random",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Autumn 2025 Official Home Exam 2 (100 pts · Debt, Username, Hotel & Oslo City Bike)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "E25H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2025 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2025H_EBA3400_Exam2.pdf",
+          "page": 3,
+          "role": "prompt",
+          "caption": "2025H Home Exam 2 · Task 2 (PDF p. 3)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155347",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155347",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:E25H2-3",
+      "localId": "E25H2-3",
+      "courseId": "prog-3021",
+      "topicId": "5",
+      "collectionId": "exam-2025h-2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 3,
+      "points": 30,
+      "title": "2025H Exam 2 · Task 3: European Hotel Bookings Analysis & FacetGrid (30 pts, a–f)",
+      "promptMarkdown": "Dataset `hotel.csv` (`booking_id`, `country`, `hotel_type`, `adults`, `children`, `lead_time` — located in `Canvas-Archive/.../Files/155342--hotel.csv`). Answer each part in separate cells:\n\n- **(3.a)** Read `'hotel.csv'` via relative path into `hotel_df` and display the first 5 rows.\n- **(3.b)** Find the **10 countries** with the highest number of bookings.\n- **(3.c)** Compare the number of bookings between `City Hotel` and `Resort Hotel` using a **pie chart**.\n- **(3.d)** Create `sub_df` where `country` is in `['Portugal', 'France', 'Spain', 'Italy']` **AND** `children > 0`. Print `sub_df.shape`.\n- **(3.e)** Using `sub_df`, compute booking counts for each `(hotel_type, country)` combination, then state in a **Markdown cell** in which country resort hotels are most popular.\n- **(3.f)** Visualize the distribution of `lead_time` across Scandinavian countries (`['Norway', 'Denmark', 'Sweden']`) in **horizontal side-by-side subplots** with country names as subplot titles.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "(a–b) `pd.read_csv('hotel.csv')`, `.head()`, and `hotel_df['country'].value_counts().head(10)`",
+        "(c) `hotel_df.groupby('hotel_type').size().plot(kind='pie')` (or `value_counts().plot.pie()`)",
+        "(d) Parenthesized filter `(hotel_df['children'] > 0) & (hotel_df['country'].isin(['Portugal', 'France', 'Spain', 'Italy']))` + `sub_df.shape`",
+        "(e) `pd.crosstab(sub_df['hotel_type'], sub_df['country'])` + Markdown cell stating **Portugal**",
+        "(f) `fg = sns.FacetGrid(hotel_df[hotel_df['country'].isin(['Norway', 'Denmark', 'Sweden'])], col='country')` + `fg.map(sns.histplot, 'lead_time')`"
+      ],
+      "hints": [
+        "Use `.isin([...])` for multi-country membership and wrap both boolean conditions in parentheses around `&`.",
+        "For (3.f), `sns.FacetGrid(..., col='country')` automatically arranges histograms horizontally and labels each subplot with the country!"
+      ],
+      "solutionMarkdown": "**Official Evaluation Guideline (`2025H Exam 2, Task 3 — 30 pts`):**\n```python\n# (3.a)\nhotel_df = pd.read_csv(\"hotel.csv\")\nhotel_df.head()\n\n# (3.b)\nhotel_df.country.value_counts().head(10)\n\n# (3.c)\nhotel_df.groupby(\"hotel_type\").size().plot(kind=\"pie\")\n\n# (3.d)\nsub_df = hotel_df[(hotel_df.children > 0) & (hotel_df.country.isin([\"Portugal\", \"France\", \"Spain\", \"Italy\"]))]\nprint(sub_df.shape)\n\n# (3.e)\npd.crosstab(sub_df.hotel_type, sub_df.country)\n# Markdown cell: **Answer:** Portugal\n\n# (3.f)\nfg = sns.FacetGrid(hotel_df[hotel_df.country.isin([\"Norway\", \"Denmark\", \"Sweden\"])], col=\"country\")\nfg.map(sns.histplot, \"lead_time\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Writing the `(3.e)` country answer as a `# comment` instead of a Markdown cell, or using `and` instead of `&` in Pandas filtering.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "15.6 Jointplot, pairplot and FacetGrid"
+      },
+      "pacing": {
+        "learning": {
+          "target": 63.0,
+          "min": 41.0,
+          "max": 85.1
+        },
+        "exam": {
+          "target": 46.5,
+          "min": 30.2,
+          "max": 60.5
+        },
+        "stuckMinutes": 6.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "30-point Home Exam 2 task (~46m timed budget leaving 25m for Restart & Run All + WISEflow upload >=10m early)."
+      },
+      "available": true,
+      "tags": [
+        "exam-2025h-2",
+        "coding",
+        "pandas",
+        "seaborn",
+        "topic-5"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Autumn 2025 Official Home Exam 2 (100 pts · Debt, Username, Hotel & Oslo City Bike)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "E25H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2025 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2025H_EBA3400_Exam2.pdf",
+          "page": 4,
+          "role": "prompt",
+          "caption": "2025H Home Exam 2 · Task 3 Hotel (PDF p. 4)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155347",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155347",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:E25H2-4",
+      "localId": "E25H2-4",
+      "courseId": "prog-3021",
+      "topicId": "6",
+      "collectionId": "exam-2025h-2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 3,
+      "points": 40,
+      "title": "2025H Exam 2 · Task 4: Oslo City Bike Time Series, Binning & Heatmap (40 pts, a–h)",
+      "promptMarkdown": "Dataset `citybike.csv` (`departure_time`, `start_station`, `end_station`, `duration_sec` — May 2025 Oslo trips):\n\n- **(4.a)** Read `'citybike.csv'` setting `departure_time` as a parsed `DatetimeIndex`, and run `bike_df.info()`.\n- **(4.b)** Display all trips departing from `'Majorstuen'` on `'2025-05-29'`.\n- **(4.c)** Add `duration_min` (`duration_sec / 60` rounded to 2 decimals) and show `.head()`.\n- **(4.d)** Compute mean `duration_min` for trips starting at `'Alexander Kiellands Plass'` and ending at `'Tøyenbekken'`.\n- **(4.e)** Create `duration_range` via `pd.cut` over `[0, 10, 20, 30, 300]` (`0 <= t <= 10`: `'0-10 min'`, `'10-20 min'`, `'20-30 min'`, `'more than 30 min'`), and show `.head()`.\n- **(4.f)** Count trips per day in May 2025, plot as a line chart, and state in a **Markdown cell** which day had the fewest trips.\n- **(4.g)** Filter `subset_df` to the 5 start stations `['Olaf Ryes plass', 'Kirkeristen', 'Storo Storsenter', 'Tjuvholmen', 'Bislettgata']` and compute trip counts per station.\n- **(4.h)** Using `subset_df`, plot a `Blues` annotated integer **heatmap** of trip counts by `duration_range` × `start_station`.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "(a–b) `pd.read_csv('citybike.csv', parse_dates=['departure_time'], index_col=0)` + `bike_df[bike_df.start_station == 'Majorstuen'].loc['2025-05-29', :]`",
+        "(c–d) `round(bike_df['duration_sec'] / 60, 2)` + two-station `&` filter `.duration_min.mean()`",
+        "(e) `pd.cut(..., bins=[0, 10, 20, 30, 300], labels=[...], include_lowest=True)` so `0 <= t <= 10` includes `0`!",
+        "(f) `bike_df.resample('D').size().plot(marker='o')` + Markdown cell: **17 May**",
+        "(g–h) Exact station casing (`'Olaf Ryes plass'`) + `pd.crosstab(subset_df.duration_range, subset_df.start_station)` + `sns.heatmap(df, cmap='Blues', annot=True, fmt='d')`"
+      ],
+      "hints": [
+        "Look closely at `(4.e)` inequality `0 <= t <= 10`: `pd.cut` excludes the left edge `0` unless you pass `include_lowest=True`!",
+        "In `(4.f)`, one row = one bike trip, so use `.resample('D').size()` (NOT `.sum()`, which would sum durations!)."
+      ],
+      "solutionMarkdown": "**Official Evaluation Guideline (`2025H Exam 2, Task 4 — 40 pts`):**\n```python\n# (4.a)\nbike_df = pd.read_csv(\"citybike.csv\", parse_dates=[\"departure_time\"], index_col=0).sort_index()\nbike_df.info()\n\n# (4.b)\nbike_df[bike_df.start_station == \"Majorstuen\"].loc[\"2025-05-29\", :]\n\n# (4.c)\nbike_df[\"duration_min\"] = round(bike_df[\"duration_sec\"] / 60, 2)\nbike_df.head()\n\n# (4.d)\nbike_df[(bike_df.start_station == \"Alexander Kiellands Plass\") & (bike_df.end_station == \"Tøyenbekken\")].duration_min.mean()\n\n# (4.e)\nbike_df[\"duration_range\"] = pd.cut(\n    bike_df.duration_min,\n    bins=[0, 10, 20, 30, 300],\n    labels=[\"0-10 min\", \"10-20 min\", \"20-30 min\", \"more than 30 min\"],\n    include_lowest=True,\n)\nbike_df.head()\n\n# (4.f)\nbike_df.resample(\"D\").size().plot(figsize=(12, 3), marker=\"o\")\n# Markdown cell: **Answer:** 17 May\n\n# (4.g)\nsubset_df = bike_df[bike_df.start_station.isin([\"Olaf Ryes plass\", \"Kirkeristen\", \"Storo Storsenter\", \"Tjuvholmen\", \"Bislettgata\"])]\nsubset_df.groupby(\"start_station\").size()\n\n# (4.h)\ndf = pd.crosstab(subset_df.duration_range, subset_df.start_station)\nsns.heatmap(df, cmap=\"Blues\", annot=True, fmt=\"d\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Misspelling `'Olaf Ryes plass'` with a capital `'Plass'` silently drops all rows for that station in `.isin()`!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "A.3 Bike task: count trips or sum usage?"
+      },
+      "pacing": {
+        "learning": {
+          "target": 84.0,
+          "min": 54.6,
+          "max": 113.4
+        },
+        "exam": {
+          "target": 62.0,
+          "min": 40.3,
+          "max": 80.6
+        },
+        "stuckMinutes": 6.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "40-point Home Exam 2 task (~62m timed budget leaving 25m for Restart & Run All + WISEflow upload >=10m early)."
+      },
+      "available": true,
+      "tags": [
+        "exam-2025h-2",
+        "coding",
+        "time-series",
+        "resample",
+        "heatmap",
+        "topic-6"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Autumn 2025 Official Home Exam 2 (100 pts · Debt, Username, Hotel & Oslo City Bike)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "E25H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2025 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2025H_EBA3400_Exam2.pdf",
+          "page": 5,
+          "role": "prompt",
+          "caption": "2025H Home Exam 2 · Task 4a–e (PDF p. 5)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155347",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155347",
+          "isSolution": false
+        },
+        {
+          "sourceId": "E25H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2025 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2025H_EBA3400_Exam2.pdf",
+          "page": 6,
+          "role": "prompt",
+          "caption": "2025H Home Exam 2 · Task 4f–h (PDF p. 6)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155347",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155347",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:E24H2-1",
+      "localId": "E24H2-1",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "exam-2024h-2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "points": 15,
+      "title": "2024H Exam 2 · Task 1: Vacation Dictionary & `datetime.strptime` Loop (15 pts)",
+      "promptMarkdown": "- **(1.a) [5 pts]:** Store the planned vacations in a dictionary `vacation` mapping season keys to `(start_date, end_date)` tuples (`'Winter': ('22/12/2024', '10/01/2025')`, `'Spring': ('11/04/2025', '22/04/2025')`, `'Summer': ('19/06/2025', '27/07/2025')`, `'Autumn': ('02/10/2025', '07/10/2025')`), and display `vacation['Winter']`.\n- **(1.b) [10 pts]:** Loop through `vacation.items()`, parse both dates with `datetime.strptime(..., '%d/%m/%Y')`, and print each duration as `Winter: 19 days`, …, `Autumn: 5 days`.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Define `vacation` dictionary with 2-element `(start, end)` string tuples and access `vacation['Winter']`",
+        "Iterate `for key, value in vacation.items():` using `datetime.strptime(value[0], '%d/%m/%Y')`",
+        "Extract integer days via `(end - start).days` and print `f'{key}: {(end - start).days} days'`"
+      ],
+      "hints": [
+        "Format string `'22/12/2024'` is day/month/4-digit-year -> `'%d/%m/%Y'` (uppercase `%Y` for 4-digit year!).",
+        "Subtracting two `datetime` objects returns a `timedelta`; read `.days` to get the integer `5` rather than `'5 days, 0:00:00'`."
+      ],
+      "solutionMarkdown": "**Official Evaluation Guideline (`2024H Exam 2, Task 1 — 15 pts`):**\n```python\nimport datetime as dt\n\n# (1.a)\nvacation = {\n    \"Winter\": (\"22/12/2024\", \"10/01/2025\"),\n    \"Spring\": (\"11/04/2025\", \"22/04/2025\"),\n    \"Summer\": (\"19/06/2025\", \"27/07/2025\"),\n    \"Autumn\": (\"02/10/2025\", \"07/10/2025\"),\n}\nvacation[\"Winter\"]\n\n# (1.b)\nfor key, value in vacation.items():\n    start = dt.datetime.strptime(value[0], \"%d/%m/%Y\")\n    end = dt.datetime.strptime(value[1], \"%d/%m/%Y\")\n    print(f\"{key}: {(end - start).days} days\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Using lowercase `'%y'` (2-digit year) on `'2024'` raises `ValueError: unconverted data remains`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "A.1 Date differences in ordinary Python"
+      },
+      "pacing": {
+        "learning": {
+          "target": 31.5,
+          "min": 20.5,
+          "max": 42.5
+        },
+        "exam": {
+          "target": 23.2,
+          "min": 15.1,
+          "max": 30.2
+        },
+        "stuckMinutes": 6.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "15-point Home Exam 2 task (~23m timed budget leaving 25m for Restart & Run All + WISEflow upload >=10m early)."
+      },
+      "available": true,
+      "tags": [
+        "exam-2024h-2",
+        "coding",
+        "dictionary",
+        "datetime",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Autumn 2024 Official Home Exam 2 (100 pts · Vacation, Password, Tips & London Bike)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "E24H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2024 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2024H_EBA3400_Exam02_QP.pdf",
+          "page": 3,
+          "role": "prompt",
+          "caption": "2024H Home Exam 2 · Tasks 1 & 2 (PDF p. 3)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155348",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155348",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:E24H2-2",
+      "localId": "E24H2-2",
+      "courseId": "prog-3021",
+      "topicId": "3",
+      "collectionId": "exam-2024h-2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "points": 15,
+      "title": "2024H Exam 2 · Task 2: Password Strength Star Validator (15 pts)",
+      "promptMarkdown": "- **(2.a) [10 pts]:** Write `password_strength(password)` (assuming alphanumeric input only). If `len(password) < 6`, print `'invalid'`. Otherwise award one `'*'` for each satisfied rule (`'*'` to `'***'`): **(i)** length $\\ge 8$, **(ii)** at least 1 digit (`0–9`), **(iii)** at least 1 letter (`a–z`/`A–Z`).\n- **(2.b) [5 pts]:** Call `password_strength('python123')` (`'***'`) and `password_strength('12345')` (`'invalid'`).",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Count digits (`s.isdigit()`) and letters across characters of `password`",
+        "Handle `< 6` length first by printing `'invalid'`; for `>= 6`, accumulate `'*'` independently with three separate `if` statements (NOT `elif`!)",
+        "Test both `'python123'` (`***`) and `'12345'` (`invalid`)"
+      ],
+      "hints": [
+        "Why must the 3 star rules (`len >= 8`, `number >= 1`, `letter >= 1`) use three separate `if` blocks instead of `if / elif / elif`?",
+        "Because `elif` stops after the first match and would print only `'*'` instead of `'***'` for `'python123'`!"
+      ],
+      "solutionMarkdown": "**Official Evaluation Guideline (`2024H Exam 2, Task 2 — 15 pts`):**\n```python\ndef password_strength(password):\n    n = len(password)\n    number = 0\n    letter = 0\n    for s in password:\n        if s.isdigit():\n            number += 1\n        else:\n            letter += 1\n    if n >= 6:\n        strength = \"\"\n        if n >= 8:\n            strength += \"*\"\n        if number >= 1:\n            strength += \"*\"\n        if letter >= 1:\n            strength += \"*\"\n        print(strength)\n    else:\n        print(\"invalid\")\n\npassword_strength(\"python123\")\npassword_strength(\"12345\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Using `elif` instead of independent `if` statements caps every valid password at a single `'*'`!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "04 Conditional Statements"
+      },
+      "pacing": {
+        "learning": {
+          "target": 31.5,
+          "min": 20.5,
+          "max": 42.5
+        },
+        "exam": {
+          "target": 23.2,
+          "min": 15.1,
+          "max": 30.2
+        },
+        "stuckMinutes": 6.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "15-point Home Exam 2 task (~23m timed budget leaving 25m for Restart & Run All + WISEflow upload >=10m early)."
+      },
+      "available": true,
+      "tags": [
+        "exam-2024h-2",
+        "coding",
+        "functions",
+        "conditionals",
+        "topic-3"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Autumn 2024 Official Home Exam 2 (100 pts · Vacation, Password, Tips & London Bike)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "E24H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2024 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2024H_EBA3400_Exam02_QP.pdf",
+          "page": 3,
+          "role": "prompt",
+          "caption": "2024H Home Exam 2 · Task 2a Rules Table (PDF p. 3)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155348",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155348",
+          "isSolution": false
+        },
+        {
+          "sourceId": "E24H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2024 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2024H_EBA3400_Exam02_QP.pdf",
+          "page": 4,
+          "role": "prompt",
+          "caption": "2024H Home Exam 2 · Task 2b (PDF p. 4)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155348",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155348",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:E24H2-3",
+      "localId": "E24H2-3",
+      "courseId": "prog-3021",
+      "topicId": "5",
+      "collectionId": "exam-2024h-2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 3,
+      "points": 35,
+      "title": "2024H Exam 2 · Task 3: Seaborn `tips` Pivot, Scatter & Side-by-Side Subplots (35 pts, a–f)",
+      "promptMarkdown": "Using Seaborn's `'tips'` dataset (`tip_df = sns.load_dataset('tips')`):\n\n- **(3.a)** Load `'tips'` and display the first 5 rows.\n- **(3.b)** Display the **top 3 most expensive Sunday dinner** transactions (`day == 'Sun'` and `time == 'Dinner'`, ranked by `total_bill`).\n- **(3.c)** Compute average `tip` for each combination of `smoker` (2 rows) × `day` (4 columns) as a $2 \\times 4$ table.\n- **(3.d)** Add `tip_percentage = round(tip / total_bill * 100, 1)` and display `.head()`.\n- **(3.e)** Plot a scatter chart of `total_bill` vs. `tip_percentage` coloured by `time`, then state in a **Markdown cell** how many transactions had `tip_percentage > 30%`.\n- **(3.f) [10 pts]:** Create `1 × 2` horizontal subplots: left = histogram of `tip_percentage`; right = horizontal bar chart of transaction counts by `time` × `day` (`pd.crosstab`), each with a title.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "(a–b) `sns.load_dataset('tips')` + `tip_df[(tip_df.day == 'Sun') & (tip_df.time == 'Dinner')].nlargest(3, 'total_bill')`",
+        "(c–d) `tip_df.pivot_table(index='smoker', columns='day', values='tip', aggfunc='mean', observed=True)` + `tip_percentage` rounded to 1 decimal",
+        "(e) `sns.scatterplot(data=tip_df, x='total_bill', y='tip_percentage', hue='time')` + Markdown cell: **3 transactions** (`> 30%`)",
+        "(f) `fig, ax = plt.subplots(1, 2, figsize=(12, 3))` passing `ax=ax[0]` (hist) and `ax=ax[1]` (`crosstab` `kind='barh'`) with `.set_title(...)`"
+      ],
+      "hints": [
+        "Use `.nlargest(3, 'total_bill')` (or `.sort_values('total_bill', ascending=False).head(3)`) for (3.b) and `pivot_table(..., aggfunc='mean', observed=True)` for the 2×4 table in (3.c).",
+        "Double-check the exact count in (3.e) numerically too (`(tip_df.tip_percentage > 30).sum()` = `3`) so you never miscount overlapping dots!"
+      ],
+      "solutionMarkdown": "**Official Evaluation Guideline (`2024H Exam 2, Task 3 — 35 pts`):**\n```python\n# (3.a)\ntip_df = sns.load_dataset(\"tips\")\ntip_df.head()\n\n# (3.b)\ntip_df[(tip_df.day == \"Sun\") & (tip_df.time == \"Dinner\")].nlargest(3, \"total_bill\")\n\n# (3.c)\ntip_df.pivot_table(index=\"smoker\", columns=\"day\", values=\"tip\", aggfunc=\"mean\", observed=True)\n\n# (3.d)\ntip_df[\"tip_percentage\"] = round(tip_df.tip / tip_df.total_bill * 100, 1)\ntip_df.head()\n\n# (3.e)\nsns.scatterplot(data=tip_df, x=\"total_bill\", y=\"tip_percentage\", hue=\"time\")\n# Markdown cell: **There were 3 transactions where more than 30% tip was given.**\n\n# (3.f)\nfig, ax = plt.subplots(nrows=1, ncols=2, figsize=(12, 3))\ntip_df.plot(kind=\"hist\", y=\"tip_percentage\", ax=ax[0])\npd.crosstab(tip_df.time, tip_df.day).plot(kind=\"barh\", ax=ax[1])\nax[0].set_title(\"Distribution of Tip Percentage\")\nax[1].set_title(\"Number of transactions\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Using `pd.crosstab` without `values`/`aggfunc` in (3.c) counts rows instead of averaging `tip`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "15.2 Side-by-side subplots"
+      },
+      "pacing": {
+        "learning": {
+          "target": 73.5,
+          "min": 47.8,
+          "max": 99.2
+        },
+        "exam": {
+          "target": 54.2,
+          "min": 35.2,
+          "max": 70.5
+        },
+        "stuckMinutes": 6.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "35-point Home Exam 2 task (~54m timed budget leaving 25m for Restart & Run All + WISEflow upload >=10m early)."
+      },
+      "available": true,
+      "tags": [
+        "exam-2024h-2",
+        "coding",
+        "pandas",
+        "subplots",
+        "seaborn",
+        "topic-5"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Autumn 2024 Official Home Exam 2 (100 pts · Vacation, Password, Tips & London Bike)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "E24H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2024 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2024H_EBA3400_Exam02_QP.pdf",
+          "page": 4,
+          "role": "prompt",
+          "caption": "2024H Home Exam 2 · Task 3a–e (PDF p. 4)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155348",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155348",
+          "isSolution": false
+        },
+        {
+          "sourceId": "E24H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2024 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2024H_EBA3400_Exam02_QP.pdf",
+          "page": 5,
+          "role": "prompt",
+          "caption": "2024H Home Exam 2 · Task 3f Subplots (PDF p. 5)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155348",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155348",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:E24H2-4",
+      "localId": "E24H2-4",
+      "courseId": "prog-3021",
+      "topicId": "6",
+      "collectionId": "exam-2024h-2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 3,
+      "points": 35,
+      "title": "2024H Exam 2 · Task 4: London Bike Hourly Resampling & Weekday FacetGrid (35 pts, a–f)",
+      "promptMarkdown": "Dataset `london_bike.csv` (one row = **one hour** of London bike shares; `timestamp`, `usage`, `temperature`, `humidity`, `wind_speed`, `weather`):\n\n- **(4.a)** Read `'london_bike.csv'` parsing `timestamp` as `DatetimeIndex` and run `bike_df.info()`.\n- **(4.b)** Display the minimum and maximum `temperature`.\n- **(4.c)** Filter rows where `weather == 'Thunderstorms'` showing only `['humidity', 'wind_speed', 'weather']`.\n- **(4.d)** Compute average `humidity` for each `weather` condition.\n- **(4.e)** Aggregate hourly `usage` into **monthly totals** (`resample`), plot as a line chart with markers, and state in a **Markdown cell** whether summer (`Jul–Aug`) usage was higher in `2015` or `2016`.\n- **(4.f) [10 pts]:** Extract `day_of_week` (`bike_df.index.day_name()`), slice `'2016-05-02':'2016-05-15'` (inclusive), and plot `usage` histograms faceted across `day_of_week`.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "(a–d) `pd.read_csv('london_bike.csv', parse_dates=['timestamp'], index_col=0)` + min/max temp + `'Thunderstorms'` column subset + `groupby('weather').humidity.mean()`",
+        "(e) Sum hourly `usage` via `bike_df.resample('ME').usage.sum().plot(marker='o')` (or `'MS'`) + Markdown cell: **2016 summer usage was higher than 2015**",
+        "(f) `bike_df['day_of_week'] = bike_df.index.day_name()` (NO `.dt` on a `DatetimeIndex`!) + `.loc['2016-05-02':'2016-05-15']` + `sns.FacetGrid(..., col='day_of_week').map(sns.histplot, 'usage')`"
+      ],
+      "hints": [
+        "Contrast `london_bike.csv` (1 row = 1 hour with a `usage` count column -> `.resample('ME').usage.sum()`) against `citybike.csv` (1 row = 1 trip -> `.resample('D').size()`)!",
+        "Because `timestamp` is the `DatetimeIndex`, call `bike_df.index.day_name()` directly (calling `bike_df.index.dt.day_name()` raises `AttributeError`!)."
+      ],
+      "solutionMarkdown": "**Official Evaluation Guideline (`2024H Exam 2, Task 4 — 35 pts`):**\n```python\n# (4.a)\nbike_df = pd.read_csv(\"london_bike.csv\", parse_dates=[\"timestamp\"], index_col=0).sort_index()\nbike_df.info()\n\n# (4.b)\nbike_df.temperature.describe()[[\"min\", \"max\"]]\n\n# (4.c)\nbike_df[bike_df.weather == \"Thunderstorms\"][[\"humidity\", \"wind_speed\", \"weather\"]]\n\n# (4.d)\nbike_df.groupby(\"weather\").humidity.mean()\n\n# (4.e)\nbike_df.resample(\"ME\").usage.sum().plot(figsize=(15, 3), marker=\"o\")\n# Markdown cell: **The summer usage in 2016 was higher compared to 2015.**\n\n# (4.f)\nbike_df[\"day_of_week\"] = bike_df.index.day_name()\nbike_df_may = bike_df.loc[\"2016-05-02\":\"2016-05-15\", :]\nfg = sns.FacetGrid(bike_df_may, col=\"day_of_week\")\nfg.map(sns.histplot, \"usage\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Using `.resample('ME').size()` on `london_bike.csv` merely counts hours in each month (~720/744) instead of summing `usage`!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "A.2 Datetime columns and indices"
+      },
+      "pacing": {
+        "learning": {
+          "target": 73.5,
+          "min": 47.8,
+          "max": 99.2
+        },
+        "exam": {
+          "target": 54.2,
+          "min": 35.2,
+          "max": 70.5
+        },
+        "stuckMinutes": 6.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "35-point Home Exam 2 task (~54m timed budget leaving 25m for Restart & Run All + WISEflow upload >=10m early)."
+      },
+      "available": true,
+      "tags": [
+        "exam-2024h-2",
+        "coding",
+        "time-series",
+        "resample",
+        "facetgrid",
+        "topic-6"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Autumn 2024 Official Home Exam 2 (100 pts · Vacation, Password, Tips & London Bike)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "E24H2_QP",
+          "kind": "canvas",
+          "title": "Autumn 2024 Home Exam 2 Question Paper (100 pts)",
+          "filename": "2024H_EBA3400_Exam02_QP.pdf",
+          "page": 6,
+          "role": "prompt",
+          "caption": "2024H Home Exam 2 · Task 4 London Bike (PDF p. 6)",
+          "canvasCourseId": "3021",
+          "canvasFileId": "155348",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/155348",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:PV-7",
+      "localId": "PV-7",
+      "courseId": "prog-3021",
+      "topicId": "6",
+      "collectionId": "pandas-viz-exam2",
+      "origin": "lecture",
+      "kind": "coding",
+      "difficulty": 2,
+      "points": 15,
+      "title": "PV-7 · Lecture 16 Time Series: `strptime`, `strftime` & `timedelta` Renewal Loop",
+      "promptMarkdown": "Given a dictionary `trials` mapping client names to signup strings in `'dd-mm-YYYY'` format:\n\n1. Loop over `trials.items()`, parse each signup date with `datetime.strptime(..., '%d-%m-%Y')`, and compute `expiry = signup + timedelta(days=30)`.\n2. Print each client's formatted renewal notice using `strftime('%Y/%m/%d (%A)')`, e.g. `NordicBank: expires 2026/12/01 (Tuesday)`.\n\n**Starter Code:**\n```python\nfrom datetime import datetime, timedelta\n\ntrials = {\n    \"NordicBank\": \"01-11-2026\",\n    \"FjordTech\": \"15-11-2026\",\n    \"OsloAI\": \"26-11-2026\",\n}\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Parse `'01-11-2026'` with `datetime.strptime(date_str, '%d-%m-%Y')` (`%Y` for 4-digit year)",
+        "Add `timedelta(days=30)` to obtain the renewal `datetime` object",
+        "Format output via `expiry.strftime('%Y/%m/%d (%A)')` inside the loop over `trials.items()`"
+      ],
+      "hints": [
+        "`strptime` (**p**arse) converts string -> `datetime` using `'%d-%m-%Y'`; `strftime` (**f**ormat) converts `datetime` -> string using `'%Y/%m/%d (%A)'`.",
+        "Add `timedelta(days=30)` directly to the parsed `datetime` object before calling `.strftime(...)`."
+      ],
+      "solutionMarkdown": "**Lecture 16 Reference Solution (`16_Time Series.pdf`):**\n```python\nfrom datetime import datetime, timedelta\n\ntrials = {\n    \"NordicBank\": \"01-11-2026\",\n    \"FjordTech\": \"15-11-2026\",\n    \"OsloAI\": \"26-11-2026\",\n}\n\nfor client, signup_str in trials.items():\n    signup_dt = datetime.strptime(signup_str, \"%d-%m-%Y\")\n    expiry_dt = signup_dt + timedelta(days=30)\n    print(f\"{client}: expires {expiry_dt.strftime('%Y/%m/%d (%A)')}\")\n```",
+      "solutionAssets": [],
+      "pitfall": "Mixing up `%m` (month `01–12`) with `%M` (minute `00–59`), or reversing `strptime` and `strftime`.",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "A.1 Date differences in ordinary Python"
+      },
+      "pacing": {
+        "learning": {
+          "target": 31.5,
+          "min": 20.5,
+          "max": 42.5
+        },
+        "exam": {
+          "target": 23.2,
+          "min": 15.1,
+          "max": 30.2
+        },
+        "stuckMinutes": 6.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "15-point Home Exam 2 task (~23m timed budget leaving 25m for Restart & Run All + WISEflow upload >=10m early)."
+      },
+      "available": true,
+      "tags": [
+        "pandas-viz-exam2",
+        "coding",
+        "datetime",
+        "lecture-16",
+        "topic-6"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "lecture",
+        "label": "Lecture Set",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Home Exam 2: Pandas, DateTime & Visualisation"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "L16_TS",
+          "kind": "canvas",
+          "title": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf)",
+          "filename": "16_Time Series.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "207234",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/207234",
+          "isSolution": false
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:PV-8",
+      "localId": "PV-8",
+      "courseId": "prog-3021",
+      "topicId": "6",
+      "collectionId": "pandas-viz-exam2",
+      "origin": "lecture",
+      "kind": "coding",
+      "difficulty": 3,
+      "points": 25,
+      "title": "PV-8 · Lecture 16 Time Series: Sorted `DatetimeIndex` Slicing, `.resample('ME')` & Weekday Plot",
+      "promptMarkdown": "Given unsorted scooter rental logs `rentals` (one row = one hour with `rides` and `revenue_nok`):\n\n1. Convert `'timestamp'` to `datetime`, set it as the index, and **sort the index chronologically** (`.sort_index()`).\n2. Slice only May 2026 rows via `.loc['2026-05']` and print total May `rides`.\n3. Compute monthly total `revenue_nok` across the full dataset with `.resample('ME')['revenue_nok'].sum()` and extract `rentals['weekday'] = rentals.index.day_name()`.\n\n**Starter Code:**\n```python\nimport pandas as pd\n\nrentals = pd.DataFrame({\n    \"timestamp\": [\"2026-06-02 09:00\", \"2026-05-14 08:00\", \"2026-05-29 17:00\", \"2026-06-18 16:00\"],\n    \"rides\": [42, 35, 68, 55],\n    \"revenue_nok\": [1680, 1400, 2720, 2200],\n})\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Parse `pd.to_datetime(rentals['timestamp'])`, `.set_index('timestamp')`, and call `.sort_index()` before partial-string slicing",
+        "Slice `.loc['2026-05', 'rides'].sum()` (`= 103` rides)",
+        "Aggregate monthly revenue with `.resample('ME')['revenue_nok'].sum()` and extract weekday via `rentals.index.day_name()` (no `.dt`!)"
+      ],
+      "hints": [
+        "Always call `.sort_index()` after setting a `DatetimeIndex`—Pandas partial-string range slicing requires a monotonic index!",
+        "Use `rentals.index.day_name()` directly on the `DatetimeIndex` (never `rentals.index.dt.day_name()`)."
+      ],
+      "solutionMarkdown": "**Lecture 16 Reference Solution (`16_Time Series.pdf`):**\n```python\nrentals[\"timestamp\"] = pd.to_datetime(rentals[\"timestamp\"])\nrentals = rentals.set_index(\"timestamp\").sort_index()\n\nmay_rides = rentals.loc[\"2026-05\", \"rides\"].sum()\nprint(\"May rides:\", may_rides)\n\nmonthly_rev = rentals[\"revenue_nok\"].resample(\"ME\").sum()\nrentals[\"weekday\"] = rentals.index.day_name()\nprint(monthly_rev)\nprint(rentals[[\"rides\", \"weekday\"]])\n```",
+      "solutionAssets": [],
+      "pitfall": "Slicing `.loc['2026-05-01':'2026-05-31']` on an unsorted `DatetimeIndex` raises `KeyError` in Pandas—always chain `.sort_index()` right after `read_csv` / `set_index`!",
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "A.2 Datetime columns and indices"
+      },
+      "pacing": {
+        "learning": {
+          "target": 52.5,
+          "min": 34.1,
+          "max": 70.9
+        },
+        "exam": {
+          "target": 38.8,
+          "min": 25.2,
+          "max": 50.4
+        },
+        "stuckMinutes": 6.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "25-point Home Exam 2 task (~39m timed budget leaving 25m for Restart & Run All + WISEflow upload >=10m early)."
+      },
+      "available": true,
+      "tags": [
+        "pandas-viz-exam2",
+        "coding",
+        "time-series",
+        "resample",
+        "lecture-16",
+        "topic-6"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "lecture",
+        "label": "Lecture Set",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Home Exam 2: Pandas, DateTime & Visualisation"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "L16_TS",
+          "kind": "canvas",
+          "title": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf)",
+          "filename": "16_Time Series.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Lecture 16 · Time Series Slides (207234--16_Time Series.pdf) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "207234",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/207234",
+          "isSolution": false
+        }
+      ]
     },
     {
       "id": "prog-3021:MCQ-7",
@@ -2332,7 +4766,14 @@
       ],
       "dlpfcBase": 2,
       "cognitiveType": "procedural",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Python & Pandas Trap Diagnostics (MCQ)"
+      }
     },
     {
       "id": "prog-3021:MCQ-8",
@@ -2394,7 +4835,14 @@
       ],
       "dlpfcBase": 1,
       "cognitiveType": "recall",
-      "sources": {}
+      "sources": {},
+      "provenance": {
+        "category": "ai_synthetic",
+        "label": "AI Synthetic",
+        "synthetic": true,
+        "llmModel": "LLM-generated (legacy — model unlogged)",
+        "sourceDetail": "Python & Pandas Trap Diagnostics (MCQ)"
+      }
     }
   ]
 }

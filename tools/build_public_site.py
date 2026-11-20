@@ -96,28 +96,293 @@ def rewrite_static_vault_assets(
     return re.sub(r"!\[([^\]]*)\]\(/api/vault-asset\?([^)]+)\)", _replace_api_asset, rewritten)
 
 
+SOLUTION_DOC_RE = re.compile(
+    r"solution|guideline|evaluation|examiner\s*guide|marking|eba11805l\.pdf|20\d\d[hv]_.*l\.pdf",
+    re.I,
+)
+BOOK_SOURCE_RE = re.compile(r"textbook|atrill|mclaney|/Books/", re.I)
+
+
+def build_question_provenance(q: dict[str, Any], collections_by_id: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Attach explicit, honest provenance & LLM attribution metadata to every question."""
+    origin = str(q.get("origin") or "")
+    col_id = str(q.get("collectionId") or "")
+    col_title = str((collections_by_id.get(col_id) or {}).get("title") or col_id)
+    explicit_model = q.get("generatedBy") or q.get("llmModel")
+
+    if origin == "original_exam":
+        return {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": False,
+            "llmModel": None,
+            "sourceDetail": col_title,
+        }
+    if origin == "tutoring":
+        return {
+            "category": "tutoring",
+            "label": "Tutoring Session",
+            "synthetic": False,
+            "llmModel": None,
+            "sourceDetail": col_title,
+        }
+    if origin == "lecture":
+        return {
+            "category": "lecture",
+            "label": "Lecture Set",
+            "synthetic": False,
+            "llmModel": None,
+            "sourceDetail": col_title,
+        }
+    if origin == "reading_submission":
+        return {
+            "category": "reading",
+            "label": "Reading Task",
+            "synthetic": False,
+            "llmModel": None,
+            "sourceDetail": col_title,
+        }
+    if origin == "textbook":
+        return {
+            "category": "book",
+            "label": "Book Exercise",
+            "synthetic": False,
+            "llmModel": None,
+            "sourceDetail": col_title or "Atrill & McLaney (12th ed.)",
+        }
+    if origin == "mock_exam":
+        if explicit_model:
+            llm = str(explicit_model)
+        elif col_id == "WF-MOCK-D":
+            llm = "Gemini (Antigravity)"
+        elif re.fullmatch(r"WF-MOCK-[ABC]", col_id):
+            llm = "AI Builder + Gemini (Antigravity format)"
+        else:
+            llm = "LLM-generated (legacy — model unlogged)"
+        return {
+            "category": "ai_mock",
+            "label": "AI Mock Exam",
+            "synthetic": True,
+            "llmModel": llm,
+            "sourceDetail": col_title,
+        }
+    if origin == "synthetic_drill":
+        llm = str(explicit_model) if explicit_model else "LLM-generated (legacy — model unlogged)"
+        return {
+            "category": "ai_synthetic",
+            "label": "AI Synthetic",
+            "synthetic": True,
+            "llmModel": llm,
+            "sourceDetail": col_title,
+        }
+    return {
+        "category": "exercise",
+        "label": "BI Exercise",
+        "synthetic": False,
+        "llmModel": None,
+        "sourceDetail": col_title,
+    }
+
+
+def sanitize_public_sources(bank: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Convert raw local source paths into copyright-safe metadata & BI Canvas file pointers."""
+    canvas_course_id = str(bank.get("canvasId") or "").strip()
+    out: dict[str, dict[str, Any]] = {}
+    for sid, meta in (bank.get("sources") or {}).items():
+        if not isinstance(meta, dict):
+            continue
+        title = str(meta.get("title") or sid).strip()
+        cpath = str(meta.get("canvasPath") or "").strip()
+        vpath = str(meta.get("vaultPath") or "").strip()
+        raw_path = cpath or vpath
+        raw_name = Path(raw_path).name if raw_path else title
+        id_match = re.match(r"^(\d{4,10})--(.+)$", raw_name)
+        canvas_file_id = id_match.group(1) if id_match else ""
+        clean_filename = id_match.group(2) if id_match else raw_name
+        if "CliffsNotes" in clean_filename:
+            clean_filename = "EXC_3430_Exam_2023.pdf"
+
+        # Detect publisher textbook vs BI Canvas material (double-entry bookkeeping slides stay canvas)
+        is_book = bool(
+            (sid.lower().startswith("textbook") or "atrill" in title.lower() or "/Books/" in raw_path)
+            and "excurse" not in title.lower()
+        )
+        kind = "book" if is_book else "canvas"
+        canvas_url = ""
+        if kind == "canvas":
+            if canvas_course_id and canvas_file_id:
+                canvas_url = f"https://canvas.bi.no/courses/{canvas_course_id}/files/{canvas_file_id}"
+            elif canvas_course_id:
+                canvas_url = f"https://canvas.bi.no/courses/{canvas_course_id}/files"
+        is_solution = bool(SOLUTION_DOC_RE.search(f"{title} {clean_filename}"))
+        out[str(sid)] = {
+            "id": str(sid),
+            "title": title,
+            "filename": clean_filename,
+            "kind": kind,
+            "canvasCourseId": canvas_course_id if kind == "canvas" else "",
+            "canvasFileId": canvas_file_id if kind == "canvas" else "",
+            "canvasUrl": canvas_url,
+            "isSolution": is_solution,
+        }
+    return out
+
+
+def build_question_source_refs(
+    q: dict[str, Any],
+    public_sources: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Build copyright-free source reference pointers (book pages / Canvas PDFs) without raw PDFs or image crops."""
+    refs: list[dict[str, Any]] = []
+    seen: set[tuple[str, int, str]] = set()
+
+    def add_ref(sid: str, page: int, role: str, caption: str = "") -> None:
+        meta = public_sources.get(str(sid))
+        if not meta:
+            return
+        pg = max(1, int(page or 1))
+        key = (meta["id"], pg, role)
+        if key in seen:
+            return
+        seen.add(key)
+        is_sol = role == "solution" or bool(meta.get("isSolution"))
+        refs.append({
+            "sourceId": meta["id"],
+            "kind": meta["kind"],
+            "title": meta["title"],
+            "filename": meta["filename"],
+            "page": pg,
+            "role": role,
+            "caption": caption or f"{meta['title']} · p. {pg}",
+            "canvasCourseId": meta.get("canvasCourseId", ""),
+            "canvasFileId": meta.get("canvasFileId", ""),
+            "canvasUrl": meta.get("canvasUrl", ""),
+            "isSolution": is_sol,
+        })
+
+    for role, field in (("context", "contextAssets"), ("prompt", "promptAssets"), ("solution", "solutionAssets")):
+        for item in q.get(field) or []:
+            if isinstance(item, dict) and item.get("sourceId"):
+                add_ref(str(item["sourceId"]), int(item.get("page") or 1), role, str(item.get("caption") or ""))
+
+    if q.get("sourceId") and str(q["sourceId"]) in public_sources:
+        add_ref(str(q["sourceId"]), 1, "prompt")
+    if q.get("solutionSourceId") and str(q["solutionSourceId"]) in public_sources:
+        add_ref(str(q["solutionSourceId"]), 1, "solution")
+    if not refs and q.get("collectionId"):
+        col_id = str(q["collectionId"])
+        col_source_aliases = {
+            "sample-exam": "SAMPLE",
+            "lesson-8": "L8",
+            "tech-structure": "TECH",
+            "diagnostics": "SLIDES",
+            "debugging-practice": "DEBUG",
+            "official-mock": "OFFMOCK",
+            "pandas-viz-exam2": "L16_TS",
+        }
+        mapped_sid = col_id if col_id in public_sources else col_source_aliases.get(col_id, "")
+        if mapped_sid and mapped_sid in public_sources:
+            add_ref(mapped_sid, 1, "prompt")
+    return refs
+
+
 def filter_public_safe_bank(bank: dict[str, Any]) -> dict[str, Any] | None:
-    """Keep only original/synthetic/mock items without copyrighted university PDF crops."""
-    safe_origins = {"synthetic_drill", "mock_exam"}
+    """Build copyright-safe open bank for ALL users (signed-in & demo) with provenance & Canvas/BYOB source pointers.
+
+    - Includes all structured questions across BI Past Exams, Exercises, Tutoring, Lectures, Readings,
+      Textbook Study Index, and clearly labeled AI Mocks / Synthetics.
+    - Strips ALL raw PDFs, slides, PNG page crops, local filesystem paths, and verbatim textbook prose.
+    - Attaches explicit `provenance` (category + LLM model) and copyright-free `sourceRefs` so students
+      unlock readable BI PDFs via Canvas Sync or drop their own textbook PDF locally in-browser.
+    """
+    raw_colls = bank.get("collections") or []
+    collections_by_id = {str(c.get("id")): c for c in raw_colls if isinstance(c, dict) and c.get("id")}
+    public_sources = sanitize_public_sources(bank)
+
+    category_order = {
+        "past_exam": 0,
+        "exercise": 1,
+        "tutoring": 1,
+        "lecture": 2,
+        "reading": 2,
+        "book": 3,
+        "ai_mock": 4,
+        "ai_synthetic": 5,
+    }
+
     safe_qs: list[dict[str, Any]] = []
     for q in bank.get("questions") or []:
         if not q.get("available", True):
             continue
-        if q.get("origin") not in safe_origins:
-            continue
-        if q.get("promptAssets") or q.get("contextAssets") or q.get("solutionAssets"):
-            continue
         q_clean = dict(q)
+        prov = build_question_provenance(q_clean, collections_by_id)
+        refs = build_question_source_refs(q_clean, public_sources)
+
+        # Remove copyrighted PDF/image crop paths & backend file refs
+        q_clean["promptAssets"] = []
+        q_clean["contextAssets"] = []
+        q_clean["solutionAssets"] = []
+        q_clean.pop("extraReference", None)
         q_clean["sources"] = {}
+        q_clean["provenance"] = prov
+        if refs:
+            q_clean["sourceRefs"] = refs
+
+        # Never redistribute verbatim textbook publisher text (Atrill & McLaney / Pearson)
+        if prov["category"] == "book":
+            book_ref = next((r for r in refs if r["kind"] == "book" and r["role"] != "solution"), None)
+            sol_ref = next((r for r in refs if r["kind"] == "book" and r["role"] == "solution"), None)
+            book_title = (book_ref or sol_ref or {}).get("title") or "Atrill & McLaney · Accounting and Finance for Non-Specialists (12th ed.)"
+            p_hint = f"p. {book_ref['page']}" if book_ref else "matching chapter"
+            s_hint = f" (answer reference: p. {sol_ref['page']})" if sol_ref else ""
+            q_clean["promptMarkdown"] = (
+                f"Complete **{q_clean.get('title') or q_clean.get('localId') or 'this textbook exercise'}** "
+                f"from *{book_title}* (**{p_hint}**{s_hint}).\n\n"
+                f"Use the **Source Context** dropzone below to attach your own PDF copy of the textbook — "
+                f"Study-OS will jump straight to **{p_hint}** locally in your browser without uploading the file."
+            )
+            if not q_clean.get("solutionMarkdown") or len(str(q_clean.get("solutionMarkdown") or "")) > 520:
+                sol_pg = f" (**p. {sol_ref['page']}**)" if sol_ref else ""
+                q_clean["solutionMarkdown"] = (
+                    f"Compare your working against the printed textbook answer in *{book_title}*"
+                    f"{sol_pg} via your local PDF copy."
+                )
+
         safe_qs.append(q_clean)
 
     if not safe_qs:
         return None
 
+    # Sort collections so Official BI Past Exams & Course Sets always appear BEFORE AI Mocks / Synthetics
     used_colls = {q.get("collectionId") for q in safe_qs}
+    coll_rank_map: dict[str, tuple[int, dict[str, Any]]] = {}
+    for q in safe_qs:
+        cid = str(q.get("collectionId") or "")
+        p = q["provenance"]
+        r = category_order.get(p["category"], 3)
+        if cid not in coll_rank_map or r < coll_rank_map[cid][0]:
+            coll_rank_map[cid] = (r, p)
+
+    enriched_colls: list[dict[str, Any]] = []
+    for idx, c in enumerate(raw_colls):
+        cid = str(c.get("id") or "")
+        if cid not in used_colls:
+            continue
+        c_copy = dict(c)
+        rank, prov = coll_rank_map.get(cid, (3, {"category": "exercise", "label": "BI Exercise", "synthetic": False, "llmModel": None}))
+        c_copy["provenance"] = {
+            "category": prov["category"],
+            "label": prov["label"],
+            "synthetic": prov["synthetic"],
+            "llmModel": prov["llmModel"],
+        }
+        c_copy["_sortKey"] = (rank, idx)
+        enriched_colls.append(c_copy)
+    enriched_colls.sort(key=lambda c: c.pop("_sortKey"))
+
     out = dict(bank)
-    out["collections"] = [c for c in (bank.get("collections") or []) if c.get("id") in used_colls]
-    out["sources"] = {}
+    out["collections"] = enriched_colls
+    out["sources"] = public_sources
     out["questions"] = safe_qs
     return out
 
@@ -126,6 +391,16 @@ def build_catalog_entry(bank: dict[str, Any]) -> dict[str, Any]:
     qs = [q for q in (bank.get("questions") or []) if q.get("available", True)]
     obs = bank.get("obsidian") or {}
     main_ref = obs.get("mainReference") or ""
+    synthetic_count = sum(
+        1 for q in qs
+        if (q.get("provenance") or {}).get("synthetic")
+        or q.get("origin") in {"synthetic_drill", "mock_exam"}
+    )
+    book_count = sum(
+        1 for q in qs
+        if (q.get("provenance") or {}).get("category") == "book" or q.get("origin") == "textbook"
+    )
+    official_count = len(qs) - synthetic_count - book_count
     return {
         "courseId": bank["courseId"],
         "canvasId": bank.get("canvasId", ""),
@@ -136,6 +411,9 @@ def build_catalog_entry(bank: dict[str, Any]) -> dict[str, Any]:
         "color": bank.get("color", "#28654d"),
         "examInfo": bank.get("examInfo") or {},
         "questionCount": len(qs),
+        "officialCount": official_count,
+        "bookCount": book_count,
+        "aiSyntheticCount": synthetic_count,
         "mcqCount": sum(1 for q in qs if q.get("kind") == "mcq"),
         "writtenOrCalcCount": sum(1 for q in qs if q.get("kind") != "mcq"),
         "hardCount": sum(1 for q in qs if int(q.get("difficulty") or 2) >= 3),
@@ -153,9 +431,22 @@ def build_catalog_entry(bank: dict[str, Any]) -> dict[str, Any]:
 
 
 def add_bundled_practice(static_dir: Path, bootstrap: dict[str, Any]) -> None:
-    """Include original mathematics exercises in hosted builds and refreshed packs."""
+    """Include starter mathematics exercises in hosted builds and refreshed packs (ordered after official BI exams)."""
     bank_file = ROOT_DIR / "examples" / "math-2588" / "bank.json"
     starter = json.loads(bank_file.read_text(encoding="utf-8"))
+    starter_colls = {str(c.get("id")): c for c in (starter.get("collections") or []) if c.get("id")}
+    for q in starter.get("questions") or []:
+        if "provenance" not in q:
+            q["provenance"] = build_question_provenance(q, starter_colls)
+    for c in starter.get("collections") or []:
+        if "provenance" not in c:
+            is_mock = c.get("kind") in {"mock_exam", "mock"} or "mock" in str(c.get("id") or "").lower()
+            c["provenance"] = {
+                "category": "ai_mock" if is_mock else "ai_synthetic",
+                "label": "AI Mock Exam" if is_mock else "AI Synthetic",
+                "synthetic": True,
+                "llmModel": "LLM-generated (legacy — model unlogged)",
+            }
     reference = next(
         (r for r in bootstrap["references"] if r["file"] == starter["obsidian"]["mainReference"]),
         None,
@@ -167,6 +458,11 @@ def add_bundled_practice(static_dir: Path, bootstrap: dict[str, Any]) -> None:
     if course_file.is_file():
         bank = json.loads(course_file.read_text(encoding="utf-8"))
         bank = merge_course_practice(bank, starter)
+        # Keep Official BI Past Exams & Course Papers first, AI mocks/drills after
+        bank["collections"] = sorted(
+            bank.get("collections") or [],
+            key=lambda c: (1 if (c.get("provenance") or {}).get("synthetic") else 0),
+        )
     else:
         bank = starter
     prep_file = "math-reference/Autumn 2026 exam preparation.md"

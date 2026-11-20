@@ -1,5 +1,5 @@
 {
-  "serverTime": "2026-11-18T07:32:51.891957+00:00",
+  "serverTime": "2026-11-20T08:54:19.251608+00:00",
   "timezone": "Europe/Oslo",
   "mode": "static_web",
   "catalog": [
@@ -17,13 +17,16 @@
         "durationMinutes": 180,
         "notes": "08.12.2026 09:00–12:00 · WISEflow + FLOWlock (Windows/macOS laptops only; BI calculator allowed) · Part 1: 10 MCQs (1/3, no negative marking) + Part 2: 3 Short Answers, max 200w (1/3) + Part 3: 1 Multi-part Analytical Case (1/3) · Holistic qualitative grading on economic judgement (never curriculum-dump)."
       },
-      "questionCount": 180,
-      "mcqCount": 126,
-      "writtenOrCalcCount": 54,
-      "hardCount": 14,
-      "highDlpfcCount": 14,
-      "medDlpfcCount": 63,
-      "lowDlpfcCount": 103,
+      "questionCount": 329,
+      "officialCount": 149,
+      "bookCount": 0,
+      "aiSyntheticCount": 180,
+      "mcqCount": 178,
+      "writtenOrCalcCount": 151,
+      "hardCount": 37,
+      "highDlpfcCount": 94,
+      "medDlpfcCount": 87,
+      "lowDlpfcCount": 148,
       "flowmultiCount": 0,
       "topicCount": 9,
       "topics": [
@@ -182,24 +185,279 @@
       ],
       "collections": [
         {
+          "id": "E23F",
+          "title": "Autumn 2023",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "E24S",
+          "title": "Spring 2024",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "E24F",
+          "title": "Autumn 2024",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "E25S",
+          "title": "Spring 2025",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "E25F",
+          "title": "Autumn 2025",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "E26S",
+          "title": "Spring 2026 Official Exam (Full 3-Part Paper)",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T1",
+          "title": "Topic 1",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T2",
+          "title": "Topic 2",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T3A",
+          "title": "Topic 3 · Set A",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T3B",
+          "title": "Topic 3 · Set B",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T4",
+          "title": "Topic 4",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T5A",
+          "title": "Topic 5 · Set A",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T5B",
+          "title": "Topic 5 · Set B",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T6",
+          "title": "Topic 6",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T7",
+          "title": "Topic 7",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T8",
+          "title": "Topic 8",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "T9",
+          "title": "Topic 9",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "L7",
+          "title": "Lecture 7 · Nora / tax and transfers",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "L11",
+          "title": "Lecture 11 · Jonas / bread market",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "L16",
+          "title": "Lecture 16 · Macro Problem Set (Topics 6–9)",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "L4",
+          "title": "Lecture 4 · Fjordfrakt technology choice",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
           "id": "SYN-MCQ",
           "title": "Synthetic MCQ Drills (120)",
-          "kind": "drill"
+          "kind": "drill",
+          "provenance": {
+            "category": "ai_synthetic",
+            "label": "AI Synthetic",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
         },
         {
           "id": "SYN-SHORT",
           "title": "Synthetic Short-Answer Drills (36)",
-          "kind": "drill"
+          "kind": "drill",
+          "provenance": {
+            "category": "ai_synthetic",
+            "label": "AI Synthetic",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
         },
         {
           "id": "SYN-CASE",
           "title": "Synthetic Analytical Cases (12)",
-          "kind": "drill"
+          "kind": "drill",
+          "provenance": {
+            "category": "ai_synthetic",
+            "label": "AI Synthetic",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
         },
         {
           "id": "OBSID-BANK",
           "title": "Exam-Calibrated Practice Bank (Obsidian)",
-          "kind": "drill"
+          "kind": "drill",
+          "provenance": {
+            "category": "ai_synthetic",
+            "label": "AI Synthetic",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
         }
       ],
       "obsidian": {
@@ -209,7 +467,344 @@
         "practiceNote": "EXC3420-Obsidian/EXC3420-support/Practice.md"
       },
       "obsidianMainReference": "EXC3420-Obsidian/EXC3420 - Economics I.md",
-      "obsidianUri": ""
+      "obsidianUri": "",
+      "tierQuestionIds": {
+        "1": [
+          "econ-2522:E23F-1-1",
+          "econ-2522:E23F-1-2",
+          "econ-2522:E23F-1-3",
+          "econ-2522:E23F-1-4",
+          "econ-2522:E23F-1-6",
+          "econ-2522:E23F-1-7",
+          "econ-2522:E24S-1-1",
+          "econ-2522:E24S-1-2",
+          "econ-2522:E24S-1-3",
+          "econ-2522:E24S-1-4",
+          "econ-2522:E24S-1-9",
+          "econ-2522:E24S-1-10",
+          "econ-2522:E24F-1-2",
+          "econ-2522:E24F-1-3",
+          "econ-2522:E24F-1-4",
+          "econ-2522:E24F-1-5",
+          "econ-2522:E24F-1-6",
+          "econ-2522:E24F-1-7",
+          "econ-2522:E24F-1-8",
+          "econ-2522:E24F-1-9",
+          "econ-2522:E24F-1-10",
+          "econ-2522:E25S-1-1",
+          "econ-2522:E25S-1-2",
+          "econ-2522:E25S-1-5",
+          "econ-2522:E25S-1-6",
+          "econ-2522:E25S-1-7",
+          "econ-2522:E25S-1-9",
+          "econ-2522:E25F-1-1",
+          "econ-2522:E25F-1-2",
+          "econ-2522:E25F-1-4",
+          "econ-2522:E25F-1-5",
+          "econ-2522:E25F-1-6",
+          "econ-2522:E25F-1-8",
+          "econ-2522:E25F-1-9",
+          "econ-2522:E25F-1-10",
+          "econ-2522:M001",
+          "econ-2522:M004",
+          "econ-2522:M005",
+          "econ-2522:M006",
+          "econ-2522:M007",
+          "econ-2522:M008",
+          "econ-2522:M009",
+          "econ-2522:M010",
+          "econ-2522:M011",
+          "econ-2522:M012",
+          "econ-2522:M013",
+          "econ-2522:M014",
+          "econ-2522:M015",
+          "econ-2522:M016",
+          "econ-2522:M017",
+          "econ-2522:M019",
+          "econ-2522:M020",
+          "econ-2522:M022",
+          "econ-2522:M023",
+          "econ-2522:M024",
+          "econ-2522:M025",
+          "econ-2522:M026",
+          "econ-2522:M027",
+          "econ-2522:M028",
+          "econ-2522:M029",
+          "econ-2522:M030",
+          "econ-2522:M031",
+          "econ-2522:M032",
+          "econ-2522:M033",
+          "econ-2522:M034",
+          "econ-2522:M035",
+          "econ-2522:M036",
+          "econ-2522:M037",
+          "econ-2522:M038",
+          "econ-2522:M039",
+          "econ-2522:M040",
+          "econ-2522:M041",
+          "econ-2522:M043",
+          "econ-2522:M044",
+          "econ-2522:M045",
+          "econ-2522:M046",
+          "econ-2522:M047",
+          "econ-2522:M048",
+          "econ-2522:M049",
+          "econ-2522:M050",
+          "econ-2522:M051",
+          "econ-2522:M052",
+          "econ-2522:M053",
+          "econ-2522:M054",
+          "econ-2522:M055",
+          "econ-2522:M056",
+          "econ-2522:M057",
+          "econ-2522:M058",
+          "econ-2522:M059",
+          "econ-2522:M060",
+          "econ-2522:M061",
+          "econ-2522:M062",
+          "econ-2522:M063",
+          "econ-2522:M064",
+          "econ-2522:M067",
+          "econ-2522:M068",
+          "econ-2522:M070",
+          "econ-2522:M073",
+          "econ-2522:M075",
+          "econ-2522:M076",
+          "econ-2522:M077",
+          "econ-2522:M078",
+          "econ-2522:M079",
+          "econ-2522:M080",
+          "econ-2522:M081",
+          "econ-2522:M082",
+          "econ-2522:M083",
+          "econ-2522:M084",
+          "econ-2522:M085",
+          "econ-2522:M087",
+          "econ-2522:M088",
+          "econ-2522:M089",
+          "econ-2522:M090",
+          "econ-2522:M091",
+          "econ-2522:M092",
+          "econ-2522:M093",
+          "econ-2522:M094",
+          "econ-2522:M096",
+          "econ-2522:M097",
+          "econ-2522:M098",
+          "econ-2522:M099",
+          "econ-2522:M100",
+          "econ-2522:M102",
+          "econ-2522:M103",
+          "econ-2522:M104",
+          "econ-2522:M105",
+          "econ-2522:M106",
+          "econ-2522:M107",
+          "econ-2522:M108",
+          "econ-2522:M109",
+          "econ-2522:M110",
+          "econ-2522:M112",
+          "econ-2522:M113",
+          "econ-2522:M115",
+          "econ-2522:M117",
+          "econ-2522:M118",
+          "econ-2522:M119",
+          "econ-2522:OBSID-04",
+          "econ-2522:E26S-1-1",
+          "econ-2522:E26S-1-2",
+          "econ-2522:E26S-1-3",
+          "econ-2522:E26S-1-4",
+          "econ-2522:E26S-1-5",
+          "econ-2522:E26S-1-6",
+          "econ-2522:E26S-1-7",
+          "econ-2522:E26S-1-8",
+          "econ-2522:E26S-1-9",
+          "econ-2522:E26S-1-10"
+        ],
+        "2": [
+          "econ-2522:E24F-1-1",
+          "econ-2522:E25S-1-3",
+          "econ-2522:E25S-1-4",
+          "econ-2522:E25S-1-8",
+          "econ-2522:E25S-1-10",
+          "econ-2522:E25F-1-3",
+          "econ-2522:E25F-1-7",
+          "econ-2522:T2-2",
+          "econ-2522:T6-1",
+          "econ-2522:T9-3",
+          "econ-2522:L7-1",
+          "econ-2522:L7-2",
+          "econ-2522:L7-3",
+          "econ-2522:L7-4",
+          "econ-2522:L7-5",
+          "econ-2522:L7-6",
+          "econ-2522:L7-8",
+          "econ-2522:L7-9",
+          "econ-2522:M002",
+          "econ-2522:M003",
+          "econ-2522:M018",
+          "econ-2522:M021",
+          "econ-2522:M042",
+          "econ-2522:M065",
+          "econ-2522:M066",
+          "econ-2522:M069",
+          "econ-2522:M071",
+          "econ-2522:M072",
+          "econ-2522:M074",
+          "econ-2522:M086",
+          "econ-2522:M095",
+          "econ-2522:M101",
+          "econ-2522:M111",
+          "econ-2522:M114",
+          "econ-2522:M116",
+          "econ-2522:M120",
+          "econ-2522:S001",
+          "econ-2522:S002",
+          "econ-2522:S003",
+          "econ-2522:S004",
+          "econ-2522:S005",
+          "econ-2522:S006",
+          "econ-2522:S007",
+          "econ-2522:S008",
+          "econ-2522:S009",
+          "econ-2522:S010",
+          "econ-2522:S011",
+          "econ-2522:S012",
+          "econ-2522:S013",
+          "econ-2522:S014",
+          "econ-2522:S015",
+          "econ-2522:S016",
+          "econ-2522:S017",
+          "econ-2522:S018",
+          "econ-2522:S019",
+          "econ-2522:S020",
+          "econ-2522:S021",
+          "econ-2522:S022",
+          "econ-2522:S023",
+          "econ-2522:S024",
+          "econ-2522:S025",
+          "econ-2522:S026",
+          "econ-2522:S027",
+          "econ-2522:S028",
+          "econ-2522:S029",
+          "econ-2522:S030",
+          "econ-2522:S031",
+          "econ-2522:S032",
+          "econ-2522:S033",
+          "econ-2522:S034",
+          "econ-2522:S035",
+          "econ-2522:S036",
+          "econ-2522:OBSID-01",
+          "econ-2522:OBSID-02",
+          "econ-2522:OBSID-03",
+          "econ-2522:OBSID-05",
+          "econ-2522:OBSID-06",
+          "econ-2522:OBSID-07",
+          "econ-2522:OBSID-08",
+          "econ-2522:OBSID-09",
+          "econ-2522:OBSID-10",
+          "econ-2522:E26S-2-1",
+          "econ-2522:E26S-2-2",
+          "econ-2522:E26S-2-3",
+          "econ-2522:L16-1",
+          "econ-2522:L16-2",
+          "econ-2522:L16-3"
+        ],
+        "3": [
+          "econ-2522:E23F-2-1",
+          "econ-2522:E23F-2-2",
+          "econ-2522:E24S-2-1",
+          "econ-2522:E24S-2-2",
+          "econ-2522:E24F-2-1",
+          "econ-2522:E24F-2-2",
+          "econ-2522:E24F-2-3",
+          "econ-2522:E24F-3-1",
+          "econ-2522:E24F-3-2",
+          "econ-2522:E24F-3-3",
+          "econ-2522:E24F-3-4",
+          "econ-2522:E24F-3-5",
+          "econ-2522:E25S-2-1",
+          "econ-2522:E25S-2-2",
+          "econ-2522:E25S-2-3",
+          "econ-2522:E25S-3-1",
+          "econ-2522:E25S-3-2",
+          "econ-2522:E25S-3-3",
+          "econ-2522:E25S-3-4",
+          "econ-2522:E25S-3-5",
+          "econ-2522:E25F-2-1",
+          "econ-2522:E25F-2-2",
+          "econ-2522:E25F-2-3",
+          "econ-2522:E25F-3-1",
+          "econ-2522:E25F-3-2",
+          "econ-2522:E25F-3-3",
+          "econ-2522:E25F-3-4",
+          "econ-2522:E25F-3-5",
+          "econ-2522:T1-1",
+          "econ-2522:T1-2",
+          "econ-2522:T1-3",
+          "econ-2522:T2-1",
+          "econ-2522:T2-3",
+          "econ-2522:T2-4",
+          "econ-2522:T3A-1",
+          "econ-2522:T3A-2",
+          "econ-2522:T3A-3",
+          "econ-2522:T3A-4",
+          "econ-2522:T3A-5",
+          "econ-2522:T3B-1",
+          "econ-2522:T3B-2",
+          "econ-2522:T3B-3",
+          "econ-2522:T3B-4",
+          "econ-2522:T3B-5",
+          "econ-2522:T4-1",
+          "econ-2522:T4-2",
+          "econ-2522:T4-3",
+          "econ-2522:T4-4",
+          "econ-2522:T5A-1",
+          "econ-2522:T5A-2",
+          "econ-2522:T5A-3",
+          "econ-2522:T5B-1",
+          "econ-2522:T6-2",
+          "econ-2522:T6-3",
+          "econ-2522:T6-4",
+          "econ-2522:T7-1",
+          "econ-2522:T7-2",
+          "econ-2522:T8-1",
+          "econ-2522:T8-2",
+          "econ-2522:T8-3",
+          "econ-2522:T9-1",
+          "econ-2522:T9-2",
+          "econ-2522:T9-4",
+          "econ-2522:L7-7",
+          "econ-2522:L7-10",
+          "econ-2522:L7-11",
+          "econ-2522:L7-12",
+          "econ-2522:L7-13",
+          "econ-2522:L7-14",
+          "econ-2522:L7-15",
+          "econ-2522:L7-16",
+          "econ-2522:L11-1",
+          "econ-2522:L11-2",
+          "econ-2522:L11-3",
+          "econ-2522:L11-4",
+          "econ-2522:L11-5",
+          "econ-2522:L11-6",
+          "econ-2522:L4-1",
+          "econ-2522:C001",
+          "econ-2522:C002",
+          "econ-2522:C003",
+          "econ-2522:C004",
+          "econ-2522:C005",
+          "econ-2522:C006",
+          "econ-2522:C007",
+          "econ-2522:C008",
+          "econ-2522:C009",
+          "econ-2522:C010",
+          "econ-2522:C011",
+          "econ-2522:C012",
+          "econ-2522:OBSID-11",
+          "econ-2522:OBSID-12",
+          "econ-2522:E26S-3-1",
+          "econ-2522:L16-4"
+        ]
+      }
     },
     {
       "courseId": "acct-2527",
@@ -225,14 +820,17 @@
         "durationMinutes": 180,
         "notes": "01.12.2026 09:00–12:00 · 180-pt WISEflow FLOWmulti: 10 MCQs (40 pts) + 4 Multi-Section Exercises (140 pts) · Official 2026 Title Page: whole numbers by default unless 3 decimals with DOT (.) announced (never comma!); minus sign (-50) for outflows/losses; ±2% rounding margin; carry rounded intermediates forward; type '.' in Section 13; zero formula sheet."
       },
-      "questionCount": 56,
-      "mcqCount": 40,
-      "writtenOrCalcCount": 16,
-      "hardCount": 10,
-      "highDlpfcCount": 14,
-      "medDlpfcCount": 16,
-      "lowDlpfcCount": 26,
-      "flowmultiCount": 16,
+      "questionCount": 348,
+      "officialCount": 108,
+      "bookCount": 184,
+      "aiSyntheticCount": 56,
+      "mcqCount": 50,
+      "writtenOrCalcCount": 298,
+      "hardCount": 38,
+      "highDlpfcCount": 45,
+      "medDlpfcCount": 104,
+      "lowDlpfcCount": 199,
+      "flowmultiCount": 24,
       "topicCount": 8,
       "topics": [
         {
@@ -382,26 +980,193 @@
       ],
       "collections": [
         {
+          "id": "E23F",
+          "title": "Autumn 2023 Official Exam (180 pts, WISEflow ±2% Auto-Graded)",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "home",
+          "title": "Home Assignments (H1–H10)",
+          "kind": "assignment",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "tutoring",
+          "title": "Tutoring Sessions 1–6 (T1–T6)",
+          "kind": "tutoring",
+          "provenance": {
+            "category": "tutoring",
+            "label": "Tutoring Session",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "diagnostics",
+          "title": "Original Course Diagnostics (D1–D12)",
+          "kind": "diagnostic",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "lecture",
+          "title": "Lecture Exercises & Supplements (L2–L10)",
+          "kind": "lecture",
+          "provenance": {
+            "category": "lecture",
+            "label": "Lecture Set",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "reading",
+          "title": "Reading Assignments (Ch 1–10)",
+          "kind": "reading",
+          "provenance": {
+            "category": "reading",
+            "label": "Reading Task",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "book-ch1",
+          "title": "Textbook · Chapter 1 (Foundations)",
+          "kind": "textbook",
+          "provenance": {
+            "category": "book",
+            "label": "Book Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "book-ch2",
+          "title": "Textbook · Chapter 2 (Financial Position)",
+          "kind": "textbook",
+          "provenance": {
+            "category": "book",
+            "label": "Book Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "book-ch3",
+          "title": "Textbook · Chapter 3 (Financial Performance)",
+          "kind": "textbook",
+          "provenance": {
+            "category": "book",
+            "label": "Book Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "book-ch5",
+          "title": "Textbook · Chapter 5 (Cash Flows)",
+          "kind": "textbook",
+          "provenance": {
+            "category": "book",
+            "label": "Book Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "book-ch7",
+          "title": "Textbook · Chapter 7 (Relevant Costs & CVP)",
+          "kind": "textbook",
+          "provenance": {
+            "category": "book",
+            "label": "Book Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "book-ch8",
+          "title": "Textbook · Chapter 8 (Full Costing & ABC)",
+          "kind": "textbook",
+          "provenance": {
+            "category": "book",
+            "label": "Book Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "book-ch10",
+          "title": "Textbook · Chapter 10 (Investment Appraisal)",
+          "kind": "textbook",
+          "provenance": {
+            "category": "book",
+            "label": "Book Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
           "id": "WF-MOCK-A",
           "title": "WISEflow Mock Exam A · Full Syllabus (180 pts, ±2% Auto-Graded)",
-          "kind": "mock_exam"
+          "kind": "mock_exam",
+          "provenance": {
+            "category": "ai_mock",
+            "label": "AI Mock Exam",
+            "synthetic": true,
+            "llmModel": "AI Builder + Gemini (Antigravity format)"
+          }
         },
         {
           "id": "WF-MOCK-B",
           "title": "WISEflow Mock Exam B · Full Syllabus (180 pts, ±2% Auto-Graded)",
-          "kind": "mock_exam"
+          "kind": "mock_exam",
+          "provenance": {
+            "category": "ai_mock",
+            "label": "AI Mock Exam",
+            "synthetic": true,
+            "llmModel": "AI Builder + Gemini (Antigravity format)"
+          }
         },
         {
           "id": "WF-MOCK-C",
           "title": "WISEflow Mock Exam C · Full Syllabus (180 pts, ±2% Auto-Graded)",
-          "kind": "mock_exam"
+          "kind": "mock_exam",
+          "provenance": {
+            "category": "ai_mock",
+            "label": "AI Mock Exam",
+            "synthetic": true,
+            "llmModel": "AI Builder + Gemini (Antigravity format)"
+          }
         },
         {
           "id": "WF-MOCK-D",
           "title": "WISEflow Mock Exam D · Classic BI Exam Format (180 pts, ±2% Auto-Graded)",
           "kind": "mock_exam",
           "durationMinutes": 180,
-          "notes": "180-point official BI format (10 MCQs = 40 pts + Ex 1 SFP 50 pts + Ex 2 Break-Even 30 pts + Ex 3 Full Costing 20 pts + Ex 4 NPV & Residual Income 40 pts)."
+          "notes": "180-point official BI format (10 MCQs = 40 pts + Ex 1 SFP 50 pts + Ex 2 Break-Even 30 pts + Ex 3 Full Costing 20 pts + Ex 4 NPV & Residual Income 40 pts).",
+          "provenance": {
+            "category": "ai_mock",
+            "label": "AI Mock Exam",
+            "synthetic": true,
+            "llmModel": "Gemini (Antigravity)"
+          }
         }
       ],
       "obsidian": {
@@ -411,7 +1176,363 @@
         "practiceNote": "EXC3430-Obsidian/EXC3430-support/Practice.md"
       },
       "obsidianMainReference": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
-      "obsidianUri": ""
+      "obsidianUri": "",
+      "tierQuestionIds": {
+        "1": [
+          "acct-2527:E23F-M1",
+          "acct-2527:E23F-M2",
+          "acct-2527:E23F-M3",
+          "acct-2527:E23F-M5",
+          "acct-2527:E23F-M7",
+          "acct-2527:E23F-M6",
+          "acct-2527:E23F-M8",
+          "acct-2527:R1.1",
+          "acct-2527:R1.2",
+          "acct-2527:R1.3",
+          "acct-2527:R1.4",
+          "acct-2527:R1.5",
+          "acct-2527:R2.1",
+          "acct-2527:R2.2",
+          "acct-2527:R2.3",
+          "acct-2527:R2.4",
+          "acct-2527:R2.5",
+          "acct-2527:R2.6",
+          "acct-2527:R2.7",
+          "acct-2527:R2.8",
+          "acct-2527:R2.9",
+          "acct-2527:R2.10",
+          "acct-2527:R3.1",
+          "acct-2527:R3.2",
+          "acct-2527:R3.3",
+          "acct-2527:R3.4",
+          "acct-2527:R3.5",
+          "acct-2527:R3.6",
+          "acct-2527:R3.7",
+          "acct-2527:R5.1",
+          "acct-2527:R5.2",
+          "acct-2527:R5.3",
+          "acct-2527:R5.4",
+          "acct-2527:R5.5",
+          "acct-2527:R7.1",
+          "acct-2527:R7.2",
+          "acct-2527:R7.3",
+          "acct-2527:R7.4",
+          "acct-2527:R7.5",
+          "acct-2527:R7.6",
+          "acct-2527:R7.7",
+          "acct-2527:R7.8",
+          "acct-2527:R7.9",
+          "acct-2527:R7.10",
+          "acct-2527:R8.1",
+          "acct-2527:R8.2",
+          "acct-2527:R8.3",
+          "acct-2527:R8.4",
+          "acct-2527:R8.5",
+          "acct-2527:R8.6",
+          "acct-2527:R10.1",
+          "acct-2527:R10.2",
+          "acct-2527:R10.3",
+          "acct-2527:R10.4",
+          "acct-2527:D1",
+          "acct-2527:B1-R1",
+          "acct-2527:B1-R2",
+          "acct-2527:B1-R3",
+          "acct-2527:B1-R4",
+          "acct-2527:B1-A1",
+          "acct-2527:B1-A2",
+          "acct-2527:B1-A3",
+          "acct-2527:B1-A4",
+          "acct-2527:B1-A5",
+          "acct-2527:B1-A6",
+          "acct-2527:B1-A7",
+          "acct-2527:B1-A8",
+          "acct-2527:B1-A9",
+          "acct-2527:B1-A10",
+          "acct-2527:B1-A11",
+          "acct-2527:B1-A12",
+          "acct-2527:B2-R1",
+          "acct-2527:B2-R2",
+          "acct-2527:B2-R3",
+          "acct-2527:B2-R4",
+          "acct-2527:B2-A2",
+          "acct-2527:B2-A3",
+          "acct-2527:B2-A4",
+          "acct-2527:B2-A5",
+          "acct-2527:B2-A9",
+          "acct-2527:B2-A10",
+          "acct-2527:B2-A11",
+          "acct-2527:B2-A12",
+          "acct-2527:B2-A13",
+          "acct-2527:B2-A14",
+          "acct-2527:B2-A15",
+          "acct-2527:B2-A16",
+          "acct-2527:B2-A17",
+          "acct-2527:B2-A18",
+          "acct-2527:B2-A20",
+          "acct-2527:B2-A21",
+          "acct-2527:B3-R1",
+          "acct-2527:B3-R2",
+          "acct-2527:B3-R3",
+          "acct-2527:B3-R4",
+          "acct-2527:B3-E1",
+          "acct-2527:B3-A1",
+          "acct-2527:B3-A4",
+          "acct-2527:B3-A5",
+          "acct-2527:B3-A6",
+          "acct-2527:B3-A7",
+          "acct-2527:B3-A8",
+          "acct-2527:B3-A9",
+          "acct-2527:B3-A12",
+          "acct-2527:B3-A14",
+          "acct-2527:B3-A15",
+          "acct-2527:B3-A16",
+          "acct-2527:B3-A17",
+          "acct-2527:B3-A18",
+          "acct-2527:B5-R1",
+          "acct-2527:B5-R2",
+          "acct-2527:B5-R3",
+          "acct-2527:B5-R4",
+          "acct-2527:B5-E1",
+          "acct-2527:B5-A1",
+          "acct-2527:B5-A2",
+          "acct-2527:B5-A3",
+          "acct-2527:B5-A4",
+          "acct-2527:B5-A5",
+          "acct-2527:B5-A6",
+          "acct-2527:B5-A7",
+          "acct-2527:B5-A9",
+          "acct-2527:B7-R1",
+          "acct-2527:B7-R2",
+          "acct-2527:B7-R3",
+          "acct-2527:B7-R4",
+          "acct-2527:B7-A2",
+          "acct-2527:B7-A3",
+          "acct-2527:B7-A5",
+          "acct-2527:B7-A7",
+          "acct-2527:B7-A8",
+          "acct-2527:B7-A9",
+          "acct-2527:B7-A10",
+          "acct-2527:B7-A11",
+          "acct-2527:B7-A12",
+          "acct-2527:B7-A14",
+          "acct-2527:B7-A15",
+          "acct-2527:B7-A16",
+          "acct-2527:B7-A17",
+          "acct-2527:B7-A20",
+          "acct-2527:B7-A24",
+          "acct-2527:B7-A25",
+          "acct-2527:B8-R1",
+          "acct-2527:B8-R2",
+          "acct-2527:B8-R3",
+          "acct-2527:B8-R4",
+          "acct-2527:B8-E1",
+          "acct-2527:B8-A2",
+          "acct-2527:B8-A3",
+          "acct-2527:B8-A4",
+          "acct-2527:B8-A5",
+          "acct-2527:B8-A6",
+          "acct-2527:B8-A7",
+          "acct-2527:B8-A10",
+          "acct-2527:B8-A11",
+          "acct-2527:B8-A13",
+          "acct-2527:B8-A14",
+          "acct-2527:B8-A15",
+          "acct-2527:B8-A16",
+          "acct-2527:B10-R1",
+          "acct-2527:B10-R2",
+          "acct-2527:B10-R3",
+          "acct-2527:B10-R4",
+          "acct-2527:B10-A1",
+          "acct-2527:B10-A3",
+          "acct-2527:B10-A6",
+          "acct-2527:B10-A7",
+          "acct-2527:B10-A8",
+          "acct-2527:B10-A13",
+          "acct-2527:B10-A14",
+          "acct-2527:B10-A16",
+          "acct-2527:B10-A17",
+          "acct-2527:B10-A19",
+          "acct-2527:WFA-M1",
+          "acct-2527:WFA-M2",
+          "acct-2527:WFA-M3",
+          "acct-2527:WFA-M4",
+          "acct-2527:WFA-M6",
+          "acct-2527:WFA-M8",
+          "acct-2527:WFB-M1",
+          "acct-2527:WFB-M2",
+          "acct-2527:WFB-M3",
+          "acct-2527:WFB-M5",
+          "acct-2527:WFB-M7",
+          "acct-2527:WFB-M8",
+          "acct-2527:WFB-M10",
+          "acct-2527:WFC-M2",
+          "acct-2527:WFC-M3",
+          "acct-2527:WFC-M4",
+          "acct-2527:WFC-M5",
+          "acct-2527:WFC-M6",
+          "acct-2527:WFC-M7",
+          "acct-2527:WFC-M8",
+          "acct-2527:WFD-M1",
+          "acct-2527:WFD-M2",
+          "acct-2527:WFD-M3",
+          "acct-2527:WFD-M6",
+          "acct-2527:WFD-M7",
+          "acct-2527:WFD-M8"
+        ],
+        "2": [
+          "acct-2527:E23F-M4",
+          "acct-2527:E23F-M9",
+          "acct-2527:E23F-M10",
+          "acct-2527:H7",
+          "acct-2527:H8",
+          "acct-2527:T1.1",
+          "acct-2527:T1.2",
+          "acct-2527:T2.2",
+          "acct-2527:T3.1",
+          "acct-2527:T5.1",
+          "acct-2527:T5.2",
+          "acct-2527:T5.3",
+          "acct-2527:T6.1",
+          "acct-2527:L2.1",
+          "acct-2527:L2.2",
+          "acct-2527:L2.3",
+          "acct-2527:L3.1",
+          "acct-2527:L5.1",
+          "acct-2527:L7.1",
+          "acct-2527:L7.2",
+          "acct-2527:L7.3",
+          "acct-2527:L8.1",
+          "acct-2527:L8.2",
+          "acct-2527:L8.3",
+          "acct-2527:L10.1",
+          "acct-2527:D12",
+          "acct-2527:D2",
+          "acct-2527:D3",
+          "acct-2527:D9",
+          "acct-2527:D5",
+          "acct-2527:D6",
+          "acct-2527:D7",
+          "acct-2527:D8",
+          "acct-2527:D10",
+          "acct-2527:D11",
+          "acct-2527:B2-E1",
+          "acct-2527:B2-E2",
+          "acct-2527:B2-E3",
+          "acct-2527:B2-E4",
+          "acct-2527:B2-S1",
+          "acct-2527:B2-A1",
+          "acct-2527:B2-A6",
+          "acct-2527:B2-A7",
+          "acct-2527:B2-A8",
+          "acct-2527:B2-A19",
+          "acct-2527:B3-E2",
+          "acct-2527:B3-E3",
+          "acct-2527:B3-A2",
+          "acct-2527:B3-A3",
+          "acct-2527:B3-A10",
+          "acct-2527:B3-A11",
+          "acct-2527:B3-A13",
+          "acct-2527:B5-E2",
+          "acct-2527:B5-A8",
+          "acct-2527:B7-E1",
+          "acct-2527:B7-E2",
+          "acct-2527:B7-E3",
+          "acct-2527:B7-E4",
+          "acct-2527:B7-E5",
+          "acct-2527:B7-S1",
+          "acct-2527:B7-A1",
+          "acct-2527:B7-A4",
+          "acct-2527:B7-A6",
+          "acct-2527:B7-A13",
+          "acct-2527:B7-A18",
+          "acct-2527:B7-A19",
+          "acct-2527:B7-A21",
+          "acct-2527:B7-A22",
+          "acct-2527:B7-A23",
+          "acct-2527:B8-E2",
+          "acct-2527:B8-E3",
+          "acct-2527:B8-S1",
+          "acct-2527:B8-A1",
+          "acct-2527:B8-A8",
+          "acct-2527:B8-A9",
+          "acct-2527:B8-A12",
+          "acct-2527:B10-E1",
+          "acct-2527:B10-E2",
+          "acct-2527:B10-E3",
+          "acct-2527:B10-A2",
+          "acct-2527:B10-A4",
+          "acct-2527:B10-A5",
+          "acct-2527:B10-A9",
+          "acct-2527:B10-A10",
+          "acct-2527:B10-A11",
+          "acct-2527:B10-A12",
+          "acct-2527:B10-A15",
+          "acct-2527:B10-A18",
+          "acct-2527:WFA-M5",
+          "acct-2527:WFA-M7",
+          "acct-2527:WFA-M9",
+          "acct-2527:WFA-M10",
+          "acct-2527:WFB-M4",
+          "acct-2527:WFB-M6",
+          "acct-2527:WFB-M9",
+          "acct-2527:WFC-M1",
+          "acct-2527:WFC-M9",
+          "acct-2527:WFC-M10",
+          "acct-2527:WFD-M4",
+          "acct-2527:WFD-M5",
+          "acct-2527:WFD-M9",
+          "acct-2527:WFD-M10",
+          "acct-2527:WFD-E2",
+          "acct-2527:WFD-E3"
+        ],
+        "3": [
+          "acct-2527:E23F-E1",
+          "acct-2527:E23F-E2",
+          "acct-2527:E23F-E3",
+          "acct-2527:E23F-E4",
+          "acct-2527:H1",
+          "acct-2527:H2",
+          "acct-2527:H3",
+          "acct-2527:H-DEB",
+          "acct-2527:H5",
+          "acct-2527:H10",
+          "acct-2527:T2.1",
+          "acct-2527:T3.2",
+          "acct-2527:T4.1",
+          "acct-2527:T4.2",
+          "acct-2527:T6.2",
+          "acct-2527:L7.4",
+          "acct-2527:L10.2",
+          "acct-2527:D4",
+          "acct-2527:B2-E5",
+          "acct-2527:B3-E4",
+          "acct-2527:B3-E5",
+          "acct-2527:B3-S1",
+          "acct-2527:B5-E3",
+          "acct-2527:B5-E4",
+          "acct-2527:B5-E5",
+          "acct-2527:B5-S1",
+          "acct-2527:B8-E4",
+          "acct-2527:B8-E5",
+          "acct-2527:B10-E4",
+          "acct-2527:B10-E5",
+          "acct-2527:B10-S1",
+          "acct-2527:WFA-E1",
+          "acct-2527:WFA-E2",
+          "acct-2527:WFA-E3",
+          "acct-2527:WFA-E4",
+          "acct-2527:WFB-E1",
+          "acct-2527:WFB-E2",
+          "acct-2527:WFB-E3",
+          "acct-2527:WFB-E4",
+          "acct-2527:WFC-E1",
+          "acct-2527:WFC-E2",
+          "acct-2527:WFC-E3",
+          "acct-2527:WFC-E4",
+          "acct-2527:WFD-E1",
+          "acct-2527:WFD-E4"
+        ]
+      }
     },
     {
       "courseId": "ob-2537",
@@ -428,13 +1549,16 @@
         "durationMinutes": 180,
         "notes": "Official Mock Exam: Thu 2026-11-19 (25 MCQs, 90 min, ungraded WISEflow diagnostic) · Final Exam: Mon 2026-12-14 14:00–17:00 (50 MCQs × 2 pts = 100 pts, 5 options A–E, A = 85–100 / >=43 correct, zero negative marking)."
       },
-      "questionCount": 75,
-      "mcqCount": 75,
-      "writtenOrCalcCount": 0,
-      "hardCount": 14,
-      "highDlpfcCount": 14,
-      "medDlpfcCount": 56,
-      "lowDlpfcCount": 5,
+      "questionCount": 120,
+      "officialCount": 45,
+      "bookCount": 0,
+      "aiSyntheticCount": 75,
+      "mcqCount": 108,
+      "writtenOrCalcCount": 12,
+      "hardCount": 26,
+      "highDlpfcCount": 26,
+      "medDlpfcCount": 68,
+      "lowDlpfcCount": 26,
       "flowmultiCount": 0,
       "topicCount": 14,
       "topics": [
@@ -686,15 +1810,71 @@
       ],
       "collections": [
         {
+          "id": "sample-exam",
+          "title": "Official Sample Exam (S1–S20)",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "diagnostics",
+          "title": "Official In-Slide Diagnostic Cases (D1–D12)",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "lesson-8",
+          "title": "Lesson 8 Communication & Change MCQs (L8.1–L8.9)",
+          "kind": "lecture",
+          "provenance": {
+            "category": "lecture",
+            "label": "Lecture Set",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "tech-structure",
+          "title": "Technology & Structure Official Set (T1–T4)",
+          "kind": "lecture",
+          "provenance": {
+            "category": "lecture",
+            "label": "Lecture Set",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
           "id": "nov19-mock-25",
           "title": "Nov 19 Official-Format Mock Exam (25 MCQs · 90m Timed Rehearsal)",
           "kind": "mock_exam",
-          "durationMinutes": 90
+          "durationMinutes": 90,
+          "provenance": {
+            "category": "ai_mock",
+            "label": "AI Mock Exam",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
         },
         {
           "id": "wiseflow-mock-1",
           "title": "Full-Length 50-Question WISEflow Mock Exam (M1–M50)",
-          "kind": "mock"
+          "kind": "mock",
+          "provenance": {
+            "category": "ai_mock",
+            "label": "AI Mock Exam",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
         }
       ],
       "obsidian": {
@@ -704,7 +1884,135 @@
         "practiceNote": "EXC3460-Obsidian/EXC3460-support/Practice.md"
       },
       "obsidianMainReference": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
-      "obsidianUri": ""
+      "obsidianUri": "",
+      "tierQuestionIds": {
+        "1": [
+          "ob-2537:S1",
+          "ob-2537:S2",
+          "ob-2537:S3",
+          "ob-2537:S4",
+          "ob-2537:S5",
+          "ob-2537:S6",
+          "ob-2537:S8",
+          "ob-2537:S9",
+          "ob-2537:S10",
+          "ob-2537:S11",
+          "ob-2537:S16",
+          "ob-2537:S18",
+          "ob-2537:S20",
+          "ob-2537:L8.1",
+          "ob-2537:L8.2",
+          "ob-2537:L8.4",
+          "ob-2537:L8.5",
+          "ob-2537:L8.6",
+          "ob-2537:L8.7",
+          "ob-2537:L8.8",
+          "ob-2537:L8.9",
+          "ob-2537:M10",
+          "ob-2537:M44",
+          "ob-2537:N19-1",
+          "ob-2537:N19-7",
+          "ob-2537:N19-21"
+        ],
+        "2": [
+          "ob-2537:S7",
+          "ob-2537:S12",
+          "ob-2537:S13",
+          "ob-2537:S14",
+          "ob-2537:S15",
+          "ob-2537:S17",
+          "ob-2537:S19",
+          "ob-2537:L8.3",
+          "ob-2537:T1",
+          "ob-2537:T2",
+          "ob-2537:T3",
+          "ob-2537:T4",
+          "ob-2537:M1",
+          "ob-2537:M3",
+          "ob-2537:M4",
+          "ob-2537:M6",
+          "ob-2537:M7",
+          "ob-2537:M8",
+          "ob-2537:M9",
+          "ob-2537:M11",
+          "ob-2537:M12",
+          "ob-2537:M13",
+          "ob-2537:M15",
+          "ob-2537:M16",
+          "ob-2537:M17",
+          "ob-2537:M18",
+          "ob-2537:M19",
+          "ob-2537:M20",
+          "ob-2537:M23",
+          "ob-2537:M24",
+          "ob-2537:M25",
+          "ob-2537:M27",
+          "ob-2537:M28",
+          "ob-2537:M29",
+          "ob-2537:M30",
+          "ob-2537:M31",
+          "ob-2537:M34",
+          "ob-2537:M35",
+          "ob-2537:M39",
+          "ob-2537:M41",
+          "ob-2537:M42",
+          "ob-2537:M45",
+          "ob-2537:M46",
+          "ob-2537:M47",
+          "ob-2537:M48",
+          "ob-2537:M49",
+          "ob-2537:N19-2",
+          "ob-2537:N19-3",
+          "ob-2537:N19-4",
+          "ob-2537:N19-5",
+          "ob-2537:N19-6",
+          "ob-2537:N19-8",
+          "ob-2537:N19-9",
+          "ob-2537:N19-10",
+          "ob-2537:N19-11",
+          "ob-2537:N19-12",
+          "ob-2537:N19-13",
+          "ob-2537:N19-14",
+          "ob-2537:N19-15",
+          "ob-2537:N19-16",
+          "ob-2537:N19-17",
+          "ob-2537:N19-18",
+          "ob-2537:N19-19",
+          "ob-2537:N19-20",
+          "ob-2537:N19-22",
+          "ob-2537:N19-23",
+          "ob-2537:N19-24",
+          "ob-2537:N19-25"
+        ],
+        "3": [
+          "ob-2537:D1",
+          "ob-2537:D2",
+          "ob-2537:D3",
+          "ob-2537:D4",
+          "ob-2537:D5",
+          "ob-2537:D6",
+          "ob-2537:D7",
+          "ob-2537:D8",
+          "ob-2537:D9",
+          "ob-2537:D10",
+          "ob-2537:D11",
+          "ob-2537:D12",
+          "ob-2537:M2",
+          "ob-2537:M5",
+          "ob-2537:M14",
+          "ob-2537:M21",
+          "ob-2537:M22",
+          "ob-2537:M26",
+          "ob-2537:M32",
+          "ob-2537:M33",
+          "ob-2537:M36",
+          "ob-2537:M37",
+          "ob-2537:M38",
+          "ob-2537:M40",
+          "ob-2537:M43",
+          "ob-2537:M50"
+        ]
+      }
     },
     {
       "courseId": "prog-3021",
@@ -720,12 +2028,15 @@
         "durationMinutes": 180,
         "notes": "Home Exam 2 (40%, Part 1 & Part 2): Thu 2026-11-26 09:00–12:00 · Device Monitor mandatory · Submit anonymous .ipynb ONLY with executed outputs visible (code without output = 0 pts; upload >=10m early; withdraw old file before re-upload) · Strict 7-package whitelist: pandas, seaborn, matplotlib, random, math, datetime, numpy (other imports deduct points; AI tools = F; 85–100 = A)."
       },
-      "questionCount": 37,
+      "questionCount": 60,
+      "officialCount": 23,
+      "bookCount": 0,
+      "aiSyntheticCount": 37,
       "mcqCount": 8,
-      "writtenOrCalcCount": 29,
-      "hardCount": 2,
-      "highDlpfcCount": 23,
-      "medDlpfcCount": 7,
+      "writtenOrCalcCount": 52,
+      "hardCount": 8,
+      "highDlpfcCount": 41,
+      "medDlpfcCount": 12,
       "lowDlpfcCount": 7,
       "flowmultiCount": 0,
       "topicCount": 6,
@@ -842,36 +2153,130 @@
       ],
       "collections": [
         {
-          "id": "foundation-01",
-          "title": "Foundation 01: Input, Strings & Conditionals",
-          "kind": "drill"
+          "id": "exam-2025h-2",
+          "title": "Autumn 2025 Official Home Exam 2 (100 pts · Debt, Username, Hotel & Oslo City Bike)",
+          "kind": "exam",
+          "durationMinutes": 180,
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
         },
         {
-          "id": "foundation-02",
-          "title": "Foundation 02: Loops, Comprehensions & Simulations",
-          "kind": "drill"
+          "id": "exam-2024h-2",
+          "title": "Autumn 2024 Official Home Exam 2 (100 pts · Vacation, Password, Tips & London Bike)",
+          "kind": "exam",
+          "durationMinutes": 180,
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
         },
         {
-          "id": "foundation-03",
-          "title": "Foundation 03: Functions, Tuples & Dictionaries",
-          "kind": "drill"
+          "id": "pandas-viz-exam2",
+          "title": "Home Exam 2: Pandas, DateTime & Visualisation",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "debugging-practice",
+          "title": "Official Debugging Practice (D1–D5)",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "official-mock",
+          "title": "Official Short Mock Exam (Email & BMI)",
+          "kind": "exercise",
+          "durationMinutes": 45,
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
         },
         {
           "id": "mock-exam-a",
           "title": "Midterm Mock Exam A (100 pts)",
           "kind": "mock",
-          "durationMinutes": 120
+          "durationMinutes": 120,
+          "provenance": {
+            "category": "ai_mock",
+            "label": "AI Mock Exam",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
         },
         {
           "id": "mock-exam-b",
           "title": "Midterm Mock Exam B (100 pts)",
           "kind": "mock",
-          "durationMinutes": 120
+          "durationMinutes": 120,
+          "provenance": {
+            "category": "ai_mock",
+            "label": "AI Mock Exam",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
+        },
+        {
+          "id": "foundation-01",
+          "title": "Foundation 01: Input, Strings & Conditionals",
+          "kind": "drill",
+          "provenance": {
+            "category": "ai_synthetic",
+            "label": "AI Synthetic",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
+        },
+        {
+          "id": "foundation-02",
+          "title": "Foundation 02: Loops, Comprehensions & Simulations",
+          "kind": "drill",
+          "provenance": {
+            "category": "ai_synthetic",
+            "label": "AI Synthetic",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
+        },
+        {
+          "id": "foundation-03",
+          "title": "Foundation 03: Functions, Tuples & Dictionaries",
+          "kind": "drill",
+          "provenance": {
+            "category": "ai_synthetic",
+            "label": "AI Synthetic",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
         },
         {
           "id": "concept-mcq",
           "title": "Python & Pandas Trap Diagnostics (MCQ)",
-          "kind": "drill"
+          "kind": "drill",
+          "provenance": {
+            "category": "ai_synthetic",
+            "label": "AI Synthetic",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
         }
       ],
       "obsidian": {
@@ -881,7 +2286,736 @@
         "practiceNote": "EBA3400 - Study and Updates.md"
       },
       "obsidianMainReference": "EBA3400 - Semester Reference.md",
-      "obsidianUri": ""
+      "obsidianUri": "",
+      "tierQuestionIds": {
+        "1": [
+          "prog-3021:MCQ-1",
+          "prog-3021:MCQ-2",
+          "prog-3021:MCQ-3",
+          "prog-3021:MCQ-4",
+          "prog-3021:MCQ-5",
+          "prog-3021:MCQ-6",
+          "prog-3021:MCQ-8"
+        ],
+        "2": [
+          "prog-3021:F1.1",
+          "prog-3021:F2.1",
+          "prog-3021:F3.1",
+          "prog-3021:MA-1",
+          "prog-3021:MA-4",
+          "prog-3021:MA-5",
+          "prog-3021:DBG-1",
+          "prog-3021:DBG-2",
+          "prog-3021:DBG-3",
+          "prog-3021:DBG-4",
+          "prog-3021:DBG-5",
+          "prog-3021:MCQ-7"
+        ],
+        "3": [
+          "prog-3021:F1.2",
+          "prog-3021:F1.3",
+          "prog-3021:F1.4",
+          "prog-3021:F1.5",
+          "prog-3021:F1.6",
+          "prog-3021:F2.2",
+          "prog-3021:F2.3",
+          "prog-3021:F2.4",
+          "prog-3021:F2.5",
+          "prog-3021:F3.2",
+          "prog-3021:F3.3",
+          "prog-3021:F3.4",
+          "prog-3021:F3.5",
+          "prog-3021:MA-2",
+          "prog-3021:MA-3",
+          "prog-3021:MA-6",
+          "prog-3021:MA-7",
+          "prog-3021:MB-1",
+          "prog-3021:MB-2",
+          "prog-3021:MB-3",
+          "prog-3021:MB-4",
+          "prog-3021:MB-5",
+          "prog-3021:MB-6",
+          "prog-3021:OM-1",
+          "prog-3021:OM-2",
+          "prog-3021:PV-1",
+          "prog-3021:PV-2",
+          "prog-3021:PV-3",
+          "prog-3021:PV-4",
+          "prog-3021:PV-5",
+          "prog-3021:PV-6",
+          "prog-3021:E25H2-1",
+          "prog-3021:E25H2-2",
+          "prog-3021:E25H2-3",
+          "prog-3021:E25H2-4",
+          "prog-3021:E24H2-1",
+          "prog-3021:E24H2-2",
+          "prog-3021:E24H2-3",
+          "prog-3021:E24H2-4",
+          "prog-3021:PV-7",
+          "prog-3021:PV-8"
+        ]
+      }
+    },
+    {
+      "courseId": "math-2588",
+      "canvasId": "2588",
+      "code": "EBA 1181",
+      "title": "Mathematics for Data Science",
+      "shortTitle": "Mathematics",
+      "semester": "Autumn 2026",
+      "color": "#1d4ed8",
+      "examInfo": {
+        "date": "2026-12-04",
+        "format": "3-hour written/digital school exam (09:00–12:00)",
+        "durationMinutes": 180,
+        "notes": "12 equal-weight problems with full reasoning required; BI-approved calculator and ruler permitted."
+      },
+      "questionCount": 182,
+      "officialCount": 152,
+      "bookCount": 0,
+      "aiSyntheticCount": 30,
+      "mcqCount": 37,
+      "writtenOrCalcCount": 145,
+      "hardCount": 44,
+      "highDlpfcCount": 97,
+      "medDlpfcCount": 72,
+      "lowDlpfcCount": 13,
+      "flowmultiCount": 0,
+      "topicCount": 18,
+      "topics": [
+        {
+          "id": "1",
+          "number": 1,
+          "title": "Basic Algebra & Mathematical Language",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "1. Basic algebra and mathematical language",
+          "keywords": [
+            "algebra",
+            "fractions",
+            "domain",
+            "intervals",
+            "implication",
+            "equivalence",
+            "identities"
+          ]
+        },
+        {
+          "id": "2",
+          "number": 2,
+          "title": "Rates of Change, Powers, Roots & Interest",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "2. Rates of change, powers, roots and interest",
+          "keywords": [
+            "growth factor",
+            "compound interest",
+            "nominal rate",
+            "effective rate",
+            "powers",
+            "roots"
+          ]
+        },
+        {
+          "id": "3",
+          "number": 3,
+          "title": "Present Value, Cash Flows & IRR",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "3. Present value, cash flows and internal rate of return",
+          "keywords": [
+            "present value",
+            "npv",
+            "irr",
+            "internal rate of return",
+            "discounting",
+            "cash flow"
+          ]
+        },
+        {
+          "id": "4",
+          "number": 4,
+          "title": "Geometric Series, Annuities & Continuous Compounding",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "4. Geometric series, annuities and continuous compounding",
+          "keywords": [
+            "geometric series",
+            "annuity",
+            "perpetuity",
+            "growing perpetuity",
+            "continuous compounding",
+            "loan"
+          ]
+        },
+        {
+          "id": "5",
+          "number": 5,
+          "title": "Linear & Quadratic Equations, Substitutions & Parameters",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "5. Linear and quadratic equations, substitutions and parameters",
+          "keywords": [
+            "quadratic formula",
+            "completing the square",
+            "discriminant",
+            "parameter",
+            "substitution"
+          ]
+        },
+        {
+          "id": "6",
+          "number": 6,
+          "title": "Polynomials, Division & Factorisation",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "6. Polynomials, division and factorisation",
+          "keywords": [
+            "polynomial division",
+            "remainder",
+            "zeros",
+            "roots",
+            "factorisation",
+            "cubic"
+          ]
+        },
+        {
+          "id": "7",
+          "number": 7,
+          "title": "Rational Equations, Radical Equations & Inequalities",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "7. Rational equations, radical equations and inequalities",
+          "keywords": [
+            "rational equation",
+            "radical equation",
+            "extraneous root",
+            "sign diagram",
+            "inequality"
+          ]
+        },
+        {
+          "id": "8",
+          "number": 8,
+          "title": "Functions, Lines, Quadratics, Circles & Ellipses",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "8. Functions, lines, quadratics, circles and ellipses",
+          "keywords": [
+            "line",
+            "parabola",
+            "symmetry axis",
+            "circle",
+            "ellipse",
+            "semi-axes",
+            "conics"
+          ]
+        },
+        {
+          "id": "9",
+          "number": 9,
+          "title": "Rational Functions, Limits, Continuity & Asymptotes",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "9. Rational functions, limits, continuity and asymptotes",
+          "keywords": [
+            "hyperbola",
+            "vertical asymptote",
+            "horizontal asymptote",
+            "limit",
+            "continuity",
+            "piecewise"
+          ]
+        },
+        {
+          "id": "10",
+          "number": 10,
+          "title": "Inverse Functions, Exponentials & Logarithms",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "10. Inverse functions, exponentials and logarithms",
+          "keywords": [
+            "inverse function",
+            "range",
+            "monotonicity",
+            "exponential",
+            "natural logarithm",
+            "ln"
+          ]
+        },
+        {
+          "id": "11",
+          "number": 11,
+          "title": "Tangents & Differentiation Rules",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "11. Tangents and differentiation rules",
+          "keywords": [
+            "derivative",
+            "tangent line",
+            "product rule",
+            "quotient rule",
+            "chain rule",
+            "power rule"
+          ]
+        },
+        {
+          "id": "12",
+          "number": 12,
+          "title": "Stationary Points & Single-Variable Optimisation",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "12. Stationary points and optimisation in one variable",
+          "keywords": [
+            "stationary point",
+            "local maximum",
+            "local minimum",
+            "global maximum",
+            "extreme value theorem"
+          ]
+        },
+        {
+          "id": "13",
+          "number": 13,
+          "title": "Implicit Differentiation",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "13. Implicit differentiation",
+          "keywords": [
+            "implicit differentiation",
+            "implicitly defined curve",
+            "slope",
+            "horizontal tangent",
+            "vertical tangent"
+          ]
+        },
+        {
+          "id": "14",
+          "number": 14,
+          "title": "Second Derivatives, Convexity & Inflection Points",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "14. Second derivatives, convexity and inflection points",
+          "keywords": [
+            "second derivative",
+            "convex",
+            "concave",
+            "inflection point",
+            "curvature",
+            "graph sketching"
+          ]
+        },
+        {
+          "id": "15",
+          "number": 15,
+          "title": "Limits with L'Hôpital's Rule",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "15. Limits with L'Hôpital's rule",
+          "keywords": [
+            "l'hopital",
+            "indeterminate form",
+            "0/0",
+            "infinity/infinity",
+            "limit"
+          ]
+        },
+        {
+          "id": "16",
+          "number": 16,
+          "title": "Marginal Cost, Revenue & Cost Optimum",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "16. Marginal cost, revenue and cost optimum",
+          "keywords": [
+            "cost function",
+            "marginal cost",
+            "average unit cost",
+            "cost optimum",
+            "profit",
+            "revenue"
+          ]
+        },
+        {
+          "id": "17",
+          "number": 17,
+          "title": "Price Elasticity",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "17. Price elasticity",
+          "keywords": [
+            "price elasticity",
+            "demand",
+            "elastic",
+            "inelastic",
+            "unit elastic",
+            "marginal revenue"
+          ]
+        },
+        {
+          "id": "18",
+          "number": 18,
+          "title": "Linearisation & Taylor Polynomials",
+          "obsidianFile": "math-reference/Mathematics for Data Science - Semester Reference.md",
+          "obsidianHeading": "18. Linearisation and Taylor polynomials",
+          "keywords": [
+            "taylor polynomial",
+            "quadratic approximation",
+            "linearisation",
+            "approximation error"
+          ]
+        }
+      ],
+      "collections": [
+        {
+          "id": "exam-2025h",
+          "title": "Autumn 2025 Official Exam (EBA11805)",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "exam-2024h",
+          "title": "Autumn 2024 Official Exam (EBA11805)",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "exam-2024v",
+          "title": "Spring 2024 Official Exam (EBA11805)",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "exam-2023h",
+          "title": "Autumn 2023 Official Exam (EBA11805)",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "exam-2023v",
+          "title": "Spring 2023 Official Exam (EBA11802)",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "exam-2022h",
+          "title": "Autumn 2022 Official Exam (EBA11802)",
+          "kind": "exam",
+          "provenance": {
+            "category": "past_exam",
+            "label": "Past Exam",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "multchoice-2025",
+          "title": "Autumn 2025 Lecture 4–5 Extra MC Sheet",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "paper-2022a",
+          "title": "Autumn 2022 Course Paper 1 (EBA1180)",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "paper-2022v",
+          "title": "Spring 2022 Course Paper 1 (EBA2910)",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "paper-2021h",
+          "title": "Autumn 2021 Course Paper 1 (EBA2911)",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "paper-2021s",
+          "title": "Spring 2021 Term Paper 1 (EBA2911)",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "mc-2019s",
+          "title": "Spring 2019 Midterm MC Drill (MET1180)",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "mc-2018a",
+          "title": "Autumn 2018 Midterm MC Drill (MET1180)",
+          "kind": "exercise",
+          "provenance": {
+            "category": "exercise",
+            "label": "BI Exercise",
+            "synthetic": false,
+            "llmModel": null
+          }
+        },
+        {
+          "id": "mock-exam-math-autumn-2026",
+          "title": "Autumn 2026 Mathematics Mock",
+          "kind": "mock_exam",
+          "durationMinutes": 180,
+          "description": "12 original, equally weighted written problems. Based on available autumn 2026 lecture and exercise sheets, with broader review from the May 2026 paper and autumn reference. Mark your written work with the worked solutions after submission.",
+          "provenance": {
+            "category": "ai_mock",
+            "label": "AI Mock Exam",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
+        },
+        {
+          "id": "math-topic-practice",
+          "title": "Curriculum practice",
+          "kind": "practice",
+          "provenance": {
+            "category": "ai_synthetic",
+            "label": "AI Synthetic",
+            "synthetic": true,
+            "llmModel": "LLM-generated (legacy — model unlogged)"
+          }
+        }
+      ],
+      "obsidian": {
+        "vault": "Obsidian Vault",
+        "mainReference": "math-reference/Mathematics for Data Science - Semester Reference.md",
+        "workedExamples": "",
+        "practiceNote": ""
+      },
+      "obsidianMainReference": "math-reference/Mathematics for Data Science - Semester Reference.md",
+      "obsidianUri": "",
+      "tierQuestionIds": {
+        "1": [
+          "math-2588:mc19s-1",
+          "math-2588:mc19s-3",
+          "math-2588:mc19s-6",
+          "math-2588:mc19s-12",
+          "math-2588:mc18a-1",
+          "math-2588:mc18a-2",
+          "math-2588:mc18a-3",
+          "math-2588:PUBLIC-MATH-01",
+          "math-2588:PUBLIC-MATH-05",
+          "math-2588:PUBLIC-MATH-06",
+          "math-2588:PUBLIC-MATH-07",
+          "math-2588:PUBLIC-MATH-08",
+          "math-2588:PUBLIC-MATH-09"
+        ],
+        "2": [
+          "math-2588:mc25-a17-1",
+          "math-2588:mc25-a17-2",
+          "math-2588:mc25-a17-3",
+          "math-2588:mc25-a17-4",
+          "math-2588:mc25-s18-1",
+          "math-2588:mc25-s18-2",
+          "math-2588:mc25-s18-4",
+          "math-2588:mc19s-2",
+          "math-2588:mc19s-4",
+          "math-2588:mc19s-5",
+          "math-2588:mc19s-7",
+          "math-2588:mc19s-8",
+          "math-2588:mc19s-9",
+          "math-2588:mc19s-10",
+          "math-2588:mc19s-11",
+          "math-2588:mc19s-13",
+          "math-2588:mc19s-14",
+          "math-2588:mc19s-15",
+          "math-2588:mc18a-4",
+          "math-2588:mc18a-5",
+          "math-2588:mc18a-6",
+          "math-2588:mc18a-7",
+          "math-2588:mc18a-8",
+          "math-2588:mc18a-9",
+          "math-2588:mc18a-10",
+          "math-2588:mc18a-11",
+          "math-2588:mc18a-12",
+          "math-2588:mc18a-13",
+          "math-2588:mc18a-14",
+          "math-2588:mc18a-15",
+          "math-2588:e25h-4",
+          "math-2588:e25h-6",
+          "math-2588:e25h-7",
+          "math-2588:e24h-1",
+          "math-2588:e24h-2",
+          "math-2588:e24h-5",
+          "math-2588:e24h-6",
+          "math-2588:e24h-7",
+          "math-2588:e24v-1",
+          "math-2588:e24v-2",
+          "math-2588:e24v-3",
+          "math-2588:e23h-1",
+          "math-2588:e23h-2",
+          "math-2588:e23h-4",
+          "math-2588:e23h-9",
+          "math-2588:e23v-3",
+          "math-2588:e23v-9",
+          "math-2588:e22h-1",
+          "math-2588:e22h-4",
+          "math-2588:e22h-5",
+          "math-2588:e22h-10",
+          "math-2588:p22a-3",
+          "math-2588:p22v-4",
+          "math-2588:p22v-5",
+          "math-2588:p22v-6",
+          "math-2588:p22v-7",
+          "math-2588:p21h-9",
+          "math-2588:p21s-3",
+          "math-2588:p21s-9",
+          "math-2588:p21s-10",
+          "math-2588:PUBLIC-MATH-02",
+          "math-2588:PUBLIC-MATH-03",
+          "math-2588:PUBLIC-MATH-04",
+          "math-2588:PUBLIC-MATH-10",
+          "math-2588:PUBLIC-MATH-11",
+          "math-2588:PUBLIC-MATH-12",
+          "math-2588:PUBLIC-MATH-13",
+          "math-2588:PUBLIC-MATH-14",
+          "math-2588:PUBLIC-MATH-15",
+          "math-2588:PUBLIC-MATH-16",
+          "math-2588:PUBLIC-MATH-17",
+          "math-2588:PUBLIC-MATH-18"
+        ],
+        "3": [
+          "math-2588:e25h-1",
+          "math-2588:e25h-2",
+          "math-2588:e25h-3",
+          "math-2588:e25h-5",
+          "math-2588:e25h-8",
+          "math-2588:e25h-9",
+          "math-2588:e25h-10",
+          "math-2588:e25h-11",
+          "math-2588:e25h-12",
+          "math-2588:e24h-3",
+          "math-2588:e24h-4",
+          "math-2588:e24h-8",
+          "math-2588:e24h-9",
+          "math-2588:e24h-10",
+          "math-2588:e24h-11",
+          "math-2588:e24h-12",
+          "math-2588:e24v-4",
+          "math-2588:e24v-5",
+          "math-2588:e24v-6",
+          "math-2588:e24v-7",
+          "math-2588:e24v-8",
+          "math-2588:e24v-9",
+          "math-2588:e24v-10",
+          "math-2588:e24v-11",
+          "math-2588:e24v-12",
+          "math-2588:e23h-3",
+          "math-2588:e23h-5",
+          "math-2588:e23h-6",
+          "math-2588:e23h-7",
+          "math-2588:e23h-8",
+          "math-2588:e23h-10",
+          "math-2588:e23h-11",
+          "math-2588:e23h-12",
+          "math-2588:e23v-1",
+          "math-2588:e23v-2",
+          "math-2588:e23v-4",
+          "math-2588:e23v-5",
+          "math-2588:e23v-6",
+          "math-2588:e23v-7",
+          "math-2588:e23v-8",
+          "math-2588:e23v-10",
+          "math-2588:e23v-11",
+          "math-2588:e23v-12",
+          "math-2588:e22h-2",
+          "math-2588:e22h-3",
+          "math-2588:e22h-6",
+          "math-2588:e22h-7",
+          "math-2588:e22h-8",
+          "math-2588:e22h-9",
+          "math-2588:e22h-11",
+          "math-2588:e22h-12",
+          "math-2588:p22a-1",
+          "math-2588:p22a-2",
+          "math-2588:p22a-4",
+          "math-2588:p22a-5",
+          "math-2588:p22a-6",
+          "math-2588:p22a-7",
+          "math-2588:p22a-8",
+          "math-2588:p22a-9",
+          "math-2588:p22a-10",
+          "math-2588:p22v-1",
+          "math-2588:p22v-2",
+          "math-2588:p22v-3",
+          "math-2588:p22v-8",
+          "math-2588:p22v-9",
+          "math-2588:p22v-10",
+          "math-2588:p22v-11",
+          "math-2588:p21h-1",
+          "math-2588:p21h-2",
+          "math-2588:p21h-3",
+          "math-2588:p21h-4",
+          "math-2588:p21h-5",
+          "math-2588:p21h-6",
+          "math-2588:p21h-7",
+          "math-2588:p21h-8",
+          "math-2588:p21h-10",
+          "math-2588:p21h-11",
+          "math-2588:p21s-1",
+          "math-2588:p21s-2",
+          "math-2588:p21s-4",
+          "math-2588:p21s-5",
+          "math-2588:p21s-6",
+          "math-2588:p21s-7",
+          "math-2588:p21s-8",
+          "math-2588:p21s-11",
+          "math-2588:MATH26-MOCK-01",
+          "math-2588:MATH26-MOCK-02",
+          "math-2588:MATH26-MOCK-03",
+          "math-2588:MATH26-MOCK-04",
+          "math-2588:MATH26-MOCK-05",
+          "math-2588:MATH26-MOCK-06",
+          "math-2588:MATH26-MOCK-07",
+          "math-2588:MATH26-MOCK-08",
+          "math-2588:MATH26-MOCK-09",
+          "math-2588:MATH26-MOCK-10",
+          "math-2588:MATH26-MOCK-11",
+          "math-2588:MATH26-MOCK-12"
+        ]
+      }
     }
   ],
   "references": [
@@ -960,12 +3094,12 @@
           "file": "EXC3430-Obsidian/EXC3430-support/Practice.md"
         }
       ],
-      "questionCount": 334,
+      "questionCount": 348,
       "updatedAt": "2026-11-16"
     },
     {
       "id": "math-2588",
-      "courseId": "",
+      "courseId": "math-2588",
       "code": "EBA 1181",
       "title": "Mathematics for Data Science",
       "shortTitle": "Mathematics",
@@ -998,8 +3132,13 @@
         "19. Practice, assessment and final checks",
         "20. Sources, scope and verification"
       ],
-      "companions": [],
-      "questionCount": 0,
+      "companions": [
+        {
+          "file": "math-reference/Autumn 2026 exam preparation.md",
+          "label": "Autumn 2026 exam preparation"
+        }
+      ],
+      "questionCount": 182,
       "updatedAt": "2026-11-04"
     },
     {

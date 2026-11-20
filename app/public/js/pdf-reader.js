@@ -20,6 +20,8 @@ window.StudyPdf = (() => {
   async function documentOptions(source) {
     const input = source.memberAsset
       ? { data: new Uint8Array(await window.StudyMembers.pdfBytes(source.memberAsset.id)) }
+      : source.localSourceKey
+      ? { data: new Uint8Array(await window.StudyLocalSources.getBytes(source.localSourceKey)) }
       : { url: source.rawUrl };
     return {
       ...input,
