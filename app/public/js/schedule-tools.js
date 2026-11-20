@@ -53,13 +53,15 @@ window.StudySchedule = (() => {
     ));
   };
 
-  function block(id, summary, start, end, kind, courseId = '', dlpfcMode = '') {
+  function block(id, summary, start, end, kind, courseId = '', dlpfcMode = '', topicIds = [], topicTitle = '') {
     const mins = Math.max(0, Math.round((end - start) / minute));
     return {
       eventId: id, summary, courseId, date: dateKey(start), startIso: iso(start), endIso: iso(end),
       startLabel: timeLabel(start), endLabel: timeLabel(end), blockKind: kind,
       focusMinutes: mins, attemptBudgetMinutes: Math.floor(mins * 0.85), recommendedProfile: 'learning',
       ...(dlpfcMode ? { dlpfcMode } : {}),
+      ...(topicIds?.length ? { topicIds } : {}),
+      ...(topicTitle ? { topicTitle } : {}),
     };
   }
 
@@ -147,6 +149,7 @@ window.StudySchedule = (() => {
     let studyCount = 0;
     let placed = 0;
     const scores = new Map();
+    const topicCursor = new Map();
 
     for (let index = 0; index < 14 && activeDays > 0; index++) {
       if (index === 7) placed = 0;
@@ -197,8 +200,27 @@ window.StudySchedule = (() => {
         scores.set(chosen.courseId, scores.get(chosen.courseId) - weightSum);
         if (dlpfcMode === 'high_dlpfc') todayHighMin += prefs.blockMinutes;
         const kind = dlpfcMode === 'low_dlpfc' ? 'recall_sprint' : 'study_block';
-        out.push(block(`study-${chosen.courseId}-${start}`, `[${phaseLabel.split(' · ')[0]}] ${chosen.code || chosen.shortTitle || chosen.title} · ${phaseLabel.split(' · ')[1]}`,
-          start, start + length, kind, chosen.courseId, dlpfcMode));
+        const courseTopics = Array.isArray(chosen.topics) ? chosen.topics.filter((t) => t && t.title) : [];
+        let pickedTopic = null;
+        if (courseTopics.length) {
+          const tIdx = topicCursor.get(chosen.courseId) || 0;
+          pickedTopic = courseTopics[tIdx % courseTopics.length];
+          topicCursor.set(chosen.courseId, tIdx + 1);
+        }
+        const topicIds = pickedTopic ? [String(pickedTopic.id)] : [];
+        const topicTitle = pickedTopic ? String(pickedTopic.title) : '';
+        const cleanSummary = topicTitle || `${chosen.shortTitle || chosen.title} · ${phaseLabel.split(' · ')[1]}`;
+        out.push(block(
+          `study-${chosen.courseId}-${start}`,
+          cleanSummary,
+          start,
+          start + length,
+          kind,
+          chosen.courseId,
+          dlpfcMode,
+          topicIds,
+          topicTitle,
+        ));
         studyCount++;
         placed++;
         today++;
@@ -217,6 +239,9 @@ window.StudySchedule = (() => {
       if (!['study_block', 'recall_sprint'].includes(entry.blockKind) ||
           !Number.isFinite(Date.parse(entry.startIso)) || !Number.isFinite(Date.parse(entry.endIso))) continue;
       const mode = entry.dlpfcMode || (entry.blockKind === 'recall_sprint' ? 'low_dlpfc' : 'med_dlpfc');
+      const modeTag = mode === 'high_dlpfc' ? '[High DLPFC]' : mode === 'med_dlpfc' ? '[Med DLPFC]' : '[Low DLPFC]';
+      const rawSummary = String(entry.summary || 'Study block').trim();
+      const icsSummary = /dlpfc/i.test(rawSummary) ? rawSummary : `${modeTag} ${rawSummary}`;
       const modeDesc = mode === 'high_dlpfc'
         ? 'High DLPFC peak synthesis window (max ~4.5h/day). Take a real 1:5 off-screen break afterward.'
         : mode === 'med_dlpfc'
@@ -228,7 +253,7 @@ window.StudySchedule = (() => {
       const desc = `${modeDesc}\nStart directly in Study-OS: ${launchUrl}`;
       lines.push('BEGIN:VEVENT', `UID:${String(entry.eventId).replace(/[^\w.-]/g, '-')}@studyos.no`,
         `DTSTAMP:${stamp(Date.now())}`, `DTSTART:${stamp(entry.startIso)}`, `DTEND:${stamp(entry.endIso)}`,
-        `SUMMARY:${escape(entry.summary || 'Study block')}`,
+        `SUMMARY:${escape(icsSummary)}`,
         `DESCRIPTION:${escape(desc)}`, 'END:VEVENT');
     }
     if (lines.length <= 5) throw new Error('Generate or import study blocks before exporting.');

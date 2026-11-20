@@ -8,7 +8,7 @@ directly into OneDrive (`Study-OS/data/`) for cross-PC sync and AI agent access.
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -262,17 +262,24 @@ class StudyStore:
             progress = self.load_progress()
             cal = self.load_or_refresh_calendar(force=force_calendar, courses_by_id=courses_by_id)
             sessions = read_jsonl(self.sessions_path, max_lines=200)
-            completed_event_ids = {s.get("calendarEventId") for s in sessions if s.get("calendarEventId")}
+            completed_event_ids = {
+                s.get("calendarEventId")
+                for s in sessions
+                if s.get("calendarEventId")
+                and (int(s.get("reviewedCount") or 0) > 0 or float(s.get("activeSec") or 0) >= 60.0)
+            }
             analytics = build_full_analytics(self.root, courses_by_id, progress)
             today_high_min = float((analytics.get("dlpfcBudget") or {}).get("todayHighMinutes") or 0.0)
 
             now = datetime.now(OSLO_TZ)
+            debt_cutoff = now - timedelta(days=14)
             now_iso = now.isoformat()
             enriched_blocks: list[dict[str, Any]] = []
             for b in cal.get("blocks") or []:
                 b_copy = dict(b)
                 b_copy["completed"] = b.get("eventId") in completed_event_ids
-                # Determine live vs upcoming
+                # Determine live vs upcoming vs past (overdue debt if uncompleted within 14d)
+                is_recent_debt = False
                 try:
                     st = datetime.fromisoformat(b["startIso"])
                     en = datetime.fromisoformat(b["endIso"])
@@ -282,10 +289,13 @@ class StudyStore:
                         b_copy["timingState"] = "upcoming"
                     else:
                         b_copy["timingState"] = "past"
+                        is_recent_debt = (not b_copy["completed"]) and en >= debt_cutoff
                 except Exception:
                     b_copy["timingState"] = "upcoming"
 
-                if b_copy.get("blockKind") in ("study_block", "recall_sprint") and b_copy["timingState"] != "past":
+                if b_copy.get("blockKind") in ("study_block", "recall_sprint") and (
+                    b_copy["timingState"] != "past" or is_recent_debt
+                ):
                     b_copy["autoQueue"] = build_auto_queue_for_block(
                         b_copy, courses_by_id, progress.get("records") or {}, today_high_min
                     )

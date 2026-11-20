@@ -6104,3 +6104,290 @@ html[data-theme="dark"] .lb-status-break { color: #fcd34d; }
     order: initial;
   }
 }
+
+/* ==========================================================================
+   SCHEDULED QUEUE: DIRECT-CLICK CARDS, COURSE/TOPIC/DLPFC PILLS & STUDY DEBT
+   ========================================================================== */
+.badge.debt {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+  border: 1px solid rgba(220, 38, 38, 0.34);
+  font-weight: 700;
+}
+html[data-theme="dark"] .badge.debt {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.sched-debt-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.26);
+  font-size: 13px;
+}
+html[data-theme="dark"] .sched-debt-banner {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(248, 113, 113, 0.32);
+}
+.sched-debt-banner-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sched-course-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--sched-accent, var(--accent)) 12%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--sched-accent, var(--accent)) 30%, var(--line));
+  color: var(--ink);
+  white-space: nowrap;
+}
+.sched-course-pill i {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--sched-accent, var(--accent));
+  flex-shrink: 0;
+}
+.sched-course-pill.compact {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.hero-queue-card {
+  margin-top: 12px;
+  padding: 15px 18px;
+  border-radius: 15px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--sched-accent, var(--accent));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+.hero-queue-card:hover,
+.hero-queue-card:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--sched-accent, var(--accent));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+  outline: none;
+}
+.hero-queue-card.is-debt {
+  border-left-color: #dc2626;
+  background: color-mix(in srgb, rgba(220, 38, 38, 0.05) 100%, var(--panel));
+}
+.hero-queue-main {
+  flex: 1;
+  min-width: 260px;
+}
+.hero-queue-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.sched-topic-pill {
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hero-queue-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 13px;
+}
+.sched-count-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--panel-alt);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.sched-preview-txt {
+  max-width: 480px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hero-queue-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.hero-queue-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--accent);
+  transition: transform 0.14s ease;
+}
+.hero-queue-card.is-debt .hero-queue-go {
+  color: #dc2626;
+}
+html[data-theme="dark"] .hero-queue-card.is-debt .hero-queue-go {
+  color: #fca5a5;
+}
+.hero-queue-card:hover .hero-queue-go {
+  transform: translateX(3px);
+}
+.hero-queue-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sched-tool-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.sched-mini.is-clickable {
+  cursor: pointer;
+  border-left: 3px solid var(--sched-accent, var(--accent));
+  transition: transform 0.13s ease, border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.sched-mini.is-clickable:hover,
+.sched-mini.is-clickable:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--sched-accent, var(--accent));
+  background: var(--panel);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  outline: none;
+}
+.sched-mini.is-debt {
+  border-left-color: #dc2626;
+  background: color-mix(in srgb, rgba(220, 38, 38, 0.06) 100%, var(--panel));
+}
+.sched-mini-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+.sched-mini-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.sched-check-btn {
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-alt);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.sched-check-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.sched-mini-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.sched-mini-topic {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sched-mini-title {
+  font-size: 13.5px;
+  line-height: 1.32;
+  color: var(--ink);
+}
+.sched-mini-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+}
+.sched-when-debt {
+  color: #b91c1c;
+  font-weight: 700;
+}
+html[data-theme="dark"] .sched-when-debt {
+  color: #fca5a5;
+}
+.sched-mini-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.sched-arrow {
+  color: var(--accent);
+  transition: transform 0.13s ease;
+}
+.sched-mini.is-clickable:hover .sched-arrow {
+  transform: translateX(3px);
+}
+
+.sched-row-clickable {
+  cursor: pointer;
+}
+.sched-row-clickable:hover td {
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel-alt));
+}
+.is-debt-row td {
+  background: rgba(220, 38, 38, 0.04);
+}
+html[data-theme="dark"] .is-debt-row td {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+@media (max-width: 720px) {
+  .hero-queue-side {
+    align-items: flex-start;
+    width: 100%;
+  }
+}

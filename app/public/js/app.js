@@ -106,6 +106,7 @@ window.StudyApp = (() => {
 
   function setSessionFocusMode(mode) {
     sessionFocusMode = mode;
+    hydratedBlockCache.clear();
     try {
       sessionStorage.setItem('study-os-focus-mode', mode);
     } catch {}
@@ -357,9 +358,43 @@ window.StudyApp = (() => {
       && ((!currentSchedule.enabled && !currentSchedule.updatedAt)
         || backupTime(schedule.updatedAt) > backupTime(currentSchedule.updatedAt));
     if (scheduleChanged) {
-      ws.customSchedule = { ...schedule, prefs: { ...schedule.prefs,
-        timeeditUrl: schedule.prefs.timeeditUrl || currentSchedule.prefs?.timeeditUrl || '',
-      } };
+      const mergedCompleted = {
+        ...(isRecord(currentSchedule.completedEvents) ? currentSchedule.completedEvents : {}),
+        ...(isRecord(schedule.completedEvents) ? schedule.completedEvents : {}),
+      };
+      const mergedDismissed = {
+        ...(isRecord(currentSchedule.dismissedEvents) ? currentSchedule.dismissedEvents : {}),
+        ...(isRecord(schedule.dismissedEvents) ? schedule.dismissedEvents : {}),
+      };
+      ws.customSchedule = {
+        ...schedule,
+        completedEvents: mergedCompleted,
+        dismissedEvents: mergedDismissed,
+        prefs: {
+          ...schedule.prefs,
+          timeeditUrl: schedule.prefs.timeeditUrl || currentSchedule.prefs?.timeeditUrl || '',
+        },
+      };
+    } else if (isRecord(schedule)) {
+      // Still merge completion/dismissal checkoffs from another device even when base plan is identical
+      let statusMerged = false;
+      if (isRecord(schedule.completedEvents)) {
+        ws.customSchedule.completedEvents = {
+          ...(isRecord(ws.customSchedule.completedEvents) ? ws.customSchedule.completedEvents : {}),
+          ...schedule.completedEvents,
+        };
+        statusMerged = true;
+      }
+      if (isRecord(schedule.dismissedEvents)) {
+        ws.customSchedule.dismissedEvents = {
+          ...(isRecord(ws.customSchedule.dismissedEvents) ? ws.customSchedule.dismissedEvents : {}),
+          ...schedule.dismissedEvents,
+        };
+        statusMerged = true;
+      }
+      if (statusMerged && !ws.customSchedule.updatedAt) {
+        ws.customSchedule.updatedAt = schedule.updatedAt || new Date().toISOString();
+      }
     }
     const snapshot = data.canvasSnapshot;
     const canvasChanged = snapshot && Array.isArray(snapshot.courses) &&
@@ -434,7 +469,14 @@ window.StudyApp = (() => {
     return totalW > 0 ? Math.round(weightedSum / totalW) : null;
   }
 
+  const SCHED_DEBT_WINDOW_MS = 14 * 86_400_000;
+  const LOCAL_SCHED_STATUS_KEY = 'study-os-local-sched-status-v1';
+  const sandboxSchedCompleted = new Map();
+  const sandboxSchedDismissed = new Set();
+  const hydratedBlockCache = new Map(); // eventId -> { count, estMin, questionIds, topicIds, topicLabel, firstTitle }
+
   function recomputeWebAnalytics() {
+    hydratedBlockCache.clear();
     const ws = loadWebState();
     const records = ws.records || {};
     const attempts = ws.attempts || [];
@@ -542,16 +584,42 @@ window.StudyApp = (() => {
       subgroups: { byCourse, byCourseTier, byDlpfcTier: {}, byKind: {}, byTimeSlot: {} },
     };
     if (ws.customSchedule?.enabled && ws.customSchedule.blocks?.length) {
+      const completedFromSessions = new Map();
+      for (const sess of ws.sessions || []) {
+        if (!sess?.calendarEventId) continue;
+        if (Number(sess.reviewedCount || 0) > 0 || Number(sess.activeSec || 0) >= 60) {
+          completedFromSessions.set(sess.calendarEventId, {
+            at: sess.endedAt || sess.startedAt || nowIso,
+            method: 'session',
+          });
+        }
+      }
+      const savedCompleted = isRecord(ws.customSchedule.completedEvents) ? ws.customSchedule.completedEvents : {};
+      const savedDismissed = isRecord(ws.customSchedule.dismissedEvents) ? ws.customSchedule.dismissedEvents : {};
+      const at = Date.parse(nowIso);
+      const debtCutoff = at - SCHED_DEBT_WINDOW_MS;
       boot.calendar = {
         updatedAt: ws.customSchedule.updatedAt || nowIso,
         source: ws.customSchedule.source || 'browser_schedule',
         estimate: ws.customSchedule.estimate || null,
-        blocks: ws.customSchedule.blocks.map(block => {
+        blocks: ws.customSchedule.blocks.map((block) => {
           const start = Date.parse(block.startIso);
           const end = Date.parse(block.endIso);
-          const at = Date.parse(nowIso);
-          const timingState = end <= at ? 'past' : start <= at ? 'live_now' : 'upcoming';
-          return { ...block, timingState };
+          const timingState = Number.isFinite(end) && end <= at
+            ? 'past'
+            : Number.isFinite(start) && start <= at
+            ? 'live_now'
+            : 'upcoming';
+          const compInfo = savedCompleted[block.eventId] || completedFromSessions.get(block.eventId) || null;
+          const completed = Boolean(compInfo) || Boolean(block.completed);
+          const completedAt = compInfo?.at || block.completedAt || '';
+          const completedEarly = Boolean(
+            completed && (compInfo?.early || (completedAt && Number.isFinite(start) && Date.parse(completedAt) < start))
+          );
+          const dismissed = !completed && Boolean(savedDismissed[block.eventId]);
+          const isStudy = block.blockKind === 'study_block' || block.blockKind === 'recall_sprint';
+          const isDebt = Boolean(isStudy && timingState === 'past' && !completed && !dismissed && Number.isFinite(end) && end >= debtCutoff);
+          return { ...block, timingState, completed, completedAt, completedEarly, dismissed, isDebt };
         }),
       };
       boot.scheduleConfig = {
@@ -563,6 +631,412 @@ window.StudyApp = (() => {
     } else {
       boot.calendar = { source: 'static_web', blocks: [] };
       boot.scheduleConfig = { enabled: false, prefs: ws.customSchedule?.prefs || {} };
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // SCHEDULED QUEUE: CLEAR METADATA, EARLY COMPLETION & ROLLOVER STUDY DEBT
+  // ---------------------------------------------------------------------------
+  function readLocalSchedStatus() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LOCAL_SCHED_STATUS_KEY) || '{}');
+      return {
+        completed: isRecord(raw.completed) ? raw.completed : {},
+        dismissed: isRecord(raw.dismissed) ? raw.dismissed : {},
+      };
+    } catch {
+      return { completed: {}, dismissed: {} };
+    }
+  }
+
+  function writeLocalSchedStatus(data) {
+    try { localStorage.setItem(LOCAL_SCHED_STATUS_KEY, JSON.stringify(data)); } catch {}
+  }
+
+  function getBlockEffectiveState(block) {
+    const id = String(block?.eventId || '');
+    const nowMs = Date.now();
+    const startMs = Date.parse(block?.startIso || '');
+    const endMs = Date.parse(block?.endIso || '');
+    const timingState = Number.isFinite(endMs) && endMs <= nowMs
+      ? 'past'
+      : Number.isFinite(startMs) && startMs <= nowMs
+      ? 'live_now'
+      : block?.timingState || 'upcoming';
+
+    let completed = Boolean(block?.completed);
+    let completedAt = block?.completedAt || '';
+    let completedEarly = Boolean(block?.completedEarly);
+    let dismissed = Boolean(block?.dismissed);
+
+    if (!isStaticWeb) {
+      const loc = readLocalSchedStatus();
+      if (loc.completed[id]) {
+        completed = true;
+        completedAt = loc.completed[id].at || completedAt;
+        completedEarly = Boolean(loc.completed[id].early);
+      } else if (loc.completed[id] === false) {
+        completed = false;
+      }
+      if (!completed && loc.dismissed[id]) dismissed = true;
+    }
+
+    if (isDevSandbox()) {
+      if (sandboxSchedCompleted.has(id)) {
+        const s = sandboxSchedCompleted.get(id);
+        completed = Boolean(s);
+        completedEarly = Boolean(s?.early);
+        completedAt = s?.at || '';
+      }
+      if (sandboxSchedDismissed.has(id)) dismissed = true;
+    }
+
+    const isStudy = block?.blockKind === 'study_block' || block?.blockKind === 'recall_sprint';
+    const isDebt = Boolean(
+      isStudy && timingState === 'past' && !completed && !dismissed && Number.isFinite(endMs) && endMs >= nowMs - SCHED_DEBT_WINDOW_MS
+    );
+    return { timingState, completed, completedAt, completedEarly, dismissed, isDebt, startMs, endMs };
+  }
+
+  function setScheduleBlockCompleted(eventId, done, block = null, method = 'manual') {
+    const id = String(eventId || '');
+    if (!id) return;
+    const nowIso = new Date().toISOString();
+    const startMs = Date.parse(block?.startIso || '');
+    const isEarly = Boolean(done && Number.isFinite(startMs) && startMs > Date.now());
+    const wasDebt = Boolean(block && getBlockEffectiveState(block).isDebt);
+
+    if (isDevSandbox()) {
+      if (done) {
+        sandboxSchedCompleted.set(id, { at: nowIso, early: isEarly, method });
+        sandboxSchedDismissed.delete(id);
+      } else {
+        sandboxSchedCompleted.set(id, false);
+      }
+      if (currentView === 'home') renderHome();
+      else if (currentView === 'schedule') renderScheduleStudio();
+      toast(done ? (wasDebt ? 'Dev Sandbox · Debt cleared ✓' : isEarly ? 'Dev Sandbox · Completed early ✓' : 'Dev Sandbox · Marked done ✓') : 'Dev Sandbox · Returned to queue');
+      return;
+    }
+
+    if (isStaticWeb) {
+      const ws = loadWebState();
+      if (!isRecord(ws.customSchedule)) ws.customSchedule = { enabled: false, prefs: {}, blocks: [] };
+      if (!isRecord(ws.customSchedule.completedEvents)) ws.customSchedule.completedEvents = {};
+      if (!isRecord(ws.customSchedule.dismissedEvents)) ws.customSchedule.dismissedEvents = {};
+      if (done) {
+        ws.customSchedule.completedEvents[id] = { at: nowIso, early: isEarly, method };
+        delete ws.customSchedule.dismissedEvents[id];
+      } else {
+        delete ws.customSchedule.completedEvents[id];
+        delete ws.customSchedule.dismissedEvents[id];
+      }
+      ws.customSchedule.updatedAt = nowIso;
+      saveWebState(ws);
+      recomputeWebAnalytics();
+      queueCloudSync();
+    } else {
+      const loc = readLocalSchedStatus();
+      if (done) {
+        loc.completed[id] = { at: nowIso, early: isEarly, method };
+        delete loc.dismissed[id];
+      } else {
+        loc.completed[id] = false;
+        delete loc.dismissed[id];
+      }
+      writeLocalSchedStatus(loc);
+    }
+
+    if (method === 'manual') {
+      toast(done ? (wasDebt ? 'Study debt cleared ✓' : isEarly ? 'Completed ahead of schedule ✓' : 'Block marked done ✓') : 'Returned to active queue.');
+      if (currentView === 'home') renderHome();
+      else if (currentView === 'schedule') renderScheduleStudio();
+    }
+  }
+
+  function dismissScheduleDebt(eventIds) {
+    const ids = (Array.isArray(eventIds) ? eventIds : [eventIds]).filter(Boolean);
+    if (!ids.length) return;
+    const nowIso = new Date().toISOString();
+    if (isDevSandbox()) {
+      ids.forEach((id) => sandboxSchedDismissed.add(id));
+      if (currentView === 'home') renderHome();
+      else if (currentView === 'schedule') renderScheduleStudio();
+      toast(`Dev Sandbox · Cleared ${ids.length} overdue block${ids.length === 1 ? '' : 's'}.`);
+      return;
+    }
+    if (isStaticWeb) {
+      const ws = loadWebState();
+      if (!isRecord(ws.customSchedule)) return;
+      if (!isRecord(ws.customSchedule.dismissedEvents)) ws.customSchedule.dismissedEvents = {};
+      ids.forEach((id) => { ws.customSchedule.dismissedEvents[id] = nowIso; });
+      ws.customSchedule.updatedAt = nowIso;
+      saveWebState(ws);
+      recomputeWebAnalytics();
+      queueCloudSync();
+    } else {
+      const loc = readLocalSchedStatus();
+      ids.forEach((id) => { loc.dismissed[id] = nowIso; });
+      writeLocalSchedStatus(loc);
+    }
+    toast(`Forgave ${ids.length} overdue block${ids.length === 1 ? '' : 's'}.`);
+    if (currentView === 'home') renderHome();
+    else if (currentView === 'schedule') renderScheduleStudio();
+  }
+
+  function formatDurationShort(minutes) {
+    const m = Math.max(0, Math.round(Number(minutes) || 0));
+    if (m >= 60) {
+      const h = Math.floor(m / 60);
+      const r = m % 60;
+      return r ? `${h}h ${r}m` : `${h}h`;
+    }
+    return `${m}m`;
+  }
+
+  function formatRelativeScheduleWhen(block, st) {
+    const osloDayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
+    const shortDateFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', weekday: 'short', day: 'numeric', month: 'short' });
+    const now = new Date();
+    const todayKey = osloDayFmt.format(now);
+    const tomorrowKey = osloDayFmt.format(new Date(now.getTime() + 86_400_000));
+    const yesterdayKey = osloDayFmt.format(new Date(now.getTime() - 86_400_000));
+    const bDate = block.date || (Number.isFinite(st.startMs) ? osloDayFmt.format(new Date(st.startMs)) : '');
+    const timeRange = block.startLabel && block.endLabel ? `${block.startLabel}–${block.endLabel}` : (block.startLabel || '');
+    const dayWord = bDate === todayKey
+      ? 'Today'
+      : bDate === tomorrowKey
+      ? 'Tomorrow'
+      : bDate === yesterdayKey
+      ? 'Yesterday'
+      : (Number.isFinite(st.startMs) ? shortDateFmt.format(new Date(st.startMs)) : bDate);
+
+    if (st.isDebt) {
+      return `Overdue · ${dayWord}${block.startLabel ? ` ${block.startLabel}` : ''}`;
+    }
+    if (st.timingState === 'live_now') {
+      return `LIVE NOW · ${timeRange}`;
+    }
+    return `${dayWord}${timeRange ? ` · ${timeRange}` : ''}`;
+  }
+
+  const SCHED_STOP_WORDS = new Set([
+    'hard', 'medium', 'easy', 'high', 'med', 'low', 'dlpfc', 'synthesis', 'drills', 'drill',
+    'recap', 'practice', 'block', 'study', 'timed', 'lecture', 'session', 'review', 'recall',
+    'sprint', 'procedural', 'active', 'and', 'the', 'for', 'from', 'with', 'into', 'build', 'clean',
+  ]);
+
+  function inferBlockDlpfc(block) {
+    const rawMode = block.dlpfcMode || block.autoQueue?.cognitiveMode || '';
+    const sum = String(block.summary || '');
+    let mode = rawMode;
+    if (!mode) {
+      if (/\b(high\s*dlpfc|hard)\b/i.test(sum)) mode = 'high_dlpfc';
+      else if (/\b(low\s*dlpfc|easy|recall)\b/i.test(sum) || block.blockKind === 'recall_sprint') mode = 'low_dlpfc';
+      else if (/\b(med(?:ium)?\s*dlpfc|medium)\b/i.test(sum)) mode = 'med_dlpfc';
+      else {
+        const h = Number(String(block.startLabel || '').split(':')[0]);
+        if (Number.isFinite(h)) mode = h < 15 ? 'high_dlpfc' : h < 18 ? 'med_dlpfc' : 'low_dlpfc';
+        else mode = getResolvedFocusMode();
+      }
+    }
+    const tier = mode === 'high_dlpfc' ? 3 : mode === 'low_dlpfc' ? 1 : 2;
+    const label = window.StudyLayout?.label?.(tier) || (tier === 3 ? 'High DLPFC' : tier === 2 ? 'Med DLPFC' : 'Low DLPFC');
+    return { mode, tier, label };
+  }
+
+  function cleanBlockSummary(summary, course) {
+    let s = String(summary || '').trim();
+    s = s.replace(/^\[(?:high|med(?:ium)?|low)\s*dlpfc\]\s*/i, '');
+    s = s.replace(/^(?:high|med(?:ium)?|low)\s*dlpfc\s*[·:\-—]\s*/i, '');
+    s = s.replace(/^(?:hard|medium|easy|deep|recall)\s*[·:\-—]\s*/i, '');
+    if (course?.code) {
+      const codeRe = new RegExp(`^${course.code.replace(/\s+/g, '\\s*')}\\s*[·:\\-—]\\s*`, 'i');
+      s = s.replace(codeRe, '');
+    }
+    if (course?.shortTitle) {
+      const shortRe = new RegExp(`^${course.shortTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[·:\\-—]\\s*`, 'i');
+      s = s.replace(shortRe, '');
+    }
+    return s.trim() || String(summary || 'Study block').trim();
+  }
+
+  function matchBlockTopics(block, course) {
+    const topics = Array.isArray(course?.topics) ? course.topics : [];
+    if (!topics.length) return [];
+    const byId = new Map(topics.map((t) => [String(t.id), t]));
+    if (Array.isArray(block.topicIds) && block.topicIds.length) {
+      const explicit = block.topicIds.map((id) => byId.get(String(id))).filter(Boolean);
+      if (explicit.length) return explicit.slice(0, 2);
+    }
+    const text = `${block.summary || ''} ${block.focusNote || ''}`.toLowerCase();
+    const tokens = text
+      .replace(/[^a-z0-9æøå]+/gi, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 4 && !SCHED_STOP_WORDS.has(w));
+    if (!tokens.length) return [];
+
+    let best = null;
+    let bestScore = 0;
+    for (const t of topics) {
+      const hay = `${t.title || ''} ${(t.keywords || []).join(' ')}`.toLowerCase();
+      let score = 0;
+      for (const tok of tokens) {
+        const stem = tok.replace(/(?:ing|tion|sation|zation|ies|es|s)$/, '');
+        if (hay.includes(tok)) score += 3;
+        else if (stem.length >= 4 && hay.includes(stem)) score += 2;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = t;
+      }
+    }
+    return best && bestScore >= 2 ? [best] : [];
+  }
+
+  function formatTopicShort(topic) {
+    if (!topic) return '';
+    const raw = String(topic.title || '').replace(/^(?:chapter|lesson|topic)\s*\d+\s*[·:\-—]\s*/i, '').trim();
+    return `T${topic.id} · ${raw}`;
+  }
+
+  function describeScheduledBlock(block) {
+    const st = getBlockEffectiveState(block);
+    const catalog = boot.catalog || [];
+    let course = catalog.find((c) => c.courseId === block.courseId) || null;
+    if (!course && block.summary) {
+      const low = String(block.summary).toLowerCase();
+      course = catalog.find((c) =>
+        (c.code && low.includes(c.code.toLowerCase())) ||
+        (c.shortTitle && c.shortTitle.length >= 4 && low.includes(c.shortTitle.toLowerCase()))
+      ) || null;
+    }
+    const dlpfc = inferBlockDlpfc(block);
+    const hydrated = hydratedBlockCache.get(block.eventId) || null;
+    const matched = matchBlockTopics(block, course);
+    const cleanTitle = cleanBlockSummary(block.summary, course);
+
+    let topicIds = matched.map((t) => String(t.id));
+    let topicLabel = matched.length ? formatTopicShort(matched[0]) : '';
+    if (!topicLabel && hydrated?.topicLabel) {
+      topicLabel = hydrated.topicLabel;
+      topicIds = hydrated.topicIds || topicIds;
+    } else if (!topicLabel && block.topicTitle) {
+      topicLabel = block.topicTitle;
+    }
+
+    const isGenericTitle = /^(synthesis|procedural|recall|study block|practice)$/i.test(cleanTitle);
+    const displayTitle = isGenericTitle && topicLabel ? topicLabel : cleanTitle;
+    const showTopicPill = Boolean(topicLabel && topicLabel.toLowerCase() !== displayTitle.toLowerCase());
+
+    const serverQCount = block.autoQueue?.questionIds?.length || 0;
+    const qCount = hydrated ? hydrated.count : serverQCount;
+    const mins = hydrated?.estMin || Number(block.focusMinutes || 50);
+    const queueLabel = qCount > 0
+      ? `${qCount} ${qCount === 1 ? 'task' : 'tasks'} · ~${Math.max(10, Math.round(mins))}m`
+      : `${Math.max(15, Number(block.focusMinutes || 50))}m block`;
+
+    return {
+      block,
+      st,
+      course,
+      dlpfc,
+      topicIds,
+      topicLabel,
+      showTopicPill,
+      displayTitle,
+      whenLabel: formatRelativeScheduleWhen(block, st),
+      queueLabel,
+      firstTitle: hydrated?.firstTitle || '',
+      canLaunch: Boolean(course?.courseId || block.courseId),
+    };
+  }
+
+  function getScheduledQueueState() {
+    const allStudy = (boot.calendar?.blocks || [])
+      .filter((b) => b.blockKind === 'study_block' || b.blockKind === 'recall_sprint');
+    const debtBlocks = [];
+    const liveBlocks = [];
+    const upcomingBlocks = [];
+    const completedBlocks = [];
+
+    for (const b of allStudy) {
+      const st = getBlockEffectiveState(b);
+      if (st.completed) {
+        completedBlocks.push(b);
+      } else if (st.isDebt) {
+        debtBlocks.push(b);
+      } else if (st.timingState === 'live_now') {
+        liveBlocks.push(b);
+      } else if (st.timingState === 'upcoming') {
+        upcomingBlocks.push(b);
+      }
+    }
+    debtBlocks.sort((a, b) => Date.parse(a.startIso || '') - Date.parse(b.startIso || ''));
+    liveBlocks.sort((a, b) => Date.parse(a.startIso || '') - Date.parse(b.startIso || ''));
+    upcomingBlocks.sort((a, b) => Date.parse(a.startIso || '') - Date.parse(b.startIso || ''));
+    completedBlocks.sort((a, b) => Date.parse(b.startIso || '') - Date.parse(a.startIso || ''));
+
+    const debtMinutes = debtBlocks.reduce((sum, b) => sum + Number(b.focusMinutes || 50), 0);
+    const earlyCount = completedBlocks.filter((b) => getBlockEffectiveState(b).completedEarly).length;
+    const queue = [...debtBlocks, ...liveBlocks, ...upcomingBlocks];
+    return { debtBlocks, liveBlocks, upcomingBlocks, completedBlocks, queue, debtMinutes, earlyCount };
+  }
+
+  async function hydrateVisibleScheduledBlocks(blocks) {
+    const targets = (blocks || []).filter((b) => {
+      const cid = describeScheduledBlock(b).course?.courseId || b.courseId;
+      return cid && !b.autoQueue?.questionIds?.length && !hydratedBlockCache.has(b.eventId);
+    });
+    if (!targets.length) return;
+    const uniqueCourseIds = [...new Set(targets.map((b) => describeScheduledBlock(b).course?.courseId || b.courseId).filter(Boolean))];
+    await Promise.all(uniqueCourseIds.map((cid) => ensureCourseBank(cid).catch(() => null)));
+
+    for (const b of targets) {
+      const meta = describeScheduledBlock(b);
+      const cid = meta.course?.courseId || b.courseId;
+      const bank = bankCache[cid];
+      if (!bank?.questions?.length) continue;
+      const prof = b.recommendedProfile || 'learning';
+      const budget = Number(b.attemptBudgetMinutes || b.focusMinutes || homeBlockMinutes || 50);
+      const effMode = sessionFocusMode !== 'auto' ? getResolvedFocusMode() : meta.dlpfc.mode;
+      const qids = buildEffortSortedQueue(bank.questions, budget, prof, meta.topicIds, effMode);
+      const qById = new Map(bank.questions.map((q) => [q.id, q]));
+      const chosenQs = qids.map((id) => qById.get(id)).filter(Boolean);
+      const estMin = Math.round(chosenQs.reduce((s, q) => s + calibratedParSec(q, prof) / 60, 0));
+      const firstQ = chosenQs[0] || null;
+      const topTopic = firstQ ? (bank.topics || []).find((t) => String(t.id) === String(firstQ.topicId)) : null;
+      const info = {
+        questionIds: qids,
+        count: chosenQs.length,
+        estMin: estMin || Number(b.focusMinutes || 50),
+        topicIds: meta.topicIds.length ? meta.topicIds : (topTopic ? [String(topTopic.id)] : []),
+        topicLabel: meta.topicLabel || (topTopic ? formatTopicShort(topTopic) : ''),
+        firstTitle: firstQ?.title || '',
+      };
+      hydratedBlockCache.set(b.eventId, info);
+
+      // Update live Home DOM cleanly without full re-render flicker
+      const escId = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(b.eventId) : b.eventId.replace(/"/g, '\\"');
+      document.querySelectorAll(`[data-sched-count-for="${escId}"]`).forEach((el) => {
+        el.textContent = info.count > 0
+          ? `${info.count} ${info.count === 1 ? 'task' : 'tasks'} · ~${Math.max(10, info.estMin)}m`
+          : `${Number(b.focusMinutes || 50)}m review`;
+      });
+      if (info.topicLabel && info.topicLabel.toLowerCase() !== meta.displayTitle.toLowerCase()) {
+        document.querySelectorAll(`[data-sched-topic-for="${escId}"]`).forEach((el) => {
+          if (!el.textContent.trim()) {
+            el.textContent = info.topicLabel;
+            el.hidden = false;
+          }
+        });
+      }
+      if (info.firstTitle) {
+        document.querySelectorAll(`[data-sched-preview-for="${escId}"]`).forEach((el) => {
+          el.textContent = `Starts with: ${info.firstTitle}`;
+          el.hidden = false;
+        });
+      }
     }
   }
 
@@ -1298,49 +1772,62 @@ window.StudyApp = (() => {
     `;
 
     const heroEl = document.getElementById('up-next-hero');
-    const blocks = (boot.calendar?.blocks || []).filter(
-      (b) => b.timingState !== 'past' && (b.blockKind === 'study_block' || b.blockKind === 'recall_sprint') && !b.completed
-    );
-    const primary = blocks[0];
-    const nextStrip = blocks.slice(1, 5);
+    const qState = getScheduledQueueState();
+    const primary = qState.queue[0] || null;
+    const nextStrip = qState.queue.slice(1, 5);
 
-    if (primary && primary.courseId) {
-      const cMeta = boot.catalog.find((c) => c.courseId === primary.courseId);
-      const qCount = primary.autoQueue?.questionIds?.length || 0;
-      const liveBadge =
-        primary.timingState === 'live_now'
-          ? '<span class="badge live">LIVE NOW</span>'
-          : `<span class="badge">UP NEXT · ${esc(primary.date)} ${esc(primary.startLabel)}–${esc(primary.endLabel)}</span>`;
-      const tierLabel = (t) => window.StudyLayout?.label?.(t) || (t === 1 ? 'Low DLPFC' : t === 2 ? 'Med DLPFC' : 'High DLPFC');
-      const modeNote =
-        sessionFocusMode !== 'auto'
-          ? `Mode: ${resolvedFocus === 'high_dlpfc' ? `${tierLabel(3)} · Multi-step` : resolvedFocus === 'low_dlpfc' ? `${tierLabel(1)} · Recall` : `${tierLabel(2)} · Standard practice`}`
-          : primary.autoQueue?.strategy || `${primary.focusMinutes}m block`;
+    if (primary && describeScheduledBlock(primary).canLaunch) {
+      const pMeta = describeScheduledBlock(primary);
+      const cMeta = pMeta.course;
+      const isDebt = pMeta.st.isDebt;
+      const isLive = pMeta.st.timingState === 'live_now';
+      const debtBannerHtml = qState.debtBlocks.length
+        ? `<div class="sched-debt-banner">
+            <div class="sched-debt-banner-left">
+              <span class="badge debt">STUDY DEBT</span>
+              <strong>${qState.debtBlocks.length} overdue ${qState.debtBlocks.length === 1 ? 'block' : 'blocks'} (+${esc(formatDurationShort(qState.debtMinutes))} rolled over)</strong>
+              <span class="muted">Missed blocks stack here until cleared — complete upcoming blocks early to avoid debt.</span>
+            </div>
+            <button type="button" class="ghost-btn" id="btn-hero-open-sched-debt" style="padding:4px 10px;font-size:12px">Manage →</button>
+          </div>`
+        : '';
+
+      const whenBadge = isDebt
+        ? `<span class="badge debt">${esc(pMeta.whenLabel)}</span>`
+        : isLive
+        ? `<span class="badge live">${esc(pMeta.whenLabel)}</span>`
+        : `<span class="badge">${esc(pMeta.whenLabel)}</span>`;
+      const coursePill = cMeta
+        ? `<span class="sched-course-pill" style="--sched-accent:${esc(cMeta.color)}"><i aria-hidden="true"></i><b>${esc(cMeta.code)}</b> ${esc(cMeta.shortTitle || cMeta.title)}</span>`
+        : '';
+      const dlpfcPill = `<span class="diff-badge diff-${pMeta.dlpfc.tier}" data-layout-tier="${pMeta.dlpfc.tier}">${esc(pMeta.dlpfc.label)}</span>`;
+      const topicPill = `<span class="badge sched-topic-pill" data-sched-topic-for="${esc(primary.eventId)}" ${pMeta.showTopicPill ? '' : 'hidden'}>${esc(pMeta.showTopicPill ? pMeta.topicLabel : '')}</span>`;
 
       heroEl.innerHTML = `
         ${focusBarHtml}
-        <div class="hero-top">
-          <div style="flex:1;min-width:260px">
-            <span class="eyebrow">Scheduled Queue</span>
-            <h1 class="hero-title">${esc(primary.summary)}</h1>
-            <div class="hero-meta">
-              ${liveBadge}
+        ${debtBannerHtml}
+        <div class="hero-queue-card ${isDebt ? 'is-debt' : isLive ? 'is-live' : ''}" id="hero-active-block" role="button" tabindex="0" style="--sched-accent:${esc(cMeta?.color || 'var(--accent)')}" aria-label="Launch ${esc(pMeta.displayTitle)}">
+          <div class="hero-queue-main">
+            <div class="hero-queue-pills">
+              ${whenBadge}
+              ${coursePill}
+              ${dlpfcPill}
+              ${topicPill}
               ${primary.location ? `<span class="badge">${esc(primary.location)}</span>` : ''}
-              <span class="badge gold">${esc(modeNote)}</span>
             </div>
-            ${primary.focusNote ? `<p class="muted" style="max-width:780px;font-size:14px">${esc(primary.focusNote)}</p>` : ''}
+            <h1 class="hero-title" style="margin:6px 0 4px">${esc(pMeta.displayTitle)}</h1>
+            <div class="hero-queue-sub">
+              <span class="sched-count-pill" data-sched-count-for="${esc(primary.eventId)}">${esc(pMeta.queueLabel)}</span>
+              <span class="muted sched-preview-txt" data-sched-preview-for="${esc(primary.eventId)}" ${pMeta.firstTitle ? '' : 'hidden'}>${pMeta.firstTitle ? `Starts with: ${esc(pMeta.firstTitle)}` : ''}</span>
+              ${primary.focusNote && !pMeta.firstTitle ? `<span class="muted">${esc(primary.focusNote)}</span>` : ''}
+            </div>
           </div>
-          <div style="display:flex;flex-direction:column;gap:8px;min-width:240px">
-            <button type="button" class="primary-btn btn-lg" id="btn-launch-hero" ${qCount ? '' : 'disabled'}>
-              Start ${primary.focusMinutes}m ${resolvedFocus === 'high_dlpfc' ? `${tierLabel(3)} ` : resolvedFocus === 'low_dlpfc' ? `${tierLabel(1)} ` : ''}Run →
-            </button>
-            <div class="row-actions" style="gap:6px">
-              ${
-                cMeta
-                  ? `<button type="button" class="ghost-btn" style="flex:1" id="btn-hero-deep-filter">${esc(tierLabel(3))}</button>
-                     <button type="button" class="ghost-btn" style="flex:1" id="btn-hero-ref">${esc(cMeta.shortTitle)} Ref</button>`
-                  : ''
-              }
+          <div class="hero-queue-side">
+            <span class="hero-queue-go">${isDebt ? 'Clear debt →' : isLive ? 'Open live run →' : 'Open run →'}</span>
+            <div class="hero-queue-tools">
+              <button type="button" class="ghost-btn sched-tool-btn" id="btn-hero-mark-done" title="${isDebt ? 'Mark overdue block completed' : 'Mark completed ahead of schedule'}">✓ ${isDebt ? 'Clear' : 'Done'}</button>
+              ${cMeta ? `<button type="button" class="ghost-btn sched-tool-btn" id="btn-hero-ref">${esc(cMeta.shortTitle)} Ref</button>` : ''}
+              <button type="button" class="ghost-btn sched-tool-btn" id="btn-hero-sched">Schedule</button>
               ${isStaticWeb ? biSyncHeroButtonHtml() : ''}
             </div>
           </div>
@@ -1349,40 +1836,88 @@ window.StudyApp = (() => {
           nextStrip.length
             ? `<div class="schedule-strip">
                 ${nextStrip
-                  .map(
-                    (b) => `<div class="sched-mini">
-                      <div>
-                        <small>${esc(b.date)} · ${esc(b.startLabel)}–${esc(b.endLabel)}</small>
-                        <strong>${esc(b.summary)}</strong>
+                  .map((b) => {
+                    const m = describeScheduledBlock(b);
+                    const bc = m.course;
+                    return `<div class="sched-mini is-clickable ${m.st.isDebt ? 'is-debt' : ''}" data-launch-event="${esc(b.eventId)}" role="button" tabindex="0" style="--sched-accent:${esc(bc?.color || 'var(--accent)')}" title="Click to launch this block immediately (you can complete upcoming blocks early)">
+                      <div class="sched-mini-top">
+                        <div class="sched-mini-badges">
+                          ${bc ? `<span class="sched-course-pill compact" style="--sched-accent:${esc(bc.color)}"><i aria-hidden="true"></i><b>${esc(bc.code)}</b> ${esc(bc.shortTitle || '')}</span>` : ''}
+                          <span class="diff-badge diff-${m.dlpfc.tier}" data-layout-tier="${m.dlpfc.tier}">${esc(m.dlpfc.label)}</span>
+                        </div>
+                        <button type="button" class="sched-check-btn" data-mark-done-event="${esc(b.eventId)}" title="${m.st.isDebt ? 'Mark overdue debt cleared' : 'Mark completed early'}" aria-label="Mark block completed">✓</button>
                       </div>
-                      <div class="row-between" style="margin:4px 0 0">
-                        <small>${b.autoQueue?.questionIds?.length || 0} queued${b.autoQueue?.cognitiveMode === 'high_dlpfc' ? ` · ${esc(tierLabel(3))}` : b.autoQueue?.cognitiveMode === 'med_dlpfc' ? ` · ${esc(tierLabel(2))}` : b.autoQueue?.cognitiveMode === 'low_dlpfc' ? ` · ${esc(tierLabel(1))}` : ''}</small>
-                        ${
-                          b.courseId
-                            ? `<button type="button" class="ghost-btn" style="padding:4px 9px;font-size:12px" data-launch-event="${esc(b.eventId)}">Start →</button>`
-                            : ''
-                        }
+                      <div class="sched-mini-body">
+                        <div class="sched-mini-topic" data-sched-topic-for="${esc(b.eventId)}" ${m.showTopicPill ? '' : 'hidden'}>${esc(m.showTopicPill ? m.topicLabel : '')}</div>
+                        <strong class="sched-mini-title">${esc(m.displayTitle)}</strong>
                       </div>
-                    </div>`
-                  )
+                      <div class="sched-mini-foot">
+                        <small class="${m.st.isDebt ? 'sched-when-debt' : 'muted'}">${esc(m.whenLabel)}</small>
+                        <small class="sched-mini-go"><span data-sched-count-for="${esc(b.eventId)}">${esc(m.queueLabel)}</span> <span class="sched-arrow" aria-hidden="true">→</span></small>
+                      </div>
+                    </div>`;
+                  })
                   .join('')}
               </div>`
             : ''
         }
       `;
 
-      document.getElementById('btn-launch-hero')?.addEventListener('click', () => launchCalendarBlock(primary));
-      document.getElementById('btn-hero-deep-filter')?.addEventListener('click', () =>
-        navigate('course', { courseId: primary.courseId, preset: 'high_dlpfc' })
-      );
-      document.getElementById('btn-hero-ref')?.addEventListener('click', () => openReferenceDrawer(cMeta));
-      document.getElementById('btn-web-bi-sync')?.addEventListener('click', () => openBiSyncHub());
-      heroEl.querySelectorAll('[data-launch-event]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const blk = (boot.calendar?.blocks || []).find((x) => x.eventId === btn.dataset.launchEvent);
-          if (blk) launchCalendarBlock(blk);
+      const heroBlockEl = document.getElementById('hero-active-block');
+      heroBlockEl?.addEventListener('click', (ev) => {
+        if (ev.target.closest('button, a')) return;
+        launchCalendarBlock(primary);
+      });
+      heroBlockEl?.addEventListener('keydown', (ev) => {
+        if ((ev.key === 'Enter' || ev.key === ' ') && !ev.target.closest('button, a')) {
+          ev.preventDefault();
+          launchCalendarBlock(primary);
+        }
+      });
+      document.getElementById('btn-hero-mark-done')?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        setScheduleBlockCompleted(primary.eventId, true, primary, 'manual');
+      });
+      document.getElementById('btn-hero-ref')?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (cMeta) openReferenceDrawer(cMeta);
+      });
+      document.getElementById('btn-hero-sched')?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        navigate('schedule');
+      });
+      document.getElementById('btn-hero-open-sched-debt')?.addEventListener('click', () => navigate('schedule'));
+      document.getElementById('btn-web-bi-sync')?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        openBiSyncHub();
+      });
+
+      heroEl.querySelectorAll('[data-mark-done-event]').forEach((btn) => {
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const blk = (boot.calendar?.blocks || []).find((x) => x.eventId === btn.dataset.markDoneEvent);
+          if (blk) setScheduleBlockCompleted(blk.eventId, true, blk, 'manual');
         });
       });
+      heroEl.querySelectorAll('[data-launch-event]').forEach((card) => {
+        const launch = () => {
+          const blk = (boot.calendar?.blocks || []).find((x) => x.eventId === card.dataset.launchEvent);
+          if (blk) launchCalendarBlock(blk);
+        };
+        card.addEventListener('click', (ev) => {
+          if (ev.target.closest('button, a')) return;
+          launch();
+        });
+        card.addEventListener('keydown', (ev) => {
+          if ((ev.key === 'Enter' || ev.key === ' ') && !ev.target.closest('button, a')) {
+            ev.preventDefault();
+            launch();
+          }
+        });
+      });
+
+      // Lazily hydrate exact task counts + topics from course banks so cards never show "0 queued"
+      hydrateVisibleScheduledBlocks([primary, ...nextStrip]).catch(() => {});
     } else if (isStaticWeb) {
       const questionCount = boot.catalog.reduce((count, c) => count + c.questionCount, 0);
       const nextExam = [...boot.catalog]
@@ -1493,10 +2028,6 @@ window.StudyApp = (() => {
     // 4. Difficulty / DLPFC Picker + Duration Picker + Semester Filter + Courses Grid
     const tierLbl = (t) => window.StudyLayout?.label?.(t) || (t === 1 ? 'Low DLPFC' : t === 2 ? 'Med DLPFC' : 'High DLPFC');
     const diffWord = homeDifficulty === 'all' ? '' : tierLbl(Number(homeDifficulty));
-    const eyebrowEl = document.getElementById('home-courses-eyebrow');
-    if (eyebrowEl) {
-      eyebrowEl.textContent = `Active Semester Courses · ${homeBlockMinutes}m AI Par Blocks${diffWord ? ` · ${diffWord}` : ''}`;
-    }
     const diffSeg = document.getElementById('home-difficulty-seg');
     if (diffSeg) {
       diffSeg.querySelectorAll('[data-home-diff]').forEach((btn) => {
@@ -2809,23 +3340,45 @@ window.StudyApp = (() => {
   }
 
   async function launchCalendarBlock(block) {
-    const bank = await ensureCourseBank(block.courseId);
-    const cMeta = boot.catalog.find((c) => c.courseId === block.courseId);
+    const meta = describeScheduledBlock(block);
+    const courseId = meta.course?.courseId || block.courseId;
+    if (!courseId) {
+      toast('This block is not linked to a course yet.');
+      return;
+    }
+    let bank;
+    try {
+      bank = await ensureCourseBank(courseId);
+    } catch {
+      toast('Could not load this course bank. Check your connection and try again.');
+      return;
+    }
+    const cMeta = meta.course || boot.catalog.find((c) => c.courseId === courseId);
     const prof = block.recommendedProfile || 'learning';
-    const blockDlpfcMode = block.dlpfcMode
-      || (/high\s*dlpfc/i.test(block.summary || '') ? 'high_dlpfc'
-        : /low\s*dlpfc/i.test(block.summary || '') || block.blockKind === 'recall_sprint' ? 'low_dlpfc'
-        : /med(?:ium)?\s*dlpfc/i.test(block.summary || '') ? 'med_dlpfc'
-        : getResolvedFocusMode());
+    const blockDlpfcMode = sessionFocusMode !== 'auto' ? getResolvedFocusMode() : meta.dlpfc.mode;
+    const topicIds = meta.topicIds?.length ? meta.topicIds : (block.topicIds || []);
+    const hydratedQids = (hydratedBlockCache.get(block.eventId)?.questionIds || []).filter((id) => getProgressRecord(id)?.status !== 'done');
     let qids = (block.autoQueue?.questionIds || []).filter((id) => getProgressRecord(id)?.status !== 'done');
-    if (sessionFocusMode !== 'auto' || block.dlpfcMode || !qids.length) {
+    if (!qids.length && sessionFocusMode === 'auto' && hydratedQids.length) {
+      qids = hydratedQids;
+    }
+    if (sessionFocusMode !== 'auto' || !qids.length) {
       qids = buildEffortSortedQueue(
         bank.questions || [],
         Number(block.attemptBudgetMinutes || block.focusMinutes || homeBlockMinutes || 50),
         prof,
-        block.topicIds || [],
+        topicIds,
         blockDlpfcMode
       );
+    }
+    if (!qids.length) {
+      // Fallback: review completed questions from that topic/course rather than failing silently
+      const fallback = (bank.questions || []).filter((q) => q.available !== false);
+      qids = fallback.slice(0, 8).map((q) => q.id);
+    }
+    if (!qids.length) {
+      toast('No practice questions available in this course.');
+      return;
     }
     window.StudyRunner.startRun({
       courseMeta: cMeta,
@@ -4324,7 +4877,16 @@ window.StudyApp = (() => {
       })
       .join('');
 
-    const upcomingBlocks = (boot.calendar?.blocks || []).filter((b) => b.timingState !== 'past').slice(0, 24);
+    const qState = getScheduledQueueState();
+    const fixedUpcoming = (boot.calendar?.blocks || [])
+      .filter((b) => (b.blockKind === 'class_session' || b.blockKind === 'exam') && getBlockEffectiveState(b).timingState !== 'past');
+    const activeRows = [
+      ...qState.debtBlocks,
+      ...[...qState.liveBlocks, ...qState.upcomingBlocks, ...fixedUpcoming].sort(
+        (a, b) => Date.parse(a.startIso || '') - Date.parse(b.startIso || '')
+      ),
+    ].slice(0, 32);
+    const doneRows = qState.completedBlocks.slice(0, 15);
 
     root.innerHTML = `
       <div class="hero-card" style="margin-bottom:18px">
@@ -4479,40 +5041,88 @@ window.StudyApp = (() => {
           <a class="ghost-btn" href="https://support.apple.com/guide/calendar/icl1023/mac" target="_blank" rel="noopener">Apple Calendar import ↗</a>
         </div>
       </section>
-      <!-- UPCOMING SCHEDULE PREVIEW -->
+      <!-- ACTIVE SCHEDULE, STUDY DEBT ROLLOVER & EARLY COMPLETION -->
       <div class="panel">
-        <div class="row-between" style="margin-top:0">
+        <div class="row-between" style="margin-top:0;flex-wrap:wrap;gap:10px">
           <div>
-            <h3>Active Upcoming Schedule (${upcomingBlocks.length} blocks shown)</h3>
-            <small class="muted">Click Start on any study block to launch its matching practice questions immediately.</small>
+            <h3>Active Schedule &amp; Study Debt (${activeRows.length} shown)</h3>
+            <small class="muted">Click any study row to launch right away — complete upcoming blocks early, or clear rolled-over debt.</small>
+          </div>
+          <div class="row-actions" style="gap:8px;flex-wrap:wrap">
+            ${qState.debtBlocks.length
+              ? `<span class="badge debt">Debt: ${qState.debtBlocks.length} overdue (+${esc(formatDurationShort(qState.debtMinutes))})</span>
+                 <button type="button" class="ghost-btn" id="btn-forgive-all-debt" style="padding:4px 10px;font-size:12px">Forgive all debt</button>`
+              : '<span class="badge good">0 Study Debt ✓</span>'}
+            <span class="badge">${qState.completedBlocks.length} done${qState.earlyCount ? ` (${qState.earlyCount} early)` : ''}</span>
           </div>
         </div>
         <div class="task-table-wrap">
           <table class="task-table">
-            <thead><tr><th>Date &amp; Time</th><th>Block / Lecture</th><th>Course</th><th>Type</th><th>Action</th></tr></thead>
+            <thead><tr><th>When</th><th>Course</th><th>Topic &amp; Focus</th><th>DLPFC</th><th>Status</th><th></th></tr></thead>
             <tbody>
               ${
-                upcomingBlocks.length
-                  ? upcomingBlocks
-                      .map(
-                        (b) => `<tr>
-                      <td><code>${esc(b.date)} ${esc(b.startLabel)}–${esc(b.endLabel)}</code></td>
-                      <td><strong>${esc(b.summary)}</strong></td>
-                      <td><span class="badge">${esc(b.courseId || 'general')}</span></td>
-                      <td><small>${esc(b.blockKind || 'study_block')}</small></td>
-                      <td>${
-                        b.courseId && (b.blockKind === 'study_block' || b.blockKind === 'recall_sprint')
-                          ? `<button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" data-sched-start="${esc(b.eventId)}">Start →</button>`
-                          : '<small class="muted">Fixed event</small>'
-                      }</td>
-                    </tr>`
-                      )
+                activeRows.length
+                  ? activeRows
+                      .map((b) => {
+                        const isStudy = b.blockKind === 'study_block' || b.blockKind === 'recall_sprint';
+                        const m = describeScheduledBlock(b);
+                        const bc = m.course;
+                        const statusPill = m.st.isDebt
+                          ? '<span class="badge debt">DEBT</span>'
+                          : m.st.timingState === 'live_now'
+                          ? '<span class="badge live">LIVE</span>'
+                          : isStudy
+                          ? '<span class="badge">Queued</span>'
+                          : `<span class="badge">${b.blockKind === 'exam' ? 'Exam' : 'Lecture'}</span>`;
+                        return `<tr class="${isStudy && m.canLaunch ? 'sched-row-clickable' : ''} ${m.st.isDebt ? 'is-debt-row' : ''}" ${isStudy && m.canLaunch ? `data-sched-start="${esc(b.eventId)}" tabindex="0"` : ''}>
+                          <td><span class="${m.st.isDebt ? 'sched-when-debt' : ''}" style="font-size:12.5px;white-space:nowrap">${esc(m.whenLabel)}</span></td>
+                          <td>${bc
+                            ? `<span class="sched-course-pill compact" style="--sched-accent:${esc(bc.color)}"><i aria-hidden="true"></i><b>${esc(bc.code)}</b> ${esc(bc.shortTitle || '')}</span>`
+                            : '<span class="badge">General</span>'}</td>
+                          <td>
+                            ${m.showTopicPill ? `<div class="sched-mini-topic">${esc(m.topicLabel)}</div>` : ''}
+                            <strong>${esc(m.displayTitle)}</strong>
+                          </td>
+                          <td>${isStudy ? `<span class="diff-badge diff-${m.dlpfc.tier}" data-layout-tier="${m.dlpfc.tier}">${esc(m.dlpfc.label)}</span>` : '<small class="muted">—</small>'}</td>
+                          <td>${statusPill}</td>
+                          <td style="white-space:nowrap">${
+                            isStudy
+                              ? `<div class="row-actions" style="gap:5px;justify-content:flex-end">
+                                  <button type="button" class="ghost-btn" style="padding:3px 8px;font-size:12px" data-sched-mark-done="${esc(b.eventId)}" title="${m.st.isDebt ? 'Mark debt cleared' : 'Mark completed early'}">✓</button>
+                                  ${m.st.isDebt ? `<button type="button" class="ghost-btn" style="padding:3px 8px;font-size:12px" data-sched-dismiss="${esc(b.eventId)}" title="Forgive this overdue block">Skip</button>` : ''}
+                                </div>`
+                              : '<small class="muted">Fixed</small>'
+                          }</td>
+                        </tr>`;
+                      })
                       .join('')
-                  : '<tr><td colspan="5" class="muted">No upcoming blocks yet — generate a schedule above or paste an LLM schedule.</td></tr>'
+                  : '<tr><td colspan="6" class="muted">No queued blocks yet — build a study plan above or paste an LLM schedule.</td></tr>'
               }
             </tbody>
           </table>
         </div>
+        ${doneRows.length ? `
+          <details style="margin-top:12px">
+            <summary style="cursor:pointer;font-size:13px;font-weight:600">Completed blocks (${doneRows.length}${qState.earlyCount ? ` · ${qState.earlyCount} finished early ✓` : ''})</summary>
+            <div class="task-table-wrap" style="margin-top:8px">
+              <table class="task-table">
+                <tbody>
+                  ${doneRows.map((b) => {
+                    const m = describeScheduledBlock(b);
+                    const bc = m.course;
+                    return `<tr>
+                      <td><small class="muted">${esc(b.date)} ${esc(b.startLabel || '')}</small></td>
+                      <td>${bc ? `<span class="sched-course-pill compact" style="--sched-accent:${esc(bc.color)}"><i aria-hidden="true"></i><b>${esc(bc.code)}</b></span>` : ''}</td>
+                      <td><span class="muted" style="text-decoration:line-through">${esc(m.displayTitle)}</span></td>
+                      <td><span class="badge good">${m.st.completedEarly ? 'Done early ✓' : 'Done ✓'}</span></td>
+                      <td><button type="button" class="ghost-btn" style="padding:2px 8px;font-size:11.5px" data-sched-undo="${esc(b.eventId)}">Undo</button></td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        ` : ''}
       </div>
     `;
 
@@ -4714,11 +5324,45 @@ window.StudyApp = (() => {
       applyExtensionTimeEdit(true);
     }
 
-    root.querySelectorAll('[data-sched-start]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const blk = (boot.calendar?.blocks || []).find((b) => b.eventId === btn.dataset.schedStart);
+    root.querySelectorAll('[data-sched-start]').forEach((row) => {
+      const go = () => {
+        const blk = (boot.calendar?.blocks || []).find((b) => b.eventId === row.dataset.schedStart);
         if (blk) launchCalendarBlock(blk);
+      };
+      row.addEventListener('click', (ev) => {
+        if (ev.target.closest('button, a')) return;
+        go();
       });
+      row.addEventListener('keydown', (ev) => {
+        if ((ev.key === 'Enter' || ev.key === ' ') && !ev.target.closest('button, a')) {
+          ev.preventDefault();
+          go();
+        }
+      });
+    });
+    root.querySelectorAll('[data-sched-mark-done]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const blk = (boot.calendar?.blocks || []).find((b) => b.eventId === btn.dataset.schedMarkDone);
+        if (blk) setScheduleBlockCompleted(blk.eventId, true, blk, 'manual');
+      });
+    });
+    root.querySelectorAll('[data-sched-undo]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const blk = (boot.calendar?.blocks || []).find((b) => b.eventId === btn.dataset.schedUndo);
+        setScheduleBlockCompleted(btn.dataset.schedUndo, false, blk, 'manual');
+      });
+    });
+    root.querySelectorAll('[data-sched-dismiss]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        dismissScheduleDebt(btn.dataset.schedDismiss);
+      });
+    });
+    document.getElementById('btn-forgive-all-debt')?.addEventListener('click', () => {
+      const ids = qState.debtBlocks.map((b) => b.eventId);
+      if (ids.length) dismissScheduleDebt(ids);
     });
   }
 
@@ -4926,18 +5570,32 @@ window.StudyApp = (() => {
   }
 
   async function logSession(payload) {
+    const earnedCompletion = Boolean(
+      payload?.calendarEventId && (Number(payload.reviewedCount || 0) > 0 || Number(payload.activeSec || 0) >= 60)
+    );
+    const matchedBlk = earnedCompletion
+      ? (boot.calendar?.blocks || []).find((b) => b.eventId === payload.calendarEventId) || null
+      : null;
+
     if (isDevSandbox()) {
+      if (earnedCompletion) setScheduleBlockCompleted(payload.calendarEventId, true, matchedBlk, 'session');
       return { ok: true, devMode: true, analytics: boot.analytics };
     }
     if (isStaticWeb) {
       const ws = loadWebState();
       ws.sessions.push({ ...payload, endedAt: new Date().toISOString() });
       saveWebState(ws);
-      queueCloudSync();
-      recomputeWebAnalytics();
+      if (earnedCompletion) {
+        setScheduleBlockCompleted(payload.calendarEventId, true, matchedBlk, 'session');
+      } else {
+        queueCloudSync();
+        recomputeWebAnalytics();
+      }
       return { ok: true, analytics: boot.analytics };
     }
-    return apiPost('/api/session', payload);
+    const res = await apiPost('/api/session', payload);
+    if (earnedCompletion) setScheduleBlockCompleted(payload.calendarEventId, true, matchedBlk, 'session');
+    return res;
   }
 
   function exportBackupFile() {
