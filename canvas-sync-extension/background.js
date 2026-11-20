@@ -11,7 +11,14 @@ const TARGET_URL_PATTERNS = [
   'https://us.edstem.org/*',
   'https://au.edstem.org/*',
 ];
+const AUTO_SYNC_COOLDOWN_MS = {
+  canvas: 12 * 60 * 60 * 1000,   // 12 hours
+  ed: 12 * 60 * 60 * 1000,       // 12 hours
+  timeedit: 72 * 60 * 60 * 1000, // 3 days
+};
 let syncJob = null;
+const autoSyncTimers = new Map();
+const autoSyncInFlight = new Set();
 
 // Runs inside the user's already signed-in BI Canvas tab using browser same-origin cookies.
 // Never extracts, copies, or transmits raw Canvas session tokens.
@@ -351,6 +358,77 @@ async function syncSingleSite(tabId, site, sharePublic, cloudToken, desktopToken
   throw new Error('Unsupported tab.');
 }
 
+async function recordSiteSync(site) {
+  const { lastSiteSyncAt = {} } = await chrome.storage.local.get(['lastSiteSyncAt']);
+  const next = { ...lastSiteSyncAt, [site]: Date.now() };
+  await chrome.storage.local.set({ lastSiteSyncAt: next });
+  return next;
+}
+
+async function flashSuccessBadge() {
+  try {
+    await chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
+    await chrome.action.setBadgeText({ text: '✓' });
+    setTimeout(() => {
+      chrome.action.setBadgeText({ text: '' }).catch(() => {});
+    }, 5000);
+  } catch {}
+}
+
+async function maybeAutoSyncTab(tabId, urlStr) {
+  const site = detectSite(urlStr);
+  if (!site || site === 'other') return;
+  // Skip login / auth redirect URLs on BI Canvas or Ed
+  if (/\/(login|oauth|saml|sso|auth)\b/i.test(urlStr)) return;
+  if (autoSyncInFlight.has(site) || syncJob) return;
+
+  const stored = await chrome.storage.local.get([
+    'cloudToken',
+    'token',
+    'sharePublic',
+    'autoSyncEnabled',
+    'lastSiteSyncAt',
+  ]);
+  if (stored.autoSyncEnabled === false) return;
+  const cloudToken = stored.cloudToken || '';
+  const desktopToken = stored.token || '';
+  if (!cloudToken && !(site === 'canvas' && desktopToken)) return;
+
+  const lastAt = Number(stored.lastSiteSyncAt?.[site] || 0);
+  const cooldown = AUTO_SYNC_COOLDOWN_MS[site] || (12 * 60 * 60 * 1000);
+  if (Date.now() - lastAt < cooldown) return;
+
+  autoSyncInFlight.add(site);
+  try {
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
+    if (!tab || detectSite(tab.url || '') !== site) return;
+    const sharePublic = stored.sharePublic !== false;
+    await syncSingleSite(tabId, site, sharePublic, cloudToken, desktopToken);
+    await recordSiteSync(site);
+    await flashSuccessBadge();
+  } catch (err) {
+    if (err?.needsPair) {
+      await chrome.storage.local.remove(['cloudToken', 'cloudNickname']).catch(() => {});
+    }
+    // Fail silently in background if user isn't logged in on that BI tab yet
+  } finally {
+    autoSyncInFlight.delete(site);
+  }
+}
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete') return;
+  const urlStr = tab?.url || changeInfo.url || '';
+  const site = detectSite(urlStr);
+  if (!site || site === 'other') return;
+  if (autoSyncTimers.has(site)) clearTimeout(autoSyncTimers.get(site));
+  const timer = setTimeout(() => {
+    autoSyncTimers.delete(site);
+    maybeAutoSyncTab(tabId, urlStr);
+  }, 2500);
+  autoSyncTimers.set(site, timer);
+});
+
 async function runSyncAll(sharePublic) {
   const stored = await chrome.storage.local.get(['cloudToken', 'token']);
   const cloudToken = stored.cloudToken || '';
@@ -365,24 +443,35 @@ async function runSyncAll(sharePublic) {
   for (const site of targets) {
     try {
       const summary = await syncSingleSite(openTabs[site].id, site, sharePublic, cloudToken, desktopToken);
+      await recordSiteSync(site);
       results.push({ site, ok: true, summary });
     } catch (err) {
       if (err.needsPair) throw err;
       results.push({ site, ok: false, error: err.message || 'Sync failed.' });
     }
   }
+  if (results.some((r) => r.ok)) await flashSuccessBadge();
   return { state: 'synced', results };
 }
 
 async function handle(message) {
   if (message.action === 'status') {
-    const stored = await chrome.storage.local.get(['cloudToken', 'cloudNickname', 'token', 'sharePublic']);
+    const stored = await chrome.storage.local.get([
+      'cloudToken',
+      'cloudNickname',
+      'token',
+      'sharePublic',
+      'autoSyncEnabled',
+      'lastSiteSyncAt',
+    ]);
     const openTabs = await findOpenStudyTabs();
     return {
       connectedCloud: Boolean(stored.cloudToken),
       nickname: stored.cloudNickname || '',
       connectedDesktop: Boolean(stored.token),
       sharePublic: stored.sharePublic !== false,
+      autoSyncEnabled: stored.autoSyncEnabled !== false,
+      lastSiteSyncAt: stored.lastSiteSyncAt || {},
       openSites: {
         canvas: Boolean(openTabs.canvas),
         timeedit: Boolean(openTabs.timeedit),
@@ -393,6 +482,11 @@ async function handle(message) {
 
   if (message.action === 'setSharePublic') {
     await chrome.storage.local.set({ sharePublic: Boolean(message.sharePublic) });
+    return { ok: true };
+  }
+
+  if (message.action === 'setAutoSync') {
+    await chrome.storage.local.set({ autoSyncEnabled: Boolean(message.autoSyncEnabled) });
     return { ok: true };
   }
 

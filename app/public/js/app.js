@@ -1115,6 +1115,128 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   // VIEW 1: COMMAND CENTER (Zero-Decision-Fatigue Calendar Hero + Courses Grid)
   // ---------------------------------------------------------------------------
+  const BI_SYNC_STALE_DAYS = 5;
+
+  function getBiSyncStatus() {
+    if (!isStaticWeb) return { hasEverSynced: true, lastSyncMs: Date.now(), daysSinceSync: 0, isStale: false };
+    const ws = loadWebState();
+    const candidates = [
+      ws.canvasSnapshot?.capturedAt ? Date.parse(ws.canvasSnapshot.capturedAt) : 0,
+      ws.customSchedule?.syncedAt ? Date.parse(ws.customSchedule.syncedAt) : 0,
+    ];
+    try {
+      const saved = Number(localStorage.getItem('study-os-bi-last-sync') || 0);
+      if (Number.isFinite(saved) && saved > 0) candidates.push(saved);
+    } catch {}
+    const lastSyncMs = Math.max(0, ...candidates.filter((n) => Number.isFinite(n) && n > 0));
+    const hasData = Boolean(
+      ws.canvasSnapshot?.courses?.length ||
+      (ws.customSchedule?.enabled && ws.customSchedule?.blocks?.length) ||
+      lastSyncMs > 0
+    );
+    const daysSinceSync = lastSyncMs > 0 ? Math.floor((Date.now() - lastSyncMs) / 86_400_000) : null;
+    const isStale = Boolean(hasData && daysSinceSync !== null && daysSinceSync >= BI_SYNC_STALE_DAYS);
+    return { hasEverSynced: hasData, lastSyncMs, daysSinceSync, isStale };
+  }
+
+  function markBiSyncedNow() {
+    try { localStorage.setItem('study-os-bi-last-sync', String(Date.now())); } catch {}
+    try { localStorage.removeItem('study-os-bi-banner-snooze'); } catch {}
+  }
+
+  function biSyncHeroButtonHtml() {
+    const st = getBiSyncStatus();
+    if (!st.hasEverSynced) {
+      return '<button type="button" class="primary-btn bi-sync-cta-prominent" id="btn-web-bi-sync"><span class="bi-sync-pulse" aria-hidden="true"></span>Sync BI Canvas &amp; Ed</button>';
+    }
+    if (st.isStale) {
+      return `<button type="button" class="ghost-btn bi-sync-cta-stale" id="btn-web-bi-sync"><span class="bi-sync-stale-dot" aria-hidden="true"></span>Sync BI · ${st.daysSinceSync}d ago</button>`;
+    }
+    return '<button type="button" class="ghost-btn" id="btn-web-bi-sync">Sync BI ✓</button>';
+  }
+
+  function maybePromptFirstLoginBiSync() {
+    if (!isStaticWeb || !window.StudyCommunity?.isSignedIn?.()) return;
+    const st = getBiSyncStatus();
+    if (st.hasEverSynced) return;
+    try {
+      if (localStorage.getItem('study-os-bi-sync-prompted') === '1') return;
+      localStorage.setItem('study-os-bi-sync-prompted', '1');
+    } catch {
+      return;
+    }
+    setTimeout(() => {
+      if (!document.querySelector('dialog[open]')) {
+        openBiSyncHub({ firstLogin: true });
+      }
+    }, 550);
+  }
+
+  function biSyncWalkthroughHtml() {
+    return `
+      <div class="bi-demo-card" id="bi-demo-card">
+        <div class="row-between" style="margin-bottom:8px;gap:8px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span class="badge live">10s Walkthrough</span>
+            <strong style="font-size:13px">How 1-Click &amp; Auto-Sync works</strong>
+          </div>
+          <button type="button" class="ghost-btn" id="bi-demo-toggle" style="padding:3px 10px;font-size:11.5px">Pause</button>
+        </div>
+        <div class="bi-demo-viewport" aria-label="Animated walkthrough of pairing Study-OS Sync and syncing BI Canvas, TimeEdit, and Ed Discussion">
+          <div class="bi-demo-camera">
+            <div class="bi-demo-browser">
+              <div class="bi-demo-chrome">
+                <span class="bi-demo-dots"><i></i><i></i><i></i></span>
+                <div class="bi-demo-tab active">studyos.no</div>
+                <div class="bi-demo-tab">● canvas.bi.no</div>
+                <div class="bi-demo-tab">● timeedit.net</div>
+                <div class="bi-demo-tab">● eu.edstem.org</div>
+              </div>
+              <div class="bi-demo-canvas">
+                <div class="bi-demo-left">
+                  <div class="bi-demo-eyebrow">Study-OS · Sync BI</div>
+                  <div class="bi-demo-h">Pair once in 10 seconds</div>
+                  <div class="bi-demo-code-btn">Generate 6-char code</div>
+                  <div class="bi-demo-code-pill">K7M-9P2</div>
+                </div>
+                <div class="bi-demo-popup">
+                  <div class="bi-demo-phead">
+                    <span class="bi-demo-pdot"></span>
+                    <b>Study-OS Sync</b>
+                    <span class="bi-demo-ppill">3 tabs ready</span>
+                  </div>
+                  <div class="bi-demo-pchips">
+                    <span>BI Canvas<i>● Ready</i></span>
+                    <span>TimeEdit<i>● Ready</i></span>
+                    <span>Ed<i>● Ready</i></span>
+                  </div>
+                  <div class="bi-demo-pbtn">Sync all 3 open tabs</div>
+                  <div class="bi-demo-presults">
+                    <div class="bi-demo-res r1">✓ Canvas: 5 courses, 18 deadlines</div>
+                    <div class="bi-demo-res r2">✓ TimeEdit: 42 classes synced</div>
+                    <div class="bi-demo-res r3">✓ Ed: 2 courses · Auto-sync ON</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="bi-demo-cursor" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round">
+                <path d="M5 3l14 9-6.5 1.4L9 20z"></path>
+              </svg>
+              <span class="bi-demo-ripple"></span>
+            </div>
+          </div>
+          <div class="bi-demo-caption">
+            <span class="bi-demo-cap c1">1. Click <b>Generate 6-char code</b> on studyos.no</span>
+            <span class="bi-demo-cap c2">2. Paste once in <b>Study-OS Sync</b> &amp; click Sync</span>
+            <span class="bi-demo-cap c3">3. <b>Canvas, TimeEdit &amp; Ed</b> stay synced automatically ✓</span>
+          </div>
+          <div class="bi-demo-progress"><i></i></div>
+        </div>
+      </div>
+    `;
+  }
+
   function renderHome() {
     ensureExamCountdownTicker();
     syncSettingsRows();
@@ -1217,7 +1339,7 @@ window.StudyApp = (() => {
                      <button type="button" class="ghost-btn" style="flex:1" id="btn-hero-ref">${esc(cMeta.shortTitle)} Ref</button>`
                   : ''
               }
-              ${isStaticWeb ? '<button type="button" class="ghost-btn" id="btn-web-bi-sync">Sync BI</button>' : ''}
+              ${isStaticWeb ? biSyncHeroButtonHtml() : ''}
             </div>
           </div>
         </div>
@@ -1283,7 +1405,7 @@ window.StudyApp = (() => {
           <div class="row-actions">
             <button type="button" class="primary-btn" id="btn-web-refs">Course notes</button>
             <button type="button" class="ghost-btn" id="btn-web-exams">Mock exams</button>
-            <button type="button" class="ghost-btn" id="btn-web-bi-sync">Sync BI</button>
+            ${biSyncHeroButtonHtml()}
           </div>
         </div>`;
       document.getElementById('btn-web-refs').onclick = () => navigate('references');
@@ -1525,7 +1647,65 @@ window.StudyApp = (() => {
     if (!strip) return;
 
     if (isStaticWeb) {
-      strip.innerHTML = '';
+      const syncSt = getBiSyncStatus();
+      let snoozeUntil = 0;
+      try { snoozeUntil = Number(localStorage.getItem('study-os-bi-banner-snooze') || 0); } catch {}
+      const snoozed = Number.isFinite(snoozeUntil) && snoozeUntil > Date.now();
+      if (!syncSt.hasEverSynced && !snoozed) {
+        strip.innerHTML = `
+          <div class="panel bi-sync-banner">
+            <div class="row-between" style="gap:14px;flex-wrap:wrap;align-items:center">
+              <div style="flex:1;min-width:240px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+                  <span class="badge live">BI Canvas · TimeEdit · Ed</span>
+                  <span class="badge">Auto-Sync v1.4.0</span>
+                </div>
+                <h3 style="margin:0 0 4px;font-size:16px">Connect BI Canvas, TimeEdit &amp; Ed in 30 seconds</h3>
+                <p class="muted" style="margin:0;font-size:13.5px;line-height:1.45">
+                  Pull your courses, assignment deadlines, Ed Discussion courses, and TimeEdit schedule in 1 click — and automatically stay synced whenever you open a BI tab.
+                </p>
+              </div>
+              <div class="row-actions" style="flex-wrap:wrap">
+                <button type="button" class="primary-btn" id="btn-banner-bi-setup">Set up BI Sync →</button>
+                <button type="button" class="ghost-btn" id="btn-banner-bi-demo">▶ 10s Demo</button>
+                <button type="button" class="ghost-btn" id="btn-banner-bi-snooze" title="Hide for 3 days">Later</button>
+              </div>
+            </div>
+          </div>
+        `;
+        strip.querySelector('#btn-banner-bi-setup')?.addEventListener('click', () => openBiSyncHub());
+        strip.querySelector('#btn-banner-bi-demo')?.addEventListener('click', () => openBiSyncHub({ showDemo: true }));
+        strip.querySelector('#btn-banner-bi-snooze')?.addEventListener('click', () => {
+          try { localStorage.setItem('study-os-bi-banner-snooze', String(Date.now() + 3 * 86_400_000)); } catch {}
+          strip.innerHTML = '';
+        });
+      } else if (syncSt.isStale && !snoozed) {
+        strip.innerHTML = `
+          <div class="panel bi-sync-banner is-stale">
+            <div class="row-between" style="gap:14px;flex-wrap:wrap;align-items:center">
+              <div style="flex:1;min-width:240px">
+                <span class="badge warn" style="margin-bottom:4px">Resync reminder · ${syncSt.daysSinceSync} days ago</span>
+                <h3 style="margin:0 0 4px;font-size:15.5px">Refresh your BI Canvas &amp; Ed deadlines</h3>
+                <p class="muted" style="margin:0;font-size:13.5px;line-height:1.45">
+                  It's been ${syncSt.daysSinceSync} days since your last BI sync. Open your BI Canvas or Ed tab (v1.4.0 auto-syncs silently) or click Sync BI now to pull new assignments.
+                </p>
+              </div>
+              <div class="row-actions" style="flex-wrap:wrap">
+                <button type="button" class="primary-btn" id="btn-banner-bi-resync">Sync BI now</button>
+                <button type="button" class="ghost-btn" id="btn-banner-bi-snooze">Remind in 3 days</button>
+              </div>
+            </div>
+          </div>
+        `;
+        strip.querySelector('#btn-banner-bi-resync')?.addEventListener('click', () => openBiSyncHub());
+        strip.querySelector('#btn-banner-bi-snooze')?.addEventListener('click', () => {
+          try { localStorage.setItem('study-os-bi-banner-snooze', String(Date.now() + 3 * 86_400_000)); } catch {}
+          strip.innerHTML = '';
+          toast('Got it — we will remind you in 3 days.');
+        });
+      } else {
+        strip.innerHTML = '';
+      }
       return;
     }
 
@@ -4723,6 +4903,7 @@ window.StudyApp = (() => {
         await window.StudyRooms.restore();
         await members.restore();
         await refreshBootstrap();
+        maybePromptFirstLoginBiSync();
       }
     };
     document.getElementById('settings-signin-btn')?.addEventListener('click', openHeaderSignIn);
@@ -4819,6 +5000,7 @@ window.StudyApp = (() => {
       if (isStaticWeb) renderCourseDirectory();
       if (signedIn && isStaticWeb) {
         syncCloudProgress().catch(() => {});
+        maybePromptFirstLoginBiSync();
       }
       await window.StudySets.activateDraft();
       bindMemberAccess();
@@ -4963,20 +5145,21 @@ window.StudyApp = (() => {
       dlg.innerHTML = `
         <div class="playbook-head">
           <div>
-            <span class="eyebrow">1-Click Multi-Tab Browser Sync</span>
-            <h2 id="bi-sync-title" style="margin:2px 0 4px">Sync BI Canvas · TimeEdit · Ed</h2>
-            <p class="muted" style="margin:0;font-size:13px">Uses your already signed-in browser tabs — no Canvas OAuth or session token copying needed.</p>
+            <span class="eyebrow">${opts.firstLogin ? 'Welcome to Study-OS · Quick 30s Setup' : '1-Click &amp; Auto Multi-Tab Browser Sync'}</span>
+            <h2 id="bi-sync-title" style="margin:2px 0 4px">${opts.firstLogin ? 'Connect BI Canvas, TimeEdit &amp; Ed' : 'Sync BI Canvas · TimeEdit · Ed'}</h2>
+            <p class="muted" style="margin:0;font-size:13px">Uses your already signed-in browser tabs — no passwords or cookies copied. Auto-syncs quietly when you open Canvas or Ed.</p>
           </div>
           <button type="button" class="ios-done-btn" id="bi-sync-done">Done</button>
         </div>
         <div class="playbook-body">
+          ${biSyncWalkthroughHtml()}
           <article class="playbook-card">
             <div class="row-between" style="margin:0 0 6px;gap:8px">
               <h3 style="margin:0;font-size:15px">1. Install Study-OS Sync extension</h3>
-              <span class="badge live">v1.3.1 · MV3</span>
+              <span class="badge live">v1.4.0 · Auto-Sync</span>
             </div>
             <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
-              Works in Chrome, Brave, Edge, and Vivaldi. One click pulls <b>BI Canvas</b> courses &amp; deadlines, <b>TimeEdit</b> lectures, and <b>Ed Discussion</b> courses from all open signed-in tabs at once.
+              Works in Chrome, Brave, Edge, and Vivaldi. Pulls <b>BI Canvas</b> courses &amp; deadlines, <b>TimeEdit</b> lectures, and <b>Ed Discussion</b> courses in 1 click — and optionally auto-refreshes whenever you open a signed-in BI tab (every 12h for Canvas/Ed, every 3d for TimeEdit).
             </p>
             <div class="row-actions">
               <a class="primary-btn" href="./downloads/study-os-sync-extension.zip" download="study-os-sync-extension.zip">Download Extension (.zip)</a>
@@ -5072,6 +5255,13 @@ window.StudyApp = (() => {
       `;
 
       dlg.querySelector('#bi-sync-done')?.addEventListener('click', () => dlg.close());
+      const demoCard = dlg.querySelector('#bi-demo-card');
+      const demoToggle = dlg.querySelector('#bi-demo-toggle');
+      demoToggle?.addEventListener('click', () => {
+        if (!demoCard) return;
+        const paused = demoCard.classList.toggle('is-paused');
+        demoToggle.textContent = paused ? 'Play' : 'Pause';
+      });
       const triggerSignin = async () => {
         dlg.close();
         const ok = await window.StudyCommunity?.requireProfile?.({ allowDemo: true, forcePrompt: true });
@@ -5109,6 +5299,10 @@ window.StudyApp = (() => {
         try {
           await renderCourseDirectory();
           await syncCloudProgress({ interactive: true });
+          const afterWs = loadWebState();
+          if (afterWs.canvasSnapshot?.courses?.length || (afterWs.customSchedule?.enabled && afterWs.customSchedule?.blocks?.length)) {
+            markBiSyncedNow();
+          }
           await loadPersonalMaterials(linkCode);
           renderBiDialog(linkCode);
           if (currentView === 'home') renderHome();

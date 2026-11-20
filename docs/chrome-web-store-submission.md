@@ -1,6 +1,6 @@
 # Publishing **Study-OS Sync** to the Chrome Web Store
 
-This guide contains every copy-paste field, permission justification, privacy declaration, and asset path needed to publish `canvas-sync-extension/` (`v1.3.1`, Manifest V3) to the Chrome Web Store.
+This guide contains every copy-paste field, permission justification, privacy declaration, and asset path needed to publish `canvas-sync-extension/` (`v1.4.0`, Manifest V3 with opt-in Auto-Sync) to the Chrome Web Store.
 
 ---
 
@@ -8,10 +8,11 @@ This guide contains every copy-paste field, permission justification, privacy de
 
 | Asset | Exact path | Notes |
 | --- | --- | --- |
-| **Extension ZIP** | `https://studyos.no/downloads/study-os-sync-extension.zip` (built by `python3 tools/build_public_site.py`) | Manifest V3 (`v1.3.1`), `icons/` included, `store-assets/` excluded |
+| **Extension ZIP** | `https://studyos.no/downloads/study-os-sync-extension.zip` (built by `python3 tools/build_public_site.py`) | Manifest V3 (`v1.4.0`), `icons/` included, `store-assets/` excluded |
 | **Store Icon (128×128)** | `canvas-sync-extension/icons/icon-128.png` | Bundled in ZIP and ready for CWS Store Icon |
 | **Small Promo Tile (440×280)** | `canvas-sync-extension/store-assets/promo-small-440x280.png` | 24-bit RGB PNG, no transparency |
 | **Screenshot 1 (1280×800)** | `canvas-sync-extension/store-assets/screenshot-1280x800.png` | 24-bit RGB PNG, no transparency |
+| **Animated Demo GIF** | `canvas-sync-extension/store-assets/study-os-sync-demo.gif` | 10-second Screen-Studio zoom-in click walkthrough |
 
 > **Tip:** To rebuild a fresh ZIP locally at any time:
 > ```bash
@@ -50,7 +51,7 @@ This guide contains every copy-paste field, permission justification, privacy de
   3. Keep your signed-in BI Canvas, TimeEdit, or Ed tab open and click "Sync open tabs" once.
 
   PRIVACY & SECURITY
-  • Runs ONLY when you click Sync — zero background tracking or continuous scraping.
+  • Optional, toggleable Auto-Sync gently refreshes Canvas & Ed every 12h (TimeEdit every 3d) only when you visit your own signed-in tab — or trigger manually anytime in 1 click.
   • Never reads, stores, or transmits your BI password, Canvas session cookies, or grades.
   • All requests run inside your own open browser tab with same-origin permissions, and only structured course/deadline/timetable metadata is sent to your Study-OS profile.
   • Open source & independent student project: https://studyos.no/privacy.html
@@ -67,14 +68,14 @@ This guide contains every copy-paste field, permission justification, privacy de
 
 ### Single Purpose Description
 ```text
-Sync the signed-in student's BI Canvas courses/deadlines, TimeEdit timetable events, and Ed Discussion course titles from already open browser tabs into their Study-OS account upon an explicit popup click.
+Sync the signed-in student's BI Canvas courses/deadlines, TimeEdit timetable events, and Ed Discussion course titles from open browser tabs into their paired Study-OS account on click or via an opt-in, rate-limited tab-load refresh (12h Canvas/Ed, 72h TimeEdit).
 ```
 
 ### Permission Justifications
 
 - **`scripting`:**
   ```text
-  Injects small, strictly on-demand collector functions into the user's already open BI Canvas, TimeEdit, or Ed Discussion tab only when the user clicks "Sync" in the extension popup, reading course titles, assignment deadlines, timetable events, and Ed thread titles via same-origin requests without touching cookies or credentials.
+  Injects small collector functions into the user's already open BI Canvas, TimeEdit, or Ed Discussion tab when the user clicks "Sync" in the popup (or when the user's opt-in 12h/72h auto-sync toggle refreshes an already signed-in BI tab), reading course titles, assignment deadlines, timetable events, and Ed course categories via same-origin requests without touching cookies or credentials.
   ```
 - **`storage`:**
   ```text

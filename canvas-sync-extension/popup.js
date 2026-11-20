@@ -3,6 +3,8 @@ const sitePill = document.getElementById('site-pill');
 const resultsList = document.getElementById('results-list');
 const pairForm = document.getElementById('pair');
 const codeInput = document.getElementById('code');
+const autoSyncWrap = document.getElementById('autosync-wrap');
+const autoSyncCheckbox = document.getElementById('auto-sync');
 const shareWrap = document.getElementById('share-wrap');
 const shareCheckbox = document.getElementById('share-public');
 const syncBtn = document.getElementById('sync-btn');
@@ -16,7 +18,17 @@ const CHIP_MAP = {
 
 let openCount = 0;
 
-function updateTabChips(openSites = {}) {
+function formatAge(ms) {
+  if (!ms || !Number.isFinite(ms)) return '';
+  const mins = Math.max(0, Math.floor((Date.now() - ms) / 60000));
+  if (mins < 5) return 'synced now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function updateTabChips(openSites = {}, lastSiteSyncAt = {}) {
   openCount = 0;
   for (const key of ['canvas', 'timeedit', 'ed']) {
     const chip = CHIP_MAP[key];
@@ -25,7 +37,12 @@ function updateTabChips(openSites = {}) {
     if (!chip) continue;
     chip.classList.toggle('detected', detected);
     const sub = chip.querySelector('.tab-chip-sub');
-    if (sub) sub.textContent = detected ? '● Tab ready' : 'Open tab ↗';
+    const age = formatAge(Number(lastSiteSyncAt?.[key] || 0));
+    if (sub) {
+      sub.textContent = detected
+        ? (age ? `● Ready · ${age}` : '● Tab ready')
+        : (age ? `Synced ${age}` : 'Open tab ↗');
+    }
   }
   sitePill.textContent = openCount ? `${openCount} tab${openCount === 1 ? '' : 's'} ready` : 'No BI tab open';
   sitePill.classList.toggle('live', openCount > 0);
@@ -35,6 +52,7 @@ function showPair(message = 'Paste a 6-character code from studyos.no → Sync B
   statusEl.textContent = message;
   resultsList.hidden = true;
   pairForm.hidden = false;
+  autoSyncWrap.hidden = true;
   shareWrap.hidden = true;
   syncBtn.hidden = true;
   disconnectBtn.hidden = true;
@@ -62,7 +80,8 @@ function formatResultLine(item) {
 
 async function refreshState(autoSync = false) {
   const info = await chrome.runtime.sendMessage({ action: 'status' });
-  updateTabChips(info.openSites || {});
+  updateTabChips(info.openSites || {}, info.lastSiteSyncAt || {});
+  autoSyncCheckbox.checked = info.autoSyncEnabled !== false;
   shareCheckbox.checked = info.sharePublic !== false;
 
   if (!info.connectedCloud && !info.connectedDesktop) {
@@ -72,6 +91,7 @@ async function refreshState(autoSync = false) {
 
   pairForm.hidden = true;
   disconnectBtn.hidden = false;
+  autoSyncWrap.hidden = false;
   shareWrap.hidden = false;
 
   if (openCount === 0) {
@@ -147,6 +167,10 @@ pairForm.addEventListener('submit', async (event) => {
   } finally {
     btn.disabled = false;
   }
+});
+
+autoSyncCheckbox.addEventListener('change', () => {
+  chrome.runtime.sendMessage({ action: 'setAutoSync', autoSyncEnabled: autoSyncCheckbox.checked });
 });
 
 shareCheckbox.addEventListener('change', () => {

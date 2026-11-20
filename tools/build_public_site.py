@@ -944,7 +944,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         "operatingSystem": "Chrome, Brave, Edge, Vivaldi",
         "url": f"{base}/bi-canvas-timeedit-sync.html",
         "downloadUrl": f"{base}/downloads/study-os-sync-extension.zip",
-        "softwareVersion": "1.3.1",
+        "softwareVersion": "1.4.0",
         "isAccessibleForFree": True,
         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "NOK"},
         "description": sync_desc,
@@ -985,22 +985,82 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a href="./" class="ghost-btn">← Open Study-OS</a>
         <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
       </div>
-      <span class="badge">Chrome Extension · v1.3.1 · MV3</span>
+      <span class="badge">Chrome Extension · v1.4.0 · Auto-Sync + MV3</span>
     </nav>
 
     <article class="panel seo-hero">
       <span class="eyebrow">BI Canvas · TimeEdit · Ed Discussion</span>
-      <h1>1-Click BI Canvas, TimeEdit &amp; Ed Sync</h1>
+      <h1>1-Click &amp; Auto BI Canvas, TimeEdit &amp; Ed Sync</h1>
       <p class="seo-lead">{escape(sync_desc)}</p>
       <p class="seo-lead" lang="nb" style="font-size:14.5px;margin-top:-8px">
-        Synkroniser aktive emner og frister fra <strong>canvas.bi.no</strong>, timeplanen din fra <strong>TimeEdit</strong> og tråder fra <strong>Ed Discussion</strong> rett inn i Study-OS — uten å gi bort BI-passordet ditt.
+        Synkroniser aktive emner og frister fra <strong>canvas.bi.no</strong>, timeplanen din fra <strong>TimeEdit</strong> og tråder fra <strong>Ed Discussion</strong> automatisk eller med 1 klikk — helt uten BI-passord.
       </p>
       <div class="seo-cta-row">
         <a class="primary-btn btn-lg" href="./">Open Study-OS → Sync BI</a>
-        <a class="ghost-btn btn-lg" href="./downloads/study-os-sync-extension.zip" download>Download Extension ZIP (v1.3.1)</a>
+        <a class="ghost-btn btn-lg" href="./downloads/study-os-sync-extension.zip" download>Download Extension ZIP (v1.4.0)</a>
         <a class="ghost-btn btn-lg" href="./?view=schedule">Schedule Studio</a>
       </div>
     </article>
+
+    <section class="bi-demo-card" style="margin-bottom:16px">
+      <div class="row-between" style="margin-bottom:8px;gap:8px">
+        <div style="display:flex;align-items:center;gap:7px">
+          <span class="badge live">10s Walkthrough</span>
+          <strong style="font-size:13.5px">Watch how 1-Click &amp; Auto-Sync works</strong>
+        </div>
+      </div>
+      <div class="bi-demo-viewport">
+        <div class="bi-demo-camera">
+          <div class="bi-demo-browser">
+            <div class="bi-demo-chrome">
+              <span class="bi-demo-dots"><i></i><i></i><i></i></span>
+              <div class="bi-demo-tab active">studyos.no</div>
+              <div class="bi-demo-tab">● canvas.bi.no</div>
+              <div class="bi-demo-tab">● timeedit.net</div>
+              <div class="bi-demo-tab">● eu.edstem.org</div>
+            </div>
+            <div class="bi-demo-canvas">
+              <div class="bi-demo-left">
+                <div class="bi-demo-eyebrow">Study-OS · Sync BI</div>
+                <div class="bi-demo-h">Pair once in 10 seconds</div>
+                <div class="bi-demo-code-btn">Generate 6-char code</div>
+                <div class="bi-demo-code-pill">K7M-9P2</div>
+              </div>
+              <div class="bi-demo-popup">
+                <div class="bi-demo-phead">
+                  <span class="bi-demo-pdot"></span>
+                  <b>Study-OS Sync</b>
+                  <span class="bi-demo-ppill">3 tabs ready</span>
+                </div>
+                <div class="bi-demo-pchips">
+                  <span>BI Canvas<i>● Ready</i></span>
+                  <span>TimeEdit<i>● Ready</i></span>
+                  <span>Ed<i>● Ready</i></span>
+                </div>
+                <div class="bi-demo-pbtn">Sync all 3 open tabs</div>
+                <div class="bi-demo-presults">
+                  <div class="bi-demo-res r1">✓ Canvas: 5 courses, 18 deadlines</div>
+                  <div class="bi-demo-res r2">✓ TimeEdit: 42 classes synced</div>
+                  <div class="bi-demo-res r3">✓ Ed: 2 courses · Auto-sync ON</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="bi-demo-cursor" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round">
+              <path d="M5 3l14 9-6.5 1.4L9 20z"></path>
+            </svg>
+            <span class="bi-demo-ripple"></span>
+          </div>
+        </div>
+        <div class="bi-demo-caption">
+          <span class="bi-demo-cap c1">1. Click <b>Generate 6-char code</b> on studyos.no</span>
+          <span class="bi-demo-cap c2">2. Paste once in <b>Study-OS Sync</b> &amp; click Sync</span>
+          <span class="bi-demo-cap c3">3. <b>Canvas, TimeEdit &amp; Ed</b> stay synced automatically ✓</span>
+        </div>
+        <div class="bi-demo-progress"><i></i></div>
+      </div>
+    </section>
 
     <section class="panel seo-card" style="margin-bottom:16px">
       <span class="eyebrow">How it works in 30 seconds</span>

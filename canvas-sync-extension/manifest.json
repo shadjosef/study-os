@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Study-OS Sync",
-  "version": "1.3.1",
-  "description": "One-click multi-tab sync for BI Canvas courses & deadlines, TimeEdit schedules, and Ed Discussion directly to Study-OS.",
+  "version": "1.4.0",
+  "description": "One-click & optional auto-sync for BI Canvas courses & deadlines, TimeEdit schedules, and Ed Discussion directly to Study-OS.",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
