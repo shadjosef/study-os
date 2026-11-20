@@ -1153,64 +1153,26 @@ window.StudyRunner = (() => {
     return { total, reviewed, answeredCount, beatCount, avgAcc, avgPr, activeSec, wallSec, liveUpi };
   }
 
-  function renderRunnerDashboard() {
-    const m = computeRunSummary();
-    const el = document.getElementById('runner-dashboard');
-    const isBlindUnfinished = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
+  function renderRunnerNotice(isBlindUnfinished) {
+    const notice = document.getElementById('runner-notice');
+    const score = activeRun.paperScoreSummary;
+    const suggestBreak = activeRun.mode === 'practice' && activeRun.consecutiveMisses >= 2;
 
     if (isBlindUnfinished) {
-      const flaggedCnt = Object.values(activeRun.items).filter((it) => it.flagged).length;
-      el.innerHTML = `
-        <div class="row-between" style="margin:0 0 8px">
-          <div>
-            <span class="badge gold">${esc(activeRun.examTitle || 'Blind Exam Simulation')}</span>
-            <strong style="margin-left:8px">${m.answeredCount} / ${m.total} answered</strong>
-            ${flaggedCnt ? `<span class="badge warn" style="margin-left:6px">${flaggedCnt} flagged</span>` : ''}
-          </div>
-          <div class="row-actions">
-            <span class="muted" style="font-size:12.5px">Hints &amp; solutions locked until submission</span>
-            <button type="button" class="primary-btn" id="btn-dash-submit-exam" style="padding:5px 12px;font-size:12.5px">Submit Paper</button>
-          </div>
-        </div>
-        <div class="course-bar"><div class="course-bar-fill" style="width:${Math.round((m.answeredCount / Math.max(1, m.total)) * 100)}%"></div></div>
-      `;
-      document.getElementById('btn-dash-submit-exam')?.addEventListener('click', () => promptSubmitFullExam());
-      return;
+      const { answeredCount, total } = computeRunSummary();
+      const flagged = Object.values(activeRun.items).filter((item) => item.flagged).length;
+      notice.textContent = `${answeredCount} / ${total} answered${flagged ? ` · ${flagged} flagged` : ''}`;
+    } else if (score) {
+      notice.textContent = score.totalPts
+        ? `Auto-graded score: ${score.earnedPts.toFixed(1)} / ${score.totalPts} pts (${Math.round(score.pct)}%)`
+        : 'Paper submitted';
+    } else if (suggestBreak) {
+      notice.innerHTML = '<span>Two misses in a row</span><button type="button" class="mini-tool-btn" id="btn-run-break-nudge">Take a break</button>';
+      document.getElementById('btn-run-break-nudge').onclick = () => workClock?.triggerBreak?.(false);
+    } else {
+      notice.textContent = '';
     }
-
-    const ps = activeRun.paperScoreSummary;
-    const blockLabel = ps
-      ? `<span class="badge live">${ps.totalPts
-          ? `Auto-graded: ${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts (${Math.round(ps.pct)}%)`
-          : 'Paper submitted · use the worked solutions and marking checklists'}</span>`
-      : activeRun.calendarBlock
-      ? `<span class="badge live">${esc(activeRun.calendarBlock.summary)}</span>`
-      : `<span class="badge">${activeRun.profile === 'exam' ? 'Exam pace' : 'Learning pace'}</span>`;
-
-    const breakNudgeHtml =
-      activeRun.mode === 'practice' && activeRun.consecutiveMisses >= 2
-        ? `<div class="row-between" style="margin:8px 0 0;font-size:12.5px">
-             <span style="color:var(--gold)">2 misses in a row — consider a short 1:5 off-screen reset before the next attempt.</span>
-             <button type="button" class="ghost-btn" id="btn-dash-break" style="padding:3px 9px;font-size:12px">Take Break<span data-study-help> (B)</span></button>
-           </div>`
-        : '';
-
-    el.innerHTML = `
-      <div class="row-between" style="margin:0 0 8px">
-        <div>
-          ${blockLabel}
-          <strong style="margin-left:8px">${m.reviewed} / ${m.total} verified</strong>
-        </div>
-        <div class="row-actions">
-          <span class="badge gold" title="Verified wins against Al">Beat Al: ${m.beatCount}/${m.reviewed || 0}</span>
-          <span class="badge" title="Live Run Universal Productivity Index">UPI: <b>${m.liveUpi ?? '—'}</b></span>
-          <span class="badge">Accuracy: <b>${m.reviewed ? Math.round(m.avgAcc * 100) + '%' : '—'}</b></span>
-        </div>
-      </div>
-      <div class="course-bar"><div class="course-bar-fill" style="width:${Math.round((m.reviewed / Math.max(1, m.total)) * 100)}%"></div></div>
-      ${breakNudgeHtml}
-    `;
-    document.getElementById('btn-dash-break')?.addEventListener('click', () => workClock?.triggerBreak?.(false));
+    notice.hidden = !notice.textContent;
   }
 
   function renderRunner() {
@@ -1294,7 +1256,7 @@ window.StudyRunner = (() => {
     if (breakBtn) breakBtn.hidden = activeRun.mode !== 'practice';
     if (runObsLink) runObsLink.hidden = isBlindUnfinished || window.StudyApp?.isStaticMode();
 
-    renderRunnerDashboard();
+    renderRunnerNotice(isBlindUnfinished);
 
     const parType = activeRun.profile === 'exam' ? 'exam' : 'learning';
     const parRange = `${minLabel(st.minSec / 60)}–${minLabel(st.maxSec / 60)}`;
@@ -1587,22 +1549,6 @@ window.StudyRunner = (() => {
         `;
       }
 
-      const itemUpi = st.loggedAttempt?.itemUpi;
-      const attemptUpi = itemUpi == null ? '' : ` · UPI ${itemUpi}`;
-      const attemptBanner = st.loggedAttempt
-        ? `<div class="badge ${st.loggedAttempt.beatAi ? 'live' : 'warn'}" style="margin-bottom:10px;font-size:12.5px;padding:5px 11px">
-            ${
-              st.loggedAttempt.beatAi
-                ? `Beat Al · ${clockSec(st.loggedAttempt.effectiveSec)} vs ${clockSec(
-                    st.loggedAttempt.aiParSec
-                  )} · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}%${attemptUpi}`
-                : `Logged · ${clockSec(st.loggedAttempt.effectiveSec)} vs Al ${clockSec(
-                    st.loggedAttempt.aiParSec
-                  )} · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}%${attemptUpi}`
-            }
-          </div>`
-        : '';
-
       let difficultyRateHtml = '';
       if (st.loggedAttempt) {
         const curGrade = Number(
@@ -1661,7 +1607,6 @@ window.StudyRunner = (() => {
       if (inlineLocalSol.mountItems.length) inlineLocalMountItems.push(...inlineLocalSol.mountItems);
       solutionHtml = `
         <section class="solution-panel" id="solution-box">
-          ${attemptBanner}
           <div class="row-between" style="margin:0 0 10px;gap:8px">
             <h3 style="margin:0">Worked Solution</h3>
             ${topQuickActionsHtml}
@@ -1677,13 +1622,6 @@ window.StudyRunner = (() => {
       `;
     }
 
-    const dlpfcInfo = window.StudyApp.effectiveDlpfc
-      ? window.StudyApp.effectiveDlpfc(q, rec)
-      : { tier: Number(q.dlpfcBase || q.difficulty || 2), chunked: false };
-    const diffBadgeHtml = `<span class="diff-badge diff-${dlpfcInfo.tier}" data-layout-tier="${dlpfcInfo.tier}"${dlpfcInfo.chunked
-      ? ' title="Previously mastered problem with fewer new steps"' : ''}>${window.StudyLayout.label(dlpfcInfo.tier)}</span>`;
-
-    // Ultra-Clean Single-Line Card Metadata & Collapsible Tools Popover
     const questionTopic = activeRun.bank.topics?.find((topic) => String(topic.id) === String(q.topicId));
     const questionCollection = activeRun.bank.collections?.find((collection) => collection.id === q.collectionId);
     const instantMcqToggleHtml =
@@ -1721,16 +1659,18 @@ window.StudyRunner = (() => {
            </div>
          </details>`;
 
-    const provBadgeHtml = window.StudyProvenance
-      ? window.StudyProvenance.badgeHtml(q, activeRun.bank, { showModel: true })
+    const customTask = window.StudyProvenance?.describe(q, activeRun.bank).synthetic
+      ? `<span class="runner-custom-task" role="img" aria-label="Custom practice task" title="Custom practice task">
+           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+             <path d="m9 4 3 3m-8 4 1-3 6.2-6.2a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4L8 11l-4 1Zm-1 2h10"/>
+           </svg>
+         </span>`
       : '';
     const statusBarHtml = `
       <div class="runner-card-meta-bar">
         <div class="runner-meta-crumb" ${questionCollection ? `title="${esc(examLabel(questionCollection.title))}"` : ''}>
+          ${customTask}
           <span class="runner-topic-label">${esc(questionTopic?.title || 'Topic ' + q.topicId)}</span>
-          ${provBadgeHtml}
-          ${diffBadgeHtml}
-          ${q.points ? `<span class="badge gold">${q.points} pts</span>` : ''}
         </div>
         <div class="runner-meta-actions" role="group" aria-label="Question actions">
           ${
@@ -2662,7 +2602,7 @@ window.StudyRunner = (() => {
     let message = `${clockSec(Math.ceil(remaining))} left`;
     if (st.loggedAttempt?.beatAi) {
       tone = 'beat';
-      message = 'Beat Al';
+      message = 'Target beaten';
     } else if (remaining <= 0) {
       tone = 'overtime';
       const overtime = Math.floor(-remaining);

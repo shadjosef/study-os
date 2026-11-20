@@ -134,7 +134,6 @@
 
       <div class="topbar-stats">
         <span class="live-clock-pill" id="global-work-pill" title="Universal non-pausable working interval (capped at 75:00 · 1:5 recovery break)">0:00 / 75m</span>
-        <button type="button" class="ghost-btn topbar-action-btn dev-mode-btn" id="global-dev-mode-btn" hidden title="Dev Mode: sandbox without affecting score, UPI, break timer, or cloud sync" aria-pressed="false">Dev</button>
         <button type="button" class="ghost-btn topbar-action-btn" id="global-work-action-btn" title="Start 75m working interval or take scaled 1:5 recovery break">Start 75m</button>
         <button type="button" class="ghost-btn topbar-action-btn" id="evening-break-tools-btn" hidden>Break tools</button>
         <button type="button" class="primary-btn topbar-action-btn" id="hdr-signin-btn" hidden title="Sign in to sync progress, schedule, and BI Canvas across devices">Sign in</button>
@@ -163,19 +162,19 @@
         <span class="exam-clock-pill" id="run-exam-countdown" hidden title="Total WISEflow Exam Paper Time Remaining">180:00</span>
         <button type="button" class="primary-btn" id="run-submit-exam-btn" hidden style="padding:6px 13px;font-size:13px">Submit Paper</button>
         <span class="live-clock-pill" id="run-work-pill" title="Universal working interval (capped at 75:00)">0:00 / 75m</span>
-        <button type="button" class="ghost-btn dev-mode-btn" id="run-dev-mode-btn" hidden title="Dev Mode: sandbox without affecting score, UPI, or break timer" aria-pressed="false">Dev</button>
         <button type="button" class="ghost-btn" id="run-break-btn" title="Take scaled 1:5 off-screen recovery break (B)">Break (3m)</button>
         <button type="button" class="ghost-btn" id="runner-room-btn" hidden>Room</button>
         <button type="button" class="ghost-btn" id="run-layout-btn" title="Switch between Split and Focus (V)">Split</button>
         <span class="runner-domain runner-domain-desktop">StudyOS.no</span>
         <button type="button" class="runner-icon-btn" id="run-al-btn" title="Al (T)" aria-label="Al tutor" aria-expanded="false" aria-controls="ai-tutor-pane" hidden>
-          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="m2.5 15 4.4-10 4.5 10M4.2 11.3h5.5M15 3.8v9a2.2 2.2 0 0 0 2.2 2.2h.5"/>
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4.6 3.7h10.8a2.4 2.4 0 0 1 2.4 2.4v6a2.4 2.4 0 0 1-2.4 2.4H8.5L5 17v-2.5h-.4a2.4 2.4 0 0 1-2.4-2.4v-6a2.4 2.4 0 0 1 2.4-2.4Z"/>
+            <path d="m6.2 7.1 2 2-2 2m4.5 0h3.1"/>
           </svg>
         </button>
       </div>
     </div>
-    <section class="runner-pace" id="runner-pace" aria-label="Beat Adamlite">
+    <section class="runner-pace" id="runner-pace" aria-label="Question pace">
       <button type="button" id="run-live-pill" class="runner-pace-you" aria-label="Pause question timer" aria-describedby="run-pace-you" title="Pause question timer (P)">
         <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
           <path class="runner-pace-pause" d="M5 3.5v9m6-9v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
@@ -458,7 +457,7 @@
 
     <!-- VIEW 3: COMPETITIVE STUDY RUNNER -->
     <section id="view-runner" class="view-section" hidden>
-      <div id="runner-dashboard" class="panel run-summary-strip"></div>
+      <div id="runner-notice" class="runner-notice" hidden></div>
       <div id="runner-question-card" class="panel question-card"></div>
       <details id="runner-jump-panel" class="panel">
         <summary>Jump to question in this run</summary>
@@ -1177,6 +1176,21 @@
       <section class="ios-section" data-settings-group>
         <h3 class="ios-group-title">Data &amp; Backup</h3>
         <div class="ios-group">
+          <label class="ios-row ios-row-switch" id="settings-dev-mode-row" hidden data-settings-item="dev developer development sandbox mode">
+            <span class="ios-icon ios-icon-slate" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m8 7-5 5 5 5m8-10 5 5-5 5m-2-13-4 16"/>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Dev Mode</span>
+              <small class="ios-row-sub" id="settings-dev-mode-desc">Test exercises with real timers and progress paused</small>
+            </span>
+            <span class="ios-switch-wrap">
+              <input type="checkbox" class="ios-switch" id="settings-dev-mode-toggle" role="switch" aria-label="Dev Mode" aria-describedby="settings-dev-mode-desc">
+            </span>
+          </label>
+
           <button type="button" class="ios-row ios-row-btn" id="btn-member-library" hidden data-settings-item="unlock lock full library access string member key private pdf archive">
             <span class="ios-icon ios-icon-green" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

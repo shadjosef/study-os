@@ -2835,24 +2835,29 @@ html:not([data-theme="dark"]) .badge.admin-badge {
   }
 
   .runner-topbar-inner {
-    border-radius: 20px 20px 0 0;
+    border-radius: 9px 9px 0 0;
+    border-color: var(--line);
     border-bottom: 0;
-    padding: 8px 14px 3px;
+    padding: 4px 12px;
+    gap: 10px;
+    background: var(--panel);
+    box-shadow: none;
   }
 
   .runner-pace {
     pointer-events: auto;
     max-width: 1200px;
-    padding-inline: 14px;
-    background: var(--glass-bg);
-    backdrop-filter: blur(28px) saturate(195%);
-    -webkit-backdrop-filter: blur(28px) saturate(195%);
-    border: 1px solid var(--glass-edge);
+    padding-inline: 12px;
+    background: var(--panel);
+    border: 1px solid var(--line);
     border-top: 0;
-    border-radius: 0 0 20px 20px;
+    border-radius: 0 0 9px 9px;
   }
 
-  html[data-theme="dark"] .runner-pace { border-color: var(--glass-border); }
+  html[data-theme="dark"] .runner-topbar-inner {
+    border-color: var(--line);
+    box-shadow: none;
+  }
   body.runner-foveal-compact .runner-pace {
     max-width: 980px;
   }
@@ -3167,10 +3172,15 @@ html[data-theme="dark"] .course-code-pill {
 }
 
 /* Zen Runner Question Card & Floating Glass Tools Menu */
-.run-summary-strip {
-  padding: 12px 18px;
-  border-radius: 16px;
-  margin-bottom: 14px;
+.runner-notice {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 2px;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .runner-card-meta-bar {
@@ -3191,8 +3201,13 @@ html[data-theme="dark"] .course-code-pill {
 }
 
 .runner-topic-label {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--muted);
+}
+
+.runner-custom-task {
+  display: inline-flex;
   color: var(--muted);
 }
 
@@ -3205,10 +3220,10 @@ html[data-theme="dark"] .course-code-pill {
 
 .runner-pill-tool,
 .runner-more-btn {
-  border-radius: 999px;
-  padding: 4px 11px;
+  border-radius: 6px;
+  padding: 4px 8px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 550;
   list-style: none;
 }
 
@@ -4507,8 +4522,7 @@ body.ai-pane-left .ai-pane-resize-handle {
   .settings-trigger-label {
     display: none !important;
   }
-  #global-work-action-btn,
-  #global-dev-mode-btn {
+  #global-work-action-btn {
     padding: 6px 11px !important;
     font-size: 12.5px !important;
     white-space: nowrap;
@@ -4620,9 +4634,8 @@ body.ai-pane-left .ai-pane-resize-handle {
     display: none !important;
   }
   #run-break-btn,
-  #run-layout-btn,
-  #run-dev-mode-btn {
-    padding: 5px 9px !important;
+  #run-layout-btn {
+    padding: 4px 7px !important;
     font-size: 12px !important;
     white-space: nowrap;
   }
@@ -4632,15 +4645,6 @@ body.ai-pane-left .ai-pane-resize-handle {
       flex-wrap: wrap !important;
       justify-content: flex-end;
     }
-  }
-
-  /* Compact Runner summary strip on mobile to maximize question viewport */
-  #runner-dashboard.run-summary-strip {
-    padding: 10px 12px !important;
-    margin-bottom: 10px !important;
-  }
-  #runner-dashboard .row-between {
-    gap: 6px !important;
   }
 
   /* Compact non-overlapping Runner action bar on mobile so all MCQ options stay clear */
@@ -4697,16 +4701,6 @@ body.ai-pane-left .ai-pane-resize-handle {
 }
 
 /* Personal Admin / Local Dev Mode Sandbox Indicator */
-.dev-mode-btn {
-  font-weight: 650;
-  letter-spacing: -0.01em;
-}
-.dev-mode-btn.active {
-  background: color-mix(in srgb, var(--warn) 18%, var(--panel)) !important;
-  border-color: color-mix(in srgb, var(--warn) 55%, var(--line)) !important;
-  color: var(--warn) !important;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warn) 16%, transparent);
-}
 body.dev-mode-active::before {
   content: "";
   position: fixed;
@@ -6527,8 +6521,27 @@ body.in-runner .runner-rail {
 }
 
 #run-al-btn {
-  color: var(--accent-ink, var(--accent));
-  border-color: var(--line);
+  border-radius: 6px;
+}
+
+#runner-header :is(#run-exit-btn, #run-break-btn, #run-layout-btn, #runner-room-btn) {
+  padding: 4px 8px;
+  border-color: transparent;
+  border-radius: 6px;
+  box-shadow: none;
+  background: transparent;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+#runner-header :is(#run-exit-btn, #run-break-btn, #run-layout-btn, #runner-room-btn):hover {
+  background: var(--panel-alt);
+}
+
+#run-work-pill {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
 }
 
 #run-profile-avatar {

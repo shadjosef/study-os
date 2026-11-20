@@ -442,19 +442,9 @@ window.StudyUI = (() => {
       return false;
     },
     syncUi() {
-      const allowed = this.isAllowed();
       document.body.classList.toggle('dev-mode-active', devModeActive);
-      ['global-dev-mode-btn', 'run-dev-mode-btn'].forEach((id) => {
-        const btn = document.getElementById(id);
-        if (!btn) return;
-        btn.hidden = !allowed;
-        btn.classList.toggle('active', devModeActive);
-        btn.setAttribute('aria-pressed', devModeActive ? 'true' : 'false');
-        btn.textContent = devModeActive ? '● Dev' : 'Dev';
-        btn.title = devModeActive
-          ? 'Dev Mode ON · Scores, UPI, break timer & cloud sync are paused (click to exit)'
-          : 'Dev Mode: sandbox without affecting your real score, UPI, break timer, or cloud sync';
-      });
+      document.getElementById('settings-dev-mode-row').hidden = !this.isAllowed();
+      document.getElementById('settings-dev-mode-toggle').checked = devModeActive;
     },
     setActive(enabled) {
       const next = Boolean(enabled);
@@ -464,6 +454,7 @@ window.StudyUI = (() => {
       }
       if (next && !this.isAllowed()) return;
       if (window.StudyRunner?.isSaving?.()) {
+        this.syncUi();
         toast('Wait for the current answer or session to finish saving.');
         return;
       }
@@ -1758,8 +1749,8 @@ window.StudyUI = (() => {
     });
 
     // Personal Dev Mode toggle (Admin / Local Sandbox)
-    ['global-dev-mode-btn', 'run-dev-mode-btn'].forEach((id) => {
-      document.getElementById(id)?.addEventListener('click', () => devMode.toggle());
+    document.getElementById('settings-dev-mode-toggle').addEventListener('change', (event) => {
+      devMode.setActive(event.currentTarget.checked);
     });
     devMode.syncUi();
 
