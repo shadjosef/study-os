@@ -410,5 +410,58 @@ window.StudyLocalSources = (() => {
     return metaMap.has(makeKey(courseId, sourceId));
   }
 
-  return { init, save, saveBatch, getBytes, remove, list, match, has, makeKey, formatBytes };
+  async function saveBatchAcrossCourses(fileList, banksByCourse = {}, preferredCourseId = '') {
+    const files = Array.from(fileList || []);
+    const saved = [];
+    const errors = [];
+    const allBanks = Object.entries(banksByCourse || {});
+
+    for (const file of files) {
+      try {
+        const fnNorm = normName(file.name);
+        let bestCourseId = preferredCourseId || 'general';
+        let bestSourceId = '';
+        let bestMeta = { kind: 'canvas', title: file.name };
+        let matchedExercises = 0;
+
+        const idPrefix = String(file.name || '').match(/^(\d{4,10})--/)?.[1];
+        const isBookName = /atrill|mclaney|textbook|non.?specialists/i.test(file.name);
+
+        for (const [cid, bank] of allBanks) {
+          const sources = Object.entries(bank?.sources || {});
+          for (const [sid, src] of sources) {
+            let hit = false;
+            if (isBookName && src?.kind === 'book') hit = true;
+            else if (idPrefix && (sid === idPrefix || String(src?.canvasFileId || '') === idPrefix)) hit = true;
+            else if (fnNorm) {
+              const sFile = normName(src?.filename || '');
+              const sTitle = normName(src?.title || '');
+              if ((sFile && (fnNorm === sFile || fnNorm.includes(sFile) || sFile.includes(fnNorm))) ||
+                  (sTitle && sTitle.length >= 6 && (fnNorm.includes(sTitle) || sTitle.includes(fnNorm)))) {
+                hit = true;
+              }
+            }
+            if (hit) {
+              bestCourseId = cid;
+              bestSourceId = sid;
+              bestMeta = { kind: src?.kind || 'canvas', title: src?.title || file.name };
+              matchedExercises = (bank?.questions || []).filter((q) =>
+                Array.isArray(q.sourceRefs) && q.sourceRefs.some((r) => r.sourceId === sid || (bestMeta.kind === 'book' && r.kind === 'book'))
+              ).length;
+              break;
+            }
+          }
+          if (bestSourceId) break;
+        }
+
+        const rec = await save(bestCourseId, bestSourceId || `custom-${fnNorm || Date.now()}`, file, bestMeta);
+        saved.push({ ...rec, matched: Boolean(bestSourceId), matchedExercises });
+      } catch (err) {
+        errors.push(`${file.name}: ${err.message || 'Could not save'}`);
+      }
+    }
+    return { saved, errors };
+  }
+
+  return { init, save, saveBatch, saveBatchAcrossCourses, getBytes, remove, list, match, has, makeKey, formatBytes };
 })();

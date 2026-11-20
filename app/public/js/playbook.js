@@ -26,7 +26,7 @@ window.StudyPlaybook = (() => {
       points: [
         'Run continuous <b>50m</b> (default) or <b>75m</b> AI-Par blocks so you stay inside flow instead of jumping between tiny sets.',
         'Take a genuine <b>1:5 off-screen break</b> (walk, water, look outside — no doomscrolling) so prefrontal fatigue actually clears.',
-        'Study-OS Community opens during timed breaks and after 20:00 Oslo time so social features never steal peak study focus.',
+        'Study-OS Community opens during timed breaks and from 18:00 to 22:30 Oslo time so social features never steal peak study focus.',
       ],
     },
     {

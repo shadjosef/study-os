@@ -30,7 +30,7 @@ self.addEventListener('activate', (event) => {
 });
 
 function isAppShellAsset(key) {
-  return key === index.href || /\/(?:styles\.css|js\/[^/]+\.js)$/.test(key);
+  return key === index.href || /\/(?:styles\.css|js\/[^/]+\.js|static-data\/(?:bootstrap|courses\/[^/]+)\.json)$/.test(key);
 }
 
 self.addEventListener('fetch', (event) => {

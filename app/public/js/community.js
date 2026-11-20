@@ -1769,7 +1769,7 @@ window.StudyCommunity = (() => {
   }
 
   async function listMaterials() {
-    if (!api || !token) return { items: [], usedBytes: 0, maxBytes: 40 * 1024 * 1024, maxFileBytes: 12 * 1024 * 1024 };
+    if (!api || !token) return { items: [], usedBytes: 0, maxBytes: 200 * 1024 * 1024, maxFileBytes: 50 * 1024 * 1024 };
     return request('/materials');
   }
 
@@ -1837,22 +1837,239 @@ window.StudyCommunity = (() => {
     setTimeout(() => URL.revokeObjectURL(url), 120_000);
   }
 
+  const DEMO_LEADERBOARD_ROWS = [
+    { id: 'demo-1', nickname: 'Mira', avatar: '🦉', bio: 'EXC 3430 · Aiming for A on WISEflow', study_minutes: 1320, break_minutes: 210, break_count: 26, completed: 164, attempts: 182, accuracy: 91, mode: 'working', elapsed_seconds: 1840, updated_at: Date.now() - 12_000, break_ends_at: 0 },
+    { id: 'demo-2', nickname: 'Noah', avatar: '🦊', bio: 'EBA 1181 & EBA 3400 · Daily 75m blocks', study_minutes: 840, break_minutes: 145, break_count: 18, completed: 96, attempts: 112, accuracy: 86, mode: 'break', elapsed_seconds: 0, updated_at: Date.now() - 8_000, break_ends_at: Date.now() + 260_000 },
+    { id: 'demo-3', nickname: 'Lin', avatar: '⚡', bio: 'EXC 3420 Macro & WS-PS drills', study_minutes: 510, break_minutes: 85, break_count: 11, completed: 54, attempts: 60, accuracy: 90, mode: 'working', elapsed_seconds: 920, updated_at: Date.now() - 20_000, break_ends_at: 0 },
+    { id: 'demo-4', nickname: 'Henrik', avatar: '🎯', bio: 'BI Oslo · Accounting & OB notes', study_minutes: 290, break_minutes: 50, break_count: 7, completed: 29, attempts: 37, accuracy: 78, mode: 'idle', elapsed_seconds: 0, updated_at: 0, break_ends_at: 0 },
+    { id: 'demo-5', nickname: 'Sofia', avatar: '📚', bio: 'First week on Study-OS', study_minutes: 110, break_minutes: 20, break_count: 3, completed: 12, attempts: 15, accuracy: 80, mode: 'idle', elapsed_seconds: 0, updated_at: 0, break_ends_at: 0 },
+  ];
+
+  let activeBoardTab = 'overall';
+
+  function studyTitleMeta(row) {
+    const comp = Number(row.completed) || 0;
+    const hrs = (Number(row.study_minutes) || 0) / 60;
+    if (comp >= 150 || hrs >= 40) return { code: 'GM', name: 'Grandmaster (150+ tasks or 40h+)', cls: 'lb-title-gm' };
+    if (comp >= 80 || hrs >= 20) return { code: 'IM', name: 'Master (80+ tasks or 20h+)', cls: 'lb-title-im' };
+    if (comp >= 40 || hrs >= 10) return { code: 'FM', name: 'Scholar (40+ tasks or 10h+)', cls: 'lb-title-fm' };
+    if (comp >= 15 || hrs >= 4) return { code: 'CM', name: 'Fellow (15+ tasks or 4h+)', cls: 'lb-title-cm' };
+    return { code: 'CL', name: 'Club Member', cls: 'lb-title-cl' };
+  }
+
+  function presencePillHtml(row, now) {
+    if (row.mode === 'break') {
+      const left = clockSec(Math.max(0, Math.ceil(((row.break_ends_at || 0) - now) / 1000)));
+      return `<span class="lb-status lb-status-break"><i aria-hidden="true"></i>On break · ${esc(left)}</span>`;
+    }
+    if (row.mode === 'working') {
+      const elapsed = clockSec(Math.min(4500, (Number(row.elapsed_seconds) || 0) + Math.max(0, Math.floor((now - (row.updated_at || now)) / 1000))));
+      return `<span class="lb-status lb-status-live"><i aria-hidden="true"></i>Studying · ${esc(elapsed)}</span>`;
+    }
+    if (row.mode === 'paused') {
+      return `<span class="lb-status lb-status-paused"><i aria-hidden="true"></i>Paused · ${esc(clockSec(Number(row.elapsed_seconds) || 0))}</span>`;
+    }
+    return '<span class="lb-status lb-status-idle"><i aria-hidden="true"></i>Offline</span>';
+  }
+
+  function sortBoardRows(rows, tab) {
+    const copy = [...(rows || [])];
+    if (tab === 'hours') {
+      copy.sort((a, b) => (Number(b.study_minutes) || 0) - (Number(a.study_minutes) || 0) || (Number(b.completed) || 0) - (Number(a.completed) || 0));
+    } else if (tab === 'accuracy') {
+      copy.sort((a, b) => {
+        const qa = (Number(a.attempts) || 0) >= 3 ? (Number(a.accuracy) || 0) : -1;
+        const qb = (Number(b.attempts) || 0) >= 3 ? (Number(b.accuracy) || 0) : -1;
+        return qb - qa || (Number(b.completed) || 0) - (Number(a.completed) || 0);
+      });
+    } else {
+      copy.sort((a, b) => (Number(b.completed) || 0) - (Number(a.completed) || 0) || (Number(b.study_minutes) || 0) - (Number(a.study_minutes) || 0));
+    }
+    return copy;
+  }
+
+  function chessLeaderboardHtml({ rows, meId = '', offset = 0, now = Date.now(), isDemo = false, tab = 'overall', hasMoreRanks = false }) {
+    const sorted = sortBoardRows(rows, tab);
+    const crownSvg = '<svg class="lb-crown" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M3 18h18v2H3v-2zm0-2L1 7l5.5 3.5L12 4l5.5 6.5L23 7l-2 9H3z"/></svg>';
+
+    const podiumHtml = offset === 0 && sorted.length
+      ? `<div class="lb-podium" aria-label="Top ranked members">
+          ${sorted.slice(0, 3).map((row, idx) => {
+            const rank = idx + 1;
+            const t = studyTitleMeta(row);
+            const hrs = ((Number(row.study_minutes) || 0) / 60).toFixed(1);
+            const acc = Number(row.attempts) ? `${Number(row.accuracy) || 0}%` : '—';
+            const isOnline = row.mode === 'working' || row.mode === 'break';
+            const primaryMetric = tab === 'hours'
+              ? `<strong>${hrs}h</strong><small>Study hours</small>`
+              : tab === 'accuracy'
+              ? `<strong>${acc}</strong><small>Accuracy</small>`
+              : tab === 'elo'
+              ? `<strong class="lb-elo-dots">•••••</strong><small>ELO coming soon</small>`
+              : `<strong>${Number(row.completed) || 0}</strong><small>Completed</small>`;
+            return `<article class="lb-podium-card lb-rank-${rank} ${row.id === meId ? 'is-me' : ''}">
+              <div class="lb-podium-head">
+                <span class="lb-medal lb-medal-${rank}">${rank === 1 ? crownSvg : ''}#${rank}</span>
+                <span class="lb-title-tag ${t.cls}" title="${esc(t.name)}">${esc(t.code)}</span>
+              </div>
+              <div class="lb-podium-avatar-wrap">
+                ${avatarHtml(row.nickname, row.avatar, rank === 1 ? 56 : 48)}
+                ${isOnline ? `<span class="lb-online-dot ${row.mode === 'break' ? 'is-break' : ''}" title="${row.mode === 'break' ? 'On break' : 'Studying now'}"></span>` : ''}
+              </div>
+              <div class="lb-podium-name">
+                <strong>${esc(row.nickname)}</strong>${row.id === meId ? ' <span class="badge good">You</span>' : ''}
+              </div>
+              <div class="lb-podium-primary">${primaryMetric}</div>
+              <div class="lb-podium-sub">
+                <span>${hrs}h</span>
+                <span>·</span>
+                <span>${Number(row.completed) || 0} Qs</span>
+                <span>·</span>
+                <span>${acc}</span>
+              </div>
+              <div class="lb-podium-elo" title="Ranked Study ELO is coming soon">
+                <span>ELO</span>
+                <b class="lb-elo-dots">•••••</b>
+                <small>Soon</small>
+              </div>
+            </article>`;
+          }).join('')}
+        </div>`
+      : '';
+
+    const myIdx = meId ? sorted.findIndex((r) => r.id === meId) : -1;
+    const myStandingHtml = myIdx >= 0 ? (() => {
+      const meRow = sorted[myIdx];
+      const t = studyTitleMeta(meRow);
+      return `<div class="lb-my-standing">
+        <div class="lb-my-standing-left">
+          <span class="lb-rank-chip">#${offset + myIdx + 1}</span>
+          <span class="lb-title-tag ${t.cls}" title="${esc(t.name)}">${esc(t.code)}</span>
+          <strong>${esc(meRow.nickname)}</strong>
+          <span class="badge good">Your standing</span>
+        </div>
+        <div class="lb-my-standing-stats">
+          <span><b>${Number(meRow.completed) || 0}</b> Qs</span>
+          <span><b>${((Number(meRow.study_minutes) || 0) / 60).toFixed(1)}h</b></span>
+          <span><b>${Number(meRow.attempts) ? `${meRow.accuracy}%` : '—'}</b> acc</span>
+          <span class="lb-elo-pill" title="Ranked ELO duels coming soon">ELO <b class="lb-elo-dots">•••••</b> <small>Soon</small></span>
+        </div>
+      </div>`;
+    })() : '';
+
+    const eloBannerHtml = tab === 'elo'
+      ? `<div class="lb-elo-teaser">
+          <div>
+            <span class="badge gold">Ranked Arena · Coming Soon</span>
+            <h3 style="margin:6px 0 4px">Study-OS ELO Rating (<span class="lb-elo-dots">•••••</span>)</h3>
+            <p class="muted" style="margin:0;font-size:13px">Head-to-head timed duels &amp; exam-pace rating tiers (1200 Provisional → 2000+ GM) are launching soon. Everyone's ELO slot is reserved as <code>•••••</code> until Season 1 opens.</p>
+          </div>
+          <div class="lb-elo-tiers">
+            <span class="lb-title-tag lb-title-cl">1200 Club</span>
+            <span class="lb-title-tag lb-title-cm">1400 CM</span>
+            <span class="lb-title-tag lb-title-fm">1650 FM</span>
+            <span class="lb-title-tag lb-title-im">1850 IM</span>
+            <span class="lb-title-tag lb-title-gm">2000+ GM</span>
+          </div>
+        </div>`
+      : '';
+
+    const rowsHtml = sorted.map((row, index) => {
+      const rank = offset + index + 1;
+      const t = studyTitleMeta(row);
+      const hrs = ((Number(row.study_minutes) || 0) / 60).toFixed(1);
+      const hasAcc = Number(row.attempts) > 0;
+      const accNum = hasAcc ? Math.max(0, Math.min(100, Number(row.accuracy) || 0)) : 0;
+      const isOnline = row.mode === 'working' || row.mode === 'break';
+      const rankBadge = rank <= 3
+        ? `<span class="lb-rank-box lb-rank-box-${rank}">${rank}</span>`
+        : `<span class="lb-rank-num">${rank}</span>`;
+      return `<tr class="lb-row ${rank <= 3 ? `lb-row-top-${rank}` : ''} ${row.id === meId ? 'community-row-me' : ''}">
+        <td class="lb-col-rank">${rankBadge}</td>
+        <td>
+          <div class="community-member-cell">
+            <div class="lb-avatar-wrap">
+              ${avatarHtml(row.nickname, row.avatar, 34)}
+              ${isOnline ? `<span class="lb-online-dot ${row.mode === 'break' ? 'is-break' : ''}"></span>` : ''}
+            </div>
+            <div class="community-member-meta">
+              <div class="lb-player-line">
+                <span class="lb-title-tag ${t.cls}" title="${esc(t.name)}">${esc(t.code)}</span>
+                <strong>${esc(row.nickname)}</strong>
+                ${row.id === meId ? '<span class="badge good">You</span>' : ''}
+              </div>
+              ${row.bio ? `<small class="community-bio-sub">${esc(row.bio)}</small>` : ''}
+            </div>
+          </div>
+        </td>
+        <td class="lb-col-elo">
+          <span class="lb-elo-pill" title="ELO rating coming soon">
+            <b class="lb-elo-dots">•••••</b>
+            <small>Soon</small>
+          </span>
+        </td>
+        <td class="lb-col-num"><strong>${Number(row.completed) || 0}</strong>${!isDemo ? `<small class="muted lb-sub-num">${Number(row.attempts) || 0} att</small>` : ''}</td>
+        <td class="lb-col-num"><strong>${hrs}h</strong></td>
+        <td class="lb-col-acc">
+          ${hasAcc ? `<div class="lb-acc-wrap">
+            <strong>${accNum}%</strong>
+            <div class="lb-acc-bar"><i style="width:${accNum}%"></i></div>
+          </div>` : '<span class="muted">—</span>'}
+        </td>
+        ${!isDemo ? `<td>${breakCellHtml(row)}</td>` : ''}
+        <td>${presencePillHtml(row, now)}</td>
+      </tr>`;
+    }).join('');
+
+    return `
+      <section class="panel lb-arena-panel" data-lb-root="${isDemo ? 'demo' : 'live'}">
+        <div class="lb-arena-header">
+          <div>
+            <div class="lb-arena-title-row">
+              <span class="lb-arena-icon" aria-hidden="true">${crownSvg}</span>
+              <h2 style="margin:0">${isDemo ? 'Leaderboard Preview' : 'Leaderboard'}</h2>
+              <span class="lb-hours-chip" title="Open during timed breaks or daily 18:00–22:30 Oslo time">18:00–22:30 Oslo · or Break</span>
+            </div>
+            <p class="muted" style="margin:4px 0 0;font-size:13px">${isDemo
+              ? 'Chess-style study rankings, live status & upcoming ELO arena (sample players).'
+              : 'BI Oslo study rankings with titles, accuracy bars, break habits, live timers & upcoming ELO.'}</p>
+          </div>
+          <div class="lb-arena-controls">
+            <div class="lb-tab-strip" role="tablist" aria-label="Leaderboard ranking category">
+              <button type="button" class="lb-tab-btn ${tab === 'overall' ? 'active' : ''}" data-lb-tab="overall" role="tab" aria-selected="${tab === 'overall'}">Overall</button>
+              <button type="button" class="lb-tab-btn ${tab === 'hours' ? 'active' : ''}" data-lb-tab="hours" role="tab" aria-selected="${tab === 'hours'}">Hours</button>
+              <button type="button" class="lb-tab-btn ${tab === 'accuracy' ? 'active' : ''}" data-lb-tab="accuracy" role="tab" aria-selected="${tab === 'accuracy'}">Accuracy</button>
+              <button type="button" class="lb-tab-btn ${tab === 'elo' ? 'active' : ''}" data-lb-tab="elo" role="tab" aria-selected="${tab === 'elo'}">ELO <span class="lb-tab-soon">•••••</span></button>
+            </div>
+            ${!isDemo ? '<button type="button" class="ghost-btn" id="community-stats" style="padding:6px 11px;font-size:12.5px">Refresh</button>' : ''}
+          </div>
+        </div>
+        ${podiumHtml}
+        ${myStandingHtml}
+        ${eloBannerHtml}
+        ${rowsHtml ? `<div class="community-table lb-table-wrap"><table class="lb-table">
+          <thead><tr>
+            <th>#</th>
+            <th>Player</th>
+            <th>ELO</th>
+            <th>Completed</th>
+            <th>Hours</th>
+            <th>Accuracy</th>
+            ${!isDemo ? '<th>Breaks</th>' : ''}
+            <th>Status</th>
+          </tr></thead>
+          <tbody>${rowsHtml}</tbody></table></div>` : '<p class="muted">No ranked members yet.</p>'}
+        ${!isDemo && (offset || hasMoreRanks) ? `<div class="row-actions" style="margin-top:12px">
+          <button type="button" class="ghost-btn" id="community-ranks-prev" ${offset ? '' : 'disabled'}>Previous</button>
+          <button type="button" class="ghost-btn" id="community-ranks-next" ${hasMoreRanks ? '' : 'disabled'}>Next</button>
+        </div>` : ''}
+      </section>`;
+  }
+
   function demoCardsHtml(interactive = false) {
     return `
-      <div class="community-demo-grid">
-        <section class="panel">
-          <h2>Leaderboard</h2>
-          <div class="community-table">
-            <table>
-              <thead><tr><th>Rank</th><th>Member</th><th>Hours</th><th>Completed</th></tr></thead>
-              <tbody>
-                <tr><td>1</td><td>Mira</td><td>8.4</td><td>62</td></tr>
-                <tr><td>2</td><td>Noah</td><td>6.0</td><td>47</td></tr>
-                <tr><td>3</td><td>Lin</td><td>3.5</td><td>28</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+      <div class="community-demo-stack">
+        ${chessLeaderboardHtml({ rows: DEMO_LEADERBOARD_ROWS, offset: 0, now: Date.now(), isDemo: true, tab: activeBoardTab })}
         <section class="panel">
           <h2>Chat &amp; messages</h2>
           ${interactive ? `
@@ -1883,11 +2100,18 @@ window.StudyCommunity = (() => {
     root.innerHTML = `
       <section class="panel" id="community-demo-view">
         <h1 id="community-demo-title" tabindex="-1">Study community</h1>
-        <p class="muted">Explore the sample leaderboard and try sending a message in this tab.</p>
-        <button type="button" class="primary-btn" id="community-join-live">Join live Community</button>
-        <p class="muted">Use a free Community profile for the live leaderboard, chat, messages, study rooms, duels, and shared sets.</p>
+        <p class="muted">Explore the Chess-style leaderboard, upcoming ELO arena, and try sending a message in this tab. Live Community opens during breaks or 18:00–22:30 Oslo time.</p>
+        <div class="row-actions">
+          <button type="button" class="primary-btn" id="community-join-live">Join live Community</button>
+        </div>
       </section>
       ${demoCardsHtml(true)}`;
+    root.querySelectorAll('[data-lb-tab]').forEach((btn) => {
+      btn.onclick = () => {
+        activeBoardTab = btn.dataset.lbTab || 'overall';
+        renderDemo(root);
+      };
+    });
     const join = root.querySelector('#community-join-live');
     join.onclick = async () => {
       if (!canUse()) return;
@@ -1929,10 +2153,10 @@ window.StudyCommunity = (() => {
         <div class="community-preview-lock">
           <div class="community-preview-blur" inert aria-hidden="true">${demoCardsHtml()}</div>
           <div class="community-break-gate">
-            <h2>${roomRunning ? 'Your study room is active' : 'Community opens on break'}</h2>
+            <h2>${roomRunning ? 'Your study room is active' : 'Community opens on break or 18:00–22:30 Oslo'}</h2>
             <p>${roomRunning
               ? 'Finish your study room to return to the leaderboard, chat, and messages.'
-              : 'Use the leaderboard, chat, messages, and study rooms during breaks or from 20:00 to midnight Oslo time.'}</p>
+              : 'Use the leaderboard, chat, messages, and study rooms during timed breaks or every evening from 18:00 to 22:30 Oslo time.'}</p>
             ${roomRunning
               ? '<button type="button" class="primary-btn" id="community-return-to-room">Return to study room</button>'
               : '<button type="button" class="primary-btn" id="community-start-break">Start a break</button>'}
@@ -2030,21 +2254,8 @@ window.StudyCommunity = (() => {
     }
   }
 
-  function renderDashboard(root, { me, ranks, hasMoreRanks, contacts, messages, blocked, now }, offset) {
-    const leaderRows = ranks.map((row, index) => `<tr class="${row.id === me.id ? 'community-row-me' : ''}">
-      <td>${offset + index + 1}</td>
-      <td>
-        <div class="community-member-cell">
-          ${avatarHtml(row.nickname, row.avatar, 32)}
-          <div class="community-member-meta">
-            <strong>${esc(row.nickname)}${row.id === me.id ? ' <span class="badge">You</span>' : ''}</strong>
-            ${row.bio ? `<small class="community-bio-sub">${esc(row.bio)}</small>` : ''}
-          </div>
-        </div>
-      </td>
-      <td>${(row.study_minutes / 60).toFixed(1)}</td>
-      <td>${row.completed}</td><td>${row.attempts}</td><td>${row.attempts ? row.accuracy + '%' : '—'}</td><td>${breakCellHtml(row)}</td><td>${presenceLabel(row, now)}</td>
-    </tr>`).join('');
+  function renderDashboard(root, dashboardData, offset) {
+    const { me, ranks, hasMoreRanks, contacts, messages, blocked, now } = dashboardData;
     const messageRows = messages.map((row) => {
       const peerName = row.sender === me.id ? row.recipientName : row.senderName;
       const peerAvatar = row.sender === me.id ? row.recipientAvatar : row.senderAvatar;
@@ -2079,23 +2290,10 @@ window.StudyCommunity = (() => {
       </section>
       ${adminPanelHtml(me)}
       ${window.StudyRooms.lobbyHtml()}
-      <section class="panel">
-        <h2>Leaderboard</h2>
-        <p class="muted">All Community profiles appear here with avatar, nickname, bio, study totals, break habits, and live timer.</p>
-        <div class="row-actions">
-          <button type="button" class="ghost-btn" id="community-stats">Refresh totals</button>
-        </div>
-        ${leaderRows ? `<div class="community-table"><table>
-          <thead><tr><th>Rank</th><th>Member</th><th>Hours</th><th>Completed</th><th>Attempts</th><th>Accuracy</th><th>Breaks</th><th>Current timer</th></tr></thead>
-          <tbody>${leaderRows}</tbody></table></div>` : ''}
-        ${offset || hasMoreRanks ? `<div class="row-actions">
-          <button type="button" class="ghost-btn" id="community-ranks-prev" ${offset ? '' : 'disabled'}>Previous</button>
-          <button type="button" class="ghost-btn" id="community-ranks-next" ${hasMoreRanks ? '' : 'disabled'}>Next</button>
-        </div>` : ''}
-      </section>
+      <div id="community-leaderboard-mount">${chessLeaderboardHtml({ rows: ranks, meId: me.id, offset, now, isDemo: false, tab: activeBoardTab, hasMoreRanks })}</div>
       <section class="panel">
         <div class="row-between"><h2>Global chat</h2><button type="button" class="ghost-btn" id="community-chat-refresh">Refresh</button></div>
-        <p class="muted">All Community members can read these conversations during their breaks.</p>
+        <p class="muted">All Community members can read these conversations during breaks or 18:00–22:30 Oslo time.</p>
         <form id="community-chat">
           <label class="field-label">Message <textarea name="message" rows="2" maxlength="1500" required></textarea></label>
           <button type="submit" class="primary-btn">Post to chat</button>
@@ -2129,6 +2327,21 @@ window.StudyCommunity = (() => {
         finally { element.disabled = false; }
       };
     };
+    const bindLeaderboardControls = () => {
+      const mount = root.querySelector('#community-leaderboard-mount');
+      if (!mount) return;
+      mount.querySelectorAll('[data-lb-tab]').forEach((btn) => {
+        btn.onclick = () => {
+          activeBoardTab = btn.dataset.lbTab || 'overall';
+          mount.innerHTML = chessLeaderboardHtml({ rows: ranks, meId: me.id, offset, now, isDemo: false, tab: activeBoardTab, hasMoreRanks });
+          bindLeaderboardControls();
+        };
+      });
+      doAction(mount.querySelector('#community-stats'), () => render(offset));
+      doAction(mount.querySelector('#community-ranks-prev'), () => render(offset - 50));
+      doAction(mount.querySelector('#community-ranks-next'), () => render(offset + 50));
+    };
+    bindLeaderboardControls();
     doAction(root.querySelector('#community-copy-key'), async () => {
       await navigator.clipboard.writeText(token);
       status.textContent = 'Profile key copied. Keep it somewhere private.';
@@ -2139,9 +2352,6 @@ window.StudyCommunity = (() => {
     bindAdminPanel(root, me);
     window.StudyRooms.bindLobby(root);
     doAction(root.querySelector('#community-refresh'), () => render(offset));
-    doAction(root.querySelector('#community-stats'), () => render(offset));
-    doAction(root.querySelector('#community-ranks-prev'), () => render(offset - 50));
-    doAction(root.querySelector('#community-ranks-next'), () => render(offset + 50));
     doAction(root.querySelector('#community-chat-refresh'), () => refreshChat(root));
     action(root.querySelector('#community-chat'), async (form) => {
       await request('/chat', { message: form.get('message') });

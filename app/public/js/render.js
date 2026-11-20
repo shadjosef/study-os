@@ -562,12 +562,16 @@ window.StudyUI = (() => {
     return Math.max(3, Math.min(15, Math.round(elapsedSec / 300)));
   }
 
-  const osloHour = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Oslo', hour: 'numeric', hourCycle: 'h23',
+  const osloClock = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   });
 
   function eveningBreakAccess(now = Date.now()) {
-    return Number(osloHour.format(now)) >= 20;
+    const parts = osloClock.formatToParts(now);
+    const h = Number(parts.find((p) => p.type === 'hour')?.value || 0);
+    const m = Number(parts.find((p) => p.type === 'minute')?.value || 0);
+    const mins = h * 60 + m;
+    return mins >= 18 * 60 && mins < 22 * 60 + 30;
   }
 
   function showBreakModalUi() {
@@ -917,7 +921,7 @@ window.StudyUI = (() => {
     document.getElementById('break-modal-title').textContent = evening ? 'Evening break tools'
       : breakEnded ? 'Break ended' : 'Study break';
     const workedMin = Math.round((workState.lastWaveSec || 0) / 60);
-    document.getElementById('break-ratio-note').textContent = evening ? 'Available until midnight Oslo time.'
+    document.getElementById('break-ratio-note').textContent = evening ? 'Available 18:00–22:30 Oslo time.'
       : breakEnded ? 'Add a minute to reopen break tools, or start your next session.'
       : workedMin ? `After ${workedMin} ${workedMin === 1 ? 'minute' : 'minutes'} of study.`
       : 'Take a moment before your next session.';
@@ -1575,7 +1579,7 @@ window.StudyUI = (() => {
     if (layoutSub) {
       layoutSub.textContent = workClock.canUseBreakTools()
         ? 'Customize visible metrics & difficulty labels'
-        : 'Opens during breaks or after 20:00 Oslo';
+        : 'Opens during breaks or 18:00–22:30 Oslo';
     }
   }
 
@@ -1665,7 +1669,7 @@ window.StudyUI = (() => {
     });
     document.getElementById('settings-layout-btn')?.addEventListener('click', () => {
       if (!workClock.canUseBreakTools()) {
-        toast('Layout presets open during breaks or after 20:00 Oslo.');
+        toast('Layout presets open during breaks or 18:00–22:30 Oslo.');
         return;
       }
       closeSettings();

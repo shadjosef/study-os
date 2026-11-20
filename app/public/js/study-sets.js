@@ -91,7 +91,7 @@ window.StudySets = (() => {
       ${draft ? `<section id="study-set-draft-controls">
         <h3>${esc(draft.title)} · ${draft.cards.length} cards</h3>
         <details><summary>Preview cards</summary>${cardsHtml(draft.cards)}</details>
-        <p id="study-set-break-note">Save or share this set on your next break, or after 20:00 Oslo time.</p>
+        <p id="study-set-break-note">Save or share this set on your next break, or from 18:00 to 22:30 Oslo time.</p>
         <div class="row-actions">
           <button type="button" class="primary-btn" data-save-draft="private">Save to my sets</button>
           ${window.StudyCommunity.canShareSet() ? '<button type="button" class="ghost-btn" data-save-draft="community">Save and share with Community</button>' : ''}

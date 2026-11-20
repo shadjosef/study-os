@@ -41,9 +41,17 @@ const publicAuthPaths = new Set([
   '/auth/recovery',
 ]);
 const breakRequired = new Set(['/dashboard', '/message', '/chat', '/block', '/sets']);
-const osloHour = new Intl.DateTimeFormat('en-GB', {
-  timeZone: 'Europe/Oslo', hour: 'numeric', hourCycle: 'h23',
+const osloClock = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
 });
+
+function isEveningOsloWindow(now = Date.now()) {
+  const parts = osloClock.formatToParts(now);
+  const h = Number(parts.find((p) => p.type === 'hour')?.value || 0);
+  const m = Number(parts.find((p) => p.type === 'minute')?.value || 0);
+  const mins = h * 60 + m;
+  return mins >= 18 * 60 && mins < 22 * 60 + 30;
+}
 
 function isAdminMember(env, me, tokenHash) {
   const adminHash = typeof env.ADMIN_TOKEN_HASH === 'string' ? env.ADMIN_TOKEN_HASH.trim().toLowerCase() : '';
@@ -260,13 +268,13 @@ export default {
       return handleAdmin({ request, url, db, env, me, isAdmin, now, data, reply, digest, nicknamePattern });
     }
     if (breakRequired.has(path) || path === '/rooms' || path.startsWith('/rooms/')) {
-      const breakAccess = Number(osloHour.format(now)) >= 20 || (me.break_ends_at > now && me.expires_at > now);
+      const breakAccess = isEveningOsloWindow(now) || (me.break_ends_at > now && me.expires_at > now);
       const canUseCommunity = breakAccess && !await runningStudyRoom(db, me.id, now);
       if (path === '/rooms' || path.startsWith('/rooms/')) {
         return handleRooms({ request, url, db, me, now, data, canUseCommunity, reply });
       }
       if (!canUseCommunity) {
-        return reply({ error: 'Community opens on breaks or after 20:00 Oslo time, outside active study rooms.' }, 423);
+        return reply({ error: 'Community opens on breaks or from 18:00 to 22:30 Oslo time, outside active study rooms.' }, 423);
       }
     }
 

@@ -113,7 +113,8 @@ window.StudyApp = (() => {
   }
 
   async function apiGet(url) {
-    const res = await fetch(url);
+    const freshJson = /^(\.\/)?static-data\/(?:bootstrap|courses\/[^/]+)\.json$/.test(url);
+    const res = await fetch(url, freshJson ? { cache: 'no-cache' } : undefined);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   }
@@ -1574,6 +1575,13 @@ window.StudyApp = (() => {
           ? `<span class="badge exam-tip-host ${daysLeft !== null && daysLeft >= 0 && daysLeft <= 14 ? 'warn' : ''}" data-exam-tip="${esc(examTip)}" aria-label="${esc(examTip)}" tabindex="0"><span class="exam-countdown-live" data-exam-target-ms="${targetMs}" data-exam-countdown-mode="card">${esc(formatExamCountdown(targetMs, 'card'))}</span></span>`
           : '';
         const noItemsInDiff = homeDifficulty !== 'all' && cp.total === 0;
+        const provMixParts = [];
+        if (Number(c.officialCount) > 0) provMixParts.push(`<span><b>${c.officialCount}</b> BI</span>`);
+        if (Number(c.bookCount) > 0) provMixParts.push(`<span><b>${c.bookCount}</b> Book</span>`);
+        if (Number(c.aiSyntheticCount) > 0) provMixParts.push(`<span><b>${c.aiSyntheticCount}</b> AI</span>`);
+        const provMixHtml = homeDifficulty === 'all' && provMixParts.length
+          ? `<div class="course-prov-mix" title="Authentic BI past exams, exercises &amp; tutoring are prioritized before AI synthetics">${provMixParts.join(' · ')}</div>`
+          : '';
 
         return `<article class="course-card" style="--course-accent:${esc(c.color)}">
           <div>
@@ -1592,6 +1600,7 @@ window.StudyApp = (() => {
               <span>· <b>${cp.revisit}</b> revisit</span>
               <span>· UPI <b>${cm.upi ?? '—'}</b></span>
             </div>
+            ${provMixHtml}
           </div>
           <div class="course-actions">
             <button type="button" class="primary-btn" data-smart-course="${esc(c.courseId)}" ${noItemsInDiff ? 'disabled' : ''}>${noItemsInDiff ? `No ${diffWord} Qs` : primaryCtaLabel}</button>
@@ -2773,8 +2782,8 @@ window.StudyApp = (() => {
       return effectiveDifficulty(b) - effectiveDifficulty(a);
     });
 
-    // Interleave distinct topics within each (statusBucket, dlpfcTier) band
-    pool = interleaveByTopic(pool, (q) => `${bucketRank(q)}:${tierRank(q)}`);
+    // Interleave distinct topics within each (statusBucket, dlpfcTier, authenticRank) band so official BI items ALWAYS precede AI synthetics
+    pool = interleaveByTopic(pool, (q) => `${bucketRank(q)}:${tierRank(q)}:${authenticRank(q)}`);
 
     const maxItems = Math.max(30, Math.min(80, Math.round(budgetMinutes * 1.1)));
     const chosen = [];
@@ -5290,9 +5299,11 @@ window.StudyApp = (() => {
       document.body.appendChild(dlg);
     }
 
-    let materialsState = { loaded: false, items: [], usedBytes: 0, maxBytes: 40 * 1024 * 1024 };
+    let materialsState = { loaded: false, items: [], usedBytes: 0, maxBytes: 200 * 1024 * 1024 };
     let selectedMatCourse = '';
     let uploadStatusText = '';
+    let lastMatchBanner = '';
+    let syncCloudToo = true;
 
     const getCourseChoices = () => {
       const seen = new Set();
@@ -5301,14 +5312,14 @@ window.StudyApp = (() => {
         const code = String(c.code || '').trim();
         if (!code || seen.has(code)) continue;
         seen.add(code);
-        out.push({ code, title: c.title || code });
+        out.push({ code, title: c.title || code, courseId: c.courseId });
       }
       const snap = loadWebState().canvasSnapshot;
       for (const c of snap?.courses || []) {
         const code = String(c.code || '').trim() || String(c.name || '').slice(0, 18);
         if (!code || seen.has(code)) continue;
         seen.add(code);
-        out.push({ code, title: c.name || code });
+        out.push({ code, title: c.name || code, courseId: '' });
       }
       return out;
     };
@@ -5321,7 +5332,7 @@ window.StudyApp = (() => {
           loaded: true,
           items: Array.isArray(res?.items) ? res.items : [],
           usedBytes: Number(res?.usedBytes || 0),
-          maxBytes: Number(res?.maxBytes || 40 * 1024 * 1024),
+          maxBytes: Number(res?.maxBytes || 200 * 1024 * 1024),
         };
         if (dlg.open) renderBiDialog(linkCode);
       } catch {}
@@ -5406,31 +5417,56 @@ window.StudyApp = (() => {
           </article>
 
           <article class="playbook-card" id="bi-materials-card">
-            <div class="row-between" style="margin:0 0 6px;gap:8px">
-              <h3 style="margin:0;font-size:15px">4. Add external curriculum PDFs &amp; materials</h3>
-              <span class="badge">${signedIn ? esc(usedLabel) : 'Private to profile'}</span>
+            <div class="row-between" style="margin:0 0 6px;gap:8px;flex-wrap:wrap">
+              <h3 style="margin:0;font-size:15px">4. Drop textbooks &amp; course PDFs to unlock Study-OS pages</h3>
+              <span class="badge good">${window.StudyLocalSources?.list?.().length ? `${window.StudyLocalSources.list().length} local PDF${window.StudyLocalSources.list().length === 1 ? '' : 's'}` : 'Up to 260 MB/file local'}${signedIn ? ` · Cloud ${esc(usedLabel)}` : ''}</span>
             </div>
             <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
-              Drop your own lecture slides, syllabi, compendiums, or notes here. Files stay <b>100% private to your profile</b> and sync across desktop and phone (also accessible under <b>Notes</b>).
+              Drop multiple BI Canvas PDFs, slides, past exams, or full textbooks (like <b>Atrill &amp; McLaney 12th ed.</b>) at once — even <b>over 40 MB</b>. Study-OS automatically matches your files privately in this browser to unlock inline page-by-page jumps inside exercises.
             </p>
+            <div style="margin-bottom:8px">
+              <select id="bi-mat-course" aria-label="Course tag for uploaded files" style="width:100%;font-size:13px;padding:7px 10px">
+                <option value="">Auto-detect BI course (recommended)</option>
+                ${courseChoices.map((c) => `<option value="${esc(c.code)}" data-title="${esc(c.title)}" data-course-id="${esc(c.courseId || '')}" ${selectedMatCourse === c.code ? 'selected' : ''}>${esc(c.code)} · ${esc(c.title)}</option>`).join('')}
+              </select>
+            </div>
+            <label class="bi-dropzone" id="bi-mat-dropzone" tabindex="0">
+              <input type="file" id="bi-mat-file-input" multiple accept=".pdf,.md,.txt,.csv,.png,.jpg,.jpeg,.webp,.docx,.pptx" hidden>
+              <strong>Drop multiple PDFs, textbooks, or slides here — or click to choose</strong>
+              <small class="muted">No 40 MB cap locally (up to 260 MB/PDF in browser) · unlocks Study-OS exercise pages instantly${signedIn ? ' · files ≤ 50 MB can also sync across devices (200 MB cloud locker)' : ''}</small>
+            </label>
+            ${signedIn ? `<label class="check-row" style="margin-top:8px;font-size:12.5px">
+              <input type="checkbox" id="bi-mat-sync-cloud" ${syncCloudToo ? 'checked' : ''}>
+              <span>Also sync files ≤ 50 MB to my Study-OS cloud locker (200 MB total, phone + laptop)</span>
+            </label>` : ''}
+            ${lastMatchBanner ? `<p style="margin:8px 0 0;padding:8px 10px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.28);font-size:12.5px;font-weight:600;color:var(--accent)">${esc(lastMatchBanner)}</p>` : ''}
+            ${uploadStatusText ? `<p class="muted" id="bi-mat-upload-status" style="margin:8px 0 0;font-size:12.5px;color:var(--accent);font-weight:600">${esc(uploadStatusText)}</p>` : ''}
+            ${(() => {
+              const localItems = window.StudyLocalSources?.list?.() || [];
+              if (!localItems.length) return '';
+              return `<div class="bi-materials-list" style="margin-top:10px">
+                <small class="muted" style="font-weight:700;display:block;margin-bottom:4px">LOCAL IN THIS BROWSER (UNLOCKED IN EXERCISES · ${localItems.length})</small>
+                ${localItems.slice(0, 12).map((f) => `
+                  <div class="bi-material-row">
+                    <div class="bi-material-meta">
+                      <span class="badge ${f.kind === 'book' ? 'gold' : 'good'}">${f.kind === 'book' ? 'Book' : 'Local PDF'}</span>
+                      <span class="bi-material-title" title="${esc(f.filename)}">${esc(f.filename)}</span>
+                      <small class="muted">${esc(window.StudyLocalSources.formatBytes(f.size))}</small>
+                    </div>
+                    <div class="row-actions" style="gap:4px;flex-shrink:0">
+                      <button type="button" class="ghost-btn bi-mat-mini-btn" data-bi-open-local="${esc(f.key)}" data-bi-local-title="${esc(f.title || f.filename)}">Read</button>
+                      <button type="button" class="ghost-btn bi-mat-mini-btn" data-bi-del-local="${esc(f.key)}">Remove</button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>`;
+            })()}
             ${signedIn ? `
-              <div style="margin-bottom:8px">
-                <select id="bi-mat-course" aria-label="Course tag for uploaded files" style="width:100%;font-size:13px;padding:7px 10px">
-                  <option value="">General / All courses</option>
-                  ${courseChoices.map((c) => `<option value="${esc(c.code)}" data-title="${esc(c.title)}" ${selectedMatCourse === c.code ? 'selected' : ''}>${esc(c.code)} · ${esc(c.title)}</option>`).join('')}
-                </select>
-              </div>
-              <label class="bi-dropzone" id="bi-mat-dropzone" tabindex="0">
-                <input type="file" id="bi-mat-file-input" multiple accept=".pdf,.md,.txt,.csv,.png,.jpg,.jpeg,.webp,.docx,.pptx" hidden>
-                <strong>Drop PDFs, slides, or notes here — or click to choose files</strong>
-                <small class="muted">PDF, MD, TXT, PNG, JPG, DOCX, PPTX · up to 12 MB per file · private profile locker</small>
-              </label>
-              ${uploadStatusText ? `<p class="muted" id="bi-mat-upload-status" style="margin:8px 0 0;font-size:12.5px;color:var(--accent);font-weight:600">${esc(uploadStatusText)}</p>` : ''}
               <div class="bi-materials-list" id="bi-materials-list">
                 ${!materialsState.loaded
-                  ? '<small class="muted">Loading your synced files…</small>'
+                  ? '<small class="muted">Loading your cloud-synced files…</small>'
                   : materialsState.items.length
-                    ? materialsState.items.map((m) => `
+                    ? `<small class="muted" style="font-weight:700;display:block;margin:8px 0 4px">CLOUD-SYNCED ACROSS DEVICES (${materialsState.items.length})</small>` + materialsState.items.map((m) => `
                         <div class="bi-material-row">
                           <div class="bi-material-meta">
                             ${m.courseCode ? `<span class="badge">${esc(m.courseCode)}</span>` : ''}
@@ -5443,11 +5479,9 @@ window.StudyApp = (() => {
                           </div>
                         </div>
                       `).join('')
-                    : '<small class="muted">No external files added yet.</small>'}
+                    : ''}
               </div>
-            ` : `
-              <button type="button" class="ghost-btn" id="bi-mat-signin-btn">Sign in to add &amp; sync your PDFs</button>
-            `}
+            ` : ''}
           </article>
         </div>
       `;
@@ -5514,6 +5548,10 @@ window.StudyApp = (() => {
       courseSel?.addEventListener('change', () => {
         selectedMatCourse = courseSel.value;
       });
+      const cloudCb = dlg.querySelector('#bi-mat-sync-cloud');
+      cloudCb?.addEventListener('change', () => {
+        syncCloudToo = cloudCb.checked;
+      });
 
       const handleUploadFiles = async (fileList) => {
         const files = Array.from(fileList || []).filter(Boolean);
@@ -5521,28 +5559,80 @@ window.StudyApp = (() => {
         const opt = courseSel?.selectedOptions?.[0];
         const courseCode = courseSel?.value || '';
         const courseTitle = opt?.dataset?.title || '';
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          uploadStatusText = `Uploading ${file.name}…`;
+        const preferredCourseId = opt?.dataset?.courseId || '';
+
+        // 1. Instantly save & auto-match PDFs locally in IndexedDB (no 40 MB limit — up to 260 MB per PDF!)
+        const pdfFiles = files.filter((f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''));
+        let matchedCount = 0;
+        let unlockedExercises = 0;
+        if (pdfFiles.length && window.StudyLocalSources?.saveBatchAcrossCourses) {
+          uploadStatusText = `Matching ${pdfFiles.length} PDF${pdfFiles.length === 1 ? '' : 's'} against Study-OS courses…`;
           renderBiDialog(linkCode);
-          try {
-            await window.StudyCommunity.uploadMaterial(file, {
-              courseCode,
-              courseTitle,
-              onProgress: (done, total) => {
-                const st = dlg.querySelector('#bi-mat-upload-status');
-                if (st) st.textContent = `Uploading ${file.name} (${done}/${total})…`;
-              },
-            });
-            toast(`Synced "${file.name}" to your profile.`);
-          } catch (err) {
-            toast(err?.message || `Could not upload ${file.name}.`);
+          const banksByCourse = {};
+          await Promise.all((boot.catalog || []).map(async (c) => {
+            try { banksByCourse[c.courseId] = await ensureCourseBank(c.courseId); } catch {}
+          }));
+          const localRes = await window.StudyLocalSources.saveBatchAcrossCourses(pdfFiles, banksByCourse, preferredCourseId);
+          for (const rec of localRes.saved) {
+            if (rec.matched) {
+              matchedCount += 1;
+              unlockedExercises += Number(rec.matchedExercises || 0);
+            }
+          }
+          if (localRes.saved.length) {
+            lastMatchBanner = matchedCount
+              ? `Matched ${matchedCount} PDF${matchedCount === 1 ? '' : 's'} → unlocked Study-OS inline page jumps across ${unlockedExercises} exercises!`
+              : `Saved ${localRes.saved.length} PDF${localRes.saved.length === 1 ? '' : 's'} privately in this browser for instant local reading.`;
+          }
+          if (localRes.errors.length) toast(localRes.errors[0]);
+        }
+
+        // 2. Optionally cloud-sync files ≤ 50 MB across devices (200 MB profile locker)
+        const signedInNow = Boolean(window.StudyCommunity?.isSignedIn?.());
+        const CLOUD_MAX_FILE = 50 * 1024 * 1024;
+        if (signedInNow && syncCloudToo) {
+          for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.size > CLOUD_MAX_FILE) {
+              toast(`"${file.name}" (${formatFileSize(file.size)}) saved locally in browser — skipped cloud sync (>50 MB).`);
+              continue;
+            }
+            uploadStatusText = `Cloud-syncing ${i + 1}/${files.length}: ${file.name}…`;
+            renderBiDialog(linkCode);
+            try {
+              await window.StudyCommunity.uploadMaterial(file, {
+                courseCode,
+                courseTitle,
+                onProgress: (done, total) => {
+                  const st = dlg.querySelector('#bi-mat-upload-status');
+                  if (st) st.textContent = `Cloud-syncing ${file.name} (${done}/${total})…`;
+                },
+              });
+            } catch (err) {
+              toast(err?.message || `Saved locally; cloud sync skipped for ${file.name}.`);
+            }
           }
         }
         uploadStatusText = '';
         await loadPersonalMaterials(linkCode);
+        renderBiDialog(linkCode);
         if (currentView === 'references') renderReferencesHub();
+        if (currentView === 'course') await renderCourseExplorer(selectedCourseId);
       };
+
+      dlg.querySelectorAll('[data-bi-open-local]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          openLocalPdf(btn.dataset.biLocalTitle || 'Local PDF', '', btn.dataset.biOpenLocal);
+        });
+      });
+      dlg.querySelectorAll('[data-bi-del-local]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          await window.StudyLocalSources?.remove?.(btn.dataset.biDelLocal);
+          toast('Removed local PDF from this browser.');
+          renderBiDialog(linkCode);
+          if (currentView === 'course') await renderCourseExplorer(selectedCourseId);
+        });
+      });
 
       const fileInput = dlg.querySelector('#bi-mat-file-input');
       fileInput?.addEventListener('change', () => {

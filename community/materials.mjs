@@ -2,9 +2,9 @@
 // Strictly private per profile_id — never shared publicly or visible to other users.
 
 const CHUNK_BYTES = 245_760; // 240 KB raw binary -> ~328 KB base64 JSON per chunk (well below D1 1 MB row limit)
-const MAX_FILE_BYTES = 12 * 1024 * 1024; // 12 MB per file
-const MAX_TOTAL_BYTES = 40 * 1024 * 1024; // 40 MB per student profile
-const MAX_FILES_PER_USER = 40;
+const MAX_FILE_BYTES = 50 * 1024 * 1024; // 50 MB per cloud-synced file (larger books up to 260 MB save privately in-browser)
+const MAX_TOTAL_BYTES = 200 * 1024 * 1024; // 200 MB per student profile
+const MAX_FILES_PER_USER = 100;
 const MAX_CHUNKS_PER_FILE = Math.ceil(MAX_FILE_BYTES / CHUNK_BYTES) + 1;
 const ID_RE = /^[0-9a-f-]{36}$/;
 const B64_RE = /^[A-Za-z0-9+/=]+$/;
