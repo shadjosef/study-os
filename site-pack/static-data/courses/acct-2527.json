@@ -180,6 +180,13 @@
       "id": "WF-MOCK-C",
       "title": "WISEflow Mock Exam C · Full Syllabus (180 pts, ±2% Auto-Graded)",
       "kind": "mock_exam"
+    },
+    {
+      "id": "WF-MOCK-D",
+      "title": "WISEflow Mock Exam D · Classic BI Exam Format (180 pts, ±2% Auto-Graded)",
+      "kind": "mock_exam",
+      "durationMinutes": 180,
+      "notes": "180-point official BI format (10 MCQs = 40 pts + Ex 1 SFP 50 pts + Ex 2 Break-Even 30 pts + Ex 3 Full Costing 20 pts + Ex 4 NPV & Residual Income 40 pts)."
     }
   ],
   "sources": {},
@@ -196,7 +203,7 @@
       "difficulty": 2,
       "points": 4,
       "available": true,
-      "promptMarkdown": "Under the IASB Conceptual Framework (Chapter 1), which pair represents the two **fundamental** qualitative characteristics of useful financial information?",
+      "promptMarkdown": "Under the IASB Conceptual Framework, which pair represents the two **fundamental** qualitative characteristics of useful financial information?",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -876,7 +883,7 @@
       "difficulty": 3,
       "points": 45,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 1 (45 points)** under WISEflow FLOWmulti rules (2 decimals / ±2% rounding margin; use minus sign for negatives).\n\n**Data for Nordic Craft Ltd (Year ended 31 December 2026):**\n- **Sales revenue:** £420,000 (all credit sales). Irrecoverable receivables written off during 2026: **£4,000**.\n- **Inventory batches (FIFO cost flow):**\n  - 1 Jan opening inventory: `200 units @ £40 = £8,000`\n  - 14 Apr purchase: `500 units @ £44 = £22,000`\n  - 9 Oct purchase: `400 units @ £50 = £20,000`\n  - Total units sold during 2026: **800 units**.\n- **Operating costs & year-end adjustments:**\n  - Cash wages paid in 2026: **£140,000**; unpaid December wages accrued at year-end: **£6,000**.\n  - Cash rent paid in 2026: **£48,000**, which includes **£8,000** prepaid for Jan–Feb 2027.\n  - Workshop equipment cost **£120,000**, residual value **£20,000**, useful life **5 years** (straight-line depreciation).\n  - Other cash operating expenses: **£55,000** · Loan interest expense: **£10,000**.\n- **Equity roll-forward:** Opening total equity (1 Jan 2026) = **£250,000**; cash dividends paid in 2026 = **£30,000** (no new share issues).\n\n**Statement 1a:** Under rising unit purchase prices, FIFO reports a higher closing inventory value and higher profit than AVCO.\n**Statement 1b:** Paying a cash dividend to shareholders is recorded as an operating expense in the income statement.\n**Statement 1c:** Prepaid rent at year-end is classified as a current asset on the Statement of Financial Position.",
+      "promptMarkdown": "**Nordic Craft Ltd** has extracted the following information for the financial year ended **31 December 2026** (all currency figures in GBP):\n\n| Item | Amount |\n| --- | ---: |\n| Credit sales revenue | 420,000 |\n| Irrecoverable trade receivables written off during 2026 | 4,000 |\n| Cash wages paid during 2026 | 140,000 |\n| Unpaid December wages accrued at 31 Dec 2026 | 6,000 |\n| Cash rent paid during 2026 (includes 8,000 prepaid for Jan–Feb 2027) | 48,000 |\n| Other cash operating expenses | 55,000 |\n| Loan interest expense | 10,000 |\n| Opening total equity (1 Jan 2026) | 250,000 |\n| Cash dividends paid during 2026 (no new shares issued) | 30,000 |\n\n**Inventory batches (FIFO cost flow — 800 units sold during 2026):**\n\n| Date | Description | Units | Unit Cost | Total |\n| --- | --- | ---: | ---: | ---: |\n| 1 Jan 2026 | Opening inventory | 200 | 40 | 8,000 |\n| 14 Apr 2026 | Purchase | 500 | 44 | 22,000 |\n| 9 Oct 2026 | Purchase | 400 | 50 | 20,000 |\n| **Total available** | | **1,100** | | **50,000** |\n\n**Non-current assets:** Workshop equipment was acquired for **120,000** with an estimated residual value of **20,000** and a useful life of **5 years** (straight-line depreciation).\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Under rising unit purchase prices, FIFO reports a higher closing inventory value and higher profit than AVCO.\n   - **b.** Paying a cash dividend to shareholders is recorded as an operating expense in the income statement.\n   - **c.** Prepaid rent at year-end is classified as a current asset on the Statement of Financial Position.\n2. Using the **FIFO** method, calculate: (i) Closing inventory at 31 Dec 2026 *(5 points)*, (ii) Cost of sales (COGS) for 2026 *(5 points)*, and (iii) Gross profit *(5 points)*. *(15 points in total)*\n3. Calculate the adjusted 2026 figures for: (i) Wages expense *(4 points)*, (ii) Rent expense *(4 points)*, (iii) Annual straight-line depreciation *(3 points)*, (iv) Operating profit (EBIT) *(4 points)*, and (v) Net profit for the year *(3 points)*. *(18 points in total)*\n4. Calculate Closing Total Equity on the Statement of Financial Position at 31 Dec 2026. *(6 points)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -1097,7 +1104,7 @@
       "difficulty": 3,
       "points": 35,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 2 (35 points)** for **Bergen Marine Ltd** (all figures in **£m**; enter numbers only, using a minus sign e.g. `-57` for net outflows).\n\n**Summary Data for 2026 (£m):**\n- **Operating profit (EBIT):** `84` (after charging depreciation of `26` and a **loss on disposal** of equipment of `5`).\n- The disposed equipment had a carrying amount (NBV) of `18` and was sold for **`13` cash**.\n- **Property, Plant & Equipment (carrying amount / NBV):** Opening `210` · Closing `236` (all additions were paid in cash).\n- **Working capital balances (Opening → Closing):**\n  - Inventories: `30 → 39`\n  - Trade receivables: `45 → 41`\n  - Trade payables: `28 → 22`\n- **Interest, Tax & Financing:** Interest paid in cash = `8`. Income statement tax charge = `16`; Tax payable on SFP went from Opening `14` to Closing `11`. New long-term bank loan raised = `20`; Cash dividends paid (classified under **Financing activities** here) = `12`.\n- **Opening cash / bank balance (1 Jan 2026):** Bank overdraft of **`-10`**.\n\n**Statement 1a:** A non-cash loss on disposal of non-current assets is added back to operating profit when reconciling to cash generated from operations, while the actual sale proceeds appear under investing activities.\n**Statement 1b:** Making a bonus issue of shares (capitalising reserves) generates a financing cash inflow.\n**Statement 1c:** Profitable rapidly growing firms can experience negative operating cash flow if inventory and receivable expansion exceeds operating cash generation.",
+      "promptMarkdown": "The following summary financial information has been extracted for **Bergen Marine Ltd** for the financial year ended **31 December 2026** (all figures in **£m**; use a minus sign `-` for net outflows and negative balances):\n\n| Statement / Balance Item | 1 Jan 2026 | 31 Dec 2026 |\n| --- | ---: | ---: |\n| Property, plant & equipment (carrying amount / NBV) | 210 | 236 |\n| Inventories | 30 | 39 |\n| Trade receivables | 45 | 41 |\n| Trade payables | 28 | 22 |\n| Tax payable | 14 | 11 |\n| Cash / (bank overdraft) | −10 | ? |\n\n**Additional information for 2026 (£m):**\n\n- **a)** Operating profit (EBIT) was **84**, stated after charging depreciation of **26** and a **loss on disposal** of equipment of **5**.\n- **b)** The disposed equipment had a carrying amount (NBV) of **18** and was sold for **13** cash. All PPE additions were paid in cash.\n- **c)** Interest paid in cash was **8**. Income statement tax charge was **16**.\n- **d)** A new long-term bank loan of **20** was raised, and cash dividends of **12** were paid (classified under **Financing activities**).\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** A non-cash loss on disposal of non-current assets is added back to operating profit when reconciling to cash generated from operations, while the actual sale proceeds appear under investing activities.\n   - **b.** Making a bonus issue of shares (capitalising reserves) generates a financing cash inflow.\n   - **c.** Profitable rapidly growing firms can experience negative operating cash flows (overtrading) if working capital expands faster than cash profits.\n2. Calculate: (i) Cash generated from operations before interest & tax *(5 points)*, (ii) Cash tax paid during 2026 *(4 points)*, and (iii) Net cash from operating activities *(4 points)*. *(13 points in total)*\n3. Calculate: (i) Cash paid for PPE additions *(4 points)*, (ii) Net cash from investing activities *(4 points)*, and (iii) Net cash from financing activities *(4 points)*. *(12 points in total)*\n4. Calculate the closing cash balance at 31 December 2026. *(4 points)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -1295,7 +1302,7 @@
       "difficulty": 2,
       "points": 30,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 3 (30 points)** for **Oslo Mobility Ltd**.\n\n**Part A — Single-Product CVP (Commuter e-bike):**\n- Selling price = **£500/unit** · Variable cost = **£300/unit** · Monthly fixed costs = **£120,000**.\n- Budgeted monthly sales volume = **800 units**.\n\n**Part B — Two-Product Limiting Factor Decision:**\nNext quarter, Oslo Mobility can also sell a **Cargo** model (Selling price **£750**, Variable cost **£450**, max monthly demand **300 units**) alongside **Commuter** (max monthly demand **600 units**). Specialised CNC machine capacity is capped at **2,100 machine hours (MH)** per month (Fixed costs remain **£120,000**):\n- **Commuter:** requires **2.5 MH** per unit.\n- **Cargo:** requires **5.0 MH** per unit.\n\n**Statement 1a:** Margin of safety (%) measures the percentage by which budgeted sales can fall before the business incurs an operating loss.\n**Statement 1b:** When machine hours are the single scarce limiting factor, products should be ranked by highest contribution per unit of output.\n**Statement 1c:** An increase in the income tax rate raises the pre-tax sales volume required to earn a specified **after-tax** target profit.",
+      "promptMarkdown": "**Oslo Mobility Ltd** manufactures electric bicycles. Budgeted data for its existing **Commuter** model and a proposed **Cargo** model are shown below (all currency figures in GBP):\n\n| Metric | Commuter | Cargo (Part B) |\n| --- | ---: | ---: |\n| Selling price per unit | 500 | 750 |\n| Variable cost per unit | 300 | 450 |\n| Budgeted monthly sales (Part A) | 800 units | — |\n| Maximum monthly market demand (Part B) | 600 units | 300 units |\n| Specialised CNC machine time per unit | 2.5 MH | 5.0 MH |\n\nTotal monthly fixed costs are **120,000** in both Part A and Part B. In **Part B**, specialised CNC machine capacity is limited to **2,100 machine hours (MH)** per month.\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Margin of safety (%) measures the percentage by which budgeted sales can fall before the business incurs an operating loss.\n   - **b.** When machine hours are the single scarce limiting factor, products should be ranked by highest contribution per unit of output.\n   - **c.** An increase in the income tax rate raises the pre-tax sales volume required to earn a specified **after-tax** target profit.\n2. **Part A (Single-product Commuter):** Calculate: (i) Break-even sales volume in units *(4 points)*, (ii) Margin of safety as a % of budgeted sales *(4 points)*, and (iii) Monthly units required to earn an operating profit of 70,000 *(4 points)*. *(12 points in total)*\n3. **Part B (Scarce CNC capacity of 2,100 MH):** Calculate: (i) Commuter contribution per machine hour *(4 points)*, (ii) Optimal monthly units of Cargo to produce *(4 points)*, and (iii) Maximum monthly operating profit under the optimal mix *(4 points)*. *(12 points in total)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -1476,7 +1483,7 @@
       "difficulty": 2,
       "points": 30,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 4 (30 points)** for **Fjord Tech AS** (Cost of capital $r = 10\\%$).\n\n**Project Data:**\n- **Equipment outlay ($t = 0$):** £160,000 · Expected residual (disposal) value at $t = 4$: **£20,000** (4-year life, straight-line depreciation).\n- **Working capital:** **£20,000** required immediately at $t = 0$, fully recovered in cash at the end of Year 4 ($t = 4$).\n- **Annual net operating cash inflows** (before depreciation):\n  - $t = 1$: **£55,000** · $t = 2$: **£65,000** · $t = 3$: **£60,000** · $t = 4$: **£50,000**.\n- *(10% discount factors if needed: $t=1: 0.9091$, $t=2: 0.8264$, $t=3: 0.7513$, $t=4: 0.6830$.)*\n\n**Statement 1a:** Depreciation is a non-cash expense and must not be deducted from cash flows in an NPV schedule, though it reduces accounting profit in ARR.\n**Statement 1b:** Financing interest charges on loans used to fund the project should be subtracted as an annual cash outflow in the project's cash-flow line before discounting at the cost of capital.\n**Statement 1c:** Accounting Rate of Return (ARR) ignores the timing of cash flows within the project's life.",
+      "promptMarkdown": "**Fjord Tech AS** is evaluating a 4-year capital investment project with a cost of capital of **r = 10%**. Projected cash flows and asset data are summarized below (all currency figures in GBP):\n\n| Period | Item | Amount |\n| --- | --- | ---: |\n| t = 0 | Equipment purchase outlay | −160,000 |\n| t = 0 | Immediate working capital outlay (fully recovered at t = 4) | −20,000 |\n| t = 1 | Net operating cash inflow (before depreciation) | 55,000 |\n| t = 2 | Net operating cash inflow (before depreciation) | 65,000 |\n| t = 3 | Net operating cash inflow (before depreciation) | 60,000 |\n| t = 4 | Net operating cash inflow (before depreciation) | 50,000 |\n| t = 4 | Expected equipment disposal (salvage) value | 20,000 |\n\nEquipment is depreciated on a straight-line basis over 4 years (annual depreciation = **35,000**; average equipment carrying value = **90,000**). *(10% discount factors: t = 1: `0.9091`, t = 2: `0.8264`, t = 3: `0.7513`, t = 4: `0.6830`.)*\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Depreciation is a non-cash expense and must not be deducted from cash flows in an NPV schedule, though it reduces accounting profit in ARR.\n   - **b.** Financing interest charges on loans used to fund the project should be subtracted as an annual cash outflow in the project's cash-flow line before discounting at the cost of capital.\n   - **c.** Accounting Rate of Return (ARR) ignores the timing of cash flows within the project's life.\n2. Calculate: (i) Total initial cash outflow at t = 0 (use minus sign) *(4 points)*, (ii) Total terminal cash inflow at t = 4 *(4 points)*, and (iii) Undiscounted payback period in years *(4 points)*. *(12 points in total)*\n3. Calculate: (i) Net Present Value (NPV) at 10% *(6 points)*, (ii) Average annual operating profit after depreciation *(3 points)*, and (iii) Accounting Rate of Return (ARR %) on average equipment investment *(3 points)*. *(12 points in total)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -2342,7 +2349,7 @@
       "difficulty": 3,
       "points": 40,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 1 (40 points)** for **Viken Retail AS** (Year ended 31 December 2026).\n\n**1. Delivery Fleet & 1 January Transactions:**\n- At 1 Jan 2026 (before transactions), the fleet had original cost **£200,000** and accumulated depreciation **£72,000** (Opening NBV = **£128,000**).\n- On **1 Jan 2026**, Viken sold an older van (original cost **£50,000**, accumulated depreciation **£28,000**) for **£17,000 cash**, and immediately purchased a replacement van for **£54,000 cash**.\n- Viken depreciates all vehicles at **25% per annum reducing-balance** on year-end carrying amount prior to 2026 depreciation.\n\n**2. Trade Receivables & Allowance for Doubtful Debts:**\n- Gross trade receivables at 31 Dec 2026 (before write-offs) = **£95,000**; Opening allowance for doubtful debts (1 Jan) = **£2,600**.\n- At 31 Dec, a bankrupt customer owing **£5,000** is written off as irrecoverable, and the closing allowance is set at **4%** of remaining trade receivables.\n\n**3. Draft Profit:** Draft operating profit **before** recording (i) the van disposal gain/loss, (ii) 2026 depreciation, and (iii) 2026 bad & doubtful debt charges was **£145,000**.\n\n**Statement 1a:** Changing depreciation method purely to hit a management bonus target violates faithful representation unless the pattern of economic benefit consumption genuinely changed.\n**Statement 1b:** Accumulated depreciation represents a ring-fenced cash fund set aside in the bank to buy replacement machinery.\n**Statement 1c:** Increasing the allowance for doubtful debts reduces both reported profit and net current assets.",
+      "promptMarkdown": "**Viken Retail AS** is finalizing its financial statements for the year ended **31 December 2026**. The following balances and year-end adjustments apply (all currency figures in GBP):\n\n| Account / Item | Amount |\n| --- | ---: |\n| Delivery fleet — original cost (1 Jan 2026, before transactions) | 200,000 |\n| Delivery fleet — accumulated depreciation (1 Jan 2026) | 72,000 |\n| Delivery fleet — opening carrying amount / NBV (1 Jan 2026) | 128,000 |\n| Gross trade receivables (31 Dec 2026, before write-offs) | 95,000 |\n| Opening allowance for doubtful debts (1 Jan 2026) | 2,600 |\n| Draft operating profit (before adjustments a–c below) | 145,000 |\n\n**Additional transactions and policies for 2026:**\n\n- **a)** On **1 January 2026**, Viken sold an older van (original cost **50,000**, accumulated depreciation **28,000**) for **17,000** cash, and immediately purchased a replacement van for **54,000** cash.\n- **b)** All vehicles are depreciated at **25% per annum reducing-balance** on the year-end carrying amount prior to 2026 depreciation.\n- **c)** At **31 December 2026**, a bankrupt customer owing **5,000** is written off as irrecoverable, and the closing allowance for doubtful debts is set at **4%** of remaining trade receivables.\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Changing depreciation method purely to hit a management bonus target violates faithful representation unless the pattern of economic benefit consumption genuinely changed.\n   - **b.** Accumulated depreciation represents a ring-fenced cash fund set aside in the bank to buy replacement machinery.\n   - **c.** Increasing the allowance for doubtful debts reduces both reported profit and net current assets.\n2. For the delivery fleet, calculate: (i) Gain (+) or loss (−) on van disposal *(5 points)*, (ii) 2026 reducing-balance depreciation expense *(6 points)*, and (iii) Closing fleet carrying amount (NBV) at 31 Dec 2026 *(5 points)*. *(16 points in total)*\n3. For trade receivables and profit, calculate: (i) Closing allowance for doubtful debts *(4 points)*, (ii) Total 2026 bad & doubtful debts expense *(4 points)*, (iii) Net trade receivables on the 31 Dec 2026 SFP *(4 points)*, and (iv) Adjusted 2026 operating profit *(6 points)*. *(18 points in total)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -2537,7 +2544,7 @@
       "difficulty": 3,
       "points": 35,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 2 (35 points)** for **Stavanger Engineering AS**, which has been offered **£23,500** for a one-off subsea valve contract.\n\n**Resource Requirements for the Contract:**\n1. **Material Alpha (500 kg needed):** Regularly used across main product lines. 300 kg are in stock (historic cost £12/kg; scrap value £8/kg); current market replacement price is **£16/kg**.\n2. **Material Beta (200 kg needed):** Obsolete stock bought two years ago at £25/kg (£5,000 book value). It has **no other internal use** and would otherwise be sold immediately to a recycler for **£7/kg**.\n3. **Unskilled assembly (300 hours):** Performed by permanent salaried staff (£18/hr salary rate) who currently have **400 hours of idle spare capacity** this month.\n4. **Skilled welding (150 hours):** Welders are paid **£28/hr** and are working at **100% capacity** on Component Z (no overtime/hiring possible). Each welder-hour diverted from Component Z sacrifices **£20/hr of contribution** (after already deducting the £28/hr welding wage).\n5. **Other items:** £3,500 feasibility study completed last month; **£2,400** incremental hire of an ultrasonic test rig exclusively for this contract; £4,000 absorbed general factory fixed overhead.\n\n**Statement 1a:** For a material in continuous regular use by the business, the relevant cost of drawing units from inventory is their current replacement cost.\n**Statement 1b:** Past R&D/feasibility costs become relevant if the contract successfully goes ahead and recovers them.\n**Statement 1c:** Relevant cost-based minimum pricing defines a short-run floor for one-off spare/constrained decisions, whereas long-run survival requires covering full costs.",
+      "promptMarkdown": "**Stavanger Engineering AS** has been offered a fixed contract price of **23,500** for a one-off subsea valve order. The resources required for the contract are summarized below (all currency figures in GBP):\n\n| Resource | Requirement | Current Status & Cost Data |\n| --- | --- | --- |\n| Material Alpha | 500 kg | Regularly used across main lines. 300 kg in stock (historic cost 12/kg; scrap 8/kg); current replacement price **16/kg**. |\n| Material Beta | 200 kg | Obsolete stock bought 2 years ago at 25/kg (book value 5,000). No internal use; would otherwise be scrapped immediately for **7/kg**. |\n| Unskilled assembly | 300 hours | Permanent salaried staff (18/hr) who currently have **400 hours of idle spare capacity** this month. |\n| Skilled welding | 150 hours | Paid **28/hr**, operating at **100% capacity** on Component Z (no overtime/hiring possible). Each hour diverted sacrifices **20/hr** of contribution (after already deducting the 28/hr wage). |\n| Feasibility study | Completed | 3,500 paid last month. |\n| Ultrasonic test rig | Dedicated hire | **2,400** incremental hire exclusively for this contract. |\n| General factory fixed overhead | Absorbed | 4,000 allocated at normal absorption rate. |\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** For a material in continuous regular use by the business, the relevant cost of drawing units from inventory is their current replacement cost.\n   - **b.** Past R&D/feasibility costs become relevant if the contract successfully goes ahead and recovers them.\n   - **c.** Relevant cost-based minimum pricing defines a short-run floor for one-off spare/constrained decisions, whereas long-run survival requires covering full costs.\n2. Calculate the relevant cost of each resource: (i) Material Alpha *(5 points)*, (ii) Material Beta *(5 points)*, (iii) Unskilled labour *(4 points)*, and (iv) Skilled welding *(5 points)*. *(19 points in total)*\n3. Calculate: (i) The minimum relevant price (break-even cash floor) for the contract *(6 points)*, and (ii) The incremental profit gain from accepting at 23,500 *(4 points)*. *(10 points in total)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -2718,7 +2725,7 @@
       "difficulty": 2,
       "points": 30,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 3 (30 points)** for **Scandia Precision AS**, which manufactures **Standard** (`4,000 units`) and **Custom** (`500 units`).\n\n**Direct & Activity Data:**\n| Metric | Standard (`4,000 u`) | Custom (`500 u`) | Factory Total |\n|---|---:|---:|---:|\n| Direct materials + direct labour per unit | £30.00 | £80.00 | — |\n| Direct labour hours (DLH) per unit | 0.5 DLH | 2.0 DLH | **3,000 DLH** |\n| Batch machine set-ups (total) | 50 set-ups | 100 set-ups | **150 set-ups** |\n| Machine hours (MH, total) | 2,800 MH | 1,200 MH | **4,000 MH** |\n\n**Total Indirect Overheads = £150,000**, comprising:\n- **Machine Set-up Pool:** **£90,000** (driven by number of set-ups)\n- **Machining Pool:** **£60,000** (driven by machine hours, MH)\n\n**Statement 1a:** Activity-Based Costing is generally cheaper and simpler to administer than a single plant-wide DLH rate, so every small single-product business should adopt ABC.\n**Statement 1b:** Under a 25% mark-up on full cost (`Price = 1.25 × Full Cost`), under-costing Custom batches causes management to quote prices that fail to achieve the target profit margin.\n**Statement 1c:** Non-manufacturing period costs (e.g. corporate PR) are excluded from inventory valuation under IAS 2, though managers may consider all costs when setting long-run prices.",
+      "promptMarkdown": "**Scandia Precision AS** manufactures two products — **Standard** (`4,000` units) and **Custom** (`500` units). Direct cost and budgeted activity data are presented below (all currency figures in GBP):\n\n| Metric | Standard (4,000 u) | Custom (500 u) | Factory Total |\n| --- | ---: | ---: | ---: |\n| Direct materials + direct labour per unit | 30.00 | 80.00 | — |\n| Direct labour hours (DLH) per unit | 0.5 DLH | 2.0 DLH | **3,000 DLH** |\n| Batch machine set-ups (total) | 50 set-ups | 100 set-ups | **150 set-ups** |\n| Machine hours (MH, total) | 2,800 MH | 1,200 MH | **4,000 MH** |\n\n**Budgeted indirect overheads (total 150,000):**\n\n| Cost Pool | Budgeted Cost | Cost Driver |\n| --- | ---: | --- |\n| Machine set-up pool | 90,000 | Number of set-ups |\n| Machining pool | 60,000 | Machine hours (MH) |\n| **Total indirect overheads** | **150,000** | |\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Activity-Based Costing is generally cheaper and simpler to administer than a single plant-wide DLH rate, so every small single-product business should adopt ABC.\n   - **b.** Under a 25% mark-up on full cost (`Price = 1.25 × Full Cost`), under-costing Custom batches causes management to quote prices that fail to achieve the target profit margin.\n   - **c.** Non-manufacturing period costs (e.g. corporate PR) are excluded from inventory valuation under IAS 2, though managers may consider all costs when setting long-run prices.\n2. **Traditional costing (single plant-wide DLH rate):** Calculate: (i) Plant-wide overhead absorption rate per DLH *(4 points)*, and (ii) Traditional full cost per unit for Custom *(4 points)*. *(8 points in total)*\n3. **Activity-Based Costing (ABC) & Pricing:** Calculate: (i) ABC cost driver rate per set-up *(3 points)*, (ii) ABC full cost per unit for Standard *(4 points)*, (iii) ABC full cost per unit for Custom *(5 points)*, and (iv) ABC selling price for Custom using a 25% cost-plus mark-up *(4 points)*. *(16 points in total)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -2899,7 +2906,7 @@
       "difficulty": 3,
       "points": 35,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 4 (35 points)** for **Lücke Analytics Ltd** (Cost of capital $r = 10\\%$, modeled on BI's 2023 Exercise 4 & Session 6).\n\n**Project Specifications:**\n- **Machine outlay ($t = 0$):** **£90,000** · Expected salvage value in cash at $t = 3$: **£15,000** (3-year life, straight-line depreciation).\n- **Revenues & Receivables lag:** Invoiced sales revenue is **£60,000 per year** in $t = 1, 2, 3$. However, **£12,000** of Year 1 sales remain unpaid in Trade Receivables at $t = 1$; the Year 2 year-end receivable balance is also **£12,000**; all receivables are collected in full by $t = 3$ (closing AR at $t = 3$ is £0).\n- **Operating expenses:** Cash variable costs are **£20,000 per year** paid in $t = 1, 2, 3$ (no payables lag).\n\n**Statement 1a:** Under clean-surplus accounting, the present value of all future Residual Incomes discounted at $r$ equals the project's Net Present Value (NPV).\n**Statement 1b:** Even when total PV of Residual Income equals positive NPV, Year 1 Residual Income alone can be negative on back-loaded projects, tempting short-termist managers to reject positive-NPV investments.\n**Statement 1c:** Because NPV at 10% is positive here, the project's Internal Rate of Return (IRR) must be strictly lower than 10%.",
+      "promptMarkdown": "**Lücke Analytics Ltd** considers a 3-year investment project at a cost of capital of **r = 10%**. Project cash flow and accrual specifications are summarized below (all currency figures in GBP):\n\n| Specification | Detail |\n| --- | --- |\n| Machine outlay (t = 0) | 90,000 |\n| Expected salvage value in cash (t = 3) | 15,000 |\n| Useful life & depreciation | 3 years, straight-line depreciation |\n| Invoiced sales revenue (t = 1, 2, 3) | 60,000 per year |\n| Trade receivables balance (year-end) | t = 1: 12,000 · t = 2: 12,000 · t = 3: 0 (all collected) |\n| Cash variable operating expenses (t = 1, 2, 3) | 20,000 per year (paid immediately, no payables lag) |\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Under clean-surplus accounting, the present value of all future Residual Incomes discounted at r equals the project's Net Present Value (NPV).\n   - **b.** Even when total PV of Residual Income equals positive NPV, Year 1 Residual Income alone can be negative on back-loaded projects, tempting short-termist managers to reject positive-NPV investments.\n   - **c.** Because NPV at 10% is positive here, the project's Internal Rate of Return (IRR) must be strictly lower than 10%.\n2. Calculate the net cash flows for (i) t = 1 *(3 points)*, (ii) t = 2 *(3 points)*, (iii) t = 3 (including receivables collection and salvage) *(4 points)*, and (iv) the project's Net Present Value (NPV) at 10% *(5 points)*. *(15 points in total)*\n3. Calculate: (i) Annual accrual net income (identical in t = 1, 2, 3) *(4 points)*, (ii) Year 1 Residual Income (`NI₁ − 10% × Opening Assets₁`) *(5 points)*, and (iii) Total present value at t = 0 of the project's residual incomes *(5 points)*. *(14 points in total)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -3777,7 +3784,7 @@
       "difficulty": 3,
       "points": 40,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 1 (40 points)** for **Trondheim BioLabs AS** (all figures in **£000**; use minus sign for negatives).\n\n**1. Equity & Income Data (£000):**\n- Opening Total Equity (1 Jan 2026) = `400` · Closing Total Equity (31 Dec 2026) = `515`.\n- During 2026, Trondheim issued new shares for **`50` cash** and paid cash dividends of **`25`** (classified under **Financing activities**). No revaluations occurred.\n- Income statement includes Loan Interest Expense = `12` (paid in cash) and Tax Expense = `18` (actual cash tax paid in 2026 = **`20`**).\n\n**2. Operating, Investing & Financing Details (£000):**\n- Operating profit is stated after charging Depreciation of **`32`** and crediting a **Gain on disposal** of lab equipment of **`6`** (the equipment was sold for **`16` cash**).\n- Cash paid to purchase new lab equipment = **`85`** · Bank loan principal repaid = **`30`**.\n- Working capital (Opening → Closing): Inventories `50 → 44` · Trade receivables `60 → 75` · Trade payables `35 → 42`.\n- Opening Cash at Bank (1 Jan 2026) = **`14`**.\n\n**Statement 1a:** An accounting **gain** on disposal of equipment must be **deducted** from operating profit in the indirect cash-flow reconciliation so it is not double-counted alongside investing sale proceeds.\n**Statement 1b:** Repaying principal on a bank loan reduces Net Profit on the income statement.\n**Statement 1c:** If Opening Equity + New Shares + Net Profit − Dividends = Closing Equity, Net Profit can be deduced directly from SFP equity movements.",
+      "promptMarkdown": "**Trondheim BioLabs AS** has extracted the following balances and transaction data for the financial year ended **31 December 2026** (all figures in **£000**; use a minus sign `-` for net outflows):\n\n| Balance Sheet Item (£000) | 1 Jan 2026 | 31 Dec 2026 |\n| --- | ---: | ---: |\n| Total equity | 400 | 515 |\n| Inventories | 50 | 44 |\n| Trade receivables | 60 | 75 |\n| Trade payables | 35 | 42 |\n| Cash at bank | 14 | ? |\n\n**Additional 2026 transactions (£000):**\n\n- **a)** Issued new shares for **50** cash and paid cash dividends of **25** (classified under **Financing activities**). No revaluations occurred.\n- **b)** Income statement includes loan interest expense of **12** (paid in cash) and tax expense of **18** (actual cash tax paid during 2026 was **20**).\n- **c)** Operating profit (EBIT) is stated after charging depreciation of **32** and crediting a **gain on disposal** of lab equipment of **6** (the equipment was sold for **16** cash).\n- **d)** Cash paid to purchase new lab equipment was **85**, and bank loan principal repaid was **30**.\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** An accounting gain on disposal of equipment must be deducted from operating profit in the indirect cash-flow reconciliation so it is not double-counted alongside investing sale proceeds.\n   - **b.** Repaying principal on a bank loan reduces Net Profit on the income statement.\n   - **c.** If Opening Equity + New Shares + Net Profit − Dividends = Closing Equity, Net Profit can be deduced directly from SFP equity movements.\n2. Deduce from the equity roll-forward and income items: (i) 2026 Net profit *(5 points)*, and (ii) 2026 Operating profit (EBIT) *(5 points)*. *(10 points in total)*\n3. Prepare the Statement of Cash Flows figures (£000): (i) Cash generated from operations *(6 points)*, (ii) Net cash from operating activities *(5 points)*, (iii) Net cash from investing activities *(4 points)*, (iv) Net cash from financing activities *(4 points)*, and (v) Closing cash balance at 31 Dec 2026 *(5 points)*. *(24 points in total)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -3972,7 +3979,7 @@
       "difficulty": 3,
       "points": 35,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 2 (35 points)** for **Aurora Ski Gear AS**, which sells **Alpine** (60% of total units) and **Nordic** (40% of total units) at a Current Volume of **4,000 total units** (`2,400 Alpine` + `1,600 Nordic`).\n\n| Line | Current Units | Selling Price | Variable Cost/u | Avoidable Line Fixed Cost | Apportioned HQ Fixed Cost |\n|---|---:|---:|---:|---:|---:|\n| **Alpine (60%)** | 2,400 | £300 | £180 | £70,000 | £50,000 |\n| **Nordic (40%)** | 1,600 | £200 | £130 | £80,000 | £50,000 |\n| **Company Total** | **4,000** | — | — | **£150,000** | **£100,000** *(Total FC = £250,000)* |\n\nAt 1,600 units, Nordic shows an accounting loss of $£112,000 - £80,000 - £50,000 = -£18,000$. Management asks whether to **drop Nordic** (assuming **zero** HQ fixed cost savings and zero effect on Alpine demand).\n\n**Statement 1a:** Multi-product break-even analysis assumes a constant sales mix; shifting the mix toward the higher-contribution product lowers the total break-even unit volume.\n**Statement 1b:** Because Nordic reports a −£18,000 bottom-line loss after HQ apportionment, dropping Nordic will raise total company profit by +£18,000.\n**Statement 1c:** Degree of operating gearing (`Total Contribution / Operating Profit`) predicts the percentage change in operating profit from a 1% change in volume (at constant mix).",
+      "promptMarkdown": "**Aurora Ski Gear AS** sells two product lines — **Alpine** (60% of unit mix) and **Nordic** (40% of unit mix) — at a current total volume of **4,000 units** (all currency figures in GBP):\n\n| Product Line | Current Units | Selling Price / u | Variable Cost / u | Avoidable Line Fixed Cost | Apportioned HQ Fixed Cost |\n| --- | ---: | ---: | ---: | ---: | ---: |\n| Alpine (60%) | 2,400 | 300 | 180 | 70,000 | 50,000 |\n| Nordic (40%) | 1,600 | 200 | 130 | 80,000 | 50,000 |\n| **Company Total** | **4,000** | — | — | **150,000** | **100,000** |\n\nTotal company fixed costs are **250,000**. At 1,600 units, Nordic shows an accounting loss of `112,000 − 80,000 − 50,000 = −18,000`. Management is considering **dropping Nordic** (assuming **zero** HQ fixed cost savings and no impact on Alpine sales).\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Multi-product break-even analysis assumes a constant sales mix; shifting the mix toward the higher-contribution product lowers the total break-even unit volume.\n   - **b.** Because Nordic reports a −18,000 bottom-line loss after HQ apportionment, dropping Nordic will raise total company profit by +18,000.\n   - **c.** Degree of operating gearing (`Total Contribution / Operating Profit`) predicts the percentage change in operating profit from a 1% change in volume (at constant mix).\n2. **Multi-product break-even (60/40 mix):** Calculate: (i) Weighted-average contribution per unit *(5 points)*, (ii) Company break-even total units *(5 points)*, and (iii) Alpine units included inside the break-even mix *(5 points)*. *(15 points in total)*\n3. **Keep-or-drop & Operating gearing:** Calculate: (i) Current total company operating profit at 4,000 units *(4 points)*, (ii) Change in company profit if Nordic is dropped (use minus sign if profit falls) *(6 points)*, and (iii) Degree of operating gearing to 2 decimals *(4 points)*. *(14 points in total)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -4155,7 +4162,7 @@
       "difficulty": 2,
       "points": 25,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 3 (25 points)** for **Krono Manufacturing AS**.\n\n**Factory Overhead Budget:**\n- **Machining Dept (production):** Direct departmental overhead = **£140,000** · Budgeted activity = **7,000 machine hours (MH)** (and 1,000 DLH).\n- **Assembly Dept (production):** Direct departmental overhead = **£82,000** · Budgeted activity = **5,000 direct labour hours (DLH)** (and 500 MH).\n- **Maintenance Dept (service):** Budgeted cost = **£60,000**, re-apportioned **70% to Machining** and **30% to Assembly** before calculating departmental absorption rates.\n\n**Job 405 Specifications:**\n- Direct materials = **£4,200** · Direct labour = **£2,800**.\n- Uses **80 MH in Machining** and **60 DLH in Assembly**.\n- Krono quotes customer prices to achieve a **20% profit margin on selling price** ($\\text{Profit} = 20\\% \\times \\text{Price}$, so $\\text{Price} = \\text{Full Cost} / 0.80$).\n\n**Statement 1a:** Service department costs (such as factory maintenance) are re-apportioned to production cost centres so product units passing through production absorb them.\n**Statement 1b:** Because Machining has 7,000 MH vs 1,000 DLH, direct labour hours is a better absorption basis than machine hours for Machining.\n**Statement 1c:** A 20% profit margin on selling price is mathematically equivalent to a 25% mark-up on full cost.",
+      "promptMarkdown": "The following factory overhead budget has been extracted for **Krono Manufacturing AS** (all currency figures in GBP):\n\n| Department | Type | Direct Dept. Overhead | Machine Hours (MH) | Direct Labour Hours (DLH) |\n| --- | --- | ---: | ---: | ---: |\n| Machining | Production | 140,000 | 7,000 | 1,000 |\n| Assembly | Production | 82,000 | 500 | 5,000 |\n| Maintenance | Service | 60,000 | — | — |\n| **Total** | | **282,000** | **7,500** | **6,000** |\n\nMaintenance department costs are re-apportioned **70% to Machining** and **30% to Assembly** before calculating departmental absorption rates (Machining absorbs on **MH**; Assembly absorbs on **DLH**).\n\n**For specific customer order \"Job 405\", the following is required:**\n- Direct materials: **4,200**\n- Direct labour: **2,800**\n- Machining time: **80 MH** · Assembly time: **60 DLH**\n- Krono quotes selling prices to achieve a **20% profit margin on selling price** (`Price = Full Cost / 0.80`).\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Service department costs (such as factory maintenance) are re-apportioned to production cost centres so product units passing through production absorb them.\n   - **b.** Because Machining has 7,000 MH vs 1,000 DLH, direct labour hours is a better absorption basis than machine hours for Machining.\n   - **c.** A 20% profit margin on selling price is mathematically equivalent to a 25% mark-up on full cost.\n2. Calculate the departmental overhead absorption rates after re-apportioning Maintenance: (i) Machining overhead rate per MH *(4 points)*, and (ii) Assembly overhead rate per DLH *(4 points)*. *(8 points in total)*\n3. For **Job 405**, calculate: (i) Total overhead absorbed *(3 points)*, (ii) Full cost *(4 points)*, and (iii) Quoted selling price for a 20% margin on sales *(4 points)*. *(11 points in total)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -4323,7 +4330,7 @@
       "difficulty": 3,
       "points": 40,
       "available": true,
-      "promptMarkdown": "Complete **Exercise 4 (40 points)** for **Solberg Energy AS**, choosing between two **mutually exclusive** 3-year projects at a **12% cost of capital** (no capital rationing):\n\n| Year | Project Alpha (£) | Project Beta (£) |\n|---|---:|---:|\n| $t = 0$ (Initial outlay) | `-100,000` | `-200,000` |\n| $t = 1$ | `+70,000` | `+100,000` |\n| $t = 2$ | `+60,000` | `+100,000` |\n| $t = 3$ | `+20,000` | `+100,000` |\n\n*(12% discount factors: $t=1: 0.8929$, $t=2: 0.7972$, $t=3: 0.7118$, 3-year annuity factor $= 2.4018$. At a 30% test rate, Project Alpha's exact NPV is **`-1,547.56`**.)*\n\n**Statement 1a:** A project with non-conventional cash flows (multiple sign changes) can exhibit more than one mathematical IRR or no real IRR.\n**Statement 1b:** Payback period penalises projects whose largest cash inflows arrive after the payback cut-off date.\n**Statement 1c:** When two mutually exclusive projects have positive NPVs, a wealth-maximising firm should always pick the project with the shorter payback period.",
+      "promptMarkdown": "**Solberg Energy AS** is choosing between two **mutually exclusive** 3-year projects at a cost of capital of **r = 12%** (no capital rationing; all currency figures in GBP):\n\n| Year | Project Alpha | Project Beta |\n| --- | ---: | ---: |\n| t = 0 (Initial outlay) | −100,000 | −200,000 |\n| t = 1 | +70,000 | +100,000 |\n| t = 2 | +60,000 | +100,000 |\n| t = 3 | +20,000 | +100,000 |\n\n*(12% discount factors: t = 1: `0.8929`, t = 2: `0.7972`, t = 3: `0.7118`; 3-year 12% annuity factor = `2.4018`. At a 30% test rate, Project Alpha's exact NPV is `−1,547.56`.)*\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** A project with non-conventional cash flows (multiple sign changes) can exhibit more than one mathematical IRR or no real IRR.\n   - **b.** Payback period penalises projects whose largest cash inflows arrive after the payback cut-off date.\n   - **c.** When two mutually exclusive projects have positive NPVs, a wealth-maximising firm should always pick the project with the shorter payback period.\n2. Calculate: (i) Payback period for Project Alpha *(4 points)*, (ii) Payback period for Project Beta *(4 points)*, (iii) NPV of Project Alpha at 12% *(5 points)*, and (iv) NPV of Project Beta at 12% *(5 points)*. *(18 points in total)*\n3. Calculate: (i) Interpolated IRR of Project Alpha between 12% and 30% *(6 points)*, (ii) Extra NPV wealth created by Beta over Alpha *(5 points)*, and (iii) State which mutually exclusive project Solberg should accept *(5 points)*. *(16 points in total)*",
       "contextMarkdown": "",
       "svgDiagram": "",
       "promptAssets": [],
@@ -4514,6 +4521,1092 @@
       "dlpfcBase": 3,
       "cognitiveType": "synthesis",
       "sources": {}
+    },
+    {
+      "id": "acct-2527:WFD-M1",
+      "localId": "WFD-M1",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "1",
+      "title": "WFD-M1 · Enhancing qualitative characteristics",
+      "kind": "mcq",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 1,
+      "dlpfcBase": 1,
+      "cognitiveType": "conceptual",
+      "points": 4,
+      "promptMarkdown": "Which pair lists two **enhancing** (rather than fundamental) qualitative characteristics of useful financial information?",
+      "contextMarkdown": "",
+      "options": [
+        "Relevance and faithful representation",
+        "Comparability and verifiability",
+        "Prudence and relevance",
+        "Faithful representation and materiality"
+      ],
+      "answerIndex": 1,
+      "hints": [
+        "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
+      ],
+      "solutionMarkdown": "**Correct: B.** The two *fundamental* qualities are relevance and faithful representation; the four *enhancing* qualities are comparability, verifiability, timeliness, and understandability.",
+      "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
+      "rubricChecks": [],
+      "wiseflowFields": [],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format"
+      ],
+      "pacing": {
+        "parSec": 180
+      }
+    },
+    {
+      "id": "acct-2527:WFD-M2",
+      "localId": "WFD-M2",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "1",
+      "title": "WFD-M2 · Users of financial vs management accounting",
+      "kind": "mcq",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 1,
+      "dlpfcBase": 1,
+      "cognitiveType": "conceptual",
+      "points": 4,
+      "promptMarkdown": "Which statement best distinguishes **management accounting** from financial accounting?",
+      "contextMarkdown": "",
+      "options": [
+        "Management accounting must strictly follow IFRS reporting formats",
+        "Management accounting focuses exclusively on audited historical transactions",
+        "Management accounting is tailored to internal decision-makers and often uses forward-looking estimates",
+        "Management accounting is legally mandated for all limited companies once a year"
+      ],
+      "answerIndex": 2,
+      "hints": [
+        "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
+      ],
+      "solutionMarkdown": "**Correct: C.** Management accounting serves internal managers, is not bound by IFRS, and frequently uses budgets, forecasts, and relevant future costs.",
+      "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
+      "rubricChecks": [],
+      "wiseflowFields": [],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format"
+      ],
+      "pacing": {
+        "parSec": 180
+      }
+    },
+    {
+      "id": "acct-2527:WFD-M3",
+      "localId": "WFD-M3",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "2",
+      "title": "WFD-M3 · Expanded accounting equation",
+      "kind": "mcq",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 1,
+      "dlpfcBase": 1,
+      "cognitiveType": "conceptual",
+      "points": 4,
+      "promptMarkdown": "Which equation correctly expresses the relationship among Assets (A), Liabilities (L), Opening Equity (E₀), Revenues (R), Expenses (Ex), and Owner Drawings (D)?",
+      "contextMarkdown": "",
+      "options": [
+        "A = L + E₀ + (R − Ex) − D",
+        "A = L + E₀ − (R − Ex) + D",
+        "A = E₀ + (R − Ex) + D − L",
+        "A + L = E₀ + (R − Ex) − D"
+      ],
+      "answerIndex": 0,
+      "hints": [
+        "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
+      ],
+      "solutionMarkdown": "**Correct: A.** Closing Equity equals `E₀ + Profit − Drawings = E₀ + (R − Ex) − D`, so `A = L + E₀ + (R − Ex) − D`.",
+      "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
+      "rubricChecks": [],
+      "wiseflowFields": [],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format"
+      ],
+      "pacing": {
+        "parSec": 180
+      }
+    },
+    {
+      "id": "acct-2527:WFD-M4",
+      "localId": "WFD-M4",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "2",
+      "title": "WFD-M4 · Equity roll-forward profit calculation",
+      "kind": "mcq",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 2,
+      "dlpfcBase": 2,
+      "cognitiveType": "calculation",
+      "points": 4,
+      "promptMarkdown": "At the start of the year, a business had equity of `62,000`, and by year-end equity had risen to `74,500`. During the year, the owner withdrew `15,000` in cash for personal use and contributed equipment valued at `9,500`. What was the **profit or loss** for the year?",
+      "contextMarkdown": "",
+      "options": [
+        "7,000",
+        "18,000",
+        "22,000",
+        "−5,500"
+      ],
+      "answerIndex": 1,
+      "hints": [
+        "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
+      ],
+      "solutionMarkdown": "**Correct: B (`18,000`).** `Closing Equity = Opening Equity + Capital Introduced + Profit − Drawings` ⇒ `74,500 = 62,000 + 9,500 + Profit − 15,000` ⇒ `Profit = 74,500 − 56,500 = 18,000`.",
+      "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
+      "rubricChecks": [],
+      "wiseflowFields": [],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format"
+      ],
+      "pacing": {
+        "parSec": 180
+      }
+    },
+    {
+      "id": "acct-2527:WFD-M5",
+      "localId": "WFD-M5",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "3",
+      "title": "WFD-M5 · FIFO vs LIFO during deflation",
+      "kind": "mcq",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 2,
+      "dlpfcBase": 2,
+      "cognitiveType": "calculation",
+      "points": 4,
+      "promptMarkdown": "During a period of **falling** purchase prices (deflation), using the **FIFO** inventory valuation method instead of LIFO will report ______ at year-end.",
+      "contextMarkdown": "",
+      "options": [
+        "higher profit and higher closing inventory",
+        "higher profit and lower closing inventory",
+        "lower profit and lower closing inventory",
+        "lower profit and higher closing inventory"
+      ],
+      "answerIndex": 2,
+      "hints": [
+        "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
+      ],
+      "solutionMarkdown": "**Correct: C.** Under falling prices, FIFO charges older (more expensive) units to cost of sales (lower profit) and leaves newer (cheaper) units in closing inventory (lower inventory value).",
+      "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
+      "rubricChecks": [],
+      "wiseflowFields": [],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format"
+      ],
+      "pacing": {
+        "parSec": 180
+      }
+    },
+    {
+      "id": "acct-2527:WFD-M6",
+      "localId": "WFD-M6",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "7",
+      "title": "WFD-M6 · Cost behaviour statements",
+      "kind": "mcq",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 1,
+      "dlpfcBase": 1,
+      "cognitiveType": "conceptual",
+      "points": 4,
+      "promptMarkdown": "Consider two statements concerning costs:\n- **a)** Variable costs per unit remain constant within the relevant range of output.\n- **b)** Sunk costs should be included in short-term special-order pricing decisions.\n\nWhich combination is correct?",
+      "contextMarkdown": "",
+      "options": [
+        "a) True and b) True",
+        "a) True and b) False",
+        "a) False and b) True",
+        "a) False and b) False"
+      ],
+      "answerIndex": 1,
+      "hints": [
+        "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
+      ],
+      "solutionMarkdown": "**Correct: B.** Variable cost per unit is constant within the relevant range (a is True); sunk/past costs are never relevant to future decisions (b is False).",
+      "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
+      "rubricChecks": [],
+      "wiseflowFields": [],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format"
+      ],
+      "pacing": {
+        "parSec": 180
+      }
+    },
+    {
+      "id": "acct-2527:WFD-M7",
+      "localId": "WFD-M7",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "7",
+      "title": "WFD-M7 · Opportunity cost relevance",
+      "kind": "mcq",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 1,
+      "dlpfcBase": 1,
+      "cognitiveType": "conceptual",
+      "points": 4,
+      "promptMarkdown": "The contribution forgone by diverting a scarce resource from its next-best alternative use is known as a(n) ______ cost and is always **relevant**.",
+      "contextMarkdown": "",
+      "options": [
+        "sunk",
+        "historic",
+        "opportunity",
+        "committed"
+      ],
+      "answerIndex": 2,
+      "hints": [
+        "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
+      ],
+      "solutionMarkdown": "**Correct: C.** An opportunity cost measures the cash/contribution sacrificed from the best foregone alternative and is always relevant to decision-making.",
+      "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
+      "rubricChecks": [],
+      "wiseflowFields": [],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format"
+      ],
+      "pacing": {
+        "parSec": 180
+      }
+    },
+    {
+      "id": "acct-2527:WFD-M8",
+      "localId": "WFD-M8",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "8",
+      "title": "WFD-M8 · Full costing vs marginal costing",
+      "kind": "mcq",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 1,
+      "dlpfcBase": 1,
+      "cognitiveType": "conceptual",
+      "points": 4,
+      "promptMarkdown": "Under **full (absorption) costing**, indirect manufacturing overheads are assigned to individual jobs primarily by:",
+      "contextMarkdown": "",
+      "options": [
+        "ignoring fixed overheads completely",
+        "expensing all overheads as period costs in the month incurred",
+        "applying a predetermined overhead recovery rate based on an activity driver such as labour or machine hours",
+        "dividing total revenue equally across every customer invoice"
+      ],
+      "answerIndex": 2,
+      "hints": [
+        "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
+      ],
+      "solutionMarkdown": "**Correct: C.** Full costing absorbs production overheads into job/unit costs using a predetermined recovery rate (e.g. budgeted overhead ÷ budgeted DLH or MH).",
+      "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
+      "rubricChecks": [],
+      "wiseflowFields": [],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format"
+      ],
+      "pacing": {
+        "parSec": 180
+      }
+    },
+    {
+      "id": "acct-2527:WFD-M9",
+      "localId": "WFD-M9",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "10",
+      "title": "WFD-M9 · Effect of higher cost of capital on NPV and IRR",
+      "kind": "mcq",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 2,
+      "dlpfcBase": 2,
+      "cognitiveType": "calculation",
+      "points": 4,
+      "promptMarkdown": "A conventional investment project has an initial cash outlay at t = 0 followed by positive net cash inflows in years 1–4. If the firm's **cost of capital increases**, what happens to the project's **NPV** and **IRR**?",
+      "contextMarkdown": "",
+      "options": [
+        "NPV: Decrease and IRR: No change",
+        "NPV: Decrease and IRR: Decrease",
+        "NPV: Increase and IRR: No change",
+        "NPV: Increase and IRR: Increase"
+      ],
+      "answerIndex": 0,
+      "hints": [
+        "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
+      ],
+      "solutionMarkdown": "**Correct: A.** Higher discount rates reduce the present value of future cash inflows (NPV decreases), whereas IRR depends solely on the project's cash flows and is unchanged.",
+      "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
+      "rubricChecks": [],
+      "wiseflowFields": [],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format"
+      ],
+      "pacing": {
+        "parSec": 180
+      }
+    },
+    {
+      "id": "acct-2527:WFD-M10",
+      "localId": "WFD-M10",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "10",
+      "title": "WFD-M10 · Relevant cost of existing machinery in NPV",
+      "kind": "mcq",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 2,
+      "dlpfcBase": 2,
+      "cognitiveType": "calculation",
+      "points": 4,
+      "promptMarkdown": "Nordvik AS owns a specialised press bought 3 years ago for `450,000` (current carrying value `270,000`). If not used on Project X, the press could be sold today for `140,000` or deployed on Project Y where it would save purchasing a replacement press for `195,000`. What is the **relevant cost** of the press for Project X?",
+      "contextMarkdown": "",
+      "options": [
+        "450,000",
+        "270,000",
+        "195,000",
+        "140,000"
+      ],
+      "answerIndex": 2,
+      "hints": [
+        "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
+      ],
+      "solutionMarkdown": "**Correct: C (`195,000`).** Historic cost (`450,000`) and carrying value (`270,000`) are sunk. The best alternative use is Project Y (saving `195,000` > scrap value `140,000`), so the opportunity cost is `195,000`.",
+      "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
+      "rubricChecks": [],
+      "wiseflowFields": [],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format"
+      ],
+      "pacing": {
+        "parSec": 180
+      }
+    },
+    {
+      "id": "acct-2527:WFD-E1",
+      "localId": "WFD-E1",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "2",
+      "title": "Exercise 1: Measuring and reporting financial position",
+      "kind": "calculation",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 3,
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "points": 50,
+      "promptMarkdown": "Nora started a new design business on **01. May**. To do so, she opened a business bank account and transferred **60,000** of her own money into it. During the first month of operations, the following additional transactions took place:\n\n- **a)** She borrowed **40,000** from Oslo Commercial Bank and paid the money into the business bank account.\n- **b)** She paid **48,000** cash for a small studio unit (premises).\n- **c)** She paid **5,000** cash for a second-hand delivery van.\n- **d)** She bought goods for resale (inventories) for **12,000**, paying immediately, and bought further goods for **24,000** on credit.\n- **e)** She sold goods which had cost **18,000** for **32,000**. Of this revenue, **8,000** was received in cash and the remaining **24,000** was on credit.\n- **f)** She paid **300** cash for fuel for the van, all of which was used during May.\n- **g)** She received **9,000** cash from trade receivables.\n- **h)** She paid **400** cash to Oslo Commercial Bank as interest on the loan for May.\n\nIgnore depreciation of non-current assets.\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** The Statement of Financial Position sets out the assets of a business and the claims (equity and liabilities) against those assets at a specific point in time.\n   - **b.** Inventories held for resale are classified as non-current assets because they are physical goods.\n   - **c.** Under the dual aspect convention, every transaction affects at least two items so the accounting equation always remains in balance.\n2. Open a beginning-of-May Statement of Financial Position for Nora's business (total assets and opening equity). *(6 points)*\n3. Track transactions **a)** to **h)** as pluses and minuses to determine every end-of-May Statement of Financial Position balance (Cash, Trade receivables, Inventories, Trade payables, Borrowings). *(24 points)*\n4. State the end-of-May **Total Assets** and **Closing Equity** on Nora's Statement of Financial Position. *(10 points)*\n5. Calculate the **profit** Nora's business earned in May. *(4 points)*",
+      "contextMarkdown": "",
+      "options": [],
+      "answerIndex": null,
+      "hints": [
+        "Start with Opening Cash = 60,000 and Opening Equity = 60,000, then adjust every cash inflow/outflow across a)–h).",
+        "Only transactions e) (+14,000 gross profit), f) (−300 fuel), and h) (−400 interest) affect profit."
+      ],
+      "solutionMarkdown": "**1. Right or wrong (6 pts):** `1a = Right`, `1b = Wrong` (inventories are current assets), `1c = Right`.\n\n**2. Beginning-of-May SFP (6 pts):** Cash = `60,000` · Total Assets = `60,000` · Opening Equity = `60,000`.\n\n**3. End-of-May balances (24 pts):**\n- **Cash:** `60,000 + 40,000 − 48,000 − 5,000 − 12,000 + 8,000 − 300 + 9,000 − 400 = 51,300`\n- **Trade receivables:** `24,000 − 9,000 = 15,000`\n- **Inventories:** `12,000 + 24,000 − 18,000 = 18,000`\n- **Trade payables:** `24,000` · **Borrowings:** `40,000`\n\n**4. End-of-May SFP totals (10 pts):**\n- Non-current assets: Premises `48,000` + Van `5,000` = `53,000`\n- Current assets: Inventories `18,000` + Receivables `15,000` + Cash `51,300` = `84,300`\n- **Total Assets:** `53,000 + 84,300 = 137,300`\n- **Closing Equity:** `60,000 + 13,300 = 73,300` (`Equity 73,300 + Borrowings 40,000 + Payables 24,000 = 137,300 ✓`)\n\n**5. May Profit (4 pts):** `(32,000 − 18,000) − 300 − 400 = 13,300` (transactions **e**, **f**, and **h** affect profit).",
+      "pitfall": "Receiving 9,000 from receivables (g) and borrowing 40,000 (a) change Cash, NOT profit!",
+      "rubricChecks": [],
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1a. SFP sets out assets and claims at a point in time",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1b. Inventories held for resale are non-current assets",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1c. Dual aspect keeps the accounting equation balanced",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "open_eq",
+          "group": "2. Opening SFP · 01 May (6 pts)",
+          "label": "Opening Total Assets & Opening Equity (1 May)",
+          "type": "number",
+          "expected": 60000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 6
+        },
+        {
+          "id": "cash",
+          "group": "3. End-of-May Balances (24 pts)",
+          "label": "Closing Cash at bank (31 May)",
+          "type": "number",
+          "expected": 51300.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 6
+        },
+        {
+          "id": "ar",
+          "group": "3. End-of-May Balances (24 pts)",
+          "label": "Closing Trade receivables",
+          "type": "number",
+          "expected": 15000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 5
+        },
+        {
+          "id": "inv",
+          "group": "3. End-of-May Balances (24 pts)",
+          "label": "Closing Inventories",
+          "type": "number",
+          "expected": 18000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 5
+        },
+        {
+          "id": "ap",
+          "group": "3. End-of-May Balances (24 pts)",
+          "label": "Closing Trade payables",
+          "type": "number",
+          "expected": 24000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 4
+        },
+        {
+          "id": "loan",
+          "group": "3. End-of-May Balances (24 pts)",
+          "label": "Closing Borrowings",
+          "type": "number",
+          "expected": 40000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 4
+        },
+        {
+          "id": "tot_assets",
+          "group": "4. End-of-May SFP Totals (10 pts)",
+          "label": "End-of-May Total Assets",
+          "type": "number",
+          "expected": 137300.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 5
+        },
+        {
+          "id": "clos_eq",
+          "group": "4. End-of-May SFP Totals (10 pts)",
+          "label": "End-of-May Closing Equity",
+          "type": "number",
+          "expected": 73300.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 5
+        },
+        {
+          "id": "profit",
+          "group": "5. Profit for May (4 pts)",
+          "label": "Profit earned by Nora's business in May",
+          "type": "number",
+          "expected": 13300.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 4
+        }
+      ],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format",
+        "sfp"
+      ],
+      "pacing": {
+        "parSec": 2400
+      }
+    },
+    {
+      "id": "acct-2527:WFD-E2",
+      "localId": "WFD-E2",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "7",
+      "title": "Exercise 2: Break-even analysis",
+      "kind": "calculation",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 2,
+      "dlpfcBase": 2,
+      "cognitiveType": "calculation",
+      "points": 30,
+      "promptMarkdown": "**Lillehammer Services AS** provides a single standard service. The business's results for a representative month are as follows:\n\n| Metric | Monthly Result |\n| --- | ---: |\n| Sales [units of service] | 800 |\n| Sales revenue | 48,000 |\n| Operating profit | 18,000 |\n\nThere were no changes in selling price or cost structure over the period. Variable costs were **15** per unit of service.\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Contribution per unit equals selling price per unit minus variable cost per unit.\n   - **b.** Irrelevant costs include future differential cash flows.\n   - **c.** At the break-even point, total contribution equals total fixed costs and operating profit is zero.\n2. Calculate the **selling price per unit** and the **fixed costs per month**. *(6 points)*\n3. Calculate the **break-even point** in units and in sales revenue. *(6 points)*\n4. Calculate: (i) the **margin of safety (%)** at 800 units *(6 points)*, and (ii) the monthly **units required** to earn a target operating profit of **27,000** *(6 points)*. *(12 points in total)*",
+      "contextMarkdown": "",
+      "options": [],
+      "answerIndex": null,
+      "hints": [
+        "Selling price = Sales revenue ÷ Units; Fixed costs = Total Contribution − Operating Profit."
+      ],
+      "solutionMarkdown": "**1. Right or wrong (6 pts):** `1a = Right`, `1b = Wrong` (future differential cash flows are relevant), `1c = Right`.\n\n**2. Price & Fixed Costs (6 pts):**\n- Selling price = `48,000 / 800 = 60` per unit\n- Contribution per unit = `60 − 15 = 45`\n- Total contribution = `800 × 45 = 36,000` ⇒ Fixed costs = `36,000 − 18,000 = 18,000`\n\n**3. Break-even point (6 pts):**\n- Break-even units = `18,000 / 45 = 400` units\n- Break-even revenue = `400 × 60 = 24,000`\n\n**4. Margin of Safety & Target Profit (12 pts):**\n- Margin of safety (%) = `(800 − 400) / 800 × 100% = 50%`\n- Target units for 27,000 profit = `(18,000 + 27,000) / 45 = 1,000` units",
+      "pitfall": "Never subtract total cost per unit instead of variable cost per unit when computing contribution!",
+      "rubricChecks": [],
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1a. Contribution/unit = Price − Variable cost/unit",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1b. Irrelevant costs include future differential cash flows",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1c. At break-even, total contribution equals fixed costs",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "price",
+          "group": "2. Sales Price & Fixed Costs (6 pts)",
+          "label": "Selling price per unit of service",
+          "type": "number",
+          "expected": 60.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "fc",
+          "group": "2. Sales Price & Fixed Costs (6 pts)",
+          "label": "Fixed costs per month",
+          "type": "number",
+          "expected": 18000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "bep_u",
+          "group": "3. Break-Even Point (6 pts)",
+          "label": "Break-even point (units)",
+          "type": "number",
+          "expected": 400.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "units",
+          "points": 3
+        },
+        {
+          "id": "bep_rev",
+          "group": "3. Break-Even Point (6 pts)",
+          "label": "Break-even sales revenue",
+          "type": "number",
+          "expected": 24000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "mos",
+          "group": "4. Margin of Safety & Target Profit (12 pts)",
+          "label": "Margin of safety at 800 units (%)",
+          "type": "number",
+          "expected": 50.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 6
+        },
+        {
+          "id": "tgt_u",
+          "group": "4. Margin of Safety & Target Profit (12 pts)",
+          "label": "Units required for 27,000 operating profit",
+          "type": "number",
+          "expected": 1000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "units",
+          "points": 6
+        }
+      ],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format",
+        "cvp"
+      ],
+      "pacing": {
+        "parSec": 1500
+      }
+    },
+    {
+      "id": "acct-2527:WFD-E3",
+      "localId": "WFD-E3",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "8",
+      "title": "Exercise 3: Full costing",
+      "kind": "calculation",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 2,
+      "dlpfcBase": 2,
+      "cognitiveType": "calculation",
+      "points": 20,
+      "promptMarkdown": "The following information has been taken from the budget for the forthcoming financial year of **Drammen Metalworks AS**:\n\n| Budgeted Activity / Manufacturing Cost | Amount |\n| --- | ---: |\n| Direct labor hours [hours] | 80,000 |\n| Machine hours [hours] | 60,000 |\n| Direct labor | 480,000 |\n| Indirect labor | 96,000 |\n| Direct materials | 160,000 |\n| Power | 32,000 |\n| Factory heat and light | 8,000 |\n| Machine maintenance | 40,000 |\n| Cleaning material | 4,000 |\n| Depreciation: factory | 100,000 |\n| Depreciation: machinery | 280,000 |\n| **Total manufacturing costs** | **1,200,000** |\n\nAll direct labor is paid at the same hourly rate.\n\nFor the specific order **\"No 204\"**, the following is required:\n- Direct materials: **6,500**\n- Direct labor hours: **3,000 [hours]**\n- Machine hours: **1,400 [hours]**\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Indirect costs are costs that cannot be directly measured in respect of a particular job or cost unit.\n   - **b.** Direct labor and direct materials should be included in the overhead pool when calculating the overhead recovery rate.\n   - **c.** Full cost information is used for inventory valuation and long-run pricing decisions.\n2. Calculate the **overhead recovery rate** based on direct labor hours. *(4 points)*\n3. Calculate the **direct labor cost**, **overheads absorbed**, and **full cost** for order **\"No 204\"** using the overhead rate based on direct labor hours. *(10 points)*",
+      "contextMarkdown": "",
+      "options": [],
+      "answerIndex": null,
+      "hints": [
+        "Total overheads = Total manufacturing costs (1,200,000) minus Direct labor (480,000) and Direct materials (160,000)."
+      ],
+      "solutionMarkdown": "**1. Right or wrong (6 pts):** `1a = Right`, `1b = Wrong` (direct costs are traced directly, never put into the overhead pool), `1c = Right`.\n\n**2. Overhead recovery rate (4 pts):**\n- Total indirect overheads = `1,200,000 − 480,000 − 160,000 = 560,000`\n- Overhead recovery rate = `560,000 / 80,000 DLH = 7.00` per DLH\n\n**3. Full cost for order \"No 204\" (10 pts):**\n- Direct labor hourly rate = `480,000 / 80,000 = 6.00` per DLH\n- Direct materials = `6,500`\n- Direct labor = `3,000 × 6.00 = 18,000`\n- Overheads absorbed = `3,000 × 7.00 = 21,000`\n- **Full cost of order \"No 204\"** = `6,500 + 18,000 + 21,000 = 45,500`",
+      "pitfall": "Do NOT include Direct Labor or Direct Materials in the numerator of the overhead recovery rate — subtract both from 1,200,000 first!",
+      "rubricChecks": [],
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1a. Indirect costs cannot be directly traced to one job",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1b. Include direct labor & materials in overhead pool",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1c. Full costing supports inventory valuation & pricing",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "oar",
+          "group": "2. Overhead Recovery Rate (4 pts)",
+          "label": "Overhead recovery rate per direct labor hour",
+          "type": "number",
+          "expected": 7.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "/DLH",
+          "points": 4
+        },
+        {
+          "id": "dl_cost",
+          "group": "3. Full Cost of Order 'No 204' (10 pts)",
+          "label": "Direct labor cost for Order 'No 204'",
+          "type": "number",
+          "expected": 18000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "oh_abs",
+          "group": "3. Full Cost of Order 'No 204' (10 pts)",
+          "label": "Overheads absorbed by Order 'No 204'",
+          "type": "number",
+          "expected": 21000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "full_cost",
+          "group": "3. Full Cost of Order 'No 204' (10 pts)",
+          "label": "Total full cost of Order 'No 204'",
+          "type": "number",
+          "expected": 45500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 4
+        }
+      ],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format",
+        "full-costing"
+      ],
+      "pacing": {
+        "parSec": 1100
+      }
+    },
+    {
+      "id": "acct-2527:WFD-E4",
+      "localId": "WFD-E4",
+      "courseId": "acct-2527",
+      "collectionId": "WF-MOCK-D",
+      "topicId": "10",
+      "title": "Exercise 4: Net present value",
+      "kind": "calculation",
+      "origin": "mock_exam",
+      "available": true,
+      "difficulty": 3,
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "points": 40,
+      "promptMarkdown": "**Solheim Industri AS** considers implementing an investment project with a useful life of **three years**. To implement the project, Solheim needs to buy a machine in **t = 0** for **60,000**. At the end of the three years in **t = 3**, the machine can be sold for **12,000**.\n\nThe machine produces **1,200 units** of a product each year from **t = 1** until **t = 3** at variable cash costs of **12 per unit** (paid immediately). The sales pattern is as follows:\n\n| Period | Price per Unit | Sales Quantity | Cash Collection Pattern |\n| --- | ---: | ---: | --- |\n| t = 1 | 34 | 1,200 | Immediate payment for 600 units; payment for 600 units in t = 2 |\n| t = 2 | 30 | 1,200 | Immediate payment for 600 units; payment for 600 units in t = 3 |\n| t = 3 | 30 | 1,200 | Immediate payment for all 1,200 units |\n\nThe cost of capital is **r = 0.1** (10%; discount factor for t = 3 is `0.7513`; the other discount factors need to be calculated).\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** The accounting rate of return (ARR) is the average accounting profit from the project expressed as a percentage of the average investment.\n   - **b.** Payback period (PP) is the length of time until an initial investment generates cumulative operating profit equal to its cost.\n   - **c.** Net present value (NPV) is the sum of the discounted values of all net cash flows from an investment.\n2. Calculate the net cash flows for t = 1, t = 2, t = 3 and the **Net Present Value (NPV)** at 10%. *(14 points)*\n3. Calculate the **net income** from the project for each period **t = 1**, **t = 2**, and **t = 3**. Assume straight-line depreciation of the machine. *(14 points)*\n4. What is the **total present value (in t = 0)** of the periods' **residual income**? *(No extra calculation necessary.)* *(2 points)*\n5. Is the **internal rate of return (IRR)** larger or smaller than **10%**? *(4 points)*",
+      "contextMarkdown": "",
+      "options": [],
+      "answerIndex": null,
+      "hints": [
+        "Cash receipts in t=1 are 600×34 = 20,400; in t=2 are 600×34 + 600×30 = 38,400; in t=3 are 600×30 + 1,200×30 = 54,000 plus salvage 12,000.",
+        "Annual straight-line depreciation = (60,000 − 12,000) / 3 = 16,000; Preinreich–Lücke theorem guarantees PV(Residual Income) = NPV."
+      ],
+      "solutionMarkdown": "**1. Right or wrong (6 pts):** `1a = Right`, `1b = Wrong` (payback measures **cash flows**, not operating profit), `1c = Right`.\n\n**2. Cash Flows & NPV at 10% (14 pts):**\n- Variable cash outflow each year = `1,200 × 12 = 14,400`\n- `CF₀ = −60,000`\n- `CF₁ = (600 × 34) − 14,400 = 20,400 − 14,400 = 6,000`\n- `CF₂ = (600 × 34) + (600 × 30) − 14,400 = 38,400 − 14,400 = 24,000`\n- `CF₃ = (600 × 30) + (1,200 × 30) − 14,400 + 12,000 = 51,600`\n- `NPV = −60,000 + 6,000/1.1 + 24,000/1.1² + 51,600/1.1³ = −60,000 + 5,454.55 + 19,834.71 + 38,767.84 = 4057.1`\n\n**3. Accrual Net Income t = 1..3 (14 pts):**\n- Straight-line depreciation = `(60,000 − 12,000) / 3 = 16,000` per year\n- `NI₁ = (1,200 × 34) − 14,400 − 16,000 = 10,400`\n- `NI₂ = (1,200 × 30) − 14,400 − 16,000 = 5,600`\n- `NI₃ = (1,200 × 30) − 14,400 − 16,000 = 5,600`\n\n**4. Total PV of Residual Income at t = 0 (2 pts):** By the Preinreich–Lücke theorem, `PV(RI) = NPV = 4057.1` (no extra calculation needed!).\n\n**5. IRR vs 10% (4 pts):** Because `NPV > 0` at `10%` on a conventional investment, the IRR must be **Larger than 10%**.",
+      "pitfall": "Remember that Net Income uses invoiced accrual sales (1,200 units/yr) minus depreciation, whereas NPV uses cash collections and ignores depreciation!",
+      "rubricChecks": [],
+      "wiseflowFields": [
+        {
+          "id": "1a",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1a. ARR = average accounting profit / average investment",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "1b",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1b. Payback period measures operating profit recovery",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "1c",
+          "group": "1. Right or wrong? (6 pts)",
+          "label": "1c. NPV is the sum of discounted net cash flows",
+          "type": "choice",
+          "options": [
+            "Right",
+            "Wrong"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "cf1",
+          "group": "2. Cash Flows & NPV at 10% (14 pts)",
+          "label": "Net cash flow in t = 1",
+          "type": "number",
+          "expected": 6000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "cf2",
+          "group": "2. Cash Flows & NPV at 10% (14 pts)",
+          "label": "Net cash flow in t = 2",
+          "type": "number",
+          "expected": 24000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "cf3",
+          "group": "2. Cash Flows & NPV at 10% (14 pts)",
+          "label": "Net cash flow in t = 3 (incl. salvage)",
+          "type": "number",
+          "expected": 51600.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "npv",
+          "group": "2. Cash Flows & NPV at 10% (14 pts)",
+          "label": "Net Present Value (NPV at 10%)",
+          "type": "number",
+          "expected": 4057.1,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 5
+        },
+        {
+          "id": "ni1",
+          "group": "3. Net Income t = 1 to t = 3 (14 pts)",
+          "label": "Net income in t = 1",
+          "type": "number",
+          "expected": 10400.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 5
+        },
+        {
+          "id": "ni2",
+          "group": "3. Net Income t = 1 to t = 3 (14 pts)",
+          "label": "Net income in t = 2",
+          "type": "number",
+          "expected": 5600.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 5
+        },
+        {
+          "id": "ni3",
+          "group": "3. Net Income t = 1 to t = 3 (14 pts)",
+          "label": "Net income in t = 3",
+          "type": "number",
+          "expected": 5600.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 4
+        },
+        {
+          "id": "pv_ri",
+          "group": "4. PV of Residual Income (2 pts)",
+          "label": "Total PV (at t = 0) of residual incomes",
+          "type": "number",
+          "expected": 4057.1,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 2
+        },
+        {
+          "id": "irr_cmp",
+          "group": "5. IRR vs 10% (4 pts)",
+          "label": "Is IRR larger or smaller than 10%?",
+          "type": "choice",
+          "options": [
+            "Larger than 10%",
+            "Smaller than 10%"
+          ],
+          "answerIndex": 0,
+          "points": 4
+        }
+      ],
+      "promptAssets": [],
+      "contextAssets": [],
+      "solutionAssets": [],
+      "sources": {},
+      "tags": [
+        "wiseflow-mock",
+        "classic-bi-format",
+        "npv",
+        "residual-income"
+      ],
+      "pacing": {
+        "parSec": 2100
+      }
     }
   ]
 }

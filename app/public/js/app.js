@@ -2216,7 +2216,14 @@ window.StudyApp = (() => {
             <p class="muted" style="margin:0;font-size:14px">
               Choose a timed mock or a guided practice session. Accounting mocks include numerical entry with a 2% tolerance.
             </p>
-            <p><a href="https://portal.bi.no/en/exams/former-examination-papers" target="_blank" rel="noopener">Official past papers and marking guides on the BI portal ↗</a></p>
+            <div class="row-actions" style="margin-top:10px;flex-wrap:wrap">
+              ${isStaticWeb && members.enabled && !members.isUnlocked()
+                ? `<button type="button" class="primary-btn" id="btn-exams-unlock-member">Unlock full member library (past exams &amp; PDFs)</button>`
+                : isStaticWeb && members.enabled && members.isUnlocked()
+                ? `<span class="badge good">Full member library unlocked</span>`
+                : ''}
+              <a class="ghost-btn" href="https://portal.bi.no/en/exams/former-examination-papers" target="_blank" rel="noopener">Official BI past papers portal ↗</a>
+            </div>
           </div>
           <div>
             <small class="muted" style="display:block;margin-bottom:6px;font-weight:700">DELIVERY MODE:</small>
@@ -2233,6 +2240,10 @@ window.StudyApp = (() => {
       </div>
       ${cardsHtml}
     `;
+
+    root.querySelector('#btn-exams-unlock-member')?.addEventListener('click', () => {
+      document.getElementById('btn-member-library')?.click();
+    });
 
     root.querySelectorAll('[data-exam-style]').forEach((btn) => {
       btn.addEventListener('click', () => {

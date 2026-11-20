@@ -916,11 +916,13 @@ html[data-theme="dark"] .tag-chip.selected { color: #081310; }
   background: color-mix(in srgb, var(--bad-soft) 55%, var(--panel));
 }
 .wf-label-col {
-  flex: 1;
-  min-width: 220px;
+  flex: 1 1 165px;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 .wf-label-col strong {
-  font-size: 14px;
+  font-size: 13.5px;
+  line-height: 1.35;
   display: block;
 }
 .wf-label-col small {
@@ -931,10 +933,13 @@ html[data-theme="dark"] .tag-chip.selected { color: #081310; }
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  max-width: 100%;
+  flex-shrink: 0;
 }
 .wf-num-wrap {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--bg);
@@ -943,7 +948,8 @@ html[data-theme="dark"] .tag-chip.selected { color: #081310; }
 .wf-num-wrap input {
   border: none !important;
   background: transparent !important;
-  width: 145px;
+  width: 124px;
+  min-width: 0;
   padding: 7px 10px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
@@ -1326,6 +1332,69 @@ body.runner-split-wide.runner-split-pdf .container {
   padding: 18px 20px 26px;
   box-shadow: var(--shadow);
   min-width: 0;
+  overflow-x: hidden;
+}
+
+/* Official BI Exam Paper Sheet Styling */
+.exam-paper-sheet {
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+.exam-paper-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1.5px solid var(--line);
+}
+.exam-paper-header h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: -0.015em;
+}
+.exam-paper-pts {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.exam-paper-sheet .markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0 16px;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+.exam-paper-sheet .markdown-body th,
+.exam-paper-sheet .markdown-body td {
+  border: 1px solid var(--line);
+  padding: 7px 11px;
+}
+.exam-paper-sheet .markdown-body th {
+  background: var(--panel-alt);
+  font-weight: 700;
+}
+.exam-paper-sheet .markdown-body h3 {
+  margin: 18px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+  font-weight: 750;
+}
+.exam-paper-sheet .markdown-body ol {
+  padding-left: 20px;
+  margin: 6px 0 0;
+}
+.exam-paper-sheet .markdown-body ol > li {
+  margin-bottom: 8px;
+}
+.exam-paper-sheet .markdown-body ol ul {
+  list-style: none;
+  padding-left: 16px;
+  margin: 4px 0 6px;
 }
 
 @media (max-width: 1019px) {

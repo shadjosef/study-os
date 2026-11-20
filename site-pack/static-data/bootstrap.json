@@ -225,14 +225,14 @@
         "durationMinutes": 180,
         "notes": "01.12.2026 09:00–12:00 · 180-pt WISEflow FLOWmulti: 10 MCQs (40 pts) + 4 Multi-Section Exercises (140 pts) · Official 2026 Title Page: whole numbers by default unless 3 decimals with DOT (.) announced (never comma!); minus sign (-50) for outflows/losses; ±2% rounding margin; carry rounded intermediates forward; type '.' in Section 13; zero formula sheet."
       },
-      "questionCount": 42,
-      "mcqCount": 30,
-      "writtenOrCalcCount": 12,
-      "hardCount": 8,
-      "highDlpfcCount": 12,
-      "medDlpfcCount": 10,
-      "lowDlpfcCount": 20,
-      "flowmultiCount": 12,
+      "questionCount": 56,
+      "mcqCount": 40,
+      "writtenOrCalcCount": 16,
+      "hardCount": 10,
+      "highDlpfcCount": 14,
+      "medDlpfcCount": 16,
+      "lowDlpfcCount": 26,
+      "flowmultiCount": 16,
       "topicCount": 8,
       "topics": [
         {
@@ -395,6 +395,13 @@
           "id": "WF-MOCK-C",
           "title": "WISEflow Mock Exam C · Full Syllabus (180 pts, ±2% Auto-Graded)",
           "kind": "mock_exam"
+        },
+        {
+          "id": "WF-MOCK-D",
+          "title": "WISEflow Mock Exam D · Classic BI Exam Format (180 pts, ±2% Auto-Graded)",
+          "kind": "mock_exam",
+          "durationMinutes": 180,
+          "notes": "180-point official BI format (10 MCQs = 40 pts + Ex 1 SFP 50 pts + Ex 2 Break-Even 30 pts + Ex 3 Full Costing 20 pts + Ex 4 NPV & Residual Income 40 pts)."
         }
       ],
       "obsidian": {

@@ -1075,12 +1075,22 @@ window.StudyRunner = (() => {
         </div>
       `;
     } else {
+      const isExamSheet = Boolean(hasWf || q.origin === 'mock_exam' || q.origin === 'original_exam');
+      const cleanTitle = String(q.title || '').replace(/\s*\(\d+\s*pts?\)\s*$/i, '');
+      const headerHtml = isExamSheet && q.points
+        ? `<div class="exam-paper-header">
+             <h2>${esc(cleanTitle)}</h2>
+             <span class="exam-paper-pts">(${Number(q.points)} points in total)</span>
+           </div>`
+        : `<h2 style="margin-top:0">${esc(q.title)}</h2>`;
       readerBodyHtml = `
-        <h2 style="margin-top:0">${esc(q.title)}</h2>
-        ${contextHtml}
-        ${promptAssetsHtml}
-        ${svgHtml}
-        ${promptMdHtml}
+        <div class="${isExamSheet ? 'exam-paper-sheet' : ''}">
+          ${headerHtml}
+          ${contextHtml}
+          ${promptAssetsHtml}
+          ${svgHtml}
+          ${promptMdHtml}
+        </div>
       `;
     }
 
