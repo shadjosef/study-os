@@ -982,45 +982,11 @@ window.StudyRunner = (() => {
 
     renderRunnerDashboard();
 
-    const handicapSec = st.hintsUsed * st.handicapPerHintSec;
-    const pbText = rec.pbEffectiveSec ? ` · Best ${clockSec(rec.pbEffectiveSec)}` : '';
-
-    // Full Ghost Race Box (for Split Pane) vs Slim 1-Line Pace Strip (for Foveal Focus Column)
-    const ghostHtml = isSplit
-      ? `
-      <section class="ghost-race-box" aria-label="AI Pacing Timer" style="margin-top:0">
-        <div class="row-between" style="margin:0">
-          <div>
-            <strong>${activeRun.profile === 'exam' ? 'AI Exam Par' : 'AI Learning Par'}: <span id="ghost-target-lbl">${clockSec(st.targetSec)}</span></strong>
-            <small class="muted"> (${minLabel(st.minSec / 60)}–${minLabel(st.maxSec / 60)}${pbText})</small>
-          </div>
-          <span id="ghost-delta-badge" class="badge">Ready</span>
-        </div>
-        <div class="ghost-bars">
-          <div class="bar-row">
-            <span>You ${handicapSec ? `(+${handicapSec}s)` : ''}</span>
-            <div class="bar-track"><div id="bar-you" class="bar-fill-you" style="width:0%"></div></div>
-            <span id="lbl-you-time">0:00</span>
-          </div>
-          <div class="bar-row">
-            <span class="muted">AI Par</span>
-            <div class="bar-track"><div class="bar-fill-ai" style="width:100%"></div></div>
-            <span class="muted">${clockSec(st.targetSec)}</span>
-          </div>
-        </div>
-      </section>
-    `
-      : `
-      <div class="slim-pace-strip" aria-label="AI Pacing Timer">
-        <div class="slim-pace-row">
-          <span class="muted">${activeRun.profile === 'exam' ? 'Exam Par' : 'Par'} <strong id="ghost-target-lbl">${clockSec(
-            st.targetSec
-          )}</strong> · You <strong id="lbl-you-time">0:00</strong>${handicapSec ? ` (+${handicapSec}s)` : ''}${pbText}</span>
-          <span id="ghost-delta-badge" class="badge">Ready</span>
-        </div>
-        <div class="slim-pace-track"><div id="bar-you" class="bar-fill-you" style="width:0%"></div></div>
-      </div>
-    `;
+    const parType = activeRun.profile === 'exam' ? 'Exam' : 'Learning';
+    const parRange = `${minLabel(st.minSec / 60)}–${minLabel(st.maxSec / 60)}`;
+    const personalBest = rec.pbEffectiveSec ? ` · Best ${clockSec(rec.pbEffectiveSec)}` : '';
+    document.getElementById('run-pace-target').title = `${parType} par · Typical range ${parRange}${personalBest}`;
+    document.getElementById('run-pace-par').textContent = clockSec(st.targetSec);
 
     // Question Body / Left Reader Content
     const contextHtml =
@@ -1558,7 +1524,6 @@ window.StudyRunner = (() => {
               aria-valuemin="32" aria-valuemax="68" aria-valuenow="${initialWidth}" tabindex="0"></div>
           <div class="runner-pane-right">
             ${statusBarHtml}
-            ${ghostHtml}
             <div id="stall-nudge-banner" class="hint-box stall-banner" hidden></div>
             ${workspaceHtml}
             ${fovealActionBarHtml}
@@ -1571,7 +1536,6 @@ window.StudyRunner = (() => {
     } else {
       card.innerHTML = `
         ${statusBarHtml}
-        ${ghostHtml}
         <div class="foveal-prompt-block">
           ${readerBodyHtml}
         </div>
@@ -2163,26 +2127,58 @@ window.StudyRunner = (() => {
     }
   }
 
+  function updateRunnerPace(st, activeSec, finished) {
+    const pace = document.getElementById('runner-pace');
+    const button = document.getElementById('run-live-pill');
+    const you = document.getElementById('run-pace-you');
+    const status = document.getElementById('run-pace-status');
+    const hintTime = st.hintsUsed * st.handicapPerHintSec;
+    const elapsed = st.loggedAttempt?.effectiveSec ?? activeSec + hintTime;
+    const elapsedLabel = clockSec(Math.floor(elapsed));
+    const remaining = st.targetSec - elapsed;
+    const paused = st.runningSince === null && !finished;
+    let tone = 'running';
+    let message = `${clockSec(Math.ceil(remaining))} left`;
+    if (st.loggedAttempt?.beatAi) {
+      tone = 'beat';
+      message = 'Beat par';
+    } else if (remaining <= 0) {
+      tone = 'overtime';
+      const overtime = Math.floor(-remaining);
+      message = overtime ? `${clockSec(overtime)} over` : 'Par reached';
+    } else if (finished) {
+      tone = 'review';
+      message = 'Review';
+    } else if (remaining <= Math.min(30, st.targetSec * 0.08)) {
+      tone = 'urgent';
+    } else if (remaining <= Math.min(120, st.targetSec * 0.2)) {
+      tone = 'near';
+    }
+
+    if (paused) message = `Paused · ${message}`;
+    const action = st.pauseActive ? 'Resume question timer' : 'Pause question timer';
+    const buttonLabel = finished ? 'Your final time' : action;
+    const hintLabel = hintTime ? ` · Includes ${clockSec(hintTime)} for hints` : '';
+    const buttonTitle = (finished ? buttonLabel : `${buttonLabel} (P)`) + hintLabel;
+    button.disabled = finished;
+    if (button.getAttribute('aria-label') !== buttonLabel) button.setAttribute('aria-label', buttonLabel);
+    if (button.title !== buttonTitle) button.title = buttonTitle;
+    if (you.textContent !== elapsedLabel) you.textContent = elapsedLabel;
+    if (status.textContent !== message) status.textContent = message;
+    if (pace.dataset.tone !== tone) pace.dataset.tone = tone;
+    pace.toggleAttribute('data-paused', paused);
+    const progress = Math.min(1, elapsed / st.targetSec);
+    pace.style.setProperty('--pace-position', `${(progress * 100).toFixed(2)}%`);
+  }
+
   function tickLiveClocks() {
     if (!activeRun || document.getElementById('view-runner').hidden) return;
     const q = currentQuestion();
     if (!q) return;
     const st = itemState(q.id);
     const activeSec = itemActiveSec(st);
-    const effSec = activeSec + st.hintsUsed * st.handicapPerHintSec;
-    const delta = effSec - st.targetSec;
-
-    const pill = document.getElementById('run-live-pill');
-    if (pill) {
-      if (st.pauseActive) {
-        const tag = st.pauseActive.reason === 'manual_pause' ? 'Paused' : 'Auto-Paused';
-        pill.textContent = `${tag} · ${clockSec(activeSec)}`;
-        pill.classList.add('flow-pill-warn');
-      } else {
-        pill.textContent = `Q ${clockSec(activeSec)}`;
-        pill.classList.remove('flow-pill-warn');
-      }
-    }
+    const isBlindUnfinished = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
+    updateRunnerPace(st, activeSec, st.revealed && !isBlindUnfinished);
 
     // Anti-Stall nudge (Guided Practice mode)
     const stallBanner = document.getElementById('stall-nudge-banner');
@@ -2207,33 +2203,6 @@ window.StudyRunner = (() => {
       const remSec = Math.max(0, activeRun.examBudgetSec - totalExamActiveSec());
       examCd.textContent = `${clockSec(remSec)} left`;
       examCd.classList.toggle('urgent', remSec <= 600);
-    }
-
-    const lblYou = document.getElementById('lbl-you-time');
-    if (lblYou) lblYou.textContent = clockSec(effSec);
-
-    const barYou = document.getElementById('bar-you');
-    const badge = document.getElementById('ghost-delta-badge');
-    if (barYou && badge) {
-      const pct = Math.min(100, (effSec / Math.max(1, st.targetSec)) * 100);
-      barYou.style.width = `${pct.toFixed(1)}%`;
-      barYou.classList.remove('near', 'over');
-      badge.className = 'badge';
-
-      if (delta <= 0) {
-        if (pct >= 82) {
-          barYou.classList.add('near');
-          badge.classList.add('warn');
-          badge.textContent = `${clockSec(Math.abs(delta))} under Par`;
-        } else {
-          badge.classList.add('live');
-          badge.textContent = `-${clockSec(Math.abs(delta))} vs Par`;
-        }
-      } else {
-        barYou.classList.add('over');
-        badge.classList.add('bad');
-        badge.textContent = `+${clockSec(delta)} over Par`;
-      }
     }
   }
 
