@@ -348,6 +348,7 @@ window.StudyUI = (() => {
       wavePauseReason: '',
       breakStartedAtMs: null,
       breakEndsAtMs: null,
+      devPausedAtMs: null,
       breakTotalSec: 300,
       breakBankedSec: 0,
       lastWaveSec: 0,
@@ -367,7 +368,7 @@ window.StudyUI = (() => {
       const raw = JSON.parse(localStorage.getItem(WORK_WAVE_KEY));
       if (!raw || typeof raw !== 'object') return fallback;
       const st = { ...fallback, ...raw };
-      const now = Date.now();
+      const now = st.devPausedAtMs || Date.now();
       if (st.dayKey !== today) {
         st.dayKey = today;
         st.dayBankedSec = 0;
@@ -397,7 +398,7 @@ window.StudyUI = (() => {
         st.breakBankedSec = 0;
       }
       // Never leave a working session stuck in a non-manual focus auto-pause
-      if (st.mode === 'working' && st.wavePausedSinceMs && st.wavePauseReason !== 'manual') {
+      if (!st.devPausedAtMs && st.mode === 'working' && st.wavePausedSinceMs && st.wavePauseReason !== 'manual') {
         st.wavePausedOffsetMs = (Number(st.wavePausedOffsetMs) || 0) + Math.max(0, now - st.wavePausedSinceMs);
         st.wavePausedSinceMs = null;
         st.wavePauseReason = '';
@@ -459,23 +460,30 @@ window.StudyUI = (() => {
         return;
       }
       if (next && !this.isAllowed()) return;
+      if (window.StudyRunner?.isSaving?.()) {
+        toast('Wait for the current answer or session to finish saving.');
+        return;
+      }
+      if (next) {
+        window.StudyApp?.flushPendingDrafts?.();
+        freezeDevClocks();
+      }
       devModeActive = next;
       try {
         if (next) sessionStorage.setItem(DEV_MODE_KEY, '1');
         else sessionStorage.removeItem(DEV_MODE_KEY);
       } catch {}
       if (!next) {
-        workState = loadWorkState();
-        lastScreenTickMs = Date.now();
+        resumeDevClocks();
       } else {
         document.getElementById('break-modal')?.close?.();
       }
-      this.syncUi();
+      window.StudyRunner?.onDevModeChange?.(next);
       renderWorkClockDom();
       window.StudyApp?.onDevModeChange?.(next);
       toast(
         next
-          ? 'Dev Mode ON · Scores, break timer & cloud sync paused.'
+          ? 'Dev Mode ON · Study timers and tracking paused.'
           : 'Dev Mode OFF · Real progress & timers restored.'
       );
     },
@@ -491,12 +499,30 @@ window.StudyUI = (() => {
   let lastScreenTickMs = Date.now();
   let lastScreenSaveMs = 0;
 
-  function saveWorkState() {
-    if (devModeActive) return;
+  function saveWorkState(allowDevPause = false) {
+    if (devModeActive && !allowDevPause) return;
     try {
       localStorage.setItem(WORK_WAVE_KEY, JSON.stringify(workState));
       lastScreenSaveMs = Date.now();
     } catch {}
+  }
+
+  function freezeDevClocks(now = Date.now()) {
+    if (workState.devPausedAtMs) return;
+    settleActiveBreak(now);
+    workState.devPausedAtMs = now;
+    saveWorkState(true);
+  }
+
+  function resumeDevClocks(now = Date.now()) {
+    if (!workState.devPausedAtMs) return;
+    const pausedMs = Math.max(0, now - workState.devPausedAtMs);
+    for (const field of ['waveStartedAtMs', 'wavePausedSinceMs', 'breakStartedAtMs', 'breakEndsAtMs']) {
+      if (workState[field]) workState[field] += pausedMs;
+    }
+    workState.devPausedAtMs = null;
+    lastScreenTickMs = now;
+    saveWorkState();
   }
 
   function settleActiveBreak(now = Date.now()) {
@@ -514,6 +540,7 @@ window.StudyUI = (() => {
   }
 
   function computeBreakStats(now = Date.now()) {
+    now = workState.devPausedAtMs || now;
     let extraSec = 0;
     if (workState.mode === 'break' && workState.breakStartedAtMs) {
       const elapsed = Math.max(0, Math.floor((now - workState.breakStartedAtMs) / 1000));
@@ -551,6 +578,7 @@ window.StudyUI = (() => {
   }
 
   function currentWaveElapsedSec(now = Date.now()) {
+    now = workState.devPausedAtMs || now;
     if (workState.mode !== 'working' || !workState.waveStartedAtMs) return 0;
     const pausedMs =
       (Number(workState.wavePausedOffsetMs) || 0) +
@@ -583,7 +611,7 @@ window.StudyUI = (() => {
     MAX_SEC: WORK_CAP_SEC,
     canUseBreakTools(now = Date.now()) {
       if (devModeActive) return true;
-      return eveningBreakAccess(now) || (workState.mode === 'break' && workState.breakEndsAtMs > now);
+      return eveningBreakAccess(now) || (!workState.devPausedAtMs && workState.mode === 'break' && workState.breakEndsAtMs > now);
     },
     getState() {
       return {
@@ -597,6 +625,7 @@ window.StudyUI = (() => {
         renderWorkClockDom();
         return;
       }
+      resumeDevClocks();
       if (workState.mode === 'working' && workState.waveStartedAtMs) {
         if (workState.wavePausedSinceMs && workState.wavePauseReason !== 'manual') {
           this.setPaused(false);
@@ -617,7 +646,7 @@ window.StudyUI = (() => {
       renderWorkClockDom();
     },
     setPaused(paused, reason = 'auto') {
-      if (devModeActive) return;
+      if (devModeActive || workState.devPausedAtMs) return;
       if (workState.mode !== 'working' || !workState.waveStartedAtMs) return;
       const now = Date.now();
       if (paused) {
@@ -641,6 +670,7 @@ window.StudyUI = (() => {
         toast('Dev Mode ON — break timer & break score are frozen.');
         return;
       }
+      resumeDevClocks();
       const now = Date.now();
       if (workState.mode === 'break') settleActiveBreak(now);
       const elapsed = workState.mode === 'working' ? (isAutoCap ? WORK_CAP_SEC : currentWaveElapsedSec(now)) : 0;
@@ -674,6 +704,7 @@ window.StudyUI = (() => {
         document.getElementById('break-modal')?.close?.();
         return;
       }
+      resumeDevClocks();
       const now = Date.now();
       settleActiveBreak(now);
       workState.dayKey = localDayKey();
@@ -697,6 +728,7 @@ window.StudyUI = (() => {
         document.getElementById('break-modal')?.close?.();
         return;
       }
+      resumeDevClocks();
       const now = Date.now();
       settleActiveBreak(now);
       if (workState.mode === 'working' && workState.waveStartedAtMs) {
@@ -722,7 +754,7 @@ window.StudyUI = (() => {
       renderWorkClockDom();
     },
     addBreakSeconds(sec = 60) {
-      if (devModeActive || workState.mode !== 'break') return;
+      if (devModeActive || workState.devPausedAtMs || workState.mode !== 'break') return;
       const now = Date.now();
       const base = Math.max(now, workState.breakEndsAtMs || now);
       workState.breakEndsAtMs = base + sec * 1000;
@@ -733,7 +765,7 @@ window.StudyUI = (() => {
       renderWorkClockDom();
     },
     syncBackendToday(todayActiveMin = 0, todayAwayMin = 0) {
-      if (devModeActive) return;
+      if (devModeActive || workState.devPausedAtMs) return;
       workState.backendActiveFloorSec = Math.max(
         Number(workState.backendActiveFloorSec) || 0,
         Math.round(Math.max(0, Number(todayActiveMin) || 0) * 60)
@@ -759,16 +791,25 @@ window.StudyUI = (() => {
   function renderWorkClockDom() {
     const now = Date.now();
     devMode.syncUi();
-    if (devModeActive) {
+    if (devModeActive || workState.devPausedAtMs) {
       lastScreenTickMs = now;
       const gPill = document.getElementById('global-work-pill');
       const rPill = document.getElementById('run-work-pill');
-      const frozenTip = 'Dev Mode ON · Real work timer, break score, UPI & cloud sync are frozen.';
+      const pausedAt = workState.devPausedAtMs || now;
+      const timerSec = workState.mode === 'break'
+        ? Math.max(0, Math.ceil((workState.breakEndsAtMs - pausedAt) / 1000))
+        : currentWaveElapsedSec(pausedAt);
+      const frozenTip = 'Study timers are paused for Dev Mode.';
       [gPill, rPill].forEach((p) => {
         if (!p) return;
         p.className = 'live-clock-pill non-interactive flow-pill-warn';
-        p.textContent = 'Dev Sandbox';
+        p.textContent = `Dev paused · ${clockSec(timerSec)}`;
         p.title = frozenTip;
+      });
+      ['global-work-action-btn', 'run-break-btn'].forEach((id) => {
+        const button = document.getElementById(id);
+        button.textContent = devModeActive ? 'Timers paused' : 'Resume timers';
+        button.title = frozenTip;
       });
       document.querySelector('main').inert = false;
       document.getElementById('global-header').inert = false;
@@ -856,6 +897,7 @@ window.StudyUI = (() => {
       }
       if (rBtn) {
         rBtn.textContent = `Break (${bMin}m)`;
+        rBtn.title = `Take scaled 1:5 off-screen break (${bMin}m)`;
       }
     } else if (workState.mode === 'break') {
       const remSec = Math.max(0, Math.ceil(((workState.breakEndsAtMs || now) - now) / 1000));
@@ -871,8 +913,11 @@ window.StudyUI = (() => {
         rPill.textContent = txt;
         rPill.title = tip;
       }
-      if (gBtn) gBtn.textContent = remSec > 0 ? 'In Break' : 'Break ended';
-      if (rBtn) rBtn.textContent = remSec > 0 ? 'In Break' : 'Break ended';
+      for (const button of [gBtn, rBtn]) {
+        if (!button) continue;
+        button.textContent = remSec > 0 ? 'In Break' : 'Break ended';
+        button.title = 'Open break controls';
+      }
       if (cdEl) cdEl.textContent = remSec ? clockSec(remSec) : '00:00';
     } else {
       const cls = 'live-clock-pill non-interactive idle-work-pill';
@@ -894,6 +939,7 @@ window.StudyUI = (() => {
       }
       if (rBtn) {
         rBtn.textContent = 'Start 75m';
+        rBtn.title = tip;
       }
     }
     const evening = eveningBreakAccess(now);
@@ -1720,6 +1766,12 @@ window.StudyUI = (() => {
         toast('Dev Mode ON — real work & break timers are frozen.');
         return;
       }
+      if (workState.devPausedAtMs) {
+        resumeDevClocks();
+        renderWorkClockDom();
+        if (workState.mode === 'break') showBreakModalUi();
+        return;
+      }
       if (workState.mode === 'working') {
         workClock.triggerBreak(false);
       } else if (workState.mode === 'break') {
@@ -1787,8 +1839,9 @@ window.StudyUI = (() => {
       saveWorkState();
     });
 
+    if (devModeActive) freezeDevClocks();
     renderWorkClockDom();
-    if (workState.mode === 'break' && (workState.breakEndsAtMs || 0) > Date.now()) {
+    if (!workState.devPausedAtMs && workState.mode === 'break' && (workState.breakEndsAtMs || 0) > Date.now()) {
       showBreakModalUi();
     }
     clearInterval(workTickHandle);

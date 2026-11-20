@@ -1196,7 +1196,7 @@ window.StudyApp = (() => {
   let cloudSyncMeta = { status: '', updatedAt: 0, recordCount: 0 };
 
   function buildWebBackupPayload() {
-    flushWebDrafts();
+    flushPendingDrafts();
     const ws = loadWebState();
     return {
       exportedAt: new Date().toISOString(),
@@ -5478,7 +5478,7 @@ window.StudyApp = (() => {
     pendingDrafts.set(questionId, next);
   }
 
-  function flushWebDrafts() {
+  function flushPendingDrafts() {
     for (const [qid, pending] of pendingDrafts) {
       clearTimeout(pending.timer);
       saveDraft(qid, pending.fields);
@@ -5603,7 +5603,7 @@ window.StudyApp = (() => {
       window.location.href = '/api/export-backup';
       return;
     }
-    flushWebDrafts();
+    flushPendingDrafts();
     const ws = loadWebState();
     const blob = new Blob(
       [
@@ -5888,7 +5888,7 @@ window.StudyApp = (() => {
       navigate('room');
     };
     window.StudyCommunity.queueStatsSync();
-    if (isStaticWeb) window.addEventListener('pagehide', flushWebDrafts);
+    if (isStaticWeb) window.addEventListener('pagehide', flushPendingDrafts);
     if (isStaticWeb) document.addEventListener('visibilitychange', () => {
       if (!document.hidden && Date.now() - cloudSyncMeta.updatedAt >= 60_000) {
         syncCloudProgress().catch(() => {});
@@ -5998,7 +5998,7 @@ window.StudyApp = (() => {
       try {
         const data = JSON.parse(await f.text());
         if (isStaticWeb) {
-          flushWebDrafts();
+          flushPendingDrafts();
           const message = restoreWebBackup(data);
           if (message) {
             window.StudyCommunity.queueStatsSync();
@@ -6591,9 +6591,9 @@ window.StudyApp = (() => {
       } else {
         refreshBootstrap().catch(() => {});
       }
-      if (currentView === 'home') renderHome();
-      else if (currentView === 'analytics') renderAnalytics();
+      if (currentView === 'analytics') renderAnalytics();
     }
+    if (currentView === 'home') renderHome();
     syncSettingsRows();
   }
 
@@ -6621,6 +6621,7 @@ window.StudyApp = (() => {
     setQuestionDifficulty,
     saveDraft,
     debouncedSaveDraft,
+    flushPendingDrafts,
     logAttempt,
     logSession,
   };

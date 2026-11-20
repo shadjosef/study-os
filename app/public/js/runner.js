@@ -7,10 +7,12 @@
 'use strict';
 
 window.StudyRunner = (() => {
-  const { esc, examLabel, clockSec, minLabel, renderMarkdownWithMath, toast, openReferenceDrawer, workClock } = window.StudyUI;
+  const { esc, examLabel, clockSec, minLabel, renderMarkdownWithMath, toast, openReferenceDrawer, workClock, devMode } = window.StudyUI;
 
   let activeRun = null;
+  let parkedRun = null;
   let tickInterval = null;
+  let pendingSaves = 0;
 
   const RUNNER_UI_KEY = 'study-os-runner-ui-v3';
   function getRunnerUiPrefs() {
@@ -303,23 +305,24 @@ window.StudyRunner = (() => {
     renderAutoPauseHeaderUi();
   }
 
-  function pauseCurrentTimer() {
+  function pauseCurrentTimer(now = Date.now()) {
     const q = currentQuestion();
     if (!q) return;
     const st = itemState(q.id);
     if (st.runningSince != null) {
-      st.elapsedMs += Math.max(0, Date.now() - st.runningSince);
+      st.elapsedMs += Math.max(0, now - st.runningSince);
       st.runningSince = null;
     }
   }
 
   function resumeCurrentTimer() {
+    if (devMode.isActive()) return;
     const q = currentQuestion();
     if (!q) return;
     if (workClock?.getState?.().mode === 'break') return;
     const st = itemState(q.id);
     if (st.pauseActive) return;
-    if (st.revealed && !(activeRun.examStyle === 'blind' && !activeRun.paperSubmitted)) return;
+    if (activeRun.examStyle === 'blind' ? activeRun.paperSubmitted : st.revealed) return;
     if (st.runningSince == null) {
       st.runningSince = Date.now();
     }
@@ -328,7 +331,7 @@ window.StudyRunner = (() => {
   function closePauseRecord(st, minLogSec = 1.5) {
     if (!st?.pauseActive) return 0;
     const now = Date.now();
-    const durMs = Math.max(0, now - st.pauseActive.startedAtMs);
+    const durMs = Math.max(0, now - st.pauseActive.startedAtMs - (st.pauseActive.excludedMs || 0));
     const durSec = Math.round(durMs / 100) / 10;
     const reason = st.pauseActive.reason;
     const leftAt = st.pauseActive.startedAtIso;
@@ -355,6 +358,7 @@ window.StudyRunner = (() => {
   }
 
   function toggleManualPause() {
+    if (devMode.isActive()) return;
     if (!activeRun || document.getElementById('view-runner')?.hidden) return;
     if (workClock?.getState?.().mode === 'break') return;
     const q = currentQuestion();
@@ -383,7 +387,7 @@ window.StudyRunner = (() => {
   }
 
   function triggerFocusAutoPause(reason = 'window_blur') {
-    if (autoPauseMode === 'off') return;
+    if (devMode.isActive() || autoPauseMode === 'off') return;
     if (workClock?.getState?.().mode === 'break') return;
 
     // Hold universal 75m clock whenever display focus leaves Study-OS
@@ -411,6 +415,7 @@ window.StudyRunner = (() => {
 
   function clearFocusAutoPause(silent = false) {
     clearTimeout(blurTimer);
+    if (devMode.isActive()) return;
     if (!activeRun || document.getElementById('view-runner')?.hidden) {
       workClock?.setPaused?.(false);
       return;
@@ -525,12 +530,7 @@ window.StudyRunner = (() => {
     if (!activeRun) return;
     pauseCurrentTimer();
     activeRun.index = Math.max(0, Math.min(activeRun.questionIds.length - 1, newIndex));
-    const q = currentQuestion();
-    const st = itemState(q.id);
-    const shouldRunClock = activeRun.examStyle === 'blind' ? !activeRun.paperSubmitted : !st.revealed;
-    if (shouldRunClock && workClock?.getState?.().mode !== 'break') {
-      st.runningSince = Date.now();
-    }
+    resumeCurrentTimer();
     renderRunner();
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
@@ -2373,18 +2373,20 @@ window.StudyRunner = (() => {
   }
 
   async function submitVerifiedAttempt(q, st, qualityAccuracy) {
+    const run = activeRun;
     closePauseRecord(st, 1.5);
     const dlpfcTier = window.StudyApp.effectiveDlpfc?.(q)?.tier || Number(q.dlpfcBase || 2);
     const autoGraded = Boolean(q.kind === 'mcq' || (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length) || q.numericCheck);
+    pendingSaves += 1;
     const res = await window.StudyApp.logAttempt({
-      sessionId: activeRun.sessionId,
+      sessionId: run.sessionId,
       courseId: q.courseId,
       questionId: q.id,
       topicId: q.topicId,
       kind: q.kind,
       autoGraded,
       dlpfcTier,
-      profile: activeRun.profile,
+      profile: run.profile,
       activeSec: Math.max(1, itemActiveSec(st)),
       aiParSec: st.targetSec,
       hintsUsed: st.hintsUsed,
@@ -2399,11 +2401,11 @@ window.StudyRunner = (() => {
       draft: st.draft,
       wiseflowAnswers: st.wiseflow,
       checkedRubricIndices: st.checkedRubrics,
-    });
-    activeRun.consecutiveMisses = qualityAccuracy < 0.6 ? (activeRun.consecutiveMisses || 0) + 1 : 0;
+    }).finally(() => { pendingSaves -= 1; });
+    run.consecutiveMisses = qualityAccuracy < 0.6 ? (run.consecutiveMisses || 0) + 1 : 0;
     if (res?.attempt) {
       st.loggedAttempt = res.attempt;
-      activeRun.completedAttempts[q.id] = res.attempt;
+      run.completedAttempts[q.id] = res.attempt;
     }
   }
 
@@ -2416,6 +2418,7 @@ window.StudyRunner = (() => {
     const elapsed = st.loggedAttempt?.effectiveSec ?? activeSec + hintTime;
     const elapsedLabel = clockSec(Math.floor(elapsed));
     const remaining = st.targetSec - elapsed;
+    const devPaused = devMode.isActive();
     const paused = st.runningSince === null && !finished;
     let tone = 'running';
     let message = `${clockSec(Math.ceil(remaining))} left`;
@@ -2435,12 +2438,12 @@ window.StudyRunner = (() => {
       tone = 'near';
     }
 
-    if (paused) message = `Paused · ${message}`;
+    if (paused) message = `${devPaused ? 'Dev paused' : 'Paused'} · ${message}`;
     const action = st.pauseActive ? 'Resume question timer' : 'Pause question timer';
-    const buttonLabel = finished ? 'Your final time' : action;
+    const buttonLabel = finished ? 'Your final time' : devPaused ? 'Timer paused for Dev Mode' : action;
     const hintLabel = hintTime ? ` · Includes ${clockSec(hintTime)} for hints` : '';
-    const buttonTitle = (finished ? buttonLabel : `${buttonLabel} (P)`) + hintLabel;
-    button.disabled = finished;
+    const buttonTitle = (finished || devPaused ? buttonLabel : `${buttonLabel} (P)`) + hintLabel;
+    button.disabled = finished || devPaused;
     if (button.getAttribute('aria-label') !== buttonLabel) button.setAttribute('aria-label', buttonLabel);
     if (button.title !== buttonTitle) button.title = buttonTitle;
     if (you.textContent !== elapsedLabel) you.textContent = elapsedLabel;
@@ -2546,6 +2549,8 @@ window.StudyRunner = (() => {
       const t = window.StudyApp.effectiveDlpfc?.(qo)?.tier || Number(qo?.dlpfcBase || 2);
       return sum + (t >= 3 ? itemActiveSec(it) : 0);
     }, 0);
+    const sandbox = devMode.isActive();
+    pendingSaves += 1;
     await window.StudyApp.logSession({
       sessionId: activeRun.sessionId,
       startedAt: activeRun.startedAtIso,
@@ -2564,7 +2569,7 @@ window.StudyRunner = (() => {
       avgAccuracy: m.avgAcc,
       avgPaceRatio: m.avgPr,
       checkIn,
-    });
+    }).finally(() => { pendingSaves -= 1; });
 
     document.getElementById('checkin-modal').hidden = true;
     if (document.getElementById('checkin-note')) document.getElementById('checkin-note').value = '';
@@ -2578,7 +2583,7 @@ window.StudyRunner = (() => {
     const summaryToast = m.reviewed
       ? `Saved · ${m.reviewed}/${m.total} verified${m.avgAcc != null ? ` · ${Math.round(m.avgAcc * 100)}%` : ''} (${clockSec(m.activeSec)})`
       : 'Session saved.';
-    toast(includeCheckIn ? 'Check-in & session logged.' : summaryToast);
+    toast(sandbox ? 'Dev run ended.' : includeCheckIn ? 'Check-in & session logged.' : summaryToast);
     await window.StudyApp.refreshBootstrap();
     window.StudyApp.navigate(wasExam ? 'exams' : 'home');
   }
@@ -2602,6 +2607,43 @@ window.StudyRunner = (() => {
     window.StudyApp.showRawView('runner');
     resumeCurrentTimer();
     renderRunner();
+  }
+
+  function onDevModeChange(enabled) {
+    const runnerOpen = !document.getElementById('view-runner').hidden;
+    const now = Date.now();
+    clearTimeout(blurTimer);
+    clearInterval(tickInterval);
+    tickInterval = null;
+    if (enabled && activeRun) {
+      const wasRunning = activeRun.items[currentQuestion().id]?.runningSince != null;
+      pauseCurrentTimer(now);
+      parkedRun = { run: activeRun, pausedAt: now, runnerOpen, wasRunning };
+      // Practice in a copy so hints, answers and test scores stay out of the real run.
+      activeRun = {
+        ...activeRun,
+        questionIds: [...activeRun.questionIds],
+        items: structuredClone(activeRun.items),
+        completedAttempts: { ...activeRun.completedAttempts },
+      };
+    } else if (!enabled) {
+      const parked = parkedRun;
+      parkedRun = null;
+      activeRun = parked?.run ?? null;
+      if (activeRun) {
+        const pausedMs = Math.max(0, now - parked.pausedAt);
+        activeRun.startedAtMs += pausedMs;
+        for (const item of Object.values(activeRun.items)) {
+          if (item.pauseActive) item.pauseActive.excludedMs = (item.pauseActive.excludedMs || 0) + pausedMs;
+        }
+      }
+      if (runnerOpen && !parked?.runnerOpen) exitRunnerKeepPaused();
+      else if (runnerOpen && parked?.wasRunning) resumeCurrentTimer();
+    }
+    if (activeRun) {
+      if (!document.getElementById('view-runner').hidden) renderRunner();
+      tickInterval = setInterval(tickLiveClocks, 250);
+    }
   }
 
   function toggleSplitWorkspace() {
@@ -2817,6 +2859,8 @@ window.StudyRunner = (() => {
     resumePausedRun,
     bindRunnerGlobals,
     onBreakStateChange,
+    onDevModeChange,
+    isSaving: () => pendingSaves > 0,
     setAutoPauseMode,
     getAutoPauseMode: () => autoPauseMode,
     toggleFullscreen,
