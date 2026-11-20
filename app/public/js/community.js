@@ -548,6 +548,9 @@ window.StudyCommunity = (() => {
       if (openSignup) return { humanToken: await humanToken(element, 'signup', status) };
       if (google && googleOpenSignup) return {};
       const invite = String(form.get('invite') || '').trim();
+      if (/^sos1_/i.test(invite)) {
+        throw new Error('Use this PDF archive key in Settings → Private PDF Archive. Enter a Community invite here.');
+      }
       if (!/^\S{6,120}$/.test(invite)) throw new Error('Enter a valid Community invite code.');
       const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invite)));
       return { proof: [...hash].map(value => value.toString(16).padStart(2, '0')).join('') };
@@ -1473,7 +1476,19 @@ window.StudyCommunity = (() => {
         </div>
 
         <div class="admin-section">
-          <h3>Create join string / invite code</h3>
+          <h3>Private PDF archive</h3>
+          <p class="muted">Archive keys begin with <code>sos1_</code> and decrypt the currently published PDF archive. A replacement key requires republishing the encrypted archive.</p>
+          ${!window.StudyMembers?.enabled ? '<p class="muted">This deployment has no published PDF archive.</p>'
+            : settings.hasAdminMemberKey ? `
+              <button type="button" class="ghost-btn" id="admin-copy-archive-key" disabled>Copy archive access string</button>
+              <p class="muted" role="status" id="admin-archive-status">Checking the saved key against the published archive…</p>`
+            : '<p class="muted">Unlock the PDF archive once while signed in as an admin to save its key here.</p>'}
+          <a href="https://github.com/shadjosef/study-os#full-member-library" target="_blank" rel="noopener">Archive publishing and key rotation</a>
+        </div>
+
+        <div class="admin-section">
+          <h3>Community invite codes</h3>
+          <p class="muted">Use these codes to create a Community profile. Generated invites start with <code>soci1_</code>.</p>
           <form id="admin-create-invite" class="admin-invite-form">
             <label class="field-label">Label <input name="label" maxlength="60" placeholder="e.g. OB Class Nov 2026"></label>
             <label class="field-label">Max uses <small class="muted">(0 = unlimited)</small> <input name="maxUses" type="number" min="0" max="10000" value="0"></label>
@@ -1482,7 +1497,7 @@ window.StudyCommunity = (() => {
               <input name="customCode" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Leave blank for random soci1_... code">
             </label>
             <div class="row-actions">
-              <button type="submit" class="primary-btn">Create join string</button>
+              <button type="submit" class="primary-btn">Create Community invite</button>
             </div>
           </form>
           ${lastCreatedCode ? `
@@ -1511,6 +1526,30 @@ window.StudyCommunity = (() => {
 
       const status = body.querySelector('#admin-action-status');
       body.querySelector('#admin-refresh-btn').onclick = () => loadAdmin();
+
+      const copyArchiveKey = body.querySelector('#admin-copy-archive-key');
+      if (copyArchiveKey) {
+        const archiveStatus = body.querySelector('#admin-archive-status');
+        const adminToken = token;
+        request('/profile', null, adminToken).then(async (profile) => {
+          if (!profile.isAdmin || !profile.memberKey) throw new Error('This admin profile has no saved archive key.');
+          await window.StudyMembers.verifyAccessString(profile.memberKey);
+          if (token !== adminToken || !copyArchiveKey.isConnected) return;
+          archiveStatus.textContent = 'Verified for the published PDF archive.';
+          copyArchiveKey.disabled = false;
+          copyArchiveKey.onclick = async () => {
+            if (token !== adminToken || !copyArchiveKey.isConnected) return;
+            try {
+              await navigator.clipboard.writeText(profile.memberKey);
+              archiveStatus.textContent = 'Archive access string copied.';
+            } catch {
+              archiveStatus.textContent = 'Clipboard access was blocked by this browser.';
+            }
+          };
+        }).catch((error) => {
+          archiveStatus.textContent = error.message || 'Could not verify the saved archive key.';
+        });
+      }
 
       const updateSetting = async (payload, msg) => {
         status.textContent = 'Saving…';

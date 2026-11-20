@@ -41,9 +41,12 @@ window.StudyMembers = (() => {
     }, key, payload.subarray(12));
   }
 
-  async function unlock(accessString, remember) {
+  async function importAccessKey(accessString) {
     const raw = String(accessString || '').trim().replace(/^["'`]+|["'`]+$/g, '').trim();
     if (!raw) throw new Error('Paste your Study-OS archive access string first.');
+    if (/^soci1_/i.test(raw)) {
+      throw new Error('Enter this Community invite when creating a Community profile. Use a key beginning with sos1_ to open the PDF archive.');
+    }
     if (/^[A-Z0-9]{3}-?[A-Z0-9]{3}$/i.test(raw)) {
       throw new Error('That looks like a 6-character BI Canvas pairing code — enter it in the Study-OS Sync extension instead.');
     }
@@ -56,8 +59,15 @@ window.StudyMembers = (() => {
       throw new Error(`Invalid archive key format (${raw.length} chars entered). Expected a 48-character key starting with sos1_.`);
     }
     const bytes = Uint8Array.from(atob(match[1].replace(/-/g, '+').replace(/_/g, '/') + '='), (c) => c.charCodeAt(0));
-    const key = await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['decrypt']);
-    bytes.fill(0);
+    try {
+      return await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['decrypt']);
+    } finally {
+      bytes.fill(0);
+    }
+  }
+
+  async function unlock(accessString, remember) {
+    const key = await importAccessKey(accessString);
     await unlockWithKey(key);
     try {
       if (remember) await savedKey('put', key);
@@ -68,7 +78,7 @@ window.StudyMembers = (() => {
     }
   }
 
-  async function unlockWithKey(key) {
+  async function readManifest(key) {
     const response = await fetch('./member-library/index.json', { cache: 'no-store' });
     if (!response.ok) throw new Error('The library is unavailable. Try again online.');
     const index = await response.json();
@@ -81,7 +91,15 @@ window.StudyMembers = (() => {
       throw error;
     }
     if (manifest.format !== 1 || !manifest.courses) throw new Error('The library could not be read.');
-    session = { key, courses: manifest.courses };
+    return manifest;
+  }
+
+  async function unlockWithKey(key) {
+    session = { key, courses: (await readManifest(key)).courses };
+  }
+
+  async function verifyAccessString(accessString) {
+    await readManifest(await importAccessKey(accessString));
   }
 
   async function restore() {
@@ -183,5 +201,5 @@ window.StudyMembers = (() => {
     }
   }
 
-  return { enabled, unlock, restore, forget, isUnlocked: () => Boolean(session), course, loadBank, pdfBytes, fillPreviews, bindDownloads };
+  return { enabled, unlock, verifyAccessString, restore, forget, isUnlocked: () => Boolean(session), course, loadBank, pdfBytes, fillPreviews, bindDownloads };
 })();

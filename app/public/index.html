@@ -334,7 +334,8 @@
     <dialog id="member-dialog" class="member-dialog" aria-labelledby="member-title">
       <form id="member-form" novalidate>
         <h2 id="member-title">Unlock private PDF archive</h2>
-        <p class="muted">All course practice questions &amp; past exams are already open to every signed-in and demo user. Only enter a 48-character <code>sos1_…</code> archive key here if you own the private encrypted PDF pack — otherwise use <strong>Sync BI Canvas</strong> or drop your own PDF book inside any exercise.</p>
+        <p class="muted">Enter the 48-character <code>sos1_…</code> key for the private PDF archive. Community invites beginning with <code>soci1_…</code> go in Community signup.</p>
+        <p class="muted">Practice questions and past exams are open in demo mode. Use <strong>Sync BI Canvas</strong> or attach your own PDF to read your course materials in an exercise.</p>
         <label class="field-label">Archive access string
           <div class="member-key-row">
             <input id="member-key" type="password" placeholder="sos1_…" autocomplete="off" spellcheck="false" required autofocus>
@@ -1150,7 +1151,7 @@
       <section class="ios-section" data-settings-group>
         <h3 class="ios-group-title">Data &amp; Backup</h3>
         <div class="ios-group">
-          <button type="button" class="ios-row ios-row-btn" id="btn-member-library" hidden data-settings-item="unlock lock full library access string member key">
+          <button type="button" class="ios-row ios-row-btn" id="btn-member-library" hidden data-settings-item="unlock lock full library access string member key private pdf archive">
             <span class="ios-icon ios-icon-green" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -1158,8 +1159,8 @@
               </svg>
             </span>
             <span class="ios-row-copy">
-              <span class="ios-row-label">Private Library Access</span>
-              <small class="ios-row-sub" id="settings-member-sub">Unlock question banks, sources &amp; worked answers</small>
+              <span class="ios-row-label">Private PDF Archive</span>
+              <small class="ios-row-sub" id="settings-member-sub">Open the encrypted archive with its key</small>
             </span>
             <span class="ios-row-trailing">
               <span class="ios-row-value" id="settings-member-value">Locked</span>

@@ -1398,8 +1398,8 @@ window.StudyApp = (() => {
       const subEl = document.getElementById('settings-member-sub');
       if (subEl) {
         subEl.textContent = unlocked
-          ? 'Full library active — tap to lock on this browser'
-          : 'Unlock question banks, sources & worked answers';
+          ? 'Tap to lock the archive on this browser'
+          : 'Open the encrypted archive with its key';
       }
     }
 
