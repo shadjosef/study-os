@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /canvas-connect.html
+Disallow: /tutor-bridge.html
+Disallow: /member-library/
+
+Sitemap: https://studyos.no/sitemap.xml

@@ -1,7 +1,7 @@
 {
-  "name": "Study-OS",
+  "name": "Study-OS · BI Oslo Exam Prep",
   "short_name": "Study-OS",
-  "description": "Course notes, guided practice and mock exams",
+  "description": "Free BI Oslo exam prep workspace: WISEflow mock exams, practice questions, course notes, AI tutor & Canvas/TimeEdit sync.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
