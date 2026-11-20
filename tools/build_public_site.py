@@ -322,6 +322,20 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
             f"Free {code} ({title}) exam prep for BI Oslo students: {q_count} practice questions, "
             f"{len(topic_names)} syllabus topics, WISEflow mock exams, course notes & AI tutor on Study-OS."
         )
+        course_faqs = [
+            (
+                f"How can I practice for {code} ({title}) at BI Oslo?",
+                f"Open {code} in Study-OS to drill {q_count} practice questions across {len(topic_names)} syllabus topics, run timed {duration}-minute WISEflow mock exams, read formula notes, and ask the side-pane AI Tutor for step-by-step guidance.",
+            ),
+            (
+                f"What is the {code} exam format?",
+                f"{exam_format}. {exam_notes}" if exam_notes else f"{exam_format} ({duration} minutes).",
+            ),
+            (
+                f"Is {code} practice on Study-OS free?",
+                "Yes. Study-OS is a free, independent student project in Oslo with zero ads and works directly in your browser without requiring an account.",
+            ),
+        ]
         json_ld = {
             "@context": "https://schema.org",
             "@graph": [
@@ -348,6 +362,13 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
                     },
                 },
                 {
+                    "@type": "FAQPage",
+                    "mainEntity": [
+                        {"@type": "Question", "name": fq, "acceptedAnswer": {"@type": "Answer", "text": fa}}
+                        for fq, fa in course_faqs
+                    ],
+                },
+                {
                     "@type": "BreadcrumbList",
                     "itemListElement": [
                         {"@type": "ListItem", "position": 1, "name": "Study-OS", "item": f"{base}/"},
@@ -357,6 +378,10 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
                 },
             ],
         }
+        course_faq_html = "".join(
+            f"        <details><summary>{escape(fq)}</summary><p>{escape(fa)}</p></details>\n"
+            for fq, fa in course_faqs
+        )
         other_links = "".join(
             f'<a class="ghost-btn" href="./{escape(str(oc["courseId"]), quote=True)}.html">'
             f'{escape(str(oc.get("code", "")))} · {escape(str(oc.get("shortTitle") or oc.get("title", "")))}</a>'
@@ -437,6 +462,12 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <span class="eyebrow">Syllabus coverage</span>
       <h2>Topics covered in {escape(code)}</h2>
       {topics_html}
+    </section>
+
+    <section style="margin-bottom:16px">
+      <h2 style="margin:0 0 6px">{escape(code)} Exam Prep FAQ</h2>
+      <div class="seo-faq">
+{course_faq_html}      </div>
     </section>
 
     <section class="panel seo-card">
@@ -557,7 +588,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta name="ICBM" content="59.9483, 10.7686">
   <link rel="canonical" href="{base}/bi-oslo.html">
   <link rel="alternate" hreflang="nb-NO" href="{base}/norsk.html">
-  <link rel="alternate" hreflang="en" href="{base}/bi-oslo.html">
+  <link rel="alternate" hreflang="en" href="{base}/">
   <link rel="alternate" hreflang="x-default" href="{base}/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
@@ -1212,7 +1243,13 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
             raise ValueError("The community endpoint must be an HTTPS URL without credentials.")
         community_marker = f' data-community-api="{escape(endpoint, quote=True)}"'
     html = html.replace("<html ", f'<html data-study-mode="web"{member_marker}{community_marker} ', 1)
-    html = html.replace("</head>", '  <link rel="manifest" href="./app.webmanifest">\n</head>', 1)
+    html = html.replace(
+        "</head>",
+        '  <link rel="manifest" href="./app.webmanifest">\n'
+        '  <link rel="preload" href="./static-data/bootstrap.json" as="fetch" crossorigin>\n'
+        '</head>',
+        1,
+    )
 
     def _stamp_asset(match: re.Match[str]) -> str:
         attr, rel = match.group(1), match.group(2)
@@ -1244,7 +1281,7 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
     fingerprint = hashlib.sha256(template)
     assets = []
     seo_skip_files = {
-        ".nojekyll", "CNAME", "robots.txt", "sitemap.xml", "llms.txt",
+        ".nojekyll", "CNAME", "404.html", "robots.txt", "sitemap.xml", "llms.txt",
         "og-image.png", "favicon.ico", "bi-oslo.html", "norsk.html",
         "wiseflow-practice.html", "bi-canvas-timeedit-sync.html", "notes.html",
         "7d4c9e2a8b1f4063a5e7c2d9f1b84e60.txt",

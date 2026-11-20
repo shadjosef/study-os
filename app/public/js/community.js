@@ -709,7 +709,7 @@ window.StudyCommunity = (() => {
     }, status);
   }
 
-  async function requireProfile({ allowDemo = false, forcePrompt = false } = {}) {
+  async function requireProfile({ allowDemo = false, forcePrompt = false, silent = false } = {}) {
     if (!api) return true;
     if (token) {
       try {
@@ -720,6 +720,10 @@ window.StudyCommunity = (() => {
         if (error.status !== 401) return true;
         useProfile('');
       }
+    }
+    if (silent && !forcePrompt) {
+      window.StudyApp?.syncSettingsRows?.();
+      return false;
     }
     if (allowDemo && !forcePrompt) {
       try { if (sessionStorage.getItem(demoKey)) return false; } catch {}

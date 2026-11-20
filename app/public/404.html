@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, follow">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+  <script>
+    (function () {
+      function syncTheme() {
+        try {
+          var raw = JSON.parse(localStorage.getItem('study-os-theme-v2') || 'null');
+          var mode = raw && (raw.theme === 'light' || raw.theme === 'dark') ? raw.theme : 'system';
+          var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var effective = mode === 'system' ? (sysDark ? 'dark' : 'light') : mode;
+          document.documentElement.dataset.theme = effective;
+          document.documentElement.dataset.themeMode = mode;
+          var m = document.getElementById('meta-theme-color');
+          if (m) m.setAttribute('content', effective === 'dark' ? '#090d0c' : '#f3f5f7');
+        } catch (e) {}
+      }
+      syncTheme();
+    })();
+  </script>
+  <title>Page Not Found · Study-OS</title>
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .nf-shell { max-width: 720px; margin: 0 auto; padding: clamp(24px, 6vw, 56px) 16px; }
+    .nf-card { padding: clamp(22px, 4vw, 34px); }
+    .nf-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <main class="nf-shell">
+    <article class="panel nf-card">
+      <span class="eyebrow">404 · Study-OS Oslo</span>
+      <h1 style="margin:6px 0 8px">This page does not exist</h1>
+      <p class="muted" style="margin:0;line-height:1.55">Jump straight back into Study-OS or pick one of the BI Oslo course guides below.</p>
+      <div class="nf-links">
+        <a class="primary-btn" href="/">Open Study-OS Workspace →</a>
+        <a class="ghost-btn" href="/bi-oslo.html">BI Oslo Guide</a>
+        <a class="ghost-btn" href="/norsk.html" lang="nb">Norsk</a>
+        <a class="ghost-btn" href="/wiseflow-practice.html">WISEflow Exams</a>
+        <a class="ghost-btn" href="/notes.html">Course Notes</a>
+      </div>
+    </article>
+  </main>
+</body>
+</html>

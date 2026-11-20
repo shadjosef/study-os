@@ -828,6 +828,8 @@ window.StudyApp = (() => {
     const communityOn = Boolean(window.StudyCommunity?.enabled);
     const signedIn = Boolean(window.StudyCommunity?.isSignedIn?.());
     const prof = window.StudyCommunity?.getCurrentProfile?.() || null;
+    const hdrSignIn = document.getElementById('hdr-signin-btn');
+    if (hdrSignIn) hdrSignIn.hidden = !isStaticWeb || !communityOn || signedIn;
     const syncTip = document.getElementById('mobile-sync-tip');
     let tipDismissed = false;
     try { tipDismissed = sessionStorage.getItem('study-os-dismiss-mobile-sync') === '1'; } catch {}
@@ -4703,7 +4705,7 @@ window.StudyApp = (() => {
       if (!document.getElementById('view-runner').hidden) document.getElementById('run-exit-btn').click();
       navigate('community');
     });
-    document.getElementById('settings-signin-btn')?.addEventListener('click', async () => {
+    const openHeaderSignIn = async () => {
       window.StudyUI.closeSettings?.();
       const ok = await window.StudyCommunity.requireProfile({ allowDemo: true, forcePrompt: true });
       if (ok) {
@@ -4711,7 +4713,9 @@ window.StudyApp = (() => {
         await members.restore();
         await refreshBootstrap();
       }
-    });
+    };
+    document.getElementById('settings-signin-btn')?.addEventListener('click', openHeaderSignIn);
+    document.getElementById('hdr-signin-btn')?.addEventListener('click', openHeaderSignIn);
     document.getElementById('settings-passkeys-btn')?.addEventListener('click', () => {
       window.StudyUI.closeSettings?.();
       window.StudyCommunity.openSecuritySheet?.();
@@ -4794,12 +4798,13 @@ window.StudyApp = (() => {
     });
 
     try {
-      const signedIn = await window.StudyCommunity.requireProfile({ allowDemo: true });
+      const signedIn = await window.StudyCommunity.requireProfile({ allowDemo: true, silent: true });
       if (signedIn) {
         await window.StudyRooms.restore();
         await members.restore();
       }
       await refreshBootstrap(false);
+      syncSettingsRows();
       if (isStaticWeb) renderCourseDirectory();
       if (signedIn && isStaticWeb) {
         syncCloudProgress().catch(() => {});
