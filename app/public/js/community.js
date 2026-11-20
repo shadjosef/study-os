@@ -2468,5 +2468,6 @@ window.StudyCommunity = (() => {
     uploadMaterial,
     deleteMaterial,
     openMaterial,
+    saveAdminMemberKey: (memberKey) => request('/admin/settings', { memberKey: String(memberKey || '').trim() }),
   };
 })();

@@ -109,7 +109,7 @@ async function collectCanvas() {
   }
 }
 
-// Runs inside the open BI TimeEdit tab — extracts the .ics timetable feed directly.
+// Runs inside the open BI TimeEdit tab — extracts the .ics timetable feed with the most VEVENTs.
 async function collectTimeEdit() {
   if (location.origin !== 'https://cloud.timeedit.net') {
     return { error: 'Open your BI TimeEdit timetable tab first.' };
@@ -127,16 +127,7 @@ async function collectTimeEdit() {
     } catch {}
   };
 
-  document.querySelectorAll('a[href*=".ics"], input[value*=".ics"], textarea').forEach((el) => {
-    const val = el.getAttribute('href') || el.value || el.textContent || '';
-    const matches = val.match(/(?:https?|webcal):\/\/cloud\.timeedit\.net\/[^\s"'<>]+\.ics/gi) || [];
-    matches.forEach(addCandidate);
-    if (el.tagName === 'A') addCandidate(el.getAttribute('href'));
-  });
-
-  const htmlMatches = document.documentElement.innerHTML.match(/(?:https?|webcal):\/\/cloud\.timeedit\.net\/[^\s"'<>\\]+\.ics/gi) || [];
-  htmlMatches.slice(0, 8).forEach(addCandidate);
-
+  // 1. Prefer the exact current schedule URL converted from .html -> .ics (preserving query params!)
   if (/\.html$/i.test(location.pathname)) {
     const derived = new URL(location.href);
     derived.pathname = derived.pathname.replace(/\.html$/i, '.ics');
@@ -144,6 +135,29 @@ async function collectTimeEdit() {
     candidates.add(derived.href);
   }
 
+  // 2. Scan links, subscription inputs, textareas, and data attributes
+  document.querySelectorAll('a[href*=".ics"], input[value*=".ics"], textarea, [data-url*=".ics"], [data-href*=".ics"]').forEach((el) => {
+    const val = el.getAttribute('href') || el.getAttribute('data-url') || el.getAttribute('data-href') || el.value || el.textContent || '';
+    const matches = val.match(/(?:https?|webcal):\/\/cloud\.timeedit\.net\/[^\s"'<>]+\.ics(?:\?[^\s"'<>]*)?/gi) || [];
+    matches.forEach(addCandidate);
+    if (el.tagName === 'A') addCandidate(el.getAttribute('href'));
+  });
+
+  // 3. Scan page HTML for any TimeEdit .ics subscription URLs (including query params)
+  const htmlMatches = document.documentElement.innerHTML.match(/(?:https?|webcal):\/\/cloud\.timeedit\.net\/[^\s"'<>\\]+\.ics(?:\?[^\s"'<>\\]*)?/gi) || [];
+  htmlMatches.slice(0, 12).forEach(addCandidate);
+
+  // 4. Also check TimeEdit's subscribe/iCal path pattern (e.g. /ri...html -> /ri...ics)
+  const riMatches = document.documentElement.innerHTML.match(/\/ri[A-Za-z0-9_-]{8,}\.ics/g) || [];
+  riMatches.slice(0, 6).forEach((rel) => {
+    try {
+      const base = location.pathname.replace(/[^/]*$/, '');
+      addCandidate(new URL(base + rel.replace(/^\//, ''), location.origin).href);
+    } catch {}
+  });
+
+  let best = null;
+  let sawEmptyCalendar = false;
   for (const href of candidates) {
     try {
       const res = await fetch(href, {
@@ -153,34 +167,96 @@ async function collectTimeEdit() {
       });
       if (!res.ok) continue;
       const text = await res.text();
-      if (/^\s*BEGIN:VCALENDAR/i.test(text)) {
-        return { calendar: text, sourceUrl: href };
+      if (!/^\s*BEGIN:VCALENDAR/i.test(text)) continue;
+      const count = (text.match(/BEGIN:VEVENT/gi) || []).length;
+      if (count > 0 && (!best || count > best.count)) {
+        best = { calendar: text, sourceUrl: href, count };
+      } else if (count === 0) {
+        sawEmptyCalendar = true;
       }
     } catch {}
   }
 
+  if (best) return { calendar: best.calendar, sourceUrl: best.sourceUrl, count: best.count };
+
+  if (sawEmptyCalendar) {
+    return {
+      error: 'TimeEdit returned 0 classes on this view. Select your courses on TimeEdit, click "Show schedule", then click Sync again.',
+    };
+  }
   return {
     error: 'Open your BI TimeEdit schedule view ("Show schedule"), then click Sync again.',
   };
 }
 
-// Runs inside the open Ed Discussion tab — reads active course outlines (no private posts/files).
-async function collectEd() {
+// Runs inside the open Ed Discussion tab — detects region, reads ephemeral session JWT (used only in-memory
+// to call Ed's regional /api/user, never saved or transmitted to Study-OS), and scrapes visible course links as fallback.
+function collectEdTabContext() {
   const host = location.hostname.toLowerCase();
-  const capturedAt = new Date().toISOString();
-  try {
-    const res = await fetch('/api/user', {
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(12_000),
+  const pathRegion = location.pathname.match(/^\/(eu|us|au)(?:\/|$)/i)?.[1]?.toLowerCase() || '';
+  const hostRegion = host.match(/^(eu|us|au)\.edstem\.org$/)?.[1] || '';
+  const region = hostRegion || pathRegion || 'eu';
+
+  const tokens = new Set();
+  const extractTokens = (storage) => {
+    try {
+      for (let i = 0; i < storage.length; i++) {
+        const k = storage.key(i) || '';
+        const v = storage.getItem(k) || '';
+        if (!v) continue;
+        // Direct JWT or quoted JWT
+        const stripped = v.trim().replace(/^"|"$/g, '');
+        if (/^eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}$/.test(stripped)) {
+          tokens.add(stripped);
+          continue;
+        }
+        // Ed stores authToken / token inside JSON objects in localStorage
+        if (/(token|auth|session|ed)/i.test(k) && stripped.length < 4000) {
+          const jwtHits = stripped.match(/eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g) || [];
+          jwtHits.forEach((t) => tokens.add(t));
+          try {
+            const parsed = JSON.parse(stripped);
+            for (const cand of [parsed?.token, parsed?.authToken, parsed?.auth_token, parsed?.access_token]) {
+              if (typeof cand === 'string' && cand.length >= 20 && cand.length <= 1024) tokens.add(cand);
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+  };
+  extractTokens(localStorage);
+  extractTokens(sessionStorage);
+
+  // Fallback: scrape visible course links from DOM (e.g. /eu/courses/12345)
+  const domCourses = [];
+  const seenIds = new Set();
+  document.querySelectorAll('a[href*="/courses/"]').forEach((a) => {
+    const m = (a.getAttribute('href') || '').match(/\/courses\/(\d+)/);
+    if (!m || seenIds.has(m[1])) return;
+    const text = (a.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text || text.length < 2) return;
+    seenIds.add(m[1]);
+    const codeMatch = text.match(/\b([A-Z]{2,6})\s*[-_]?\s*(\d{3,6})(?!\d)\b/i);
+    domCourses.push({
+      id: m[1],
+      name: text.slice(0, 160),
+      code: codeMatch ? (codeMatch[1] + codeMatch[2]).toUpperCase() : '',
+      host,
+      topics: [],
     });
-    if (res.status === 401 || res.status === 403) {
-      return { error: 'Sign in to Ed Discussion in that tab, then try again.' };
-    }
-    if (!res.ok) return { error: 'Could not read Ed Discussion courses.' };
-    const payload = await res.json();
+  });
+
+  return { region, host, tokens: Array.from(tokens).slice(0, 4), domCourses };
+}
+
+async function fetchEdCoursesFromContext(ctx) {
+  const capturedAt = new Date().toISOString();
+  const regions = [...new Set([ctx?.region || 'eu', 'eu', 'us', 'au', ''])];
+  const tokens = Array.isArray(ctx?.tokens) ? ctx.tokens : [];
+
+  const parseEdPayload = (payload, host) => {
     const rawCourses = Array.isArray(payload?.courses) ? payload.courses : [];
-    const courses = rawCourses
+    return rawCourses
       .map((entry) => entry?.course || entry)
       .filter((c) => c && c.id && c.name && c.status !== 'archived')
       .slice(0, 60)
@@ -199,13 +275,33 @@ async function collectEd() {
           topics: categories,
         };
       });
-    if (!courses.length) {
-      return { error: 'No active Ed Discussion courses found on this account.' };
+  };
+
+  for (const reg of regions) {
+    const apiHost = reg ? `${reg}.edstem.org` : 'edstem.org';
+    const url = `https://${apiHost}/api/user`;
+    const attempts = tokens.length ? [...tokens.map((t) => ({ 'x-token': t })), {}] : [{}];
+    for (const authHeaders of attempts) {
+      try {
+        const res = await fetch(url, {
+          credentials: 'include',
+          headers: { Accept: 'application/json', ...authHeaders },
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) continue;
+        const payload = await res.json().catch(() => null);
+        const courses = parseEdPayload(payload, apiHost);
+        if (courses.length) return { capturedAt, courses };
+      } catch {}
     }
-    return { capturedAt, courses };
-  } catch {
-    return { error: 'Could not read Ed Discussion. Refresh the Ed tab and try again.' };
   }
+
+  if (Array.isArray(ctx?.domCourses) && ctx.domCourses.length) {
+    return { capturedAt, courses: ctx.domCourses };
+  }
+  return {
+    error: 'Could not read Ed courses — open "My Courses" in your signed-in Ed Discussion tab, then click Sync again.',
+  };
 }
 
 async function cloudRequest(path, body, token) {
@@ -338,7 +434,8 @@ async function syncSingleSite(tabId, site, sharePublic, cloudToken, desktopToken
     if (!cloudToken) {
       throw new Error('Link your studyos.no profile (6-char code) to sync Ed Discussion.');
     }
-    const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: collectEd });
+    const [{ result: ctx } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: collectEdTabContext });
+    const result = await fetchEdCoursesFromContext(ctx || {});
     if (!result || result.error) throw new Error(result?.error || 'Could not read Ed Discussion.');
     const pushed = await cloudRequest('/courses/sync', {
       source: 'ed',
@@ -363,6 +460,60 @@ async function recordSiteSync(site) {
   const next = { ...lastSiteSyncAt, [site]: Date.now() };
   await chrome.storage.local.set({ lastSiteSyncAt: next });
   return next;
+}
+
+async function notifyStudyOsTabs(results = []) {
+  try {
+    const tabs = await chrome.tabs.query({
+      url: [
+        'https://studyos.no/*',
+        'https://shadjosef.github.io/*',
+        'http://127.0.0.1/*',
+        'http://localhost/*',
+      ],
+    });
+    for (const tab of tabs) {
+      if (tab.id) chrome.tabs.sendMessage(tab.id, { type: 'syncComplete', results }).catch(() => {});
+    }
+  } catch {}
+}
+
+function bytesToBase64(bytes) {
+  let bin = '';
+  const step = 0x8000;
+  for (let i = 0; i < bytes.length; i += step) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + step));
+  }
+  return btoa(bin);
+}
+
+// Fetches a BI Canvas PDF directly using the student's own signed-in Chrome session.
+// Bytes return strictly to the student's local studyos.no tab (never uploaded to any server).
+async function fetchCanvasFileDirect(courseId, fileId) {
+  if (!/^\d{1,12}$/.test(String(courseId)) || !/^\d{1,12}$/.test(String(fileId))) {
+    throw new Error('Invalid BI Canvas file reference.');
+  }
+  const downloadUrl = `${CANVAS_ORIGIN}/courses/${courseId}/files/${fileId}/download?download_frd=1`;
+  const res = await fetch(downloadUrl, {
+    credentials: 'include',
+    redirect: 'follow',
+    signal: AbortSignal.timeout(25_000),
+  });
+  if (res.status === 401 || res.status === 403 || /login|saml|microsoftonline/i.test(res.url || '')) {
+    throw new Error('Sign in to BI Canvas (canvas.bi.no) in Chrome first, then click Load PDF again.');
+  }
+  if (!res.ok) throw new Error(`BI Canvas returned HTTP ${res.status}. Open BI Canvas to refresh your login.`);
+  const buf = await res.arrayBuffer();
+  if (buf.byteLength > 60 * 1024 * 1024) throw new Error('PDF exceeds 60 MB direct-fetch limit. Download and drop it locally instead.');
+  const bytes = new Uint8Array(buf);
+  const sig = String.fromCharCode(...bytes.subarray(0, 5));
+  if (sig !== '%PDF-') {
+    throw new Error('BI Canvas returned a login or preview page instead of a PDF. Sign in to canvas.bi.no in Chrome first.');
+  }
+  const disp = res.headers.get('Content-Disposition') || '';
+  const nameMatch = disp.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+  const filename = nameMatch ? decodeURIComponent(nameMatch[1] || nameMatch[2] || '') : `canvas-${fileId}.pdf`;
+  return { ok: true, filename, dataBase64: bytesToBase64(bytes) };
 }
 
 async function flashSuccessBadge() {
@@ -403,9 +554,10 @@ async function maybeAutoSyncTab(tabId, urlStr) {
     const tab = await chrome.tabs.get(tabId).catch(() => null);
     if (!tab || detectSite(tab.url || '') !== site) return;
     const sharePublic = stored.sharePublic !== false;
-    await syncSingleSite(tabId, site, sharePublic, cloudToken, desktopToken);
+    const summary = await syncSingleSite(tabId, site, sharePublic, cloudToken, desktopToken);
     await recordSiteSync(site);
     await flashSuccessBadge();
+    await notifyStudyOsTabs([{ site, ok: true, summary }]);
   } catch (err) {
     if (err?.needsPair) {
       await chrome.storage.local.remove(['cloudToken', 'cloudNickname']).catch(() => {});
@@ -450,7 +602,10 @@ async function runSyncAll(sharePublic) {
       results.push({ site, ok: false, error: err.message || 'Sync failed.' });
     }
   }
-  if (results.some((r) => r.ok)) await flashSuccessBadge();
+  if (results.some((r) => r.ok)) {
+    await flashSuccessBadge();
+    await notifyStudyOsTabs(results);
+  }
   return { state: 'synced', results };
 }
 
@@ -531,7 +686,27 @@ async function handle(message) {
   return { error: 'Unknown action.' };
 }
 
+const BRIDGE_ORIGINS = new Set([
+  'https://studyos.no',
+  'https://shadjosef.github.io',
+]);
+
+function isTrustedBridgeSender(sender) {
+  try {
+    const u = new URL(sender?.url || '');
+    return BRIDGE_ORIGINS.has(u.origin) || u.hostname === '127.0.0.1' || u.hostname === 'localhost';
+  } catch {
+    return false;
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
+  if (message?.action === 'fetchCanvasFile' && isTrustedBridgeSender(sender)) {
+    fetchCanvasFileDirect(message.courseId, message.fileId).then(respond, (error) => {
+      respond({ ok: false, error: error?.message || 'Could not load PDF from BI Canvas.' });
+    });
+    return true;
+  }
   if (sender.url !== chrome.runtime.getURL('popup.html')) return false;
   handle(message).then(respond, async (error) => {
     if (error.needsPair) await chrome.storage.local.remove(['cloudToken', 'cloudNickname']);

@@ -1,5 +1,5 @@
 import { handleRooms, runningStudyRoom } from './rooms.mjs';
-import { verifyJoinProof, consumeInviteUse, handleAdmin } from './admin.mjs';
+import { verifyJoinProof, consumeInviteUse, handleAdmin, getAdminMemberKey } from './admin.mjs';
 import { handlePublicAuth, handleAuthedAuth, cleanSecondaryLanguage, cleanContactEmail, maskEmailHint } from './auth.mjs';
 import { handleSync } from './sync.mjs';
 import { checkHuman } from './human.mjs';
@@ -280,7 +280,12 @@ export default {
 
     if (path === '/profile') {
       if (request.method === 'GET') {
-        return reply(profileSummary(me, isAdmin, now));
+        const summary = profileSummary(me, isAdmin, now);
+        if (isAdmin) {
+          const mk = await getAdminMemberKey(db, env);
+          if (mk) summary.memberKey = mk;
+        }
+        return reply(summary);
       }
       if (request.method === 'POST') {
         let nextNickname = me.nickname;
@@ -419,6 +424,10 @@ export default {
         SELECT p.id, p.nickname FROM blocks b JOIN profiles p ON p.id = b.blocked WHERE b.owner = ?
       `).bind(me.id).all();
       const mePayload = { ...me, ...profileSummary(me, isAdmin, now) };
+      if (isAdmin) {
+        const mk = await getAdminMemberKey(db, env);
+        if (mk) mePayload.memberKey = mk;
+      }
       return reply({ me: mePayload, ranks: ranks.results.slice(0, 50), hasMoreRanks: ranks.results.length > 50,
         contacts: contacts.results, messages: messages.results, blocked: blocked.results, now });
     }

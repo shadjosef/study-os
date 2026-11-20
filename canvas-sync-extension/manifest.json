@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Study-OS Sync",
-  "version": "1.4.0",
-  "description": "One-click & optional auto-sync for BI Canvas courses & deadlines, TimeEdit schedules, and Ed Discussion directly to Study-OS.",
+  "version": "1.5.0",
+  "description": "One-click & optional auto-sync for BI Canvas courses, inline PDFs, TimeEdit schedules, and Ed Discussion directly to Study-OS.",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
@@ -32,5 +32,17 @@
   },
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://studyos.no/*",
+        "https://shadjosef.github.io/*",
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "js": ["studyos-bridge.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }

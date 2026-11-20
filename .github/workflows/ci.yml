@@ -53,6 +53,7 @@ jobs:
           node --check app/public/js/schedule-tools.js
           node --check canvas-sync-extension/background.js
           node --check canvas-sync-extension/popup.js
+          node --check canvas-sync-extension/studyos-bridge.js
           node --check app/public/js/members.js
           node --check app/public/js/study-sets.js
           node --check app/public/js/community.js

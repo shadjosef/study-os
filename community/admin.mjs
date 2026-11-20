@@ -12,6 +12,15 @@ import { turnstileSiteKey } from './human.mjs';
 
 const idPattern = /^[0-9a-f-]{36}$/;
 const proofPattern = /^[0-9a-f]{64}$/;
+const memberKeyPattern = /^sos1_[A-Za-z0-9_-]{43}$/;
+
+export async function getAdminMemberKey(db, env) {
+  const fromEnv = typeof env?.MEMBER_LIBRARY_KEY === 'string' ? env.MEMBER_LIBRARY_KEY.trim() : '';
+  if (memberKeyPattern.test(fromEnv)) return fromEnv;
+  const row = await db.prepare("SELECT value FROM community_settings WHERE key = 'admin_member_key'").first();
+  const val = typeof row?.value === 'string' ? row.value.trim() : '';
+  return memberKeyPattern.test(val) ? val : '';
+}
 
 function base64Url(bytes) {
   let bin = '';
@@ -27,13 +36,16 @@ function maskHint(code) {
 
 export async function getJoinSettings(db, env) {
   const { results } = await db.prepare(
-    "SELECT key, value FROM community_settings WHERE key IN ('signups_open', 'env_join_enabled')"
+    "SELECT key, value FROM community_settings WHERE key IN ('signups_open', 'env_join_enabled', 'admin_member_key')"
   ).all();
   const map = Object.fromEntries(results.map((r) => [r.key, r.value]));
+  const envKey = typeof env?.MEMBER_LIBRARY_KEY === 'string' && memberKeyPattern.test(env.MEMBER_LIBRARY_KEY.trim());
+  const dbKey = typeof map.admin_member_key === 'string' && memberKeyPattern.test(map.admin_member_key.trim());
   return {
     signupsOpen: map.signups_open !== '0',
     envJoinEnabled: map.env_join_enabled !== '0',
     hasEnvJoinProof: proofPattern.test(env.JOIN_PROOF || ''),
+    hasAdminMemberKey: envKey || dbKey,
   };
 }
 
@@ -108,6 +120,18 @@ export async function handleAdmin({ request, url, db, env, me, isAdmin, now, dat
       await db.prepare(
         "INSERT INTO community_settings(key, value) VALUES ('env_join_enabled', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
       ).bind(data.envJoinEnabled ? '1' : '0').run();
+    }
+    if (typeof data.memberKey === 'string') {
+      const cleaned = data.memberKey.trim();
+      if (!cleaned) {
+        await db.prepare("DELETE FROM community_settings WHERE key = 'admin_member_key'").run();
+      } else if (!memberKeyPattern.test(cleaned)) {
+        return reply({ error: 'Archive key must be a valid 48-character sos1_… string.' }, 400);
+      } else {
+        await db.prepare(
+          "INSERT INTO community_settings(key, value) VALUES ('admin_member_key', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+        ).bind(cleaned).run();
+      }
     }
     return reply({ ok: true, settings: await getJoinSettings(db, env) });
   }

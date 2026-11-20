@@ -1122,6 +1122,7 @@ window.StudyApp = (() => {
     if (!isStaticWeb) return { hasEverSynced: true, lastSyncMs: Date.now(), daysSinceSync: 0, isStale: false };
     const ws = loadWebState();
     const candidates = [
+      ws.canvasSnapshot?.syncedAt ? Date.parse(ws.canvasSnapshot.syncedAt) : 0,
       ws.canvasSnapshot?.capturedAt ? Date.parse(ws.canvasSnapshot.capturedAt) : 0,
       ws.customSchedule?.syncedAt ? Date.parse(ws.customSchedule.syncedAt) : 0,
     ];
@@ -2311,8 +2312,13 @@ window.StudyApp = (() => {
       submit.textContent = 'Unlocking…';
       setFeedback('Decrypting private PDF archive…', 'loading');
       try {
+        const rawKey = String(key.value || '').trim().replace(/^["'`]+|["'`]+$/g, '').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         const remember = document.getElementById('member-remember').checked;
-        const remembered = await members.unlock(key.value, remember);
+        const remembered = await members.unlock(rawKey, remember);
+        if (window.StudyCommunity?.isAdmin?.()) {
+          const canonKey = rawKey.startsWith('sos1_') ? rawKey : `sos1_${rawKey}`;
+          window.StudyCommunity.saveAdminMemberKey?.(canonKey).catch(() => {});
+        }
         key.value = '';
         key.type = 'password';
         if (toggleBtn) toggleBtn.textContent = 'Show';
@@ -5201,6 +5207,10 @@ window.StudyApp = (() => {
       if (signedIn) {
         await window.StudyRooms.restore();
         await members.restore();
+        const prof = window.StudyCommunity.getCurrentProfile?.();
+        if (prof?.isAdmin && prof?.memberKey && members.enabled && !members.isUnlocked()) {
+          await members.unlock(prof.memberKey, true).catch(() => {});
+        }
       }
       await refreshBootstrap(false);
       syncSettingsRows();
@@ -5691,6 +5701,72 @@ window.StudyApp = (() => {
     }
   }
 
+  const pendingExtFetches = new Map();
+
+  function fetchCanvasPdfViaExtension(courseId, fileId) {
+    return new Promise((resolve, reject) => {
+      if (!document.documentElement.dataset.studyOsSyncExt) {
+        reject(new Error('Install or reload Study-OS Sync v1.5.0 in Chrome to load BI Canvas PDFs inline.'));
+        return;
+      }
+      const requestId = `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const timer = setTimeout(() => {
+        pendingExtFetches.delete(requestId);
+        reject(new Error('Timed out loading PDF from BI Canvas. Make sure you are signed in on canvas.bi.no in Chrome.'));
+      }, 28_000);
+      pendingExtFetches.set(requestId, { resolve, reject, timer });
+      window.postMessage({
+        type: 'STUDY_OS_FETCH_CANVAS_FILE',
+        requestId,
+        courseId: String(courseId || ''),
+        fileId: String(fileId || ''),
+      }, window.location.origin);
+    });
+  }
+
+  window.addEventListener('message', (event) => {
+    if (event.source !== window || event.origin !== window.location.origin) return;
+    const msg = event.data;
+    if (!msg || typeof msg !== 'object') return;
+
+    if (msg.type === 'STUDY_OS_CANVAS_FILE_RESULT' && msg.requestId) {
+      const pending = pendingExtFetches.get(msg.requestId);
+      if (!pending) return;
+      clearTimeout(pending.timer);
+      pendingExtFetches.delete(msg.requestId);
+      if (!msg.ok || !msg.dataBase64) {
+        pending.reject(new Error(msg.error || 'Could not load PDF from BI Canvas.'));
+        return;
+      }
+      try {
+        const bin = atob(msg.dataBase64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const file = new File([bytes], msg.filename || 'canvas-source.pdf', { type: 'application/pdf' });
+        pending.resolve(file);
+      } catch {
+        pending.reject(new Error('Could not decode PDF received from BI Canvas.'));
+      }
+      return;
+    }
+
+    if (msg.type === 'STUDY_OS_SYNC_COMPLETE') {
+      markBiSyncedNow();
+      if (isDevSandbox()) {
+        toast('BI sync completed in cloud (turn off Dev Sandbox to pull live updates into this tab).');
+        return;
+      }
+      if (isStaticWeb && window.StudyCommunity?.isSignedIn?.()) {
+        syncCloudProgress({ interactive: false }).then(() => {
+          if (currentView === 'home') renderHome();
+          else if (currentView === 'schedule') renderScheduleStudio();
+          else if (currentView === 'exams') renderExamsHub();
+          toast('BI Canvas & Schedule updated from Study-OS Sync!');
+        }).catch(() => {});
+      }
+    }
+  });
+
   function onDevModeChange(active) {
     if (!active) {
       if (isStaticWeb) {
@@ -5720,6 +5796,7 @@ window.StudyApp = (() => {
     syncCloudProgress,
     getBiSyncStatus,
     openBiSyncHub,
+    fetchCanvasPdfViaExtension,
     onDevModeChange,
     navigate,
     renderHome,

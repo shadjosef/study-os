@@ -714,19 +714,24 @@ window.StudyRunner = (() => {
 
     const canvasCard = canvasRefs.length ? (() => {
       const c = canvasRefs[0];
+      const hasExtBridge = Boolean(document.documentElement.dataset.studyOsSyncExt);
+      const canDirectFetch = hasExtBridge && Boolean(c.canvasCourseId && c.canvasFileId);
       const fileChips = canvasRefs.slice(0, 4).map((r) =>
         `<span class="badge">${esc(r.filename || r.title)}${r.page ? ` · p. ${r.page}` : ''}</span>`
       ).join('');
       if (compact) {
         return `<div class="source-gate-card source-gate-compact source-gate-canvas" data-local-dropzone data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-source-kind="canvas" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">
           <div class="source-gate-copy">
-            <strong>${isSynced ? 'BI Canvas source ready' : 'Sync with BI Canvas to unlock readable course material'}</strong>
-            <small class="muted">${esc(c.filename || c.title)} (p. ${esc(c.page || 1)}) · ${isSynced ? 'Open directly on BI Canvas or attach your downloaded PDF for inline split-screen.' : 'Course PDFs &amp; slides stay on BI Canvas to respect copyright.'}</small>
+            <strong>${canDirectFetch ? 'Load BI Canvas PDF inline' : isSynced ? 'BI Canvas source ready' : 'Sync with BI Canvas to unlock readable course material'}</strong>
+            <small class="muted">${esc(c.filename || c.title)} (p. ${esc(c.page || 1)}) · ${canDirectFetch ? 'Loads straight from your signed-in Chrome BI Canvas session — stays private in your browser.' : isSynced ? 'Open directly on BI Canvas or attach your downloaded PDF for inline split-screen.' : 'Course PDFs &amp; slides stay on BI Canvas to respect copyright.'}</small>
           </div>
           <div class="row-actions">
-            ${isSynced && c.canvasUrl
+            ${canDirectFetch
+              ? `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-fetch-canvas-pdf data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-canvas-course="${esc(c.canvasCourseId)}" data-canvas-file="${esc(c.canvasFileId)}" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">Load PDF inline</button>`
+              : isSynced && c.canvasUrl
               ? `<a class="primary-btn" style="padding:6px 12px;font-size:12.5px;text-decoration:none" href="${esc(c.canvasUrl)}" target="_blank" rel="noopener">Open on BI Canvas ↗</a>`
               : `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-open-bi-sync>Sync BI Canvas</button>`}
+            ${canDirectFetch && c.canvasUrl ? `<a class="ghost-btn" style="padding:6px 10px;font-size:12.5px;text-decoration:none" href="${esc(c.canvasUrl)}" target="_blank" rel="noopener">BI Canvas ↗</a>` : ''}
             <label class="ghost-btn source-gate-upload-btn" style="padding:6px 10px;font-size:12.5px">
               Drop PDF
               <input type="file" accept=".pdf,application/pdf" hidden data-local-pdf-input data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-source-kind="canvas" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">
@@ -735,18 +740,25 @@ window.StudyRunner = (() => {
         </div>`;
       }
       return `<div class="source-gate-card source-gate-canvas" data-local-dropzone data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-source-kind="canvas" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">
-        <span class="prov-badge ${isSynced ? 'prov-exam' : 'prov-lecture'}">${isSynced ? 'BI Canvas Connected' : 'Copyright-Safe Course Context'}</span>
-        <h3 style="margin:8px 0 6px">${isSynced ? 'Open or attach your BI Canvas source PDF' : 'Sync with your BI Canvas to unlock readable course material'}</h3>
+        <span class="prov-badge ${isSynced || canDirectFetch ? 'prov-exam' : 'prov-lecture'}">${canDirectFetch ? 'Study-OS Sync Ready' : isSynced ? 'BI Canvas Connected' : 'Copyright-Safe Course Context'}</span>
+        <h3 style="margin:8px 0 6px">${canDirectFetch ? 'Load your BI Canvas PDF right here' : isSynced ? 'Open or attach your BI Canvas source PDF' : 'Sync with your BI Canvas to unlock readable course material'}</h3>
         <div class="row-actions" style="gap:6px;margin:0 0 10px;flex-wrap:wrap">${fileChips}</div>
-        <p class="muted" style="margin:0 0 12px;font-size:13.5px">${isSynced
+        <p class="muted" style="margin:0 0 12px;font-size:13.5px">${canDirectFetch
+          ? 'Your Study-OS Sync Chrome extension can fetch this PDF directly from your signed-in BI Canvas session and render it side-by-side here at the exact page (saved only in your browser — never uploaded).'
+          : isSynced
           ? 'Your BI Canvas account is connected. Open the official course file directly on BI Canvas below, or drop your downloaded PDF here to view it side-by-side inside Study-OS at the exact page.'
           : 'To keep BI course slides, exams, and handouts copyright-safe, Study-OS does not host raw university PDFs publicly. Connect your BI Canvas account to verify enrollment and jump straight to the official files — or drop your own downloaded PDF copy below for private inline viewing.'}</p>
         <div class="row-actions" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          ${canDirectFetch
+            ? canvasRefs.slice(0, 3).map((r) => r.canvasCourseId && r.canvasFileId
+                ? `<button type="button" class="primary-btn" data-fetch-canvas-pdf data-course-id="${esc(q.courseId)}" data-source-id="${esc(r.sourceId)}" data-canvas-course="${esc(r.canvasCourseId)}" data-canvas-file="${esc(r.canvasFileId)}" data-source-title="${esc(r.title)}" data-source-page="${esc(r.page || 1)}">Load ${esc(r.filename || r.title)} inline (p. ${esc(r.page || 1)})</button>`
+                : '').join('')
+            : ''}
           ${isSynced
             ? canvasRefs.slice(0, 3).map((r) => r.canvasUrl
-                ? `<a class="primary-btn" style="text-decoration:none" href="${esc(r.canvasUrl)}" target="_blank" rel="noopener">Open ${esc(r.filename || r.title)} on BI Canvas ↗</a>`
+                ? `<a class="${canDirectFetch ? 'ghost-btn' : 'primary-btn'}" style="text-decoration:none" href="${esc(r.canvasUrl)}" target="_blank" rel="noopener">Open ${esc(r.filename || r.title)} on BI Canvas ↗</a>`
                 : '').join('')
-            : `<button type="button" class="primary-btn" data-open-bi-sync>Sync with BI Canvas →</button>`}
+            : `<button type="button" class="${canDirectFetch ? 'ghost-btn' : 'primary-btn'}" data-open-bi-sync>Sync with BI Canvas →</button>`}
         </div>
         <label class="source-dropzone-box">
           <strong>Or drop your downloaded PDF copy here for side-by-side reading</strong>
@@ -1909,6 +1921,25 @@ window.StudyRunner = (() => {
     card.querySelectorAll('[data-open-member-unlock]').forEach((btn) => {
       btn.addEventListener('click', () => {
         document.getElementById('btn-member-library')?.click();
+      });
+    });
+
+    card.querySelectorAll('[data-fetch-canvas-pdf]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const origText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Loading PDF…';
+        try {
+          const file = await window.StudyApp.fetchCanvasPdfViaExtension(
+            btn.dataset.canvasCourse,
+            btn.dataset.canvasFile
+          );
+          await handleLocalPdfAttach(file, btn);
+        } catch (err) {
+          toast(err?.message || 'Could not load PDF from BI Canvas.');
+          btn.disabled = false;
+          btn.textContent = origText;
+        }
       });
     });
 
