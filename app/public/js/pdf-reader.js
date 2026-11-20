@@ -4,6 +4,7 @@ window.StudyPdf = (() => {
   const vendor = new URL('../vendor/pdfjs/', document.currentScript.src);
   let engine;
   let active;
+  let inlineBatch = null;
   const geometry = new WeakMap();
   const pageText = new Map();
 
@@ -239,13 +240,117 @@ window.StudyPdf = (() => {
     }
   }
 
+  function disposeInline() {
+    if (!inlineBatch) return;
+    inlineBatch.cancelled = true;
+    for (const h of inlineBatch.handles) {
+      h.render?.cancel?.();
+      h.text?.cancel?.();
+      h.release?.();
+    }
+    for (const task of inlineBatch.tasks) {
+      task.destroy().catch(() => {});
+    }
+    inlineBatch = null;
+  }
+
   function dispose() {
+    disposeInline();
     if (!active) return;
     active.render?.cancel();
     active.text?.cancel();
     active.release?.();
     active.task?.destroy().catch(() => {});
     active = null;
+  }
+
+  async function mountInlineFigures(container, items, states = {}) {
+    disposeInline();
+    if (!container || !Array.isArray(items) || !items.length) return;
+    const batch = { cancelled: false, handles: [], tasks: [] };
+    inlineBatch = batch;
+
+    let pdf;
+    try {
+      pdf = await pdfEngine();
+    } catch {
+      return;
+    }
+    if (batch.cancelled || inlineBatch !== batch || !container.isConnected) return;
+
+    // Group by underlying document so multi-page prompts (e.g. p.1 + p.2) parse the PDF only once
+    const docsBySrc = new Map();
+    const getDoc = async (source) => {
+      const docKey = source.localSourceKey
+        ? `local:${source.localSourceKey}`
+        : source.memberAsset?.id
+        ? `member:${source.memberAsset.id}`
+        : `url:${source.rawUrl || ''}`;
+      if (!docsBySrc.has(docKey)) {
+        const pending = (async () => {
+          const options = await documentOptions(source);
+          if (batch.cancelled || inlineBatch !== batch) return null;
+          const task = pdf.getDocument(options);
+          batch.tasks.push(task);
+          return task.promise;
+        })();
+        docsBySrc.set(docKey, pending);
+      }
+      return docsBySrc.get(docKey);
+    };
+
+    await Promise.all(
+      items.map(async (item) => {
+        const escKey = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(item.key) : item.key.replace(/"/g, '\\"');
+        const figure = container.querySelector(`[data-inline-pdf-key="${escKey}"]`);
+        if (!figure || !figure.isConnected) return;
+        const notice = figure.querySelector('[data-pdf-status]');
+        const canvas = figure.querySelector('canvas');
+        const scroll = figure.querySelector('.pdf-zoom-scroll');
+        const paper = figure.querySelector('.pdf-zoom-page');
+        const text = figure.querySelector('.textLayer');
+        if (!canvas || !scroll || !paper) return;
+
+        try {
+          const doc = await getDoc(item.source);
+          if (!doc || batch.cancelled || inlineBatch !== batch || !figure.isConnected) return;
+          const targetPage = Math.max(1, Math.min(doc.numPages, Number(item.page) || 1));
+          const page = await doc.getPage(targetPage);
+          if (batch.cancelled || inlineBatch !== batch || !figure.isConnected) return;
+          const original = page.getViewport({ scale: 1 });
+          const scale = Math.min(2.6, 2200 / Math.max(original.width, original.height));
+          const viewport = page.getViewport({ scale });
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          const renderTask = page.render({ canvas, viewport });
+          const handle = { render: renderTask, text: null, release: null };
+          batch.handles.push(handle);
+          await renderTask.promise;
+          if (batch.cancelled || inlineBatch !== batch || !figure.isConnected) return;
+
+          const state = (states[item.key] ||= { zoom: 100, trim: true });
+          const paintWidth = canvas.width;
+          const paintHeight = canvas.height;
+          geometry.delete(canvas);
+          if (text) {
+            text.replaceChildren();
+            text.style.width = `${viewport.width}px`;
+            text.style.height = `${viewport.height}px`;
+            text.style.setProperty('--total-scale-factor', viewport.scale);
+            text.style.setProperty('--scale-factor', viewport.scale);
+            handle.text = new pdf.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport });
+            handle.text.render().catch(() => {});
+          }
+          const zoom = bindZoom(figure, scroll, paper, canvas, state, () => ({ width: paintWidth, height: paintHeight }), text);
+          handle.release = zoom.release;
+          if (notice) notice.hidden = true;
+        } catch {
+          if (notice && !batch.cancelled && figure.isConnected) {
+            notice.textContent = 'Could not render this page. Click In-App PDF to view.';
+          }
+        }
+      })
+    );
   }
 
   async function mount(root, source, state) {
@@ -323,5 +428,5 @@ window.StudyPdf = (() => {
     }
   }
 
-  return { toolbar, viewer, bindExcerpts, mount, dispose, textForPage, clearText: () => pageText.clear() };
+  return { toolbar, viewer, bindExcerpts, mount, mountInlineFigures, dispose, disposeInline, textForPage, clearText: () => pageText.clear() };
 })();

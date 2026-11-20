@@ -1298,11 +1298,19 @@ window.StudyApp = (() => {
     }, 2500);
   }
 
+  let adminAutoUnlockAttempted = false;
   function syncSettingsRows() {
     window.StudyUI?.devMode?.syncUi?.();
     const communityOn = Boolean(window.StudyCommunity?.enabled);
     const signedIn = Boolean(window.StudyCommunity?.isSignedIn?.());
     const prof = window.StudyCommunity?.getCurrentProfile?.() || null;
+    if (signedIn && prof?.isAdmin && prof?.memberKey && members.enabled && !members.isUnlocked() && !adminAutoUnlockAttempted) {
+      adminAutoUnlockAttempted = true;
+      members.unlock(prof.memberKey, true).then(() => {
+        for (const id of Object.keys(bankCache)) delete bankCache[id];
+        return refreshBootstrap(false);
+      }).catch(() => {});
+    }
     const hdrSignIn = document.getElementById('hdr-signin-btn');
     if (hdrSignIn) hdrSignIn.hidden = !isStaticWeb || !communityOn || signedIn;
     const syncTip = document.getElementById('mobile-sync-tip');
@@ -6544,6 +6552,12 @@ window.StudyApp = (() => {
     if (event.source !== window || event.origin !== window.location.origin) return;
     const msg = event.data;
     if (!msg || typeof msg !== 'object') return;
+
+    if (msg.type === 'STUDY_OS_EXT_READY') {
+      if (msg.version) document.documentElement.dataset.studyOsSyncExt = String(msg.version);
+      window.StudyRunner?.refreshCurrent?.();
+      return;
+    }
 
     if (msg.type === 'STUDY_OS_CANVAS_FILE_RESULT' && msg.requestId) {
       const pending = pendingExtFetches.get(msg.requestId);

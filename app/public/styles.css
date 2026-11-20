@@ -6206,10 +6206,12 @@ html[data-theme="dark"] .sched-debt-banner {
   gap: 6px;
 }
 .sched-topic-pill {
+  display: inline-block;
   max-width: 340px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  vertical-align: middle;
 }
 .hero-queue-sub {
   display: flex;
@@ -6390,4 +6392,13 @@ html[data-theme="dark"] .is-debt-row td {
     align-items: flex-start;
     width: 100%;
   }
+}
+
+.source-gate-card.is-loading {
+  border-style: dashed;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+.pdf-figure-inline-local {
+  margin: 12px 0 14px;
 }

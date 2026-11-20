@@ -493,14 +493,35 @@ async function fetchCanvasFileDirect(courseId, fileId) {
   if (!/^\d{1,12}$/.test(String(courseId)) || !/^\d{1,12}$/.test(String(fileId))) {
     throw new Error('Invalid BI Canvas file reference.');
   }
-  const downloadUrl = `${CANVAS_ORIGIN}/courses/${courseId}/files/${fileId}/download?download_frd=1`;
-  const res = await fetch(downloadUrl, {
-    credentials: 'include',
+  let signedUrl = '';
+  let apiFilename = '';
+  try {
+    const metaRes = await fetch(`${CANVAS_ORIGIN}/api/v1/courses/${courseId}/files/${fileId}`, {
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (metaRes.status === 401 || metaRes.status === 403) {
+      throw new Error('Sign in to BI Canvas (canvas.bi.no) in Chrome first, then click Retry inline.');
+    }
+    if (metaRes.ok) {
+      const meta = await metaRes.json().catch(() => null);
+      if (meta?.url) signedUrl = String(meta.url);
+      if (meta?.display_name || meta?.filename) apiFilename = String(meta.display_name || meta.filename);
+    }
+  } catch (err) {
+    if (/sign in to bi canvas/i.test(String(err?.message || ''))) throw err;
+  }
+
+  const targetUrl = signedUrl || `${CANVAS_ORIGIN}/courses/${courseId}/files/${fileId}/download?download_frd=1`;
+  const isSameOrigin = targetUrl.startsWith(CANVAS_ORIGIN);
+  const res = await fetch(targetUrl, {
+    credentials: isSameOrigin ? 'include' : 'omit',
     redirect: 'follow',
     signal: AbortSignal.timeout(25_000),
   });
   if (res.status === 401 || res.status === 403 || /login|saml|microsoftonline/i.test(res.url || '')) {
-    throw new Error('Sign in to BI Canvas (canvas.bi.no) in Chrome first, then click Load PDF again.');
+    throw new Error('Sign in to BI Canvas (canvas.bi.no) in Chrome first, then click Retry inline.');
   }
   if (!res.ok) throw new Error(`BI Canvas returned HTTP ${res.status}. Open BI Canvas to refresh your login.`);
   const buf = await res.arrayBuffer();
@@ -512,7 +533,7 @@ async function fetchCanvasFileDirect(courseId, fileId) {
   }
   const disp = res.headers.get('Content-Disposition') || '';
   const nameMatch = disp.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
-  const filename = nameMatch ? decodeURIComponent(nameMatch[1] || nameMatch[2] || '') : `canvas-${fileId}.pdf`;
+  const filename = apiFilename || (nameMatch ? decodeURIComponent(nameMatch[1] || nameMatch[2] || '') : `canvas-${fileId}.pdf`);
   return { ok: true, filename, dataBase64: bytesToBase64(bytes) };
 }
 

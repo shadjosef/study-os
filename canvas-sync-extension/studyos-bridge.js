@@ -2,7 +2,7 @@
 // Never sends copyrighted files to any remote server: Canvas PDF fetches stay strictly
 // inside the user's own browser between their authenticated canvas.bi.no tab and IndexedDB.
 (() => {
-  const EXT_VERSION = '1.5.0';
+  const EXT_VERSION = '1.5.1';
   try {
     document.documentElement.dataset.studyOsSyncExt = EXT_VERSION;
     window.postMessage({ type: 'STUDY_OS_EXT_READY', version: EXT_VERSION }, window.location.origin);

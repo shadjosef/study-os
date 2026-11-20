@@ -646,12 +646,76 @@ window.StudyRunner = (() => {
           title: ref.title || localRec.title,
           label: ref.caption || `${ref.title || localRec.filename} · p. ${page}`,
           page,
+          role: ref.role || 'prompt',
+          isSolution: Boolean(ref.isSolution || ref.role === 'solution'),
           isPdf: true,
           pathStr: localRec.filename,
         });
       }
     }
     return out;
+  }
+
+  const autoCanvasFetchInFlight = new Set();
+  const autoCanvasFetchFailed = new Map();
+
+  function renderInlineLocalPdfFigures(entries) {
+    if (!Array.isArray(entries) || !entries.length) return { html: '', mountItems: [] };
+    const mountItems = [];
+    const html = entries
+      .map((entry, idx) => {
+        const inlineKey = `inline:${entry.key}`;
+        mountItems.push({ key: inlineKey, source: entry, page: entry.page || 1 });
+        return `<figure class="pdf-figure pdf-figure-inline-local" data-fig-idx="${idx}" data-inline-pdf-key="${esc(inlineKey)}">
+          <figcaption>
+            <span>${esc(entry.label)}</span>
+            <span class="row-actions" style="gap:6px">
+              <button type="button" class="mini-tool-btn" data-open-inline-pdf="${esc(entry.key)}" title="Open full multi-page PDF reader">In-App PDF (p.${esc(entry.page || 1)})</button>
+            </span>
+          </figcaption>
+          ${window.StudyPdf.toolbar()}
+          <p class="muted pdf-status" data-pdf-status role="status" style="margin:6px 10px">Rendering page ${esc(entry.page || 1)}…</p>
+          <div class="pdf-zoom-scroll pdf-figure-scroll" tabindex="0" aria-label="Scrollable course PDF page">
+            <div class="pdf-zoom-page"><canvas aria-hidden="true"></canvas><div class="textLayer"></div></div>
+          </div>
+        </figure>`;
+      })
+      .join('');
+    return { html, mountItems };
+  }
+
+  function maybeAutoFetchCanvasSources(q, lockedRefs) {
+    if (!document.documentElement.dataset.studyOsSyncExt) return;
+    if (!window.StudyApp?.fetchCanvasPdfViaExtension || !window.StudyLocalSources) return;
+    if (!Array.isArray(lockedRefs) || !lockedRefs.length) return;
+
+    const seen = new Set();
+    for (const ref of lockedRefs) {
+      if (!ref || ref.kind === 'book' || !ref.canvasCourseId || !ref.canvasFileId) continue;
+      if (window.StudyLocalSources.match(q.courseId, ref)) continue;
+      const fetchKey = `${ref.canvasCourseId}:${ref.canvasFileId}`;
+      if (seen.has(fetchKey) || autoCanvasFetchInFlight.has(fetchKey) || autoCanvasFetchFailed.has(fetchKey)) continue;
+      seen.add(fetchKey);
+      autoCanvasFetchInFlight.add(fetchKey);
+
+      (async () => {
+        try {
+          const file = await window.StudyApp.fetchCanvasPdfViaExtension(ref.canvasCourseId, ref.canvasFileId);
+          await window.StudyLocalSources.save(q.courseId, ref.sourceId, file, {
+            kind: 'canvas',
+            title: ref.title || file.name,
+          });
+          autoCanvasFetchFailed.delete(fetchKey);
+        } catch (err) {
+          autoCanvasFetchFailed.set(fetchKey, err?.message || 'Sign in to BI Canvas in Chrome to load this PDF inline.');
+        } finally {
+          autoCanvasFetchInFlight.delete(fetchKey);
+          if (activeRun && currentQuestion()?.id === q.id) {
+            renderRunner();
+          }
+        }
+      })();
+    }
   }
 
   function getQuestionLockedSources(q, isBlindUnfinished, includeSolutionPdfs, unlockedPdfs = []) {
@@ -716,18 +780,46 @@ window.StudyRunner = (() => {
       const c = canvasRefs[0];
       const hasExtBridge = Boolean(document.documentElement.dataset.studyOsSyncExt);
       const canDirectFetch = hasExtBridge && Boolean(c.canvasCourseId && c.canvasFileId);
+      const fetchKey = c.canvasCourseId && c.canvasFileId ? `${c.canvasCourseId}:${c.canvasFileId}` : '';
+      const isFetching = Boolean(fetchKey && autoCanvasFetchInFlight.has(fetchKey));
+      const fetchErr = fetchKey ? autoCanvasFetchFailed.get(fetchKey) || '' : '';
+      const pagesSummary = [...new Set(canvasRefs.map((x) => `p. ${x.page || 1}`))].join(', ');
       const fileChips = canvasRefs.slice(0, 4).map((r) =>
         `<span class="badge">${esc(r.filename || r.title)}${r.page ? ` · p. ${r.page}` : ''}</span>`
       ).join('');
       if (compact) {
+        if (isFetching) {
+          return `<div class="source-gate-card source-gate-compact source-gate-canvas is-loading">
+            <div class="source-gate-copy">
+              <strong>Loading ${esc(c.filename || c.title)} (${esc(pagesSummary)})…</strong>
+              <small class="muted">Pulling privately from your signed-in BI Canvas session in Chrome — will pop up inline automatically.</small>
+            </div>
+          </div>`;
+        }
         return `<div class="source-gate-card source-gate-compact source-gate-canvas" data-local-dropzone data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-source-kind="canvas" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">
           <div class="source-gate-copy">
-            <strong>${canDirectFetch ? 'Load BI Canvas PDF inline' : isSynced ? 'BI Canvas source ready' : 'Sync with BI Canvas to unlock readable course material'}</strong>
-            <small class="muted">${esc(c.filename || c.title)} (p. ${esc(c.page || 1)}) · ${canDirectFetch ? 'Loads straight from your signed-in Chrome BI Canvas session — stays private in your browser.' : isSynced ? 'Open directly on BI Canvas or attach your downloaded PDF for inline split-screen.' : 'Course PDFs &amp; slides stay on BI Canvas to respect copyright.'}</small>
+            <strong>${
+              fetchErr
+                ? 'Sign in to BI Canvas to auto-load inline'
+                : canDirectFetch
+                ? 'Load BI Canvas PDF inline'
+                : isSynced
+                ? 'BI Canvas synced · Reload Study-OS Sync v1.5 for auto-inline PDFs'
+                : 'Sync with BI Canvas to unlock readable course material'
+            }</strong>
+            <small class="muted">${esc(c.filename || c.title)} (${esc(pagesSummary)}) · ${
+              fetchErr
+                ? esc(fetchErr)
+                : canDirectFetch
+                ? 'Loads straight from your signed-in Chrome BI Canvas session — stays private in your browser.'
+                : isSynced
+                ? 'Reload the updated Study-OS Sync extension in Chrome to pop up BI PDFs automatically here, or open on BI Canvas / drop the PDF.'
+                : 'Course PDFs &amp; slides stay on BI Canvas to respect copyright.'
+            }</small>
           </div>
           <div class="row-actions">
             ${canDirectFetch
-              ? `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-fetch-canvas-pdf data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-canvas-course="${esc(c.canvasCourseId)}" data-canvas-file="${esc(c.canvasFileId)}" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">Load PDF inline</button>`
+              ? `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-fetch-canvas-pdf data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-canvas-course="${esc(c.canvasCourseId)}" data-canvas-file="${esc(c.canvasFileId)}" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">${fetchErr ? 'Retry inline' : 'Load PDF inline'}</button>`
               : isSynced && c.canvasUrl
               ? `<a class="primary-btn" style="padding:6px 12px;font-size:12.5px;text-decoration:none" href="${esc(c.canvasUrl)}" target="_blank" rel="noopener">Open on BI Canvas ↗</a>`
               : `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-open-bi-sync>Sync BI Canvas</button>`}
@@ -1149,6 +1241,7 @@ window.StudyRunner = (() => {
 
     let readerBodyHtml = '';
     let inlinePdf = null;
+    const inlineLocalMountItems = [];
     if (st.readerTab === 'pdf' && sourcePdfs.length) {
       const pdfIdx = Math.max(0, Math.min(sourcePdfs.length - 1, Number(st.selectedPdfIdx) || 0));
       const curPdf = sourcePdfs[pdfIdx];
@@ -1241,18 +1334,17 @@ window.StudyRunner = (() => {
         : `<h2 style="margin-top:0">${esc(q.title)}</h2>`;
       const inlineGateRefs = lockedSourceRefs.filter((r) => r.role !== 'solution');
       const taskGateHtml = inlineGateRefs.length ? renderSourceContextGate(q, inlineGateRefs, true) : '';
-      const localReadyStrip = sourcePdfs.some((p) => p.localSourceKey)
-        ? `<div class="source-ready-strip">
-             <span class="badge good">Private Local PDF Ready · ${esc(sourcePdfs[0].label)}</span>
-             <button type="button" class="mini-tool-btn" data-reader-tab="pdf">Open Source PDF (p.${esc(sourcePdfs[0].page || 1)})</button>
-           </div>`
-        : '';
+      const localPromptPdfs = !promptAssetsHtml
+        ? sourcePdfs.filter((p) => p.localSourceKey && !p.isSolution)
+        : [];
+      const inlineLocalPrompt = renderInlineLocalPdfFigures(localPromptPdfs);
+      if (inlineLocalPrompt.mountItems.length) inlineLocalMountItems.push(...inlineLocalPrompt.mountItems);
       readerBodyHtml = `
         <div class="${isExamSheet ? 'exam-paper-sheet' : ''}">
           ${headerHtml}
-          ${localReadyStrip}
           ${contextHtml}
           ${promptAssetsHtml}
+          ${inlineLocalPrompt.html}
           ${svgHtml}
           ${promptMdHtml}
           ${taskGateHtml}
@@ -1530,6 +1622,11 @@ window.StudyRunner = (() => {
 
       const solLockedRefs = lockedSourceRefs.filter((r) => r.role === 'solution' || r.isSolution);
       const solGateHtml = solLockedRefs.length ? renderSourceContextGate(q, solLockedRefs, true) : '';
+      const localSolPdfs = !solAssets
+        ? sourcePdfs.filter((p) => p.localSourceKey && p.isSolution)
+        : [];
+      const inlineLocalSol = renderInlineLocalPdfFigures(localSolPdfs);
+      if (inlineLocalSol.mountItems.length) inlineLocalMountItems.push(...inlineLocalSol.mountItems);
       solutionHtml = `
         <section class="solution-panel" id="solution-box">
           ${attemptBanner}
@@ -1538,6 +1635,7 @@ window.StudyRunner = (() => {
             ${topQuickActionsHtml}
           </div>
           ${solAssets}
+          ${inlineLocalSol.html}
           ${solGateHtml}
           <div class="markdown-body">${renderMarkdownWithMath(q.solutionMarkdown || '')}</div>
           ${pitfallHtml}
@@ -1784,6 +1882,13 @@ window.StudyRunner = (() => {
     if (inlinePdf) {
       const view = st.pdfViews[inlinePdf.key] ||= { page: inlinePdf.page, zoom: 100, trim: false };
       window.StudyPdf.mount(card.querySelector('#source-pdf-reader'), inlinePdf, view);
+    } else if (inlineLocalMountItems.length) {
+      window.StudyPdf.mountInlineFigures(card, inlineLocalMountItems, st.pdfViews);
+    } else {
+      window.StudyPdf.disposeInline?.();
+    }
+    if (!isBlindUnfinished && lockedSourceRefs.length) {
+      maybeAutoFetchCanvasSources(q, lockedSourceRefs);
     }
     tickLiveClocks();
   }
@@ -1869,10 +1974,11 @@ window.StudyRunner = (() => {
       const targetPage = Math.max(1, Number(el.dataset.sourcePage) || 1);
       try {
         await window.StudyLocalSources.save(cid, sid, file, { kind, title });
-        st.readerTab = 'pdf';
+        // Stay on Task tab so the exact prompt pages pop up right above the question automatically
+        if (st.readerTab === 'context') st.readerTab = 'task';
         st.selectedPdfIdx = 0;
         st.layoutOverride = null;
-        toast(`Saved "${file.name}" privately in this browser · opening p. ${targetPage}`);
+        toast(`Saved "${file.name}" privately in this browser · p. ${targetPage} ready inline`);
         renderRunner();
       } catch (err) {
         toast(err.message || 'Could not save PDF locally.');
@@ -1927,6 +2033,8 @@ window.StudyRunner = (() => {
     card.querySelectorAll('[data-fetch-canvas-pdf]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const origText = btn.textContent;
+        const fetchKey = `${btn.dataset.canvasCourse}:${btn.dataset.canvasFile}`;
+        autoCanvasFetchFailed.delete(fetchKey);
         btn.disabled = true;
         btn.textContent = 'Loading PDF…';
         try {
@@ -1936,6 +2044,7 @@ window.StudyRunner = (() => {
           );
           await handleLocalPdfAttach(file, btn);
         } catch (err) {
+          autoCanvasFetchFailed.set(fetchKey, err?.message || 'Could not load PDF from BI Canvas.');
           toast(err?.message || 'Could not load PDF from BI Canvas.');
           btn.disabled = false;
           btn.textContent = origText;
@@ -2864,5 +2973,6 @@ window.StudyRunner = (() => {
     setAutoPauseMode,
     getAutoPauseMode: () => autoPauseMode,
     toggleFullscreen,
+    refreshCurrent: () => { if (activeRun) renderRunner(); },
   };
 })();
