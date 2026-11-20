@@ -4386,7 +4386,7 @@ window.StudyApp = (() => {
             ${topicsHtml}
           </div>
           <div class="course-actions">
-            <button type="button" class="primary-btn" data-comm-ai="${idx}">✨ AI Study</button>
+            <button type="button" class="primary-btn" data-comm-ai="${idx}">Adamlite AI</button>
             ${/^[1-9][0-9]{0,19}$/.test(course.canvasId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="https://canvas.bi.no/courses/${course.canvasId}">Canvas ↗</a>` : ''}
             ${/^[1-9][0-9]{0,19}$/.test(course.edCourseId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="https://${edHost}/courses/${course.edCourseId}">Ed ↗</a>` : ''}
           </div>

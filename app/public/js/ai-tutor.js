@@ -249,7 +249,7 @@ window.StudyAiTutor = (() => {
     pane.className = 'ai-tutor-pane';
     pane.hidden = true;
     pane.setAttribute('role', 'complementary');
-    pane.setAttribute('aria-label', 'AI Tutor');
+    pane.setAttribute('aria-label', 'Adamlite AI');
     pane.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') {
         ev.stopPropagation();
@@ -374,7 +374,7 @@ window.StudyAiTutor = (() => {
            <h3>${snap.mode === 'blind' ? 'Paused for blind exam' : 'How can I help?'}</h3>
            <p class="muted">${
              snap.mode === 'blind'
-               ? 'AI Tutor turns off automatically during blind timed exams.'
+               ? 'Adamlite AI turns off automatically during blind timed exams.'
                : hasQuestion
                  ? 'Ask about any step, formula, or mistake — I can see this question and your current working.'
                  : 'Ask any study question, or open a practice problem for live context.'
@@ -417,7 +417,7 @@ window.StudyAiTutor = (() => {
 
       <header class="ai-pane-head">
         <div class="ai-pane-head-left">
-          <span class="ai-pane-title">Tutor</span>
+          <span class="ai-pane-title">Adamlite AI</span>
           ${ctxTag ? `<span class="ai-pane-ctx-chip" title="${esc(ctxFull)}">${esc(ctxTag)}</span>` : ''}
         </div>
         <div class="ai-pane-head-actions">
@@ -428,7 +428,7 @@ window.StudyAiTutor = (() => {
           <button type="button" class="ai-head-icon-btn ai-dock-flip-btn" id="ai-dock-flip" title="${side === 'left' ? 'Dock to right side' : 'Dock to left side'}" aria-label="${side === 'left' ? 'Dock to right side' : 'Dock to left side'}">
             ${dockIconSvg}
           </button>
-          <button type="button" class="ai-head-icon-btn" id="ai-tutor-close" title="Close (Esc)" aria-label="Close AI Tutor">
+          <button type="button" class="ai-head-icon-btn" id="ai-tutor-close" title="Close (Esc)" aria-label="Close Adamlite AI">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
@@ -456,7 +456,7 @@ window.StudyAiTutor = (() => {
           <textarea
             id="ai-tutor-input"
             rows="1"
-            placeholder="${snap.mode === 'blind' ? 'Unavailable during blind exam…' : 'Message Tutor…'}"
+            placeholder="${snap.mode === 'blind' ? 'Unavailable during blind exam…' : 'Message Adamlite AI…'}"
             ${busy || !canAsk || snap.mode === 'blind' ? 'disabled' : ''}
           >${esc(draft)}</textarea>
           <div class="ai-composer-bar">
@@ -585,7 +585,7 @@ window.StudyAiTutor = (() => {
     const includeSolution = action === 'solution';
     const snap = currentExerciseSnapshot(includeSolution);
     if (snap.mode === 'blind') {
-      toast('AI Tutor is disabled during blind exams.');
+      toast('Adamlite AI is disabled during blind exams.');
       return;
     }
 

@@ -1427,7 +1427,7 @@ window.StudyRunner = (() => {
         </div>
         <div class="runner-meta-actions" role="group" aria-label="Question actions">
           ${!isBlindUnfinished
-            ? `<button type="button" class="st-btn runner-pill-tool runner-ai-pill ${window.StudyAiTutor?.isOpen?.() ? 'active' : ''}" id="btn-ai-tutor-pill" aria-expanded="${window.StudyAiTutor?.isOpen?.() ? 'true' : 'false'}" title="Toggle AI Tutor side panel (T)">✨ AI</button>` : ''}
+            ? `<button type="button" class="st-btn runner-pill-tool runner-ai-pill ${window.StudyAiTutor?.isOpen?.() ? 'active' : ''}" id="btn-ai-tutor-pill" aria-expanded="${window.StudyAiTutor?.isOpen?.() ? 'true' : 'false'}" title="Toggle Adamlite AI side panel (T)">Adamlite AI</button>` : ''}
           ${!isBlindUnfinished && (q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference)
             ? '<button type="button" class="st-btn runner-pill-tool" id="btn-question-notes" title="Open course notes (O)">Notes</button>' : ''}
           ${

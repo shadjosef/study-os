@@ -3186,6 +3186,7 @@ html[data-theme="dark"] .course-code-pill {
 
 .runner-meta-actions {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
 }
@@ -3783,8 +3784,9 @@ body {
   font-size: 13.5px;
 }
 
-/* Runner AI Sparkle Pill + Popover Overflow Fix */
+/* Runner tutor button and tools menu */
 .runner-ai-pill {
+  white-space: nowrap;
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--panel)), rgba(99, 102, 241, 0.14)) !important;
   border-color: color-mix(in srgb, var(--accent) 42%, var(--line)) !important;
   color: var(--accent-ink, var(--accent)) !important;

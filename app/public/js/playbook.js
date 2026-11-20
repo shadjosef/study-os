@@ -44,11 +44,11 @@ window.StudyPlaybook = (() => {
       badge: 'Upcoming',
       badgeClass: 'gold',
       title: 'Active Recall, AI Par & Honest Scoring',
-      summary: 'How to use realistic AI Par timers and the Socratic ✨ AI Tutor without fooling yourself into passive rereading.',
+      summary: 'How to use realistic AI Par timers and Adamlite AI without fooling yourself into passive rereading.',
       points: [
         'Attempt every problem cold first before opening a hint or solution — struggle is the signal that builds durable memory.',
         '<b>UPI rewards High DLPFC (1.22×) and Exam Par (1.08×)</b> while keeping self-graded written weight conservative so your metrics stay honest.',
-        'Use the built-in <b>✨ AI</b> tutor for one small nudge or to check your working — not to skip thinking.',
+        'Use <b>Adamlite AI</b> for a small nudge or to check your working.',
       ],
     },
   ];
