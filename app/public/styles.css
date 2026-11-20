@@ -6402,3 +6402,90 @@ html[data-theme="dark"] .is-debt-row td {
 .pdf-figure-inline-local {
   margin: 12px 0 14px;
 }
+
+/* ==========================================================================
+   3-PANE SIDE-BY-SIDE RUNNER (TASK | REFERENCE | ANSWER)
+   ========================================================================== */
+body.runner-split-wide.runner-split-ref .container {
+  max-width: min(1820px, calc(100vw - 24px));
+}
+.runner-split-grid.is-tri-pane {
+  grid-template-columns:
+    minmax(260px, var(--task-share, 38fr))
+    12px
+    minmax(240px, var(--ref-share, 30fr))
+    12px
+    minmax(280px, var(--answer-share, 32fr));
+}
+.runner-pane-ref {
+  position: sticky;
+  top: var(--runner-sticky-top, 66px);
+  max-height: max(14rem, calc(100dvh - var(--runner-sticky-top, 66px) - 24px));
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  min-width: 0;
+}
+.runner-ref-header {
+  border-bottom: 1px solid var(--line);
+}
+.runner-ref-title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.runner-ref-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.runner-pane-ref-controls {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-alt);
+}
+.runner-pane-ref-controls .runner-ref-toolbar {
+  margin: 0;
+  gap: 6px;
+}
+.runner-pane-ref-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 14px 18px 24px;
+  font-size: 13.5px;
+  line-height: 1.58;
+}
+.runner-pane-ref-scroll .markdown-body h1,
+.runner-pane-ref-scroll .markdown-body h2 {
+  font-size: 15.5px;
+  margin-top: 12px;
+}
+.runner-pane-ref-scroll .markdown-body h3 {
+  font-size: 14px;
+}
+.runner-pane-ref-scroll .markdown-body table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+@media (max-width: 1019px) {
+  .runner-split-grid.is-tri-pane {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .runner-split-grid.is-tri-pane .runner-divider {
+    display: none;
+  }
+  .runner-split-grid.is-tri-pane .runner-pane-left,
+  .runner-split-grid.is-tri-pane .runner-pane-ref {
+    position: static;
+    max-height: 55vh;
+  }
+}

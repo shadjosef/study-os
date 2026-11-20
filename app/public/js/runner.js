@@ -885,6 +885,7 @@ window.StudyRunner = (() => {
     }
     st.inlineRefFile = targetFile;
     st.inlineRefHeading = targetHeading;
+    st.inlineRefLoading = true;
     try {
       if (window.StudyApp?.fetchReferenceSection) {
         st.inlineRefData = await window.StudyApp.fetchReferenceSection(targetFile, targetHeading);
@@ -895,7 +896,67 @@ window.StudyRunner = (() => {
       }
     } catch {
       st.inlineRefData = { available: false, error: 'Could not load Obsidian section.' };
+    } finally {
+      st.inlineRefLoading = false;
     }
+  }
+
+  function buildInlineRefHtml(q, st, isDocked, isSplit) {
+    const refData = st.inlineRefData;
+    const obs = activeRun.courseMeta?.obsidian || {};
+    const noteChoices = [];
+    if (obs.mainReference) noteChoices.push({ label: 'Main Reference', file: obs.mainReference });
+    if (obs.workedExamples) noteChoices.push({ label: 'Worked Examples', file: obs.workedExamples });
+    if (obs.practiceNote) noteChoices.push({ label: 'Practice Note', file: obs.practiceNote });
+    if (st.inlineRefFile && !noteChoices.some((n) => n.file === st.inlineRefFile)) {
+      noteChoices.unshift({ label: st.inlineRefFile.split('/').pop(), file: st.inlineRefFile });
+    }
+    const noteSelHtml = noteChoices
+      .map((n) => `<option value="${esc(n.file)}" ${n.file === st.inlineRefFile ? 'selected' : ''}>${esc(n.label)}</option>`)
+      .join('');
+    const tocSelHtml =
+      `<option value="">— Top / Overview —</option>` +
+      (refData?.toc || [])
+        .map((h) => {
+          const pad = '· '.repeat(Math.max(0, h.level - 1));
+          return `<option value="${esc(h.title)}" ${refData?.selectedHeading === h.title ? 'selected' : ''}>${pad}${esc(h.title)}</option>`;
+        })
+        .join('');
+    const toolbar = `
+      <div class="inline-pdf-toolbar runner-ref-toolbar">
+        <select id="sel-inline-ref-note" aria-label="Reference note" style="font-size:12px;padding:4px 7px;min-width:110px;max-width:155px">${noteSelHtml}</select>
+        <select id="sel-inline-ref-toc" aria-label="Reference section" style="font-size:12px;padding:4px 7px;flex:1;min-width:120px">${tocSelHtml}</select>
+        ${refData?.obsidianUri ? `<a class="mini-tool-btn" href="${esc(refData.obsidianUri)}" style="text-decoration:none">Obsidian ↗</a>` : ''}
+        ${!isDocked && isSplit ? `<button type="button" class="mini-tool-btn" data-toggle-ref-pane="on" title="View Task, Reference, and Answer side-by-side (3-Pane)">Side-by-Side ◫</button>` : ''}
+      </div>
+    `;
+    const body = `
+      <div class="markdown-body">
+        ${
+          !refData
+            ? '<p class="muted">Loading course reference…</p>'
+            : refData.available
+            ? renderMarkdownWithMath(refData.markdown || '')
+            : `<p class="muted">${esc(refData.error || 'Reference unavailable.')}</p>`
+        }
+      </div>
+    `;
+    if (isDocked) {
+      return `
+        <div class="reader-tabbar runner-ref-header">
+          <div class="runner-ref-title-wrap">
+            <span class="runner-ref-dot" aria-hidden="true"></span>
+            <strong style="font-size:13px">Reference</strong>
+          </div>
+          <div class="reader-tools">
+            <button type="button" class="mini-tool-btn" data-toggle-ref-pane="off" title="Close side-by-side Reference pane (O)">Close ×</button>
+          </div>
+        </div>
+        <div class="runner-pane-ref-controls">${toolbar}</div>
+        <div class="runner-pane-ref-scroll">${body}</div>
+      `;
+    }
+    return `${toolbar}${body}`;
   }
 
   function renderAssets(assets, courseId, sourcesMap, isBlindUnfinished = false) {
@@ -1183,13 +1244,21 @@ window.StudyRunner = (() => {
       ? false
       : preferredSplit;
 
+    const isTriPane = isSplit && !isBlindUnfinished && Boolean(uiPrefs.dockRefPane);
+    if (isTriPane && st.readerTab === 'ref') {
+      st.readerTab = 'task';
+    }
+
     document.body.classList.toggle('runner-split-wide', isSplit);
     document.body.classList.toggle('runner-split-pdf', isSplit && st.readerTab === 'pdf');
+    document.body.classList.toggle('runner-split-ref', isTriPane);
     document.body.classList.toggle('runner-foveal-compact', !isSplit);
 
-    // Preserve left-pane scroll position when re-rendering the same question
+    // Preserve left-pane and reference-pane scroll positions when re-rendering the same question
     const prevLeftEl = document.querySelector('.runner-pane-left-scroll');
     const prevLeftScroll = activeRun.lastRenderedQid === q.id && prevLeftEl ? prevLeftEl.scrollTop : 0;
+    const prevRefEl = document.querySelector('.runner-pane-ref-scroll');
+    const prevRefScroll = activeRun.lastRenderedQid === q.id && prevRefEl ? prevRefEl.scrollTop : 0;
     activeRun.lastRenderedQid = q.id;
 
     // Top sticky header controls
@@ -1286,43 +1355,8 @@ window.StudyRunner = (() => {
           ${renderSourceContextGate(q, lockedSourceRefs, false)}
         </div>
       `;
-    } else if (st.readerTab === 'ref' && !isBlindUnfinished) {
-      const refData = st.inlineRefData;
-      const obs = activeRun.courseMeta?.obsidian || {};
-      const noteChoices = [];
-      if (obs.mainReference) noteChoices.push({ label: 'Main Reference', file: obs.mainReference });
-      if (obs.workedExamples) noteChoices.push({ label: 'Worked Examples', file: obs.workedExamples });
-      if (obs.practiceNote) noteChoices.push({ label: 'Practice Note', file: obs.practiceNote });
-      if (st.inlineRefFile && !noteChoices.some((n) => n.file === st.inlineRefFile)) {
-        noteChoices.unshift({ label: st.inlineRefFile.split('/').pop(), file: st.inlineRefFile });
-      }
-      const noteSelHtml = noteChoices
-        .map((n) => `<option value="${esc(n.file)}" ${n.file === st.inlineRefFile ? 'selected' : ''}>${esc(n.label)}</option>`)
-        .join('');
-      const tocSelHtml =
-        `<option value="">— Top / Overview —</option>` +
-        (refData?.toc || [])
-          .map((h) => {
-            const pad = '· '.repeat(Math.max(0, h.level - 1));
-            return `<option value="${esc(h.title)}" ${refData?.selectedHeading === h.title ? 'selected' : ''}>${pad}${esc(h.title)}</option>`;
-          })
-          .join('');
-      readerBodyHtml = `
-        <div class="inline-pdf-toolbar" style="margin-bottom:12px">
-          <select id="sel-inline-ref-note" style="font-size:12.5px;padding:4px 8px">${noteSelHtml}</select>
-          <select id="sel-inline-ref-toc" style="font-size:12.5px;padding:4px 8px;flex:1;min-width:180px">${tocSelHtml}</select>
-          ${refData?.obsidianUri ? `<a class="mini-tool-btn" href="${esc(refData.obsidianUri)}" style="text-decoration:none">Obsidian ↗</a>` : ''}
-        </div>
-        <div class="markdown-body">
-          ${
-            !refData
-              ? '<p class="muted">Loading Obsidian Vault reference…</p>'
-              : refData.available
-              ? renderMarkdownWithMath(refData.markdown || '')
-              : `<p class="muted">${esc(refData.error || 'Reference unavailable.')}</p>`
-          }
-        </div>
-      `;
+    } else if (st.readerTab === 'ref' && !isBlindUnfinished && !isTriPane) {
+      readerBodyHtml = buildInlineRefHtml(q, st, false, isSplit);
     } else {
       const isExamSheet = Boolean(hasWf || q.origin === 'mock_exam' || q.origin === 'original_exam');
       const cleanTitle = String(q.title || '').replace(/\s*\(\d+\s*pts?\)\s*$/i, '');
@@ -1368,14 +1402,19 @@ window.StudyRunner = (() => {
               : ''
           }
           ${
-            !isBlindUnfinished
+            !isBlindUnfinished && !isTriPane
               ? `<button type="button" class="reader-tab-btn ${st.readerTab === 'ref' ? 'active' : ''}" data-reader-tab="ref">Reference</button>`
               : ''
           }
         </div>
         <div class="reader-tools">
           ${
-            isSplit
+            isSplit && !isBlindUnfinished
+              ? `<button type="button" class="mini-tool-btn ${isTriPane ? 'active' : ''}" data-toggle-ref-pane="toggle" title="View Task, Reference &amp; Answer side-by-side (Shortcut: O)">${isTriPane ? '3-Pane Ref ✓' : '+ Ref Split'}</button>`
+              : ''
+          }
+          ${
+            isSplit && !isTriPane
               ? `
                 <button type="button" class="mini-tool-btn ${splitRatio === 'wide-left' ? 'active' : ''}" data-split-ratio="wide-left" title="Wider task pane">Wide Task</button>
                 <button type="button" class="mini-tool-btn ${splitRatio === 'balanced' ? 'active' : ''}" data-split-ratio="balanced" title="Balanced 50/50 Split">50/50</button>
@@ -1796,7 +1835,41 @@ window.StudyRunner = (() => {
     card.classList.toggle('foveal-card', !isSplit);
 
     window.StudyPdf.dispose();
-    if (isSplit) {
+    if (isSplit && isTriPane) {
+      const savedTri = Array.isArray(uiPrefs.triWidths) && uiPrefs.triWidths.length === 3
+        ? uiPrefs.triWidths.map(Number)
+        : [38, 30, 32];
+      const wTask = Math.max(22, Math.min(54, savedTri[0] || 38));
+      const wRef = Math.max(20, Math.min(48, savedTri[1] || 30));
+      const wAns = Math.max(22, 100 - wTask - wRef);
+      const dockedRefHtml = buildInlineRefHtml(q, st, true, true);
+      card.innerHTML = `
+        <div class="runner-split-grid is-tri-pane" style="--task-share:${wTask}fr;--ref-share:${wRef}fr;--answer-share:${wAns}fr">
+          <div class="runner-pane-left">
+            ${readerTabBarHtml}
+            <div class="runner-pane-left-scroll">
+              ${readerBodyHtml}
+            </div>
+          </div>
+          <div class="runner-divider" data-divider-slot="left" role="separator" aria-label="Resize task and reference panes" aria-orientation="vertical"
+              aria-valuemin="22" aria-valuemax="56" aria-valuenow="${wTask}" tabindex="0"></div>
+          <aside class="runner-pane-ref" aria-label="Course reference">
+            ${dockedRefHtml}
+          </aside>
+          <div class="runner-divider" data-divider-slot="right" role="separator" aria-label="Resize reference and answer panes" aria-orientation="vertical"
+              aria-valuemin="20" aria-valuemax="56" aria-valuenow="${wRef}" tabindex="0"></div>
+          <div class="runner-pane-right">
+            ${statusBarHtml}
+            <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
+            ${workspaceHtml}
+            ${fovealActionBarHtml}
+            ${hintsHtml}
+            ${solutionHtml}
+            ${kbdBarHtml}
+          </div>
+        </div>
+      `;
+    } else if (isSplit) {
       const initialWidth = splitRatio === 'custom'
         ? Math.max(32, Math.min(68, Number(uiPrefs.splitWidth) || 62))
         : splitRatio === 'balanced' ? 50 : 62;
@@ -1839,6 +1912,15 @@ window.StudyRunner = (() => {
     const newLeftEl = document.querySelector('.runner-pane-left-scroll');
     if (newLeftEl && prevLeftScroll > 0) {
       newLeftEl.scrollTop = prevLeftScroll;
+    }
+    const newRefEl = document.querySelector('.runner-pane-ref-scroll');
+    if (newRefEl && prevRefScroll > 0) {
+      newRefEl.scrollTop = prevRefScroll;
+    }
+    if (isTriPane && !st.inlineRefData && !st.inlineRefLoading) {
+      ensureInlineRefLoaded(q, st).then(() => {
+        if (activeRun && currentQuestion()?.id === q.id) renderRunner();
+      });
     }
 
     // Render Jump Grid (WISEflow section navigator)
@@ -2072,37 +2154,123 @@ window.StudyRunner = (() => {
     });
 
     window.StudyPdf.bindExcerpts(card, st.excerptViews);
-    const divider = card.querySelector('.runner-divider');
-    if (divider) {
-      const grid = divider.parentElement;
-      function resize(width) {
-        const percent = Math.round(Math.max(32, Math.min(68, width)));
-        grid.style.setProperty('--task-share', percent + 'fr');
-        grid.style.setProperty('--answer-share', (100 - percent) + 'fr');
-        divider.setAttribute('aria-valuenow', percent);
-        return percent;
+    // Toggle 3-Pane Reference Dock (Task | Reference | Answer)
+    card.querySelectorAll('[data-toggle-ref-pane]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const mode = btn.dataset.toggleRefPane;
+        const cur = Boolean(getRunnerUiPrefs().dockRefPane);
+        const next = mode === 'on' ? true : mode === 'off' ? false : !cur;
+        saveRunnerUiPrefs({ dockRefPane: next });
+        if (next) {
+          st.layoutOverride = 'split';
+          if (st.readerTab === 'ref') st.readerTab = 'task';
+          renderRunner();
+          if (!st.inlineRefData && !st.inlineRefLoading) {
+            await ensureInlineRefLoaded(q, st);
+            if (activeRun && currentQuestion()?.id === q.id) renderRunner();
+          }
+        } else {
+          renderRunner();
+        }
+      });
+    });
+
+    const triGrid = card.querySelector('.runner-split-grid.is-tri-pane');
+    if (triGrid) {
+      const leftDiv = triGrid.querySelector('[data-divider-slot="left"]');
+      const rightDiv = triGrid.querySelector('[data-divider-slot="right"]');
+      const readShares = () => {
+        const t = parseFloat(triGrid.style.getPropertyValue('--task-share')) || 38;
+        const r = parseFloat(triGrid.style.getPropertyValue('--ref-share')) || 30;
+        const a = parseFloat(triGrid.style.getPropertyValue('--answer-share')) || 32;
+        return [t, r, a];
+      };
+      const applyTri = (t, r, a) => {
+        const rt = Math.round(t);
+        const rr = Math.round(r);
+        const ra = Math.max(20, 100 - rt - rr);
+        triGrid.style.setProperty('--task-share', rt + 'fr');
+        triGrid.style.setProperty('--ref-share', rr + 'fr');
+        triGrid.style.setProperty('--answer-share', ra + 'fr');
+        leftDiv?.setAttribute('aria-valuenow', rt);
+        rightDiv?.setAttribute('aria-valuenow', rr);
+        return [rt, rr, ra];
+      };
+      const bindTriDiv = (div, slot) => {
+        if (!div) return;
+        div.addEventListener('pointerdown', (ev) => {
+          ev.preventDefault();
+          div.setPointerCapture(ev.pointerId);
+        });
+        div.addEventListener('pointermove', (ev) => {
+          if (!div.hasPointerCapture(ev.pointerId)) return;
+          const rect = triGrid.getBoundingClientRect();
+          const pct = (100 * (ev.clientX - rect.left)) / rect.width;
+          const [t, r, a] = readShares();
+          if (slot === 'left') {
+            const nextT = Math.max(22, Math.min(100 - a - 20, pct));
+            const nextR = Math.max(20, 100 - a - nextT);
+            applyTri(nextT, nextR, a);
+          } else {
+            const nextR = Math.max(20, Math.min(100 - t - 22, pct - t));
+            const nextA = Math.max(22, 100 - t - nextR);
+            applyTri(t, nextR, nextA);
+          }
+        });
+        div.addEventListener('lostpointercapture', () => {
+          saveRunnerUiPrefs({ triWidths: readShares().map(Math.round) });
+        });
+        div.addEventListener('keydown', (ev) => {
+          if (!['ArrowLeft', 'ArrowRight'].includes(ev.key)) return;
+          ev.preventDefault();
+          ev.stopPropagation();
+          const delta = ev.key === 'ArrowLeft' ? -3 : 3;
+          const [t, r, a] = readShares();
+          if (slot === 'left') {
+            const nextT = Math.max(22, Math.min(100 - a - 20, t + delta));
+            applyTri(nextT, 100 - a - nextT, a);
+          } else {
+            const nextR = Math.max(20, Math.min(100 - t - 22, r + delta));
+            applyTri(t, nextR, 100 - t - nextR);
+          }
+          saveRunnerUiPrefs({ triWidths: readShares().map(Math.round) });
+        });
+      };
+      bindTriDiv(leftDiv, 'left');
+      bindTriDiv(rightDiv, 'right');
+    } else {
+      const divider = card.querySelector('.runner-divider');
+      if (divider) {
+        const grid = divider.parentElement;
+        function resize(width) {
+          const percent = Math.round(Math.max(32, Math.min(68, width)));
+          grid.style.setProperty('--task-share', percent + 'fr');
+          grid.style.setProperty('--answer-share', (100 - percent) + 'fr');
+          divider.setAttribute('aria-valuenow', percent);
+          return percent;
+        }
+        function applyWidth() {
+          saveRunnerUiPrefs({ splitRatio: 'custom', splitWidth: Number(divider.getAttribute('aria-valuenow')) });
+          for (const button of card.querySelectorAll('[data-split-ratio]')) button.classList.remove('active');
+        }
+        divider.addEventListener('pointerdown', (event) => {
+          event.preventDefault();
+          divider.setPointerCapture(event.pointerId);
+        });
+        divider.addEventListener('pointermove', (event) => {
+          if (!divider.hasPointerCapture(event.pointerId)) return;
+          const rect = grid.getBoundingClientRect();
+          resize(100 * (event.clientX - rect.left) / rect.width);
+        });
+        divider.addEventListener('lostpointercapture', applyWidth);
+        divider.addEventListener('keydown', (event) => {
+          if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          resize(Number(divider.getAttribute('aria-valuenow')) + (event.key === 'ArrowLeft' ? -3 : 3));
+          applyWidth();
+        });
       }
-      function applyWidth() {
-        saveRunnerUiPrefs({ splitRatio: 'custom', splitWidth: Number(divider.getAttribute('aria-valuenow')) });
-        for (const button of card.querySelectorAll('[data-split-ratio]')) button.classList.remove('active');
-      }
-      divider.addEventListener('pointerdown', (event) => {
-        event.preventDefault();
-        divider.setPointerCapture(event.pointerId);
-      });
-      divider.addEventListener('pointermove', (event) => {
-        if (!divider.hasPointerCapture(event.pointerId)) return;
-        const rect = grid.getBoundingClientRect();
-        resize(100 * (event.clientX - rect.left) / rect.width);
-      });
-      divider.addEventListener('lostpointercapture', applyWidth);
-      divider.addEventListener('keydown', (event) => {
-        if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
-        event.preventDefault();
-        event.stopPropagation();
-        resize(Number(divider.getAttribute('aria-valuenow')) + (event.key === 'ArrowLeft' ? -3 : 3));
-        applyWidth();
-      });
     }
 
     document.querySelectorAll('[data-split-ratio]').forEach((btn) => {
@@ -2684,7 +2852,7 @@ window.StudyRunner = (() => {
     if (document.getElementById('checkin-note')) document.getElementById('checkin-note').value = '';
     clearInterval(tickInterval);
     activeRun = null;
-    document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-foveal-compact');
+    document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-split-ref', 'runner-foveal-compact');
     document.getElementById('runner-header').hidden = true;
     document.getElementById('global-header').hidden = false;
     const obsLink = document.getElementById('run-obsidian-app-link');
@@ -2700,7 +2868,7 @@ window.StudyRunner = (() => {
   function exitRunnerKeepPaused() {
     pauseCurrentTimer();
     window.StudyPdf.dispose();
-    document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-foveal-compact');
+    document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-split-ref', 'runner-foveal-compact');
     document.getElementById('runner-header').hidden = true;
     document.getElementById('global-header').hidden = false;
     const obsLink = document.getElementById('run-obsidian-app-link');
@@ -2929,14 +3097,16 @@ window.StudyRunner = (() => {
         const q = currentQuestion();
         const isBlind = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
         if (!isBlind && q) {
-          if (document.body.classList.contains('runner-split-wide')) {
+          if (document.body.classList.contains('runner-split-wide') && window.innerWidth >= 1020) {
             const st = itemState(q.id);
-            st.readerTab = st.readerTab === 'ref' ? 'task' : 'ref';
-            if (st.readerTab === 'ref') {
-              renderRunner();
-              ensureInlineRefLoaded(q, st).then(() => renderRunner());
-            } else {
-              renderRunner();
+            const next = !Boolean(getRunnerUiPrefs().dockRefPane);
+            saveRunnerUiPrefs({ dockRefPane: next });
+            if (next && st.readerTab === 'ref') st.readerTab = 'task';
+            renderRunner();
+            if (next && !st.inlineRefData && !st.inlineRefLoading) {
+              ensureInlineRefLoaded(q, st).then(() => {
+                if (activeRun && currentQuestion()?.id === q.id) renderRunner();
+              });
             }
           } else {
             openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '');
