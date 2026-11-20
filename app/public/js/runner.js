@@ -1231,7 +1231,8 @@ window.StudyRunner = (() => {
     // Top sticky header controls
     document.getElementById('run-header-title').textContent = `${activeRun.courseMeta.shortTitle} · ${q.title}`;
     const ptsBadge = q.points ? ` · ${q.points} pts` : '';
-    document.getElementById('run-header-sub').textContent = `Question ${activeRun.index + 1} of ${activeRun.questionIds.length} · ${
+    document.getElementById('run-header-index').textContent = `Question ${activeRun.index + 1} of ${activeRun.questionIds.length}`;
+    document.getElementById('run-header-kind').textContent = ` · ${
       hasWf ? 'Worksheet' : q.kind.toUpperCase()
     }${ptsBadge}`;
     document.getElementById('run-obsidian-app-link').href = makeObsidianDeepLink(q);

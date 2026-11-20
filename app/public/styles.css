@@ -6573,6 +6573,10 @@ body.in-runner .ref-drawer {
     padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   }
 
+  #run-header-kind {
+    display: none;
+  }
+
   .runner-rail {
     inset: auto auto calc(6px + env(safe-area-inset-bottom, 0px)) 8px;
     width: auto;
