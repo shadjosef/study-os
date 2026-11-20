@@ -13,7 +13,12 @@ CREATE TABLE IF NOT EXISTS profiles (
   last_break_at INTEGER NOT NULL DEFAULT 0,
   completed INTEGER NOT NULL DEFAULT 0,
   attempts INTEGER NOT NULL DEFAULT 0,
-  accuracy INTEGER NOT NULL DEFAULT 0
+  accuracy INTEGER NOT NULL DEFAULT 0,
+  secondary_language TEXT NOT NULL DEFAULT '',
+  newsletter_opt_in INTEGER NOT NULL DEFAULT 0,
+  newsletter_opt_in_at INTEGER NOT NULL DEFAULT 0,
+  contact_email TEXT NOT NULL DEFAULT '',
+  tos_accepted_at INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS messages (

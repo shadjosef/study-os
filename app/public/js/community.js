@@ -117,12 +117,68 @@ window.StudyCommunity = (() => {
     }
   }
 
+  const SECONDARY_LANGUAGES = [
+    { code: '', label: 'None (English only)' },
+    { code: 'nb', label: 'Norwegian (Bokmål)' },
+    { code: 'nn', label: 'Norwegian (Nynorsk)' },
+    { code: 'sv', label: 'Swedish' },
+    { code: 'da', label: 'Danish' },
+    { code: 'ar', label: 'Arabic (العربية)' },
+    { code: 'ur', label: 'Urdu (اردو)' },
+    { code: 'pl', label: 'Polish (Polski)' },
+    { code: 'de', label: 'German (Deutsch)' },
+    { code: 'fr', label: 'French (Français)' },
+    { code: 'es', label: 'Spanish (Español)' },
+    { code: 'zh', label: 'Chinese (中文)' },
+    { code: 'hi', label: 'Hindi (हिन्दी)' },
+    { code: 'uk', label: 'Ukrainian (Українська)' },
+    { code: 'lt', label: 'Lithuanian (Lietuvių)' },
+    { code: 'so', label: 'Somali (Soomaali)' },
+    { code: 'vi', label: 'Vietnamese (Tiếng Việt)' },
+    { code: 'pt', label: 'Portuguese (Português)' },
+    { code: 'it', label: 'Italian (Italiano)' },
+    { code: 'ru', label: 'Russian (Русский)' },
+    { code: 'tr', label: 'Turkish (Türkçe)' },
+    { code: 'fa', label: 'Persian (فارسی)' },
+    { code: 'ko', label: 'Korean (한국어)' },
+    { code: 'ja', label: 'Japanese (日本語)' },
+  ];
+
+  function secondaryLanguageFieldHtml(selected = '') {
+    return `
+      <label class="field-label">Secondary language <small class="muted">(optional · coming soon: translated materials)</small>
+        <select name="secondaryLanguage">
+          ${SECONDARY_LANGUAGES.map((l) => `<option value="${esc(l.code)}" ${selected === l.code ? 'selected' : ''}>${esc(l.label)}</option>`).join('')}
+        </select>
+      </label>`;
+  }
+
+  function signupConsentHtml({ showEmailField = false } = {}) {
+    return `
+      <label class="check-row" style="font-size:12.5px;align-items:flex-start">
+        <input name="tosAccepted" type="checkbox" required style="margin-top:2px">
+        <span>I agree to the <a href="./terms.html" target="_blank" rel="noopener">Terms</a> and <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+      </label>
+      <label class="check-row" style="font-size:12.5px;align-items:flex-start">
+        <input name="newsletterOptIn" type="checkbox" style="margin-top:2px">
+        <span>
+          <strong>Monthly Study-OS digest &amp; updates</strong> <small class="muted">(optional)</small><br>
+          <small class="muted">1–2 emails/month: newly added past exams &amp; courses, plus an upcoming end-of-month profile recap with tailored AI study tips. Unsubscribe anytime.</small>
+        </span>
+      </label>
+      ${showEmailField ? `
+        <label class="field-label" data-newsletter-email hidden>Email for monthly digest
+          <input name="contactEmail" type="email" placeholder="you@example.com" autocomplete="email" disabled>
+        </label>
+      ` : ''}`;
+  }
+
   function loadGoogleGsi() {
     if (window.google?.accounts?.id) return Promise.resolve(window.google.accounts.id);
     if (!gsiLoadPromise) {
       gsiLoadPromise = new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = 'https://accounts.google.com/gsi/client';
+        script.src = 'https://accounts.google.com/gsi/client?hl=en';
         script.async = true;
         script.defer = true;
         script.onload = () => (window.google?.accounts?.id ? resolve(window.google.accounts.id) : reject(new Error('Google Sign-In unavailable.')));
@@ -165,6 +221,7 @@ window.StudyCommunity = (() => {
         size: 'large',
         shape: 'pill',
         text,
+        locale: 'en',
         width: targetWidth,
       });
       return true;
@@ -417,6 +474,8 @@ window.StudyCommunity = (() => {
             <input type="hidden" name="ticket">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
             <label class="field-label" data-join-invite="google" hidden>Community invite code <input name="invite" type="password" disabled autocomplete="off" placeholder="Enter your invite code"></label>
+            ${secondaryLanguageFieldHtml('')}
+            ${signupConsentHtml({ showEmailField: false })}
             <div class="row-actions">
               <button type="submit" class="primary-btn" style="flex:1">Finish &amp; Sign In</button>
               <button type="button" class="ghost-btn" id="community-google-back">Back</button>
@@ -434,7 +493,9 @@ window.StudyCommunity = (() => {
           <form id="community-join" class="auth-form" data-auth-pane="join">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Alex" required></label>
             <label class="field-label" data-join-invite hidden>Community invite code <input name="invite" type="password" disabled autocomplete="off" placeholder="Enter your invite code"></label>
+            ${secondaryLanguageFieldHtml('')}
             ${passkeyReady ? '<label class="check-row"><input name="withPasskey" type="checkbox" checked> Set up a passkey after signup</label>' : ''}
+            ${signupConsentHtml({ showEmailField: true })}
             <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Create profile</button>
             <small class="muted" id="community-stats-notice">Your nickname, study hours, breaks, and practice totals appear on the members leaderboard.</small>
           </form>
@@ -537,6 +598,9 @@ window.StudyCommunity = (() => {
       const res = await request('/auth/google/complete', {
         ticket: form.get('ticket'),
         nickname: form.get('nickname'),
+        secondaryLanguage: String(form.get('secondaryLanguage') || ''),
+        tosAccepted: form.get('tosAccepted') === 'on',
+        newsletterOptIn: form.get('newsletterOptIn') === 'on',
         ...await signupAccess(form, element, true),
         label: detectDeviceLabel(),
       }, '');
@@ -545,6 +609,19 @@ window.StudyCommunity = (() => {
       toast(`Welcome, ${res.nickname}! Google Sign-In is now linked.`);
       await onSignedIn();
     }, status);
+
+    const joinNewsletterCb = root.querySelector('#community-join input[name="newsletterOptIn"]');
+    const joinEmailWrap = root.querySelector('#community-join [data-newsletter-email]');
+    joinNewsletterCb?.addEventListener('change', () => {
+      if (!joinEmailWrap) return;
+      const on = joinNewsletterCb.checked;
+      joinEmailWrap.hidden = !on;
+      const inp = joinEmailWrap.querySelector('input');
+      if (inp) {
+        inp.disabled = !on;
+        inp.required = on;
+      }
+    });
 
     root.querySelectorAll('[data-auth-tab]').forEach((tab) => {
       tab.addEventListener('click', () => {
@@ -585,7 +662,14 @@ window.StudyCommunity = (() => {
     }
 
     action(root.querySelector('#community-join'), async (form, element) => {
-      const result = await request('/join', { nickname: form.get('nickname'), ...await signupAccess(form, element) }, '');
+      const result = await request('/join', {
+        nickname: form.get('nickname'),
+        secondaryLanguage: String(form.get('secondaryLanguage') || ''),
+        tosAccepted: form.get('tosAccepted') === 'on',
+        newsletterOptIn: form.get('newsletterOptIn') === 'on',
+        contactEmail: String(form.get('contactEmail') || '').trim(),
+        ...await signupAccess(form, element),
+      }, '');
       useProfile(result.token);
       currentProfile = await request('/profile').catch(() => null);
       toast('Profile created. Save a recovery key in Settings → Sign-in & Devices.');
@@ -1037,6 +1121,17 @@ window.StudyCommunity = (() => {
           <label class="field-label">Short bio / study focus <small class="muted">(optional, up to 140 chars)</small>
             <input name="bio" value="${esc(profile.bio || '')}" maxlength="140" placeholder="e.g. BSc Data Science · Grinding OB &amp; Maths">
           </label>
+          ${secondaryLanguageFieldHtml(profile.secondaryLanguage || '')}
+          <label class="check-row" style="font-size:13px;align-items:flex-start;margin:6px 0">
+            <input name="newsletterOptIn" type="checkbox" ${profile.newsletterOptIn ? 'checked' : ''} style="margin-top:2px">
+            <span>
+              <strong>Monthly Study-OS digest &amp; updates</strong> <small class="muted">(1–2/month)</small><br>
+              <small class="muted">New past exams, courses &amp; upcoming monthly profile recap with tailored AI study tips.${profile.contactEmailHint ? ` Currently sent to ${esc(profile.contactEmailHint)}.` : ''}</small>
+            </span>
+          </label>
+          <label class="field-label" data-profile-newsletter-email ${profile.newsletterOptIn && !profile.contactEmailHint ? '' : 'hidden'}>Email for monthly digest
+            <input name="contactEmail" type="email" placeholder="you@example.com" autocomplete="email" ${profile.newsletterOptIn && !profile.contactEmailHint ? '' : 'disabled'}>
+          </label>
           <div class="row-actions">
             <button type="submit" class="primary-btn">Save profile</button>
           </div>
@@ -1089,6 +1184,16 @@ window.StudyCommunity = (() => {
       fileInput.value = '';
     });
 
+    const profNewsletterCb = form.querySelector('input[name="newsletterOptIn"]');
+    const profEmailWrap = form.querySelector('[data-profile-newsletter-email]');
+    profNewsletterCb?.addEventListener('change', () => {
+      if (!profEmailWrap) return;
+      const show = profNewsletterCb.checked && !profile.contactEmailHint;
+      profEmailWrap.hidden = !show;
+      const inp = profEmailWrap.querySelector('input');
+      if (inp) inp.disabled = !show;
+    });
+
     form.onsubmit = async (event) => {
       event.preventDefault();
       const submit = form.querySelector('button[type=submit]');
@@ -1098,7 +1203,11 @@ window.StudyCommunity = (() => {
         const payload = {
           avatar: draftAvatar,
           bio: String(form.elements.bio.value || '').trim(),
+          secondaryLanguage: String(form.elements.secondaryLanguage?.value || ''),
+          newsletterOptIn: Boolean(form.elements.newsletterOptIn?.checked),
         };
+        const rawEmail = String(form.elements.contactEmail?.value || '').trim();
+        if (payload.newsletterOptIn && rawEmail) payload.contactEmail = rawEmail;
         const candidateNick = String(nickInput.value || '').trim();
         if (candidateNick && candidateNick !== profile.nickname) {
           payload.nickname = candidateNick;
@@ -1287,7 +1396,7 @@ window.StudyCommunity = (() => {
       }
     }
 
-    function renderAdminBody(body, { settings, invites, members, now }) {
+    function renderAdminBody(body, { settings, invites, members, newsletterCount, now }) {
       const inviteRows = (invites || []).map((inv) => {
         const expired = inv.expiresAt > 0 && inv.expiresAt <= now;
         const full = inv.maxUses > 0 && inv.uses >= inv.maxUses;
@@ -1317,8 +1426,12 @@ window.StudyCommunity = (() => {
       const memberRows = (members || []).map((m) => {
         const isSelf = m.id === me.id;
         const locked = !isSelf && m.nicknameChangedAt > 0 && m.nicknameChangedAt + 30 * 86_400_000 > now;
+        const prefTags = [
+          m.secondaryLanguage ? `<span class="badge">${esc(m.secondaryLanguage.toUpperCase())}</span>` : '',
+          Number(m.newsletterOptIn) === 1 ? '<span class="badge good">Digest</span>' : '',
+        ].filter(Boolean).join(' ');
         return `<tr>
-          <td><span class="community-member-inline">${avatarHtml(m.nickname, m.avatar, 26)}<strong>${esc(m.nickname)}</strong>${isSelf ? ' <span class="badge admin-badge">You</span>' : ''}</span></td>
+          <td><span class="community-member-inline">${avatarHtml(m.nickname, m.avatar, 26)}<strong>${esc(m.nickname)}</strong>${isSelf ? ' <span class="badge admin-badge">You</span>' : ''}${prefTags ? ' ' + prefTags : ''}</span></td>
           <td>${(m.studyMinutes / 60).toFixed(1)}h · ${m.completed} Qs</td>
           <td>${m.breakCount ? `${formatBreakDuration(m.breakMinutes)} · ${m.breakCount}×` : '—'}</td>
           <td>${locked ? `<span class="badge warn">Locked until ${esc(formatOsloDate(m.nicknameChangedAt + 30 * 86_400_000))}</span>` : '<span class="badge good">Unlocked</span>'}</td>
@@ -1379,7 +1492,10 @@ window.StudyCommunity = (() => {
         </div>
 
         <div class="admin-section">
-          <h3>Members (${(members || []).length})</h3>
+          <div class="row-between">
+            <h3>Members (${(members || []).length})</h3>
+            <span class="badge${newsletterCount ? ' good' : ''}">Newsletter opt-ins: ${Number(newsletterCount) || 0}</span>
+          </div>
           ${memberRows ? `<div class="community-table"><table>
             <thead><tr><th>Member</th><th>Study</th><th>Breaks</th><th>Nickname lock</th><th>Actions</th></tr></thead>
             <tbody>${memberRows}</tbody></table></div>` : ''}

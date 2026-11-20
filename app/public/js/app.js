@@ -1040,6 +1040,23 @@ window.StudyApp = (() => {
     return osloDateTimeMs(examInfo.date, startTime);
   }
 
+  function formatExamHoverTip(examInfo, targetMs) {
+    if (!examInfo?.date) return '';
+    const startTime =
+      examInfo.startTime ||
+      String(examInfo.notes || '').match(/\b(\d{2}:\d{2})\s*[–-]\s*\d{2}:\d{2}\b/)?.[1] ||
+      '09:00';
+    let dateLabel = examInfo.date;
+    try {
+      const dt = new Date(Number.isFinite(targetMs) ? targetMs : `${examInfo.date}T09:00:00+01:00`);
+      dateLabel = new Intl.DateTimeFormat('en-GB', {
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Europe/Oslo',
+      }).format(dt);
+    } catch {}
+    const totalHours = Number.isFinite(targetMs) ? Math.max(0, Math.floor((targetMs - Date.now()) / 3600000)) : null;
+    return `Exam: ${dateLabel} · ${startTime} Oslo${totalHours !== null ? ` (${totalHours}h left)` : ''}`;
+  }
+
   function formatExamCountdown(targetMs, mode = 'card', nowMs = Date.now()) {
     if (!Number.isFinite(targetMs)) return '';
     const diffSec = Math.floor((targetMs - nowMs) / 1000);
@@ -1234,9 +1251,9 @@ window.StudyApp = (() => {
         .map((c) => ({ c, targetMs: examTargetMs(c.examInfo), days: daysUntilDateStr(c.examInfo?.date) }))
         .filter((x) => Number.isFinite(x.targetMs) && x.targetMs > Date.now() - 14400_000)
         .sort((x, y) => x.targetMs - y.targetMs)[0];
-      const nextExamHours = nextExam ? Math.max(0, Math.floor((nextExam.targetMs - Date.now()) / 3600000)) : 0;
+      const nextExamTip = nextExam ? formatExamHoverTip(nextExam.c.examInfo, nextExam.targetMs) : '';
       const nextExamChip = nextExam
-        ? `<button type="button" class="hero-exam-chip" id="btn-hero-next-exam" title="${nextExamHours} hours until ${esc(nextExam.c.code)} exam (${esc(nextExam.c.examInfo.date)} Oslo)">
+        ? `<button type="button" class="hero-exam-chip exam-tip-host exam-tip-left" id="btn-hero-next-exam" data-exam-tip="${esc(nextExamTip)}" aria-label="${esc(nextExamTip)}">
              <span class="hero-exam-dot" style="background:${esc(nextExam.c.color)}"></span>
              <span>Next exam · <b>${esc(nextExam.c.code)}</b> in <b class="exam-countdown-live" data-exam-target-ms="${nextExam.targetMs}" data-exam-countdown-mode="hero">${esc(formatExamCountdown(nextExam.targetMs, 'hero'))}</b></span>
              <span aria-hidden="true">→</span>
@@ -1416,13 +1433,9 @@ window.StudyApp = (() => {
         const pct = cp.total ? Math.round((cp.done / cp.total) * 100) : 0;
         const daysLeft = daysUntilDateStr(c.examInfo?.date);
         const targetMs = examTargetMs(c.examInfo);
-        const totalHours = Number.isFinite(targetMs) ? Math.max(0, Math.floor((targetMs - Date.now()) / 3600000)) : null;
-        const examBadge = c.examInfo?.date
-          ? `<span class="badge ${daysLeft !== null && daysLeft >= 0 && daysLeft <= 14 ? 'warn' : ''}" title="${totalHours !== null ? `${totalHours} hours left · Exam ${esc(c.examInfo.date)} (Oslo)` : `Exam ${esc(c.examInfo.date)}`}">Exam ${esc(c.examInfo.date)}${
-              Number.isFinite(targetMs) && targetMs > Date.now() - 14400_000
-                ? ` · <span class="exam-countdown-live" data-exam-target-ms="${targetMs}" data-exam-countdown-mode="card">${esc(formatExamCountdown(targetMs, 'card'))}</span>`
-                : ''
-            }</span>`
+        const examTip = formatExamHoverTip(c.examInfo, targetMs);
+        const examBadge = Number.isFinite(targetMs) && targetMs > Date.now() - 14400_000
+          ? `<span class="badge exam-tip-host ${daysLeft !== null && daysLeft >= 0 && daysLeft <= 14 ? 'warn' : ''}" data-exam-tip="${esc(examTip)}" aria-label="${esc(examTip)}" tabindex="0"><span class="exam-countdown-live" data-exam-target-ms="${targetMs}" data-exam-countdown-mode="card">${esc(formatExamCountdown(targetMs, 'card'))}</span></span>`
           : '';
         const noItemsInDiff = homeDifficulty !== 'all' && cp.total === 0;
 
@@ -2106,13 +2119,10 @@ window.StudyApp = (() => {
       .map((c) => {
         const daysLeft = daysUntilDateStr(c.examInfo?.date);
         const targetMs = examTargetMs(c.examInfo);
+        const examTip = formatExamHoverTip(c.examInfo, targetMs);
         const daysPill =
-          c.examInfo?.date
-            ? `<span class="badge ${daysLeft !== null && daysLeft <= 14 && daysLeft >= 0 ? 'warn' : 'gold'}">${esc(c.examInfo.date)}${
-                Number.isFinite(targetMs) && targetMs > Date.now() - 14400_000
-                  ? ` · <span class="exam-countdown-live" data-exam-target-ms="${targetMs}" data-exam-countdown-mode="exam">${esc(formatExamCountdown(targetMs, 'exam'))}</span>`
-                  : ''
-              }</span>`
+          Number.isFinite(targetMs) && targetMs > Date.now() - 14400_000
+            ? `<span class="badge exam-tip-host ${daysLeft !== null && daysLeft <= 14 && daysLeft >= 0 ? 'warn' : 'gold'}" data-exam-tip="${esc(examTip)}" aria-label="${esc(examTip)}" tabindex="0"><span class="exam-countdown-live" data-exam-target-ms="${targetMs}" data-exam-countdown-mode="exam">${esc(formatExamCountdown(targetMs, 'exam'))}</span></span>`
             : '';
         const durMin = c.examInfo?.durationMinutes || 180;
         const examColls = getExamPaperCollections(c);
@@ -4935,7 +4945,7 @@ window.StudyApp = (() => {
           <article class="playbook-card">
             <div class="row-between" style="margin:0 0 6px;gap:8px">
               <h3 style="margin:0;font-size:15px">1. Install Study-OS Sync extension</h3>
-              <span class="badge live">v1.3.0 · MV3</span>
+              <span class="badge live">v1.3.1 · MV3</span>
             </div>
             <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
               Works in Chrome, Brave, Edge, and Vivaldi. One click pulls <b>BI Canvas</b> courses &amp; deadlines, <b>TimeEdit</b> lectures, and <b>Ed Discussion</b> courses from all open signed-in tabs at once.

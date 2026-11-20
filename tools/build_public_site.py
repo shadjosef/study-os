@@ -277,7 +277,8 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
         zip_path = dl_dir / "study-os-sync-extension.zip"
         with ZipFile(zip_path, "w", compression=ZIP_DEFLATED) as zf:
             for item in sorted(ext_src.rglob("*")):
-                if item.is_file() and not any(part.startswith(".") for part in item.relative_to(ext_src).parts):
+                rel_parts = item.relative_to(ext_src).parts
+                if item.is_file() and not any(part.startswith(".") for part in rel_parts) and "store-assets" not in rel_parts:
                     zf.write(item, item.relative_to(ext_src).as_posix())
 
     template = (ROOT_DIR / "tools" / "offline-worker.js").read_bytes()

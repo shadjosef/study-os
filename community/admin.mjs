@@ -88,12 +88,14 @@ export async function handleAdmin({ request, url, db, env, me, isAdmin, now, dat
     `).all();
     const { results: members } = await db.prepare(`
       SELECT id, nickname, avatar, bio, nickname_changed_at AS nicknameChangedAt,
+        secondary_language AS secondaryLanguage, newsletter_opt_in AS newsletterOptIn,
         study_minutes AS studyMinutes, break_minutes AS breakMinutes,
         break_count AS breakCount, completed, attempts, accuracy
       FROM profiles
       ORDER BY completed DESC, study_minutes DESC, nickname LIMIT 250
     `).all();
-    return reply({ settings, invites, members, now });
+    const newsletterCount = (members || []).filter((m) => Number(m.newsletterOptIn) === 1).length;
+    return reply({ settings, invites, members, newsletterCount, now });
   }
 
   if (path === '/admin/settings' && request.method === 'POST') {

@@ -1,6 +1,6 @@
 import { handleRooms, runningStudyRoom } from './rooms.mjs';
 import { verifyJoinProof, consumeInviteUse, handleAdmin } from './admin.mjs';
-import { handlePublicAuth, handleAuthedAuth } from './auth.mjs';
+import { handlePublicAuth, handleAuthedAuth, cleanSecondaryLanguage, cleanContactEmail, maskEmailHint } from './auth.mjs';
 import { handleSync } from './sync.mjs';
 import { checkHuman } from './human.mjs';
 import { readTimeEdit, pushTimeEditFeed, getTimeEditFeed } from './timeedit.mjs';
@@ -82,6 +82,9 @@ function profileSummary(me, isAdmin, now) {
     last_break_at: Number(me.last_break_at || 0),
     nicknameChangedAt: changedAt,
     nextNicknameChangeAt: nextAt,
+    secondaryLanguage: me.secondary_language || '',
+    newsletterOptIn: Boolean(me.newsletter_opt_in),
+    contactEmailHint: maskEmailHint(me.contact_email || ''),
     isAdmin,
   };
 }
@@ -180,10 +183,17 @@ export default {
       if (!nicknamePattern.test(nickname)) {
         return reply({ error: 'Choose a nickname of 2–24 letters, numbers or spaces.' }, 400);
       }
+      const secondaryLanguage = cleanSecondaryLanguage(data.secondaryLanguage);
+      const newsletterOptIn = Boolean(data.newsletterOptIn) ? 1 : 0;
+      const contactEmail = newsletterOptIn ? cleanContactEmail(data.contactEmail || '') : '';
+      const newsletterOptInAt = newsletterOptIn ? nowJoin : 0;
+      const tosAcceptedAt = data.tosAccepted === false ? 0 : nowJoin;
       const id = crypto.randomUUID();
       const token = 'soc1_' + hex(crypto.getRandomValues(new Uint8Array(32)));
-      const result = await db.prepare('INSERT OR IGNORE INTO profiles(id, token_hash, nickname) VALUES (?, ?, ?)')
-        .bind(id, await digest(token), nickname).run();
+      const result = await db.prepare(`
+        INSERT OR IGNORE INTO profiles(id, token_hash, nickname, secondary_language, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(id, await digest(token), nickname, secondaryLanguage, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
       if (!result.meta.changes) return reply({ error: 'That nickname is taken.' }, 409);
       if (check.inviteId && !await consumeInviteUse(db, check.inviteId, nowJoin)) {
         await db.prepare('DELETE FROM profiles WHERE id = ?').bind(id).run();
@@ -198,6 +208,7 @@ export default {
     const now = Date.now();
     let me = await db.prepare(`
       SELECT profiles.id, profiles.token_hash AS primary_token_hash, nickname, avatar, bio, nickname_changed_at,
+        secondary_language, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
         study_minutes, break_minutes, break_count, last_break_at,
         completed, attempts, accuracy, break_ends_at, expires_at
       FROM profiles LEFT JOIN presence ON presence.profile = profiles.id WHERE token_hash = ?
@@ -205,6 +216,7 @@ export default {
     if (!me) {
       me = await db.prepare(`
         SELECT profiles.id, profiles.token_hash AS primary_token_hash, nickname, avatar, bio, nickname_changed_at,
+          secondary_language, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
           study_minutes, break_minutes, break_count, last_break_at,
           completed, attempts, accuracy, break_ends_at, expires_at,
           profile_sessions.last_used_at AS session_last_used_at
@@ -267,6 +279,31 @@ export default {
         let nextChangedAt = Number(me.nickname_changed_at || 0);
         let nextAvatar = me.avatar || '';
         let nextBio = me.bio || '';
+        let nextSecLang = me.secondary_language || '';
+        let nextNewsletter = Number(me.newsletter_opt_in || 0);
+        let nextNewsletterAt = Number(me.newsletter_opt_in_at || 0);
+        let nextEmail = me.contact_email || '';
+
+        if (Object.prototype.hasOwnProperty.call(data, 'secondaryLanguage')) {
+          nextSecLang = cleanSecondaryLanguage(data.secondaryLanguage);
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'newsletterOptIn')) {
+          const want = Boolean(data.newsletterOptIn) ? 1 : 0;
+          if (want && !nextNewsletter) nextNewsletterAt = now;
+          nextNewsletter = want;
+          if (!want) {
+            nextNewsletterAt = 0;
+            nextEmail = '';
+          }
+        }
+        if (nextNewsletter && Object.prototype.hasOwnProperty.call(data, 'contactEmail')) {
+          const rawEmail = String(data.contactEmail || '').trim();
+          if (rawEmail) {
+            const valid = cleanContactEmail(rawEmail);
+            if (!valid) return reply({ error: 'Enter a valid email address for monthly Study-OS digests.' }, 400);
+            nextEmail = valid;
+          }
+        }
 
         if (Object.prototype.hasOwnProperty.call(data, 'nickname')) {
           const candidate = typeof data.nickname === 'string' ? data.nickname.trim().normalize('NFC') : '';
@@ -305,14 +342,27 @@ export default {
         }
 
         try {
-          await db.prepare(
-            'UPDATE profiles SET nickname = ?, avatar = ?, bio = ?, nickname_changed_at = ? WHERE id = ?'
-          ).bind(nextNickname, nextAvatar, nextBio, nextChangedAt, me.id).run();
+          await db.prepare(`
+            UPDATE profiles
+            SET nickname = ?, avatar = ?, bio = ?, nickname_changed_at = ?,
+                secondary_language = ?, newsletter_opt_in = ?, newsletter_opt_in_at = ?, contact_email = ?
+            WHERE id = ?
+          `).bind(nextNickname, nextAvatar, nextBio, nextChangedAt, nextSecLang, nextNewsletter, nextNewsletterAt, nextEmail, me.id).run();
         } catch {
           return reply({ error: 'That nickname is taken.' }, 409);
         }
 
-        const updated = { ...me, nickname: nextNickname, avatar: nextAvatar, bio: nextBio, nickname_changed_at: nextChangedAt };
+        const updated = {
+          ...me,
+          nickname: nextNickname,
+          avatar: nextAvatar,
+          bio: nextBio,
+          nickname_changed_at: nextChangedAt,
+          secondary_language: nextSecLang,
+          newsletter_opt_in: nextNewsletter,
+          newsletter_opt_in_at: nextNewsletterAt,
+          contact_email: nextEmail,
+        };
         return reply({ ok: true, profile: profileSummary(updated, isAdmin, now) });
       }
     }

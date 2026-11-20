@@ -108,9 +108,34 @@ export async function verifyGoogleIdToken(idToken, expectedClientId, now = Date.
 
   return {
     sub: payload.sub,
+    email: cleanContactEmail(payload.email || ''),
     emailHint: maskEmail(payload.email || ''),
     suggestedName: cleanSuggestedName(payload.given_name || payload.name || ''),
   };
+}
+
+const ALLOWED_SECONDARY_LANGS = new Set([
+  '', 'nb', 'nn', 'sv', 'da', 'ar', 'ur', 'pl', 'de', 'fr', 'es',
+  'zh', 'hi', 'uk', 'lt', 'so', 'vi', 'pt', 'it', 'ru', 'tr', 'fa', 'ko', 'ja',
+]);
+const SIMPLE_EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
+
+export function cleanSecondaryLanguage(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  return ALLOWED_SECONDARY_LANGS.has(s) ? s : '';
+}
+
+export function cleanContactEmail(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  if (!s) return '';
+  return SIMPLE_EMAIL_RE.test(s) && s.length <= 254 ? s : '';
+}
+
+export function maskEmailHint(raw) {
+  const s = String(raw || '').trim();
+  const at = s.indexOf('@');
+  if (at <= 0) return '';
+  return `${s[0]}***${s.slice(at)}`;
 }
 
 export function toBase64Url(bytes) {
@@ -274,9 +299,9 @@ export async function handlePublicAuth({
     await db.prepare('DELETE FROM oauth_pending WHERE expires_at < ?').bind(now).run();
     const ticket = toBase64Url(crypto.getRandomValues(new Uint8Array(24)));
     await db.prepare(`
-      INSERT INTO oauth_pending(ticket, provider, provider_sub, email_hint, suggested_name, expires_at)
-      VALUES (?, 'google', ?, ?, ?, ?)
-    `).bind(ticket, verified.sub, verified.emailHint, verified.suggestedName, now + OAUTH_PENDING_TTL_MS).run();
+      INSERT INTO oauth_pending(ticket, provider, provider_sub, email_hint, verified_email, suggested_name, expires_at)
+      VALUES (?, 'google', ?, ?, ?, ?, ?)
+    `).bind(ticket, verified.sub, verified.emailHint, verified.email || '', verified.suggestedName, now + OAUTH_PENDING_TTL_MS).run();
 
     return reply({
       needsJoin: true,
@@ -292,7 +317,7 @@ export async function handlePublicAuth({
       return reply({ error: 'Google sign-up session expired. Click Continue with Google again.' }, 401);
     }
     const pending = await db.prepare(
-      "SELECT ticket, provider_sub, email_hint FROM oauth_pending WHERE ticket = ? AND provider = 'google' AND expires_at >= ?"
+      "SELECT ticket, provider_sub, email_hint, verified_email FROM oauth_pending WHERE ticket = ? AND provider = 'google' AND expires_at >= ?"
     ).bind(ticket, now).first();
     if (!pending) {
       return reply({ error: 'Google sign-up session expired. Click Continue with Google again.' }, 401);
@@ -305,6 +330,11 @@ export async function handlePublicAuth({
     if (!nicknamePattern.test(nickname)) {
       return reply({ error: 'Choose a nickname of 2–24 letters, numbers or spaces.' }, 400);
     }
+    const secondaryLanguage = cleanSecondaryLanguage(data.secondaryLanguage);
+    const newsletterOptIn = Boolean(data.newsletterOptIn) ? 1 : 0;
+    const contactEmail = newsletterOptIn ? cleanContactEmail(data.contactEmail || pending.verified_email || '') : '';
+    const newsletterOptInAt = newsletterOptIn ? now : 0;
+    const tosAcceptedAt = data.tosAccepted === false ? 0 : now;
 
     const consumed = await db.prepare('DELETE FROM oauth_pending WHERE ticket = ?').bind(ticket).run();
     if (!consumed.meta.changes) {
@@ -313,14 +343,16 @@ export async function handlePublicAuth({
 
     const id = crypto.randomUUID();
     const primaryToken = 'soc1_' + hex(crypto.getRandomValues(new Uint8Array(32)));
-    const inserted = await db.prepare('INSERT OR IGNORE INTO profiles(id, token_hash, nickname) VALUES (?, ?, ?)')
-      .bind(id, await digest(primaryToken), nickname).run();
+    const inserted = await db.prepare(`
+      INSERT OR IGNORE INTO profiles(id, token_hash, nickname, secondary_language, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(id, await digest(primaryToken), nickname, secondaryLanguage, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
     if (!inserted.meta.changes) {
       // Put ticket back so user can pick another nickname without re-auth
       await db.prepare(`
-        INSERT OR IGNORE INTO oauth_pending(ticket, provider, provider_sub, email_hint, suggested_name, expires_at)
-        VALUES (?, 'google', ?, ?, ?, ?)
-      `).bind(ticket, pending.provider_sub, pending.email_hint, nickname, now + OAUTH_PENDING_TTL_MS).run();
+        INSERT OR IGNORE INTO oauth_pending(ticket, provider, provider_sub, email_hint, verified_email, suggested_name, expires_at)
+        VALUES (?, 'google', ?, ?, ?, ?, ?)
+      `).bind(ticket, pending.provider_sub, pending.email_hint, pending.verified_email || '', nickname, now + OAUTH_PENDING_TTL_MS).run();
       return reply({ error: 'That nickname is taken.' }, 409);
     }
 

@@ -1,0 +1,6 @@
+ALTER TABLE profiles ADD COLUMN secondary_language TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN newsletter_opt_in INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN newsletter_opt_in_at INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE profiles ADD COLUMN contact_email TEXT NOT NULL DEFAULT '';
+ALTER TABLE profiles ADD COLUMN tos_accepted_at INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE oauth_pending ADD COLUMN verified_email TEXT NOT NULL DEFAULT '';
