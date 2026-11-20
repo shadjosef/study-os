@@ -136,7 +136,7 @@ html[data-hide-study-help] [data-study-help] { display: none !important; }
   background: var(--accent);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
-.brand strong { display: block; font-size: 16px; letter-spacing: -0.02em; }
+.brand strong { display: block; font-size: 17px; letter-spacing: -0.02em; }
 .brand small { display: block; font-size: 11.5px; line-height: 1.1; }
 
 .main-tabs {
@@ -498,8 +498,8 @@ textarea {
 .runner-title-wrap b { display: block; font-size: 14.5px; }
 .runner-title-wrap small { display: block; font-size: 12px; }
 .runner-domain {
-  color: var(--muted);
-  font-size: 13px;
+  color: var(--ink);
+  font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2114,7 +2114,7 @@ dialog.ios-settings-dialog::backdrop {
     gap: 8px;
   }
   .brand { gap: 7px; }
-  .brand strong { font-size: 14.5px; }
+  .brand strong { font-size: 15.5px; }
   .topbar-stats { gap: 6px; }
   .topbar-stats .live-clock-pill {
     padding: 4px 9px;
@@ -4611,7 +4611,7 @@ body.ai-pane-left .ai-pane-resize-handle {
     display: block;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 11.5px;
+    font-size: 12.5px;
     line-height: 1.2;
   }
   #run-header-title {
