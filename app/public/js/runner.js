@@ -30,7 +30,7 @@ window.StudyRunner = (() => {
 
   function needsSplitByContent(q, st) {
     if (!q) return false;
-    // Default to clean single-column Focus mode unless user opens inline PDF/Reference reader
+    // Keep the task visible alongside inline PDFs and references.
     if (st?.readerTab === 'pdf' || st?.readerTab === 'ref') return true;
     return false;
   }
@@ -893,7 +893,7 @@ window.StudyRunner = (() => {
       activeRun.mode === 'practice' && activeRun.consecutiveMisses >= 2
         ? `<div class="row-between" style="margin:8px 0 0;font-size:12.5px">
              <span style="color:var(--gold)">2 misses in a row — consider a short 1:5 off-screen reset before the next attempt.</span>
-             <button type="button" class="ghost-btn" id="btn-dash-break" style="padding:3px 9px;font-size:12px">Take Break (B)</button>
+             <button type="button" class="ghost-btn" id="btn-dash-break" style="padding:3px 9px;font-size:12px">Take Break<span data-study-help> (B)</span></button>
            </div>`
         : '';
 
@@ -926,7 +926,7 @@ window.StudyRunner = (() => {
     const hasWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
     const sourcePdfs = getQuestionSourcePdfs(q, sourcesMap, isBlindUnfinished, st.revealed);
     const uiPrefs = getRunnerUiPrefs();
-    const splitRatio = uiPrefs.splitRatio || 'balanced';
+    const splitRatio = ['balanced', 'custom'].includes(uiPrefs.splitRatio) ? uiPrefs.splitRatio : 'wide-left';
     const instantMcq = Boolean(uiPrefs.instantMcq) && !isBlindUnfinished;
 
     // Guard invalid reader tab (e.g. if switched to question without PDFs or blind exam locks reference)
@@ -934,7 +934,7 @@ window.StudyRunner = (() => {
     if (st.readerTab === 'ref' && isBlindUnfinished) st.readerTab = 'task';
 
     const autoNeedsSplit = needsSplitByContent(q, st);
-    const preferredSplit = uiPrefs.preferredLayout === 'split';
+    const preferredSplit = uiPrefs.preferredLayout !== 'focus';
     const isSplit = autoNeedsSplit
       ? true
       : st.layoutOverride === 'split'
@@ -965,8 +965,8 @@ window.StudyRunner = (() => {
       layoutBtn.textContent = isSplit ? 'Split' : 'Focus';
       layoutBtn.classList.toggle('active', isSplit);
       layoutBtn.title = isSplit
-        ? 'Side-by-Side Split View — click or press V for Foveal Single-Column Focus (minimal eye movement)'
-        : 'Foveal Focus Column (minimal eye movement) — click or press V for Side-by-Side Split View';
+        ? 'Switch to Focus view (V)'
+        : 'Switch to Split view (V)';
     }
     renderAutoPauseHeaderUi();
 
@@ -1114,9 +1114,8 @@ window.StudyRunner = (() => {
           ${
             isSplit
               ? `
-                <button type="button" class="mini-tool-btn ${splitRatio === 'wide-left' ? 'active' : ''}" data-split-ratio="wide-left" title="Wider Task / PDF Pane (60/40)">Wide Task</button>
+                <button type="button" class="mini-tool-btn ${splitRatio === 'wide-left' ? 'active' : ''}" data-split-ratio="wide-left" title="Wider task pane">Wide Task</button>
                 <button type="button" class="mini-tool-btn ${splitRatio === 'balanced' ? 'active' : ''}" data-split-ratio="balanced" title="Balanced 50/50 Split">50/50</button>
-                <button type="button" class="mini-tool-btn ${splitRatio === 'wide-right' ? 'active' : ''}" data-split-ratio="wide-right" title="Wider Answer Sheet (40/60)">Wide Ans</button>
               `
               : ''
           }
@@ -1218,7 +1217,7 @@ window.StudyRunner = (() => {
     // Solution, Self-Verification Rubric & Optional 1-Tap Difficulty Adaptation
     const hasMoreQuestions = activeRun.index + 1 < activeRun.questionIds.length;
     const nextShortLbl = hasMoreQuestions ? 'Next →' : 'Finish';
-    const nextFullLbl = hasMoreQuestions ? 'Next Question → (N)' : 'Finish Run (N)';
+    const nextFullLbl = `${hasMoreQuestions ? 'Next Question →' : 'Finish Run'}<span data-study-help> (N)</span>`;
     let solutionHtml = '';
     if (st.revealed && !isBlindUnfinished) {
       const solAssets = renderAssets(q.solutionAssets, q.courseId, sourcesMap);
@@ -1447,7 +1446,7 @@ window.StudyRunner = (() => {
     let primaryActionBtn = '';
     if (isBlindUnfinished) {
       primaryActionBtn = hasMoreQuestions
-        ? `<button type="button" class="primary-btn" id="btn-next-q">Save &amp; Next → (N)</button>`
+        ? `<button type="button" class="primary-btn" id="btn-next-q">Save &amp; Next →<span data-study-help> (N)</span></button>`
         : `<button type="button" class="primary-btn" id="btn-submit-paper-bottom">Submit Paper</button>`;
     } else if (q.kind === 'mcq') {
       primaryActionBtn = !st.revealed
@@ -1473,10 +1472,10 @@ window.StudyRunner = (() => {
         <div class="row-actions" style="gap:7px">
           ${primaryActionBtn}
           ${secondaryNextBtn}
-          ${canHint ? `<button type="button" class="ghost-btn" id="btn-hint" title="Show hint (H)">Hint ${st.hintsUsed + 1}/${hintsArr.length}</button>` : ''}
+          ${canHint ? `<button type="button" class="ghost-btn" id="btn-hint" title="Show hint (H)" data-study-help>Hint ${st.hintsUsed + 1}/${hintsArr.length}</button>` : ''}
           ${
             !isBlindUnfinished && !st.revealed && (q.kind === 'mcq' || hasWf)
-              ? `<button type="button" class="ghost-btn" id="btn-reveal-sol" title="Reveal worked solution (S)">Solution</button>`
+              ? `<button type="button" class="ghost-btn" id="btn-reveal-sol" title="Reveal worked solution (S)" data-study-help>Solution</button>`
               : ''
           }
         </div>
@@ -1495,7 +1494,7 @@ window.StudyRunner = (() => {
     const kbdBarHtml =
       st.revealed && !isBlindUnfinished
         ? `
-      <div class="kbd-hint-bar">
+      <div class="kbd-hint-bar" data-study-help>
         ${q.kind !== 'mcq' && !hasWf ? '<span><kbd>G</kbd> Got It (100%) &amp; Next</span><span><kbd>X</kbd> Revisit &amp; Next</span>' : ''}
         <span><kbd>N</kbd>/<kbd>Enter</kbd> Next Question</span>
         <span><kbd>V</kbd> Focus/Split</span>
@@ -1503,7 +1502,7 @@ window.StudyRunner = (() => {
       </div>
     `
         : `
-      <div class="kbd-hint-bar">
+      <div class="kbd-hint-bar" data-study-help>
         ${q.kind === 'mcq' ? '<span><kbd>1–6</kbd>/<kbd>A–F</kbd> Select</span>' : '<span><kbd>⌘/Ctrl+↵</kbd> Reveal/Check</span>'}
         <span><kbd>S</kbd> Solution</span>
         <span><kbd>Enter</kbd>/<kbd>N</kbd> Check/Next</span>
@@ -1520,8 +1519,9 @@ window.StudyRunner = (() => {
 
     window.StudyPdf.dispose();
     if (isSplit) {
-      const initialWidth = splitRatio === 'wide-left' ? 62 : splitRatio === 'wide-right' ? 41 : splitRatio === 'custom'
-        ? Math.max(32, Math.min(68, Number(uiPrefs.splitWidth) || 52)) : 52;
+      const initialWidth = splitRatio === 'custom'
+        ? Math.max(32, Math.min(68, Number(uiPrefs.splitWidth) || 62))
+        : splitRatio === 'balanced' ? 50 : 62;
       card.innerHTML = `
         <div class="runner-split-grid" style="--task-share:${initialWidth}fr;--answer-share:${100 - initialWidth}fr">
           <div class="runner-pane-left">
@@ -1534,7 +1534,7 @@ window.StudyRunner = (() => {
               aria-valuemin="32" aria-valuemax="68" aria-valuenow="${initialWidth}" tabindex="0"></div>
           <div class="runner-pane-right">
             ${statusBarHtml}
-            <div id="stall-nudge-banner" class="hint-box stall-banner" hidden></div>
+            <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
             ${workspaceHtml}
             ${fovealActionBarHtml}
             ${hintsHtml}
@@ -1549,7 +1549,7 @@ window.StudyRunner = (() => {
         <div class="foveal-prompt-block">
           ${readerBodyHtml}
         </div>
-        <div id="stall-nudge-banner" class="hint-box stall-banner" hidden></div>
+        <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
         ${workspaceHtml}
         ${fovealActionBarHtml}
         ${hintsHtml}
@@ -1881,7 +1881,7 @@ window.StudyRunner = (() => {
         !st.earlyPeekConfirmed
       ) {
         st.earlyPeekConfirmed = true;
-        if (ev.currentTarget) ev.currentTarget.textContent = 'Confirm Reveal (S)';
+        if (ev.currentTarget) ev.currentTarget.textContent = 'Confirm Reveal';
         toast('Attempt a blank-slate setup first for 2x error-driven plasticity — press S again to reveal anyway.');
         return;
       }
@@ -2346,7 +2346,7 @@ window.StudyRunner = (() => {
     }
     st.layoutOverride = nextSplit ? 'split' : 'foveal';
     saveRunnerUiPrefs({ preferredLayout: nextSplit ? 'split' : 'focus' });
-    toast(nextSplit ? 'Side-by-Side Split View' : 'Focus Column (default)');
+    toast(nextSplit ? 'Split view' : 'Focus view');
     renderRunner();
   }
 

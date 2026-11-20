@@ -165,7 +165,7 @@
         <button type="button" class="ghost-btn dev-mode-btn" id="run-dev-mode-btn" hidden title="Dev Mode: sandbox without affecting score, UPI, or break timer" aria-pressed="false">Dev</button>
         <button type="button" class="ghost-btn" id="run-break-btn" title="Take scaled 1:5 off-screen recovery break (B)">Break (3m)</button>
         <button type="button" class="ghost-btn" id="runner-room-btn" hidden>Room</button>
-        <button type="button" class="ghost-btn" id="run-layout-btn" title="Foveal Focus Column (default) — click or press V for Side-by-Side Split View">Focus</button>
+        <button type="button" class="ghost-btn" id="run-layout-btn" title="Switch between Split and Focus (V)">Split</button>
         <button type="button" class="ghost-btn settings-trigger-btn settings-icon-only" id="run-settings-btn" title="Settings (,)" aria-label="Open Settings">
           <svg class="settings-gear-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3"></circle>
@@ -815,6 +815,22 @@
             </span>
           </label>
 
+          <label class="ios-row ios-row-switch" data-settings-item="hide shortcuts keyboard hints help guides display">
+            <span class="ios-icon ios-icon-indigo" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="5" width="20" height="14" rx="3"></rect>
+                <path d="M6 9h.01m4 0h.01m4 0h.01m4 0h.01M6 13h.01m12 0h.01M9 15h6"></path>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Hide shortcuts and help</span>
+              <small class="ios-row-sub" id="settings-study-help-desc">Hide on-screen shortcut tips, optional question help, and guides</small>
+            </span>
+            <span class="ios-switch-wrap">
+              <input type="checkbox" id="settings-hide-study-help" class="ios-switch" role="switch" aria-label="Hide shortcuts and help" aria-describedby="settings-study-help-desc">
+            </span>
+          </label>
+
           <button type="button" class="ios-row ios-row-btn" id="settings-layout-btn" data-settings-item="layout presets dlpfc metrics display">
             <span class="ios-icon ios-icon-orange" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -849,7 +865,7 @@
               </svg>
             </span>
             <span class="ios-row-copy">
-              <span class="ios-row-label">Background Sound <kbd class="ios-kbd">M</kbd></span>
+              <span class="ios-row-label">Background Sound <kbd class="ios-kbd" data-study-help>M</kbd></span>
               <small class="ios-row-sub" id="sound-status-lbl">Off · Deep Brown</small>
             </span>
             <span class="ios-switch-wrap">
@@ -1206,7 +1222,7 @@
       <section class="ios-section" data-settings-group>
         <h3 class="ios-group-title">About</h3>
         <div class="ios-group">
-          <button type="button" class="ios-row ios-row-btn" id="settings-playbook-btn" data-settings-item="study playbook habits dlpfc guide method reading">
+          <button type="button" class="ios-row ios-row-btn" id="settings-playbook-btn" data-settings-item="study playbook habits dlpfc guide method reading" data-study-help>
             <span class="ios-icon ios-icon-mint" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
@@ -1254,7 +1270,7 @@
             </span>
           </a>
 
-          <a class="ios-row ios-row-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/ai-tutor.md" target="_blank" rel="noopener" data-settings-item="ai tutor guide docs help setup">
+          <a class="ios-row ios-row-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/ai-tutor.md" target="_blank" rel="noopener" data-settings-item="ai tutor guide docs help setup" data-study-help>
             <span class="ios-icon ios-icon-purple" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -1274,7 +1290,7 @@
       </section>
 
       <p class="ios-search-empty muted" id="settings-search-empty" hidden>No matching settings.</p>
-      <p class="ios-settings-footnote">Shortcuts: <kbd>⌘K</kbd> Quick Jump · <kbd>,</kbd> Settings · <kbd>M</kbd> Sound · <kbd>P</kbd> Pause · <kbd>V</kbd> Split</p>
+      <p class="ios-settings-footnote" data-study-help>Shortcuts: <kbd>⌘K</kbd> Quick Jump · <kbd>,</kbd> Settings · <kbd>M</kbd> Sound · <kbd>P</kbd> Pause · <kbd>V</kbd> Split</p>
     </div>
   </dialog>
 
@@ -1286,7 +1302,7 @@
         <line x1="20" y1="20" x2="16.65" y2="16.65"></line>
       </svg>
       <input type="search" id="cmd-palette-input" placeholder="Jump to a course, note, exam, or setting…" autocomplete="off" spellcheck="false" aria-label="Quick Jump">
-      <kbd class="ios-kbd">Esc</kbd>
+      <kbd class="ios-kbd" data-study-help>Esc</kbd>
     </div>
     <div class="cmd-results" id="cmd-palette-results" role="listbox" aria-label="Quick jump results"></div>
   </dialog>

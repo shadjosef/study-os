@@ -171,6 +171,12 @@ window.StudyUI = (() => {
         ? 'Turns white exam excerpts dark'
         : 'Applies automatically when Dark appearance is active';
     }
+
+    const hideStudyHelp = prefs.hideStudyHelp === true;
+    document.documentElement.toggleAttribute('data-hide-study-help', hideStudyHelp);
+    const helpToggle = document.getElementById('settings-hide-study-help');
+    if (helpToggle) helpToggle.checked = hideStudyHelp;
+    document.querySelectorAll('#settings-body [data-study-help]').forEach((el) => { el.hidden = hideStudyHelp; });
   }
 
   function setTheme(theme) {
@@ -1621,6 +1627,12 @@ window.StudyUI = (() => {
     }
     document.getElementById('settings-pdf-dark-toggle')?.addEventListener('change', (ev) => {
       setPdfDark(ev.target.checked);
+    });
+    document.getElementById('settings-hide-study-help')?.addEventListener('change', (ev) => {
+      const prefs = { ...getThemePrefs(), hideStudyHelp: ev.target.checked };
+      saveThemePrefs(prefs);
+      applyTheme(prefs);
+      filterSettingsRows(document.getElementById('settings-search').value);
     });
     document.getElementById('ref-drawer-close')?.addEventListener('click', closeReferenceDrawer);
     document.getElementById('ref-backdrop')?.addEventListener('click', closeReferenceDrawer);

@@ -86,6 +86,7 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 small, .muted { color: var(--muted); }
 [hidden] { display: none !important; }
+html[data-hide-study-help] [data-study-help] { display: none !important; }
 
 .eyebrow {
   display: inline-block;
@@ -4617,11 +4618,11 @@ body.ai-pane-left .ai-pane-resize-handle {
     gap: 5px !important;
     flex-shrink: 0;
   }
-  #run-work-pill,
-  #run-layout-btn {
+  #run-work-pill {
     display: none !important;
   }
   #run-break-btn,
+  #run-layout-btn,
   #run-dev-mode-btn {
     padding: 5px 9px !important;
     font-size: 12px !important;
@@ -4632,6 +4633,14 @@ body.ai-pane-left .ai-pane-resize-handle {
     height: 34px !important;
     padding: 0 !important;
     border-radius: 50% !important;
+  }
+
+  @media (max-width: 380px) {
+    #runner-header:has(#run-submit-exam-btn:not([hidden])) .runner-header-actions {
+      flex: 0 1 auto;
+      flex-wrap: wrap !important;
+      justify-content: flex-end;
+    }
   }
 
   /* Compact Runner summary strip on mobile to maximize question viewport */
