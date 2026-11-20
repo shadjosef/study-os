@@ -74,26 +74,23 @@ window.StudyApp = (() => {
         return {
           mode: 'med_dlpfc',
           windowLabel: 'Pre-15:00 · 4.5h Cap Reached',
-          explain: `4.5h Hard novel cap reached (${(usedHighMin / 60).toFixed(1)}h) — auto-downshifted to Medium procedural drills.`,
+          explain: 'Switched to Med after reaching the 4.5h High practice limit.',
         };
       }
       return {
         mode: 'high_dlpfc',
         windowLabel: '08:00–15:00 Peak Capacity Window',
-        explain: 'Hard · Multi-step Active — Prioritizes unseen derivations, cases & multi-box problems (interleaved across topics).',
       };
     }
     if (hr >= 15 && hr < 18) {
       return {
         mode: 'med_dlpfc',
         windowLabel: '15:00–18:00 Procedural Window',
-        explain: 'Medium · Standard practice Active — Prioritizes standard drills & chunked mastered problems without heavy prefrontal strain.',
       };
     }
     return {
       mode: 'low_dlpfc',
       windowLabel: 'Evening Consolidation Window',
-      explain: 'Easy · Recall Active — Prioritizes fast FSRS spaced reviews, conceptual MCQs & low-friction recall.',
     };
   }
 
@@ -473,7 +470,7 @@ window.StudyApp = (() => {
   const LOCAL_SCHED_STATUS_KEY = 'study-os-local-sched-status-v1';
   const sandboxSchedCompleted = new Map();
   const sandboxSchedDismissed = new Set();
-  const hydratedBlockCache = new Map(); // eventId -> { count, estMin, questionIds, topicIds, topicLabel, firstTitle }
+  const hydratedBlockCache = new Map(); // eventId -> { count, estMin, questionIds, topicIds, topicLabel }
 
   function recomputeWebAnalytics() {
     hydratedBlockCache.clear();
@@ -900,6 +897,18 @@ window.StudyApp = (() => {
     return `T${topic.id} · ${raw}`;
   }
 
+  const homeDifficultyLabels = ['', 'Low', 'Med', 'High'];
+
+  function homeBlockTitle(topicLabel, course) {
+    return String(topicLabel || '').replace(/^T\d+ · /, '').trim() || course?.title || 'Study block';
+  }
+
+  function homeBlockDifficulty(tier) {
+    return tier > 1
+      ? `<span class="diff-badge diff-${tier}">${homeDifficultyLabels[tier]}</span>`
+      : '';
+  }
+
   function describeScheduledBlock(block) {
     const st = getBlockEffectiveState(block);
     const catalog = boot.catalog || [];
@@ -947,7 +956,6 @@ window.StudyApp = (() => {
       displayTitle,
       whenLabel: formatRelativeScheduleWhen(block, st),
       queueLabel,
-      firstTitle: hydrated?.firstTitle || '',
       canLaunch: Boolean(course?.courseId || block.courseId),
     };
   }
@@ -1012,7 +1020,6 @@ window.StudyApp = (() => {
         estMin: estMin || Number(b.focusMinutes || 50),
         topicIds: meta.topicIds.length ? meta.topicIds : (topTopic ? [String(topTopic.id)] : []),
         topicLabel: meta.topicLabel || (topTopic ? formatTopicShort(topTopic) : ''),
-        firstTitle: firstQ?.title || '',
       };
       hydratedBlockCache.set(b.eventId, info);
 
@@ -1023,18 +1030,11 @@ window.StudyApp = (() => {
           ? `${info.count} ${info.count === 1 ? 'task' : 'tasks'} · ~${Math.max(10, info.estMin)}m`
           : `${Number(b.focusMinutes || 50)}m review`;
       });
-      if (info.topicLabel && info.topicLabel.toLowerCase() !== meta.displayTitle.toLowerCase()) {
+      if (info.topicLabel) {
+        const title = homeBlockTitle(info.topicLabel, meta.course);
         document.querySelectorAll(`[data-sched-topic-for="${escId}"]`).forEach((el) => {
-          if (!el.textContent.trim()) {
-            el.textContent = info.topicLabel;
-            el.hidden = false;
-          }
-        });
-      }
-      if (info.firstTitle) {
-        document.querySelectorAll(`[data-sched-preview-for="${escId}"]`).forEach((el) => {
-          el.textContent = `Starts with: ${info.firstTitle}`;
-          el.hidden = false;
+          el.textContent = title;
+          el.closest('#hero-active-block')?.setAttribute('aria-label', `Launch ${title}`);
         });
       }
     }
@@ -1749,17 +1749,15 @@ window.StudyApp = (() => {
     // 2. Circadian Difficulty Bar + Zero-Decision-Fatigue Google Calendar Hero
     const resolvedFocus = getResolvedFocusMode();
     const autoTarget = getCircadianAutoTarget();
-    const focusExplain =
-      sessionFocusMode === 'auto'
-        ? autoTarget.explain
-        : resolvedFocus === 'high_dlpfc'
-        ? 'Hard · Multi-step Override — Excludes Easy recall and interleaves novel multi-step problems.'
+    const focusExplain = (sessionFocusMode === 'auto' && autoTarget.explain) ||
+      (resolvedFocus === 'high_dlpfc'
+        ? 'Prioritizes new multi-step problems across topics.'
         : resolvedFocus === 'med_dlpfc'
-        ? 'Medium · Standard practice Override — Prioritizes standard calculation drills & mastered chunked exercises.'
-        : 'Easy · Recall Override — Prioritizes fast FSRS spaced reviews & recognition MCQs.';
+        ? 'Prioritizes standard calculations and familiar problems.'
+        : 'Prioritizes spaced reviews and concept checks.');
 
     const autoShort =
-      autoTarget.mode === 'high_dlpfc' ? 'Hard' : autoTarget.mode === 'med_dlpfc' ? 'Medium' : 'Easy';
+      autoTarget.mode === 'high_dlpfc' ? 'High' : autoTarget.mode === 'med_dlpfc' ? 'Med' : 'Low';
 
     const focusBarHtml = `
       <div class="focus-mode-bar ${resolvedFocus === 'high_dlpfc' ? 'pre15-active' : ''}">
@@ -1772,13 +1770,13 @@ window.StudyApp = (() => {
             Auto (${autoShort})
           </button>
           <button type="button" class="preset-chip ${sessionFocusMode === 'high_dlpfc' ? 'active' : ''}" data-focus-mode="high_dlpfc">
-            Hard (&lt;15:00)
+            High
           </button>
           <button type="button" class="preset-chip ${sessionFocusMode === 'med_dlpfc' ? 'active' : ''}" data-focus-mode="med_dlpfc">
-            Medium (15–18)
+            Med
           </button>
           <button type="button" class="preset-chip ${sessionFocusMode === 'low_dlpfc' ? 'active' : ''}" data-focus-mode="low_dlpfc">
-            Easy (Eve)
+            Low
           </button>
         </div>
       </div>
@@ -1813,26 +1811,22 @@ window.StudyApp = (() => {
       const coursePill = cMeta
         ? `<span class="sched-course-pill" style="--sched-accent:${esc(cMeta.color)}"><i aria-hidden="true"></i><b>${esc(cMeta.code)}</b> ${esc(cMeta.shortTitle || cMeta.title)}</span>`
         : '';
-      const dlpfcPill = `<span class="diff-badge diff-${pMeta.dlpfc.tier}" data-layout-tier="${pMeta.dlpfc.tier}">${esc(pMeta.dlpfc.label)}</span>`;
-      const topicPill = `<span class="badge sched-topic-pill" data-sched-topic-for="${esc(primary.eventId)}" ${pMeta.showTopicPill ? '' : 'hidden'}>${esc(pMeta.showTopicPill ? pMeta.topicLabel : '')}</span>`;
+      const title = homeBlockTitle(pMeta.topicLabel, cMeta);
 
       heroEl.innerHTML = `
         ${focusBarHtml}
         ${debtBannerHtml}
-        <div class="hero-queue-card ${isDebt ? 'is-debt' : isLive ? 'is-live' : ''}" id="hero-active-block" role="button" tabindex="0" style="--sched-accent:${esc(cMeta?.color || 'var(--accent)')}" aria-label="Launch ${esc(pMeta.displayTitle)}">
+        <div class="hero-queue-card ${isDebt ? 'is-debt' : isLive ? 'is-live' : ''}" id="hero-active-block" role="button" tabindex="0" style="--sched-accent:${esc(cMeta?.color || 'var(--accent)')}" aria-label="Launch ${esc(title)}">
           <div class="hero-queue-main">
             <div class="hero-queue-pills">
               ${whenBadge}
               ${coursePill}
-              ${dlpfcPill}
-              ${topicPill}
+              ${homeBlockDifficulty(pMeta.dlpfc.tier)}
               ${primary.location ? `<span class="badge">${esc(primary.location)}</span>` : ''}
             </div>
-            <h1 class="hero-title" style="margin:6px 0 4px">${esc(pMeta.displayTitle)}</h1>
+            <h1 class="hero-title" data-sched-topic-for="${esc(primary.eventId)}" style="margin:6px 0 4px">${esc(title)}</h1>
             <div class="hero-queue-sub">
               <span class="sched-count-pill" data-sched-count-for="${esc(primary.eventId)}">${esc(pMeta.queueLabel)}</span>
-              <span class="muted sched-preview-txt" data-sched-preview-for="${esc(primary.eventId)}" ${pMeta.firstTitle ? '' : 'hidden'}>${pMeta.firstTitle ? `Starts with: ${esc(pMeta.firstTitle)}` : ''}</span>
-              ${primary.focusNote && !pMeta.firstTitle ? `<span class="muted">${esc(primary.focusNote)}</span>` : ''}
             </div>
           </div>
           <div class="hero-queue-side">
@@ -1856,14 +1850,11 @@ window.StudyApp = (() => {
                       <div class="sched-mini-top">
                         <div class="sched-mini-badges">
                           ${bc ? `<span class="sched-course-pill compact" style="--sched-accent:${esc(bc.color)}"><i aria-hidden="true"></i><b>${esc(bc.code)}</b> ${esc(bc.shortTitle || '')}</span>` : ''}
-                          <span class="diff-badge diff-${m.dlpfc.tier}" data-layout-tier="${m.dlpfc.tier}">${esc(m.dlpfc.label)}</span>
+                          ${homeBlockDifficulty(m.dlpfc.tier)}
                         </div>
                         <button type="button" class="sched-check-btn" data-mark-done-event="${esc(b.eventId)}" title="${m.st.isDebt ? 'Mark overdue debt cleared' : 'Mark completed early'}" aria-label="Mark block completed">✓</button>
                       </div>
-                      <div class="sched-mini-body">
-                        <div class="sched-mini-topic" data-sched-topic-for="${esc(b.eventId)}" ${m.showTopicPill ? '' : 'hidden'}>${esc(m.showTopicPill ? m.topicLabel : '')}</div>
-                        <strong class="sched-mini-title">${esc(m.displayTitle)}</strong>
-                      </div>
+                      <strong class="sched-mini-title" data-sched-topic-for="${esc(b.eventId)}">${esc(homeBlockTitle(m.topicLabel, bc))}</strong>
                       <div class="sched-mini-foot">
                         <small class="${m.st.isDebt ? 'sched-when-debt' : 'muted'}">${esc(m.whenLabel)}</small>
                         <small class="sched-mini-go"><span data-sched-count-for="${esc(b.eventId)}">${esc(m.queueLabel)}</span> <span class="sched-arrow" aria-hidden="true">→</span></small>
@@ -1997,7 +1988,6 @@ window.StudyApp = (() => {
 
     // 3. Global Metrics Strip
     const a = boot.analytics || {};
-    const ov = a.overall || {};
     const db = a.dlpfcBudget || {};
     const highMin = Number(db.todayHighMinutes || 0);
     const medMin = Number(db.todayMedMinutes || 0);
@@ -2008,18 +1998,8 @@ window.StudyApp = (() => {
     const totalItems = Object.values(a.courseProgress || {}).reduce((s, c) => s + (c.total || 0), 0);
 
     document.getElementById('home-metrics-strip').innerHTML = `
-      <div class="metric-tile" data-layout-performance>
-        <small>Universal Productivity (UPI)</small>
-        <b>${ov.upi ?? '—'}</b>
-        <small>7-day: ${a.last7Days?.upi ?? '—'} · 100 = Al Par @ 100%</small>
-      </div>
-      <div class="metric-tile" data-layout-performance>
-        <small>Beat Al Par Rate</small>
-        <b>${ov.beatAiRate != null ? Math.round(ov.beatAiRate * 100) + '%' : '—'}</b>
-        <small>Accuracy-gated (${ov.count || 0} attempts)</small>
-      </div>
       <div class="metric-tile" data-layout-budget>
-        <small>High dlPFC practice budget</small>
+        <small>High practice budget</small>
         <b>${(highMin / 60).toFixed(1)}h / 4.5h</b>
         <small>${Math.round(highMin)}m High · ${Math.round(medMin)}m Med</small>
       </div>
@@ -2039,13 +2019,11 @@ window.StudyApp = (() => {
     renderCanvasBridgeStrip();
 
     // 4. Difficulty / DLPFC Picker + Duration Picker + Semester Filter + Courses Grid
-    const tierLbl = (t) => window.StudyLayout?.label?.(t) || (t === 1 ? 'Low DLPFC' : t === 2 ? 'Med DLPFC' : 'High DLPFC');
-    const diffWord = homeDifficulty === 'all' ? '' : tierLbl(Number(homeDifficulty));
+    const diffWord = homeDifficultyLabels[Number(homeDifficulty)] || '';
     const diffSeg = document.getElementById('home-difficulty-seg');
     if (diffSeg) {
       diffSeg.querySelectorAll('[data-home-diff]').forEach((btn) => {
         const val = btn.dataset.homeDiff;
-        if (val !== 'all') btn.textContent = tierLbl(Number(val));
         const active = val === homeDifficulty;
         btn.classList.toggle('active', active);
         btn.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -2109,9 +2087,6 @@ window.StudyApp = (() => {
         const cp = tierCp || (homeDifficulty !== 'all'
           ? { total: fallbackTierTotal, done: 0, revisit: 0, in_progress: 0, dueFsrs: 0 }
           : fullCp);
-        const cm = homeDifficulty !== 'all'
-          ? (a.subgroups?.byCourseTier?.[`${c.courseId}:${homeDifficulty}`] || {})
-          : (a.subgroups?.byCourse?.[c.courseId] || {});
         const pct = cp.total ? Math.round((cp.done / cp.total) * 100) : 0;
         const daysLeft = daysUntilDateStr(c.examInfo?.date);
         const targetMs = examTargetMs(c.examInfo);
@@ -2141,9 +2116,7 @@ window.StudyApp = (() => {
             </div>
             <div class="course-stats-row">
               <span><b>${cp.done}</b>/${cp.total} ${diffWord ? `${diffWord.toLowerCase()} ` : ''}done</span>
-              ${isStaticWeb || homeDifficulty !== 'all' ? '' : `<span>· <b>${c.highDlpfcCount ?? c.writtenOrCalcCount ?? 0}</b> Hard</span>`}
               <span>· <b>${cp.revisit}</b> revisit</span>
-              <span>· UPI <b>${cm.upi ?? '—'}</b></span>
             </div>
             ${provMixHtml}
           </div>
