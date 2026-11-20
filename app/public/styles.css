@@ -222,7 +222,7 @@ small, .muted { color: var(--muted); }
 html:not([data-theme="dark"]) .pdf-theme-toggle { display: none; }
 
 /* Buttons & Inputs */
-button, .ghost-btn, .primary-btn, select, input[type="text"], input[type="search"], input[type="number"], textarea {
+button, .ghost-btn, .primary-btn, select, input[type="text"], input[type="email"], input[type="search"], input[type="number"], textarea {
   font: inherit;
 }
 
@@ -256,7 +256,7 @@ button:disabled { opacity: 0.48; cursor: default; }
 
 .btn-lg { padding: 12px 22px; font-size: 15px; border-radius: 11px; }
 
-select, input[type="text"], input[type="search"], input[type="number"], input[type="password"], input[type="url"], textarea {
+select, input[type="text"], input[type="email"], input[type="search"], input[type="number"], input[type="password"], input[type="url"], textarea {
   background: var(--panel);
   color: var(--ink);
   border: 1px solid var(--line);
@@ -2294,7 +2294,23 @@ body.runner-foveal-compact .runner-topbar-inner {
 }
 
 .member-dialog::backdrop { background: rgba(4, 13, 10, .68); }
-.member-dialog input { width: 100%; }
+.member-dialog input:not([type="checkbox"]):not([type="radio"]),
+.member-dialog select { width: 100%; }
+.member-dialog input[type="checkbox"],
+.check-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  margin: 2px 0 0;
+  accent-color: var(--accent);
+}
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  cursor: pointer;
+  line-height: 1.4;
+}
 #canvas-sync-dialog input[type="checkbox"] { width: auto; }
 #local-book-dialog { width: min(940px, calc(100% - 24px)); }
 #canvas-session-fields > details { margin: 8px 0; }
@@ -2801,6 +2817,7 @@ html[data-theme="dark"] .ghost-btn:hover:not(:disabled) {
 
 select,
 input[type="text"],
+input[type="email"],
 input[type="search"],
 input[type="number"],
 input[type="url"],
@@ -2813,6 +2830,7 @@ textarea {
 
 select:focus,
 input[type="text"]:focus,
+input[type="email"]:focus,
 input[type="search"]:focus,
 input[type="number"]:focus,
 input[type="url"]:focus,
