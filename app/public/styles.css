@@ -3796,19 +3796,6 @@ body {
   font-size: 13.5px;
 }
 
-/* Runner tutor button and tools menu */
-.runner-ai-pill {
-  white-space: nowrap;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--panel)), rgba(99, 102, 241, 0.14)) !important;
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--line)) !important;
-  color: var(--accent-ink, var(--accent)) !important;
-  font-weight: 700 !important;
-}
-:root[data-theme="dark"] .runner-ai-pill {
-  color: #6ee7c8 !important;
-  background: linear-gradient(135deg, rgba(34, 197, 154, 0.2), rgba(99, 102, 241, 0.22)) !important;
-  border-color: rgba(110, 231, 200, 0.36) !important;
-}
 .runner-tools-menu {
   position: relative;
 }
@@ -3833,10 +3820,6 @@ body.ai-pane-resizing {
   transition: none !important;
   user-select: none;
   cursor: col-resize;
-}
-
-.runner-ai-pill.active {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 42%, transparent);
 }
 
 .ai-tutor-backdrop {
@@ -4643,13 +4626,6 @@ body.ai-pane-left .ai-pane-resize-handle {
     font-size: 12px !important;
     white-space: nowrap;
   }
-  #run-settings-btn {
-    width: 34px !important;
-    height: 34px !important;
-    padding: 0 !important;
-    border-radius: 50% !important;
-  }
-
   @media (max-width: 380px) {
     #runner-header:has(#run-submit-exam-btn:not([hidden])) .runner-header-actions {
       flex: 0 1 auto;
@@ -6402,6 +6378,9 @@ html[data-theme="dark"] .is-debt-row td {
 .pdf-figure-inline-local {
   margin: 12px 0 14px;
 }
+.pdf-figure-inline-local:not([data-excerpt-ready]) :is(.pdf-zoom-tools, .pdf-zoom-scroll) {
+  display: none;
+}
 
 /* ==========================================================================
    3-PANE SIDE-BY-SIDE RUNNER (TASK | REFERENCE | ANSWER)
@@ -6411,11 +6390,11 @@ body.runner-split-wide.runner-split-ref .container {
 }
 .runner-split-grid.is-tri-pane {
   grid-template-columns:
-    minmax(260px, var(--task-share, 38fr))
+    minmax(0, var(--ref-share, 30fr))
     12px
-    minmax(240px, var(--ref-share, 30fr))
+    minmax(0, var(--task-share, 38fr))
     12px
-    minmax(280px, var(--answer-share, 32fr));
+    minmax(0, var(--answer-share, 32fr));
 }
 .runner-pane-ref {
   position: sticky;
@@ -6487,5 +6466,118 @@ body.runner-split-wide.runner-split-ref .container {
   .runner-split-grid.is-tri-pane .runner-pane-ref {
     position: static;
     max-height: 55vh;
+  }
+}
+
+/* Exercise toolbar */
+body.in-runner {
+  --runner-rail-width: 42px;
+  padding-left: var(--runner-rail-width);
+}
+
+.runner-rail {
+  display: none;
+  position: fixed;
+  z-index: 41;
+  inset: 0 auto 0 0;
+  box-sizing: border-box;
+  width: var(--runner-rail-width);
+  padding: 9px 3px;
+  align-items: center;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--line);
+}
+
+body.in-runner .runner-rail {
+  display: flex;
+}
+
+.runner-rail-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+}
+
+.runner-icon-btn {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.runner-icon-btn:hover,
+.runner-icon-btn:focus-visible {
+  color: var(--ink);
+  background: var(--panel-alt);
+  border-color: var(--line);
+}
+
+.runner-icon-btn[aria-expanded="true"] {
+  color: var(--accent-ink, var(--accent));
+  background: color-mix(in srgb, var(--accent) 12%, var(--panel));
+}
+
+#run-al-btn {
+  color: var(--accent-ink, var(--accent));
+  border-color: var(--line);
+}
+
+#run-profile-avatar {
+  line-height: 0;
+}
+
+body.in-runner .ref-drawer {
+  left: var(--runner-rail-width);
+  right: auto;
+  width: min(620px, calc(100vw - var(--runner-rail-width)));
+  border-left: 0;
+  border-right: 1px solid var(--line);
+  box-shadow: 12px 0 40px rgba(0, 0, 0, .24);
+}
+
+@media (min-width: 960px) {
+  body.in-runner.ai-pane-open.ai-pane-left {
+    padding-left: calc(var(--runner-rail-width) + var(--ai-pane-w));
+  }
+
+  body.in-runner.ai-pane-open.ai-pane-left .ai-tutor-pane {
+    left: var(--runner-rail-width);
+  }
+}
+
+@media (max-width: 560px) {
+  body.in-runner {
+    --runner-rail-width: 0px;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .runner-rail {
+    inset: auto auto calc(6px + env(safe-area-inset-bottom, 0px)) 8px;
+    width: auto;
+    padding: 2px;
+    flex-direction: row;
+    gap: 2px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+
+  .runner-rail-bottom {
+    flex-direction: row;
+    margin-top: 0;
+  }
+
+  .runner-rail .runner-icon-btn {
+    width: 38px;
+    height: 38px;
   }
 }

@@ -1,10 +1,12 @@
 'use strict';
 
 window.StudyPdf = (() => {
-  const vendor = new URL('../vendor/pdfjs/', document.currentScript.src);
+  const script = new URL(document.currentScript.src);
+  const vendor = new URL('../vendor/pdfjs/', script);
   let engine;
   let active;
   let inlineBatch = null;
+  let savedExcerpts;
   const geometry = new WeakMap();
   const pageText = new Map();
 
@@ -33,13 +35,65 @@ window.StudyPdf = (() => {
     };
   }
 
+  async function excerptRange(source, page, content) {
+    const { questionId, questionTitle, sourceId } = source;
+    if (!questionId) return [0, 1];
+    if (questionId.startsWith('math-2588:') && sourceId) {
+      if (!savedExcerpts) {
+        const url = new URL('../pdf-excerpts.json', script);
+        url.search = script.search;
+        savedExcerpts = fetch(url).then((response) => response.ok ? response.json() : null).catch(() => null);
+      }
+      const saved = (await savedExcerpts)?.[questionId]?.[`${sourceId}:${page.pageNumber}`];
+      if (saved && 0 <= saved[0] && saved[0] < saved[1] && saved[1] <= 1) return saved;
+    }
+
+    const heading = /\b(problem|exercise|question|oppgave|task)\s+(\d+)\b/i;
+    const target = heading.exec(questionTitle || '') || heading.exec(source.label || '');
+    if (!target) return null;
+    const viewport = page.getViewport({ scale: 1 });
+    const lines = new Map();
+    for (const item of content.items) {
+      if (!item.str?.trim()) continue;
+      const [x, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+      const row = Math.round(y);
+      if (!lines.has(row)) lines.set(row, []);
+      lines.get(row).push({ x, text: item.str.trim(), height: item.height || 10 });
+    }
+    const headings = Array.from(lines, ([y, parts]) => {
+      const line = parts.sort((a, b) => a.x - b.x).map((part) => part.text).join(' ');
+      const match = heading.exec(line);
+      if (match?.index !== 0 || match[1].toLowerCase() !== target[1].toLowerCase()) return null;
+      return { number: Number(match[2]), y: y - parts[0].height };
+    }).filter(Boolean).sort((a, b) => a.y - b.y);
+    const matches = headings.filter((section) => section.number === Number(target[2]));
+    if (matches.length !== 1) return null;
+    const start = matches[0].y;
+    const next = headings.find((section) => section.y > start);
+    const top = Math.max(0, (start - 4) / viewport.height);
+    const bottom = next ? Math.min(1, (next.y - 3) / viewport.height) : 1;
+    return top < bottom ? [top, bottom] : null;
+  }
+
+  function itemsInRange(content, viewport, range) {
+    const [top, bottom] = range;
+    return content.items.filter((item) => {
+      if (!item.transform) return false;
+      const [, y] = viewport.convertToViewportPoint(item.transform[4], item.transform[5]);
+      return y >= top * viewport.height && y < bottom * viewport.height;
+    });
+  }
+
   async function readPageText(source) {
     const pdf = await pdfEngine();
     const task = pdf.getDocument(await documentOptions(source));
     try {
       const doc = await task.promise;
       const page = await doc.getPage(source.page);
-      const { items } = await page.getTextContent();
+      const content = await page.getTextContent();
+      const range = await excerptRange(source, page, content);
+      if (!range) return '';
+      const items = itemsInRange(content, page.getViewport({ scale: 1 }), range);
       const lines = [];
       let line = '';
       let previousY;
@@ -66,15 +120,16 @@ window.StudyPdf = (() => {
   }
 
   function textForPage(source) {
-    if (!pageText.has(source.key)) {
+    const key = source.questionId ? `${source.key}:${source.questionId}` : source.key;
+    if (!pageText.has(key)) {
       const pending = readPageText(source).catch((error) => {
-        if (pageText.get(source.key) === pending) pageText.delete(source.key);
+        if (pageText.get(key) === pending) pageText.delete(key);
         throw error;
       });
-      pageText.set(source.key, pending);
+      pageText.set(key, pending);
       if (pageText.size > 20) pageText.delete(pageText.keys().next().value);
     }
-    return pageText.get(source.key);
+    return pageText.get(key);
   }
 
   function boundsOf(surface, width, height) {
@@ -140,7 +195,7 @@ window.StudyPdf = (() => {
     </div>`;
   }
 
-  function bindZoom(root, scroller, paper, surface, state, sourceSize, textLayer) {
+  function bindZoom(root, scroller, paper, surface, state, sourceSize, textLayer, textOffsetY = 0) {
     function paint() {
       const { width, height } = sourceSize();
       if (!width || !height || !scroller.clientWidth) return;
@@ -153,7 +208,7 @@ window.StudyPdf = (() => {
       paper.style.width = `${box.width * scale}px`;
       paper.style.height = `${box.height * scale}px`;
       if (textLayer) {
-        textLayer.style.transform = `translate(${-box.x * scale}px, ${-box.y * scale}px) scale(${scale})`;
+        textLayer.style.transform = `translate(${-box.x * scale}px, ${-(box.y + textOffsetY) * scale}px) scale(${scale})`;
       }
       Object.assign(surface.style, {
         width: `${width * scale}px`, height: `${height * scale}px`,
@@ -316,13 +371,21 @@ window.StudyPdf = (() => {
           if (!doc || batch.cancelled || inlineBatch !== batch || !figure.isConnected) return;
           const targetPage = Math.max(1, Math.min(doc.numPages, Number(item.page) || 1));
           const page = await doc.getPage(targetPage);
+          const content = await page.getTextContent().catch(() => ({ items: [], styles: {} }));
+          const range = await excerptRange(item.source, page, content);
           if (batch.cancelled || inlineBatch !== batch || !figure.isConnected) return;
+          if (!range) {
+            if (notice) notice.textContent = 'Open the full PDF to view this source.';
+            return;
+          }
           const original = page.getViewport({ scale: 1 });
           const scale = Math.min(2.6, 2200 / Math.max(original.width, original.height));
           const viewport = page.getViewport({ scale });
+          const top = Math.floor(viewport.height * range[0]);
+          const bottom = Math.ceil(viewport.height * range[1]);
           canvas.width = Math.ceil(viewport.width);
-          canvas.height = Math.ceil(viewport.height);
-          const renderTask = page.render({ canvas, viewport });
+          canvas.height = bottom - top;
+          const renderTask = page.render({ canvas, viewport, transform: [1, 0, 0, 1, 0, -top] });
           const handle = { render: renderTask, text: null, release: null };
           batch.handles.push(handle);
           await renderTask.promise;
@@ -338,15 +401,17 @@ window.StudyPdf = (() => {
             text.style.height = `${viewport.height}px`;
             text.style.setProperty('--total-scale-factor', viewport.scale);
             text.style.setProperty('--scale-factor', viewport.scale);
-            handle.text = new pdf.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport });
+            const excerptText = { ...content, items: itemsInRange(content, viewport, range) };
+            handle.text = new pdf.TextLayer({ textContentSource: excerptText, container: text, viewport });
             handle.text.render().catch(() => {});
           }
-          const zoom = bindZoom(figure, scroll, paper, canvas, state, () => ({ width: paintWidth, height: paintHeight }), text);
+          figure.dataset.excerptReady = 'true';
+          const zoom = bindZoom(figure, scroll, paper, canvas, state, () => ({ width: paintWidth, height: paintHeight }), text, top);
           handle.release = zoom.release;
           if (notice) notice.hidden = true;
         } catch {
           if (notice && !batch.cancelled && figure.isConnected) {
-            notice.textContent = 'Could not render this page. Click In-App PDF to view.';
+            notice.textContent = 'Could not load the excerpt. Open the full PDF to view this source.';
           }
         }
       })

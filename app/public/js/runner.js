@@ -15,6 +15,7 @@ window.StudyRunner = (() => {
   let pendingSaves = 0;
 
   const RUNNER_UI_KEY = 'study-os-runner-ui-v3';
+  const dockReferenceLayout = matchMedia('(min-width: 1020px)');
   function getRunnerUiPrefs() {
     try {
       return JSON.parse(localStorage.getItem(RUNNER_UI_KEY)) || {};
@@ -33,7 +34,7 @@ window.StudyRunner = (() => {
   function needsSplitByContent(q, st) {
     if (!q) return false;
     // Keep the task visible alongside inline PDFs, source context gates, and references.
-    if (st?.readerTab === 'pdf' || st?.readerTab === 'context' || st?.readerTab === 'ref') return true;
+    if (st?.readerTab === 'pdf' || st?.readerTab === 'context') return true;
     return false;
   }
 
@@ -597,7 +598,7 @@ window.StudyRunner = (() => {
       }
       if (!seen.has(entry.key)) {
         seen.add(entry.key);
-        out.push(entry);
+        out.push({ ...entry, sourceId: a.sourceId, questionId: q.id, questionTitle: q.title });
       }
     };
 
@@ -643,6 +644,8 @@ window.StudyRunner = (() => {
           localSourceKey: localRec.key,
           localFile: localRec,
           sourceId: ref.sourceId,
+          questionId: q.id,
+          questionTitle: q.title,
           title: ref.title || localRec.title,
           label: ref.caption || `${ref.title || localRec.filename} · p. ${page}`,
           page,
@@ -670,12 +673,12 @@ window.StudyRunner = (() => {
           <figcaption>
             <span>${esc(entry.label)}</span>
             <span class="row-actions" style="gap:6px">
-              <button type="button" class="mini-tool-btn" data-open-inline-pdf="${esc(entry.key)}" title="Open full multi-page PDF reader">In-App PDF (p.${esc(entry.page || 1)})</button>
+              <button type="button" class="mini-tool-btn" data-open-inline-pdf="${esc(entry.key)}" title="Open full multi-page PDF reader">Full PDF (p.${esc(entry.page || 1)})</button>
             </span>
           </figcaption>
           ${window.StudyPdf.toolbar()}
-          <p class="muted pdf-status" data-pdf-status role="status" style="margin:6px 10px">Rendering page ${esc(entry.page || 1)}…</p>
-          <div class="pdf-zoom-scroll pdf-figure-scroll" tabindex="0" aria-label="Scrollable course PDF page">
+          <p class="muted pdf-status" data-pdf-status role="status" style="margin:6px 10px">Loading question excerpt…</p>
+          <div class="pdf-zoom-scroll pdf-figure-scroll" tabindex="0" aria-label="Scrollable question excerpt">
             <div class="pdf-zoom-page"><canvas aria-hidden="true"></canvas><div class="textLayer"></div></div>
           </div>
         </figure>`;
@@ -901,7 +904,7 @@ window.StudyRunner = (() => {
     }
   }
 
-  function buildInlineRefHtml(q, st, isDocked, isSplit) {
+  function buildInlineRefHtml(st) {
     const refData = st.inlineRefData;
     const obs = activeRun.courseMeta?.obsidian || {};
     const noteChoices = [];
@@ -927,7 +930,6 @@ window.StudyRunner = (() => {
         <select id="sel-inline-ref-note" aria-label="Reference note" style="font-size:12px;padding:4px 7px;min-width:110px;max-width:155px">${noteSelHtml}</select>
         <select id="sel-inline-ref-toc" aria-label="Reference section" style="font-size:12px;padding:4px 7px;flex:1;min-width:120px">${tocSelHtml}</select>
         ${refData?.obsidianUri ? `<a class="mini-tool-btn" href="${esc(refData.obsidianUri)}" style="text-decoration:none">Obsidian ↗</a>` : ''}
-        ${!isDocked && isSplit ? `<button type="button" class="mini-tool-btn" data-toggle-ref-pane="on" title="View Task, Reference, and Answer side-by-side (3-Pane)">Side-by-Side ◫</button>` : ''}
       </div>
     `;
     const body = `
@@ -941,22 +943,19 @@ window.StudyRunner = (() => {
         }
       </div>
     `;
-    if (isDocked) {
-      return `
-        <div class="reader-tabbar runner-ref-header">
-          <div class="runner-ref-title-wrap">
-            <span class="runner-ref-dot" aria-hidden="true"></span>
-            <strong style="font-size:13px">Reference</strong>
-          </div>
-          <div class="reader-tools">
-            <button type="button" class="mini-tool-btn" data-toggle-ref-pane="off" title="Close side-by-side Reference pane (O)">Close ×</button>
-          </div>
+    return `
+      <div class="reader-tabbar runner-ref-header">
+        <div class="runner-ref-title-wrap">
+          <span class="runner-ref-dot" aria-hidden="true"></span>
+          <strong style="font-size:13px">Reference</strong>
         </div>
-        <div class="runner-pane-ref-controls">${toolbar}</div>
-        <div class="runner-pane-ref-scroll">${body}</div>
-      `;
-    }
-    return `${toolbar}${body}`;
+        <div class="reader-tools">
+          <button type="button" class="mini-tool-btn" data-toggle-ref-pane aria-label="Close Reference" title="Close Reference (O)">×</button>
+        </div>
+      </div>
+      <div class="runner-pane-ref-controls">${toolbar}</div>
+      <div class="runner-pane-ref-scroll">${body}</div>
+    `;
   }
 
   function renderAssets(assets, courseId, sourcesMap, isBlindUnfinished = false) {
@@ -1232,7 +1231,7 @@ window.StudyRunner = (() => {
     // Guard invalid reader tab (e.g. if switched to question without PDFs or blind exam locks reference)
     if (st.readerTab === 'pdf' && !sourcePdfs.length) st.readerTab = lockedSourceRefs.length ? 'context' : 'task';
     if (st.readerTab === 'context' && !lockedSourceRefs.length) st.readerTab = sourcePdfs.length ? 'pdf' : 'task';
-    if (st.readerTab === 'ref' && isBlindUnfinished) st.readerTab = 'task';
+    if (st.readerTab === 'ref') st.readerTab = 'task';
 
     const autoNeedsSplit = needsSplitByContent(q, st);
     const preferredSplit = uiPrefs.preferredLayout !== 'focus';
@@ -1244,10 +1243,16 @@ window.StudyRunner = (() => {
       ? false
       : preferredSplit;
 
-    const isTriPane = isSplit && !isBlindUnfinished && Boolean(uiPrefs.dockRefPane);
-    if (isTriPane && st.readerTab === 'ref') {
-      st.readerTab = 'task';
-    }
+    const canOpenReference = !isBlindUnfinished && Boolean(q.obsidianLink?.file ||
+      activeRun.courseMeta.obsidian?.mainReference || activeRun.courseMeta.obsidian?.workedExamples ||
+      activeRun.courseMeta.obsidian?.practiceNote);
+    const isTriPane = isSplit && canOpenReference && dockReferenceLayout.matches && Boolean(uiPrefs.dockRefPane);
+    const refButton = document.getElementById('run-ref-btn');
+    refButton.hidden = !canOpenReference;
+    refButton.setAttribute('aria-expanded', String(isTriPane));
+    const alButton = document.getElementById('run-al-btn');
+    alButton.hidden = isBlindUnfinished;
+    alButton.setAttribute('aria-expanded', String(Boolean(window.StudyAiTutor?.isOpen?.())));
 
     document.body.classList.toggle('runner-split-wide', isSplit);
     document.body.classList.toggle('runner-split-pdf', isSplit && st.readerTab === 'pdf');
@@ -1355,8 +1360,6 @@ window.StudyRunner = (() => {
           ${renderSourceContextGate(q, lockedSourceRefs, false)}
         </div>
       `;
-    } else if (st.readerTab === 'ref' && !isBlindUnfinished && !isTriPane) {
-      readerBodyHtml = buildInlineRefHtml(q, st, false, isSplit);
     } else {
       const isExamSheet = Boolean(hasWf || q.origin === 'mock_exam' || q.origin === 'original_exam');
       const cleanTitle = String(q.title || '').replace(/\s*\(\d+\s*pts?\)\s*$/i, '');
@@ -1401,18 +1404,8 @@ window.StudyRunner = (() => {
               ? `<button type="button" class="reader-tab-btn ${st.readerTab === 'context' ? 'active' : ''}" data-reader-tab="context">${esc(firstLockedLbl)}</button>`
               : ''
           }
-          ${
-            !isBlindUnfinished && !isTriPane
-              ? `<button type="button" class="reader-tab-btn ${st.readerTab === 'ref' ? 'active' : ''}" data-reader-tab="ref">Reference</button>`
-              : ''
-          }
         </div>
         <div class="reader-tools">
-          ${
-            isSplit && !isBlindUnfinished
-              ? `<button type="button" class="mini-tool-btn ${isTriPane ? 'active' : ''}" data-toggle-ref-pane="toggle" title="View Task, Reference &amp; Answer side-by-side (Shortcut: O)">${isTriPane ? '3-Pane Ref ✓' : '+ Ref Split'}</button>`
-              : ''
-          }
           ${
             isSplit && !isTriPane
               ? `
@@ -1740,10 +1733,6 @@ window.StudyRunner = (() => {
           ${q.points ? `<span class="badge gold">${q.points} pts</span>` : ''}
         </div>
         <div class="runner-meta-actions" role="group" aria-label="Question actions">
-          ${!isBlindUnfinished
-            ? `<button type="button" class="st-btn runner-pill-tool runner-ai-pill ${window.StudyAiTutor?.isOpen?.() ? 'active' : ''}" id="btn-ai-tutor-pill" aria-expanded="${window.StudyAiTutor?.isOpen?.() ? 'true' : 'false'}" title="Toggle Al side panel (T)">Al</button>` : ''}
-          ${!isBlindUnfinished && (q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference)
-            ? '<button type="button" class="st-btn runner-pill-tool" id="btn-question-notes" title="Open course notes (O)">Notes</button>' : ''}
           ${
             isBlindUnfinished
               ? `<button type="button" class="st-btn runner-pill-tool ${st.flagged ? 'active-revisit' : ''}" id="btn-flag-exam" title="Flag question for review (F)">
@@ -1842,22 +1831,22 @@ window.StudyRunner = (() => {
       const wTask = Math.max(22, Math.min(54, savedTri[0] || 38));
       const wRef = Math.max(20, Math.min(48, savedTri[1] || 30));
       const wAns = Math.max(22, 100 - wTask - wRef);
-      const dockedRefHtml = buildInlineRefHtml(q, st, true, true);
+      const dockedRefHtml = buildInlineRefHtml(st);
       card.innerHTML = `
         <div class="runner-split-grid is-tri-pane" style="--task-share:${wTask}fr;--ref-share:${wRef}fr;--answer-share:${wAns}fr">
+          <aside class="runner-pane-ref" aria-label="Course reference">
+            ${dockedRefHtml}
+          </aside>
+          <div class="runner-divider" data-divider-slot="left" role="separator" aria-label="Resize reference pane" aria-orientation="vertical"
+              aria-valuemin="20" aria-valuemax="${78 - wAns}" aria-valuenow="${wRef}" tabindex="0"></div>
           <div class="runner-pane-left">
             ${readerTabBarHtml}
             <div class="runner-pane-left-scroll">
               ${readerBodyHtml}
             </div>
           </div>
-          <div class="runner-divider" data-divider-slot="left" role="separator" aria-label="Resize task and reference panes" aria-orientation="vertical"
-              aria-valuemin="22" aria-valuemax="56" aria-valuenow="${wTask}" tabindex="0"></div>
-          <aside class="runner-pane-ref" aria-label="Course reference">
-            ${dockedRefHtml}
-          </aside>
-          <div class="runner-divider" data-divider-slot="right" role="separator" aria-label="Resize reference and answer panes" aria-orientation="vertical"
-              aria-valuemin="20" aria-valuemax="56" aria-valuenow="${wRef}" tabindex="0"></div>
+          <div class="runner-divider" data-divider-slot="right" role="separator" aria-label="Resize task and answer panes" aria-orientation="vertical"
+              aria-valuemin="22" aria-valuemax="${78 - wRef}" aria-valuenow="${wTask}" tabindex="0"></div>
           <div class="runner-pane-right">
             ${statusBarHtml}
             <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
@@ -1957,10 +1946,11 @@ window.StudyRunner = (() => {
       courseId: activeRun.courseMeta.courseId, blind: isBlindUnfinished,
       noteFile: q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference,
       revealed: st.revealed && !isBlindUnfinished,
-      sources: sourcePdfs.filter((source) => source.isPdf && promptSourceKeys.has(source.key)),
+      sources: sourcePdfs.filter((source) => source.isPdf && (
+        promptSourceKeys.has(source.key) || source.localSourceKey && !source.isSolution
+      )),
     });
     card.querySelector('#btn-open-tutor')?.addEventListener('click', window.StudyTutor.open);
-    card.querySelector('#btn-ai-tutor-pill')?.addEventListener('click', () => window.StudyAiTutor?.toggle?.());
     if (inlinePdf) {
       const view = st.pdfViews[inlinePdf.key] ||= { page: inlinePdf.page, zoom: 100, trim: false };
       window.StudyPdf.mount(card.querySelector('#source-pdf-reader'), inlinePdf, view);
@@ -1980,19 +1970,9 @@ window.StudyRunner = (() => {
     const card = document.getElementById('runner-question-card');
     window.StudyMembers?.fillPreviews(card);
     window.StudyMembers?.bindDownloads(card);
-    document.getElementById('btn-question-notes')?.addEventListener('click', () => {
-      openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '');
-    });
-
-    // Reader Tabs (Task & Excerpts | Source PDF | Vault Reference)
-    document.querySelectorAll('[data-reader-tab]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const nextTab = btn.dataset.readerTab;
-        st.readerTab = nextTab;
-        if (nextTab === 'ref') {
-          renderRunner();
-          await ensureInlineRefLoaded(q, st);
-        }
+    card.querySelectorAll('[data-reader-tab]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        st.readerTab = btn.dataset.readerTab;
         renderRunner();
       });
     });
@@ -2154,26 +2134,7 @@ window.StudyRunner = (() => {
     });
 
     window.StudyPdf.bindExcerpts(card, st.excerptViews);
-    // Toggle 3-Pane Reference Dock (Task | Reference | Answer)
-    card.querySelectorAll('[data-toggle-ref-pane]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const mode = btn.dataset.toggleRefPane;
-        const cur = Boolean(getRunnerUiPrefs().dockRefPane);
-        const next = mode === 'on' ? true : mode === 'off' ? false : !cur;
-        saveRunnerUiPrefs({ dockRefPane: next });
-        if (next) {
-          st.layoutOverride = 'split';
-          if (st.readerTab === 'ref') st.readerTab = 'task';
-          renderRunner();
-          if (!st.inlineRefData && !st.inlineRefLoading) {
-            await ensureInlineRefLoaded(q, st);
-            if (activeRun && currentQuestion()?.id === q.id) renderRunner();
-          }
-        } else {
-          renderRunner();
-        }
-      });
-    });
+    card.querySelector('[data-toggle-ref-pane]')?.addEventListener('click', toggleRunnerReference);
 
     const triGrid = card.querySelector('.runner-split-grid.is-tri-pane');
     if (triGrid) {
@@ -2192,8 +2153,10 @@ window.StudyRunner = (() => {
         triGrid.style.setProperty('--task-share', rt + 'fr');
         triGrid.style.setProperty('--ref-share', rr + 'fr');
         triGrid.style.setProperty('--answer-share', ra + 'fr');
-        leftDiv?.setAttribute('aria-valuenow', rt);
-        rightDiv?.setAttribute('aria-valuenow', rr);
+        leftDiv?.setAttribute('aria-valuenow', rr);
+        leftDiv?.setAttribute('aria-valuemax', 78 - ra);
+        rightDiv?.setAttribute('aria-valuenow', rt);
+        rightDiv?.setAttribute('aria-valuemax', 78 - rr);
         return [rt, rr, ra];
       };
       const bindTriDiv = (div, slot) => {
@@ -2206,15 +2169,13 @@ window.StudyRunner = (() => {
           if (!div.hasPointerCapture(ev.pointerId)) return;
           const rect = triGrid.getBoundingClientRect();
           const pct = (100 * (ev.clientX - rect.left)) / rect.width;
-          const [t, r, a] = readShares();
+          const [, r, a] = readShares();
           if (slot === 'left') {
-            const nextT = Math.max(22, Math.min(100 - a - 20, pct));
-            const nextR = Math.max(20, 100 - a - nextT);
-            applyTri(nextT, nextR, a);
+            const nextR = Math.max(20, Math.min(78 - a, pct));
+            applyTri(100 - a - nextR, nextR, a);
           } else {
-            const nextR = Math.max(20, Math.min(100 - t - 22, pct - t));
-            const nextA = Math.max(22, 100 - t - nextR);
-            applyTri(t, nextR, nextA);
+            const nextT = Math.max(22, Math.min(78 - r, pct - r));
+            applyTri(nextT, r, 100 - r - nextT);
           }
         });
         div.addEventListener('lostpointercapture', () => {
@@ -2227,11 +2188,11 @@ window.StudyRunner = (() => {
           const delta = ev.key === 'ArrowLeft' ? -3 : 3;
           const [t, r, a] = readShares();
           if (slot === 'left') {
-            const nextT = Math.max(22, Math.min(100 - a - 20, t + delta));
-            applyTri(nextT, 100 - a - nextT, a);
+            const nextR = Math.max(20, Math.min(78 - a, r + delta));
+            applyTri(100 - a - nextR, nextR, a);
           } else {
-            const nextR = Math.max(20, Math.min(100 - t - 22, r + delta));
-            applyTri(t, nextR, 100 - t - nextR);
+            const nextT = Math.max(22, Math.min(78 - r, t + delta));
+            applyTri(nextT, r, 100 - r - nextT);
           }
           saveRunnerUiPrefs({ triWidths: readShares().map(Math.round) });
         });
@@ -2930,12 +2891,31 @@ window.StudyRunner = (() => {
     const st = itemState(q.id);
     const curSplit = document.body.classList.contains('runner-split-wide');
     const nextSplit = !curSplit;
-    if (!nextSplit && (st.readerTab === 'pdf' || st.readerTab === 'ref')) {
+    if (!nextSplit && st.readerTab === 'pdf') {
       st.readerTab = 'task';
     }
     st.layoutOverride = nextSplit ? 'split' : 'foveal';
     saveRunnerUiPrefs({ preferredLayout: nextSplit ? 'split' : 'focus' });
     toast(nextSplit ? 'Split view' : 'Focus view');
+    renderRunner();
+  }
+
+  function toggleRunnerReference() {
+    const q = currentQuestion();
+    const refButton = document.getElementById('run-ref-btn');
+    if (!q || refButton.hidden) return;
+    const docked = refButton.getAttribute('aria-expanded') === 'true';
+    if (!dockReferenceLayout.matches) {
+      if (!document.getElementById('ref-drawer').hidden) {
+        window.StudyUI.closeReferenceDrawer();
+        return;
+      }
+      openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '');
+      refButton.setAttribute('aria-expanded', 'true');
+      return;
+    }
+    saveRunnerUiPrefs({ dockRefPane: !docked });
+    if (!docked) itemState(q.id).layoutOverride = 'split';
     renderRunner();
   }
 
@@ -2948,6 +2928,11 @@ window.StudyRunner = (() => {
     }).observe(runnerHeader);
     document.getElementById('run-exit-btn')?.addEventListener('click', exitRunnerKeepPaused);
     document.getElementById('run-layout-btn')?.addEventListener('click', toggleSplitWorkspace);
+    document.getElementById('run-ref-btn').addEventListener('click', toggleRunnerReference);
+    document.getElementById('run-al-btn').addEventListener('click', () => window.StudyAiTutor?.toggle?.());
+    dockReferenceLayout.addEventListener('change', () => {
+      if (!runnerHeader.hidden) renderRunner();
+    });
     document.getElementById('run-submit-exam-btn')?.addEventListener('click', () => promptSubmitFullExam());
     document.getElementById('run-live-pill')?.addEventListener('click', toggleManualPause);
     document.addEventListener('click', (ev) => {
@@ -3094,24 +3079,7 @@ window.StudyRunner = (() => {
       } else if (key === 's') {
         document.getElementById('btn-reveal-sol')?.click();
       } else if (key === 'o') {
-        const q = currentQuestion();
-        const isBlind = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
-        if (!isBlind && q) {
-          if (document.body.classList.contains('runner-split-wide') && window.innerWidth >= 1020) {
-            const st = itemState(q.id);
-            const next = !Boolean(getRunnerUiPrefs().dockRefPane);
-            saveRunnerUiPrefs({ dockRefPane: next });
-            if (next && st.readerTab === 'ref') st.readerTab = 'task';
-            renderRunner();
-            if (next && !st.inlineRefData && !st.inlineRefLoading) {
-              ensureInlineRefLoaded(q, st).then(() => {
-                if (activeRun && currentQuestion()?.id === q.id) renderRunner();
-              });
-            }
-          } else {
-            openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '');
-          }
-        }
+        toggleRunnerReference();
       } else if (key === 'b' && activeRun.mode === 'practice') {
         workClock?.triggerBreak?.(false);
         e.preventDefault();

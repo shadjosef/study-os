@@ -167,14 +167,12 @@
         <button type="button" class="ghost-btn" id="run-break-btn" title="Take scaled 1:5 off-screen recovery break (B)">Break (3m)</button>
         <button type="button" class="ghost-btn" id="runner-room-btn" hidden>Room</button>
         <button type="button" class="ghost-btn" id="run-layout-btn" title="Switch between Split and Focus (V)">Split</button>
-        <button type="button" class="ghost-btn settings-trigger-btn settings-icon-only" id="run-settings-btn" title="Settings (,)" aria-label="Open Settings">
-          <svg class="settings-gear-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
-          <span class="settings-active-dot" hidden aria-hidden="true"></span>
-        </button>
         <span class="runner-domain runner-domain-desktop">StudyOS.no</span>
+        <button type="button" class="runner-icon-btn" id="run-al-btn" title="Al (T)" aria-label="Al tutor" aria-expanded="false" aria-controls="ai-tutor-pane" hidden>
+          <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m2.5 15 4.4-10 4.5 10M4.2 11.3h5.5M15 3.8v9a2.2 2.2 0 0 0 2.2 2.2h.5"/>
+          </svg>
+        </button>
       </div>
     </div>
     <section class="runner-pace" id="runner-pace" aria-label="Beat Adamlite">
@@ -190,6 +188,34 @@
       <div class="runner-pace-track" aria-hidden="true"><div class="runner-pace-fill"></div></div>
     </section>
   </header>
+
+  <nav class="runner-rail" aria-label="Exercise tools">
+    <button type="button" class="runner-icon-btn" id="run-ref-btn" title="Reference (O)" aria-label="Reference" aria-expanded="false" hidden>
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 5.5C8.6 3.5 5 3.6 2.8 4.5v14c3-.9 6.1-.8 9.2 1.3 3.1-2.1 6.2-2.2 9.2-1.3v-14c-2.2-.9-5.8-1-9.2 1ZM12 5.5v14"/>
+      </svg>
+    </button>
+    <div class="runner-rail-bottom">
+      <button type="button" class="runner-icon-btn" id="run-canvas-btn" title="Canvas sync" aria-label="Canvas sync">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 8a8 8 0 0 0-13-3L4 8m0-4v4h4m8 8h4v4m0-4-3 3a8 8 0 0 1-13-3"/>
+        </svg>
+      </button>
+      <button type="button" class="runner-icon-btn" id="run-profile-btn" title="Profile and sign-in" aria-label="Profile and sign-in">
+        <span id="run-profile-avatar" hidden></span>
+        <svg id="run-profile-icon" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><circle cx="12" cy="9" r="2.7"/><path d="M6.8 18c.8-2.4 2.7-3.7 5.2-3.7s4.4 1.3 5.2 3.7"/>
+        </svg>
+      </button>
+      <button type="button" class="runner-icon-btn" id="run-settings-btn" title="Settings (,)" aria-label="Settings">
+        <svg class="settings-gear-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span class="settings-active-dot" hidden aria-hidden="true"></span>
+      </button>
+    </div>
+  </nav>
 
   <dialog id="profile-gate" class="member-dialog auth-sheet" tabindex="-1" aria-label="Sign in to Study-OS"></dialog>
   <dialog id="account-security-dialog" class="member-dialog security-sheet" tabindex="-1" aria-labelledby="security-sheet-title"></dialog>

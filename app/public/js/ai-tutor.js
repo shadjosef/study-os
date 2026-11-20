@@ -220,11 +220,7 @@ window.StudyAiTutor = (() => {
     document.body.classList.toggle('ai-pane-open', isOpen);
     document.body.classList.toggle('ai-pane-left', isOpen && side === 'left');
     document.body.classList.toggle('ai-pane-right', isOpen && side !== 'left');
-    const pill = document.getElementById('btn-ai-tutor-pill');
-    if (pill) {
-      pill.classList.toggle('active', isOpen);
-      pill.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-    }
+    document.getElementById('run-al-btn').setAttribute('aria-expanded', String(isOpen));
   }
 
   function ensurePane() {

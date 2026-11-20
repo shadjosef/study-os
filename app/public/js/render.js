@@ -297,6 +297,9 @@ window.StudyUI = (() => {
 
   function closeReferenceDrawer() {
     document.getElementById('ref-drawer').hidden = true;
+    if (!document.body.classList.contains('runner-split-ref')) {
+      document.getElementById('run-ref-btn').setAttribute('aria-expanded', 'false');
+    }
     document.getElementById('ref-backdrop').hidden = true;
   }
 

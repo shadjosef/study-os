@@ -1321,6 +1321,11 @@ window.StudyApp = (() => {
     document.getElementById('mobile-sync-action').textContent = signedIn ? 'Open Schedule' : 'Sign in';
 
     const profileAvatar = document.getElementById('settings-profile-avatar');
+    const runnerAvatar = document.getElementById('run-profile-avatar');
+    const hasRunnerAvatar = Boolean(signedIn && prof);
+    runnerAvatar.hidden = !hasRunnerAvatar;
+    document.getElementById('run-profile-icon').hidden = hasRunnerAvatar;
+    runnerAvatar.innerHTML = hasRunnerAvatar ? window.StudyCommunity.avatarHtml(prof.nickname, prof.avatar, 22) : '';
     const profileName = document.getElementById('settings-profile-name');
     const modeBadge = document.getElementById('settings-mode-badge');
     if (signedIn && prof) {
@@ -5944,6 +5949,12 @@ window.StudyApp = (() => {
     };
     document.getElementById('settings-signin-btn')?.addEventListener('click', openHeaderSignIn);
     document.getElementById('hdr-signin-btn')?.addEventListener('click', openHeaderSignIn);
+    document.getElementById('run-canvas-btn').addEventListener('click', () => openBiSyncHub());
+    document.getElementById('run-profile-btn').addEventListener('click', () => {
+      if (!window.StudyCommunity?.enabled) window.StudyUI.openSettings();
+      else if (window.StudyCommunity.isSignedIn()) window.StudyCommunity.openSecuritySheet();
+      else openHeaderSignIn();
+    });
     document.getElementById('settings-passkeys-btn')?.addEventListener('click', () => {
       window.StudyUI.closeSettings?.();
       window.StudyCommunity.openSecuritySheet?.();
