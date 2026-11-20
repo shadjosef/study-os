@@ -50,7 +50,7 @@ window.StudyProvenance = (() => {
     }
 
     const synthetic = existing ? Boolean(existing.synthetic) : (category === 'ai_mock' || category === 'ai_synthetic');
-    const llmModel = synthetic ? (existing?.llmModel || inferLlmModel(q)) : null;
+    const llmModel = synthetic ? (existing?.llmModel || inferLlmModel(q))?.replace(/^AI Builder\b/, 'Al Builder') : null;
 
     const map = {
       past_exam:    { label: 'Past Exam',        shortLabel: 'Past Exam',  badgeClass: 'prov-exam',     priorityRank: 0 },
@@ -59,8 +59,8 @@ window.StudyProvenance = (() => {
       lecture:      { label: 'Lecture Set',      shortLabel: 'Lecture',    badgeClass: 'prov-lecture',  priorityRank: 2 },
       reading:      { label: 'Reading Task',     shortLabel: 'Reading',    badgeClass: 'prov-reading',  priorityRank: 2 },
       book:         { label: 'Book Exercise',    shortLabel: 'Book',       badgeClass: 'prov-book',     priorityRank: 3 },
-      ai_mock:      { label: 'AI Mock Exam',     shortLabel: 'AI Mock',    badgeClass: 'prov-ai',       priorityRank: 4 },
-      ai_synthetic: { label: 'AI Synthetic',     shortLabel: 'AI Synth',   badgeClass: 'prov-ai',       priorityRank: 5 },
+      ai_mock:      { label: 'Al Mock Exam',     shortLabel: 'Al Mock',    badgeClass: 'prov-ai',       priorityRank: 4 },
+      ai_synthetic: { label: 'Al Synthetic',     shortLabel: 'Al Synth',   badgeClass: 'prov-ai',       priorityRank: 5 },
     };
     const meta = map[category] || map.exercise;
     const sourceDetail = existing?.sourceDetail || colTitle || meta.label;
@@ -70,7 +70,7 @@ window.StudyProvenance = (() => {
 
     return {
       category,
-      label: existing?.label || meta.label,
+      label: synthetic ? meta.label : (existing?.label || meta.label),
       shortLabel: meta.shortLabel,
       badgeClass: meta.badgeClass,
       synthetic,
@@ -115,6 +115,8 @@ window.StudyProvenance = (() => {
       else llmModel = 'LLM-generated (legacy — model unlogged)';
     }
 
+    llmModel = llmModel?.replace(/^AI Builder\b/, 'Al Builder') ?? null;
+
     const labels = {
       past_exam:    { text: 'Official BI Past Exam', badgeClass: 'prov-exam' },
       exercise:     { text: 'BI Course Exercise',    badgeClass: 'prov-exercise' },
@@ -122,8 +124,8 @@ window.StudyProvenance = (() => {
       lecture:      { text: 'BI Lecture Set',        badgeClass: 'prov-lecture' },
       reading:      { text: 'BI Reading Assignment', badgeClass: 'prov-reading' },
       book:         { text: 'Textbook (BYOB)',       badgeClass: 'prov-book' },
-      ai_mock:      { text: llmModel ? `AI Mock · ${llmModel}` : 'AI Mock Exam', badgeClass: 'prov-ai' },
-      ai_synthetic: { text: llmModel ? `AI Synthetic · ${llmModel}` : 'AI Synthetic', badgeClass: 'prov-ai' },
+      ai_mock:      { text: llmModel ? `Al Mock · ${llmModel}` : 'Al Mock Exam', badgeClass: 'prov-ai' },
+      ai_synthetic: { text: llmModel ? `Al Synthetic · ${llmModel}` : 'Al Synthetic', badgeClass: 'prov-ai' },
     };
     const info = labels[category] || labels.exercise;
     return {

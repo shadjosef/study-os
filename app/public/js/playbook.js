@@ -24,7 +24,7 @@ window.StudyPlaybook = (() => {
       title: '50m / 75m Working Blocks & 1:5 Off-Screen Breaks',
       summary: 'Deep learning happens in uninterrupted blocks followed by real off-screen recovery — not tab-switching every 5 minutes.',
       points: [
-        'Run continuous <b>50m</b> (default) or <b>75m</b> AI-Par blocks so you stay inside flow instead of jumping between tiny sets.',
+        'Run continuous <b>50m</b> (default) or <b>75m</b> Al-Par blocks so you stay inside flow instead of jumping between tiny sets.',
         'Take a genuine <b>1:5 off-screen break</b> (walk, water, look outside — no doomscrolling) so prefrontal fatigue actually clears.',
         'Study-OS Community opens during timed breaks and from 18:00 to 22:30 Oslo time so social features never steal peak study focus.',
       ],
@@ -43,12 +43,12 @@ window.StudyPlaybook = (() => {
     {
       badge: 'Upcoming',
       badgeClass: 'gold',
-      title: 'Active Recall, AI Par & Honest Scoring',
-      summary: 'How to use realistic AI Par timers and Adamlite AI without fooling yourself into passive rereading.',
+      title: 'Active Recall, Al Par & Honest Scoring',
+      summary: 'Set a pace for practice and use Al to check your reasoning.',
       points: [
         'Attempt every problem cold first before opening a hint or solution — struggle is the signal that builds durable memory.',
         '<b>UPI rewards High DLPFC (1.22×) and Exam Par (1.08×)</b> while keeping self-graded written weight conservative so your metrics stay honest.',
-        'Use <b>Adamlite AI</b> for a small nudge or to check your working.',
+        'Use <b>Al</b> for a small nudge or to check your working.',
       ],
     },
   ];

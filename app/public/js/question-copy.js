@@ -66,7 +66,7 @@ window.StudyQuestionCopy = (() => {
   }
 
   function copied() {
-    window.StudyUI.toast('Question and answers copied for AI.');
+    window.StudyUI.toast('Question and answers copied for Al.');
   }
 
   function showPreview(text) {

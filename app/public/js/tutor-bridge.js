@@ -36,7 +36,7 @@
     codex.disabled = json.disabled = false;
     codex.onclick = () => copy(`[mcp_servers.study-os]\ncommand = "uv"\nargs = ${JSON.stringify(args)}`);
     json.onclick = () => copy(JSON.stringify({ mcpServers: { 'study-os': { command: 'uv', args } } }, null, 2));
-    status.textContent = connect.disabled ? 'Open this window from AI tutor in the Study-OS website.' : 'Ready to connect.';
+    status.textContent = connect.disabled ? 'Open this window from Al tutor in the Study-OS website.' : 'Ready to connect.';
   }).catch(() => { status.textContent = 'Restart the desktop Study-OS server to load the tutor connection.'; });
 
   connect.onclick = () => {

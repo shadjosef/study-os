@@ -1203,7 +1203,7 @@ window.StudyRunner = (() => {
           <strong style="margin-left:8px">${m.reviewed} / ${m.total} verified</strong>
         </div>
         <div class="row-actions">
-          <span class="badge gold" title="Verified wins against Adamlite AI">Beat Adamlite AI: ${m.beatCount}/${m.reviewed || 0}</span>
+          <span class="badge gold" title="Verified wins against Al">Beat Al: ${m.beatCount}/${m.reviewed || 0}</span>
           <span class="badge" title="Live Run Universal Productivity Index">UPI: <b>${m.liveUpi ?? '—'}</b></span>
           <span class="badge">Accuracy: <b>${m.reviewed ? Math.round(m.avgAcc * 100) + '%' : '—'}</b></span>
         </div>
@@ -1294,7 +1294,7 @@ window.StudyRunner = (() => {
     const parType = activeRun.profile === 'exam' ? 'exam' : 'learning';
     const parRange = `${minLabel(st.minSec / 60)}–${minLabel(st.maxSec / 60)}`;
     const personalBest = rec.pbEffectiveSec ? ` · Best ${clockSec(rec.pbEffectiveSec)}` : '';
-    document.getElementById('run-pace-target').title = `Adamlite AI · ${parType} target · Typical range ${parRange}${personalBest}`;
+    document.getElementById('run-pace-target').title = `Adamlite · ${parType} target · Typical range ${parRange}${personalBest}`;
     document.getElementById('run-pace-par').textContent = clockSec(st.targetSec);
 
     // Question Body / Left Reader Content
@@ -1600,10 +1600,10 @@ window.StudyRunner = (() => {
         ? `<div class="badge ${st.loggedAttempt.beatAi ? 'live' : 'warn'}" style="margin-bottom:10px;font-size:12.5px;padding:5px 11px">
             ${
               st.loggedAttempt.beatAi
-                ? `Beat Adamlite AI · ${clockSec(st.loggedAttempt.effectiveSec)} vs ${clockSec(
+                ? `Beat Al · ${clockSec(st.loggedAttempt.effectiveSec)} vs ${clockSec(
                     st.loggedAttempt.aiParSec
                   )} · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}%${attemptUpi}`
-                : `Logged · ${clockSec(st.loggedAttempt.effectiveSec)} vs Adamlite AI ${clockSec(
+                : `Logged · ${clockSec(st.loggedAttempt.effectiveSec)} vs Al ${clockSec(
                     st.loggedAttempt.aiParSec
                   )} · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}%${attemptUpi}`
             }
@@ -1705,13 +1705,13 @@ window.StudyRunner = (() => {
       ? `<details class="runner-tools-menu">
            <summary class="st-btn runner-more-btn" title="Question tools" aria-label="More question tools">•••</summary>
            <div class="runner-tools-popover">
-             <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for AI</span></button>
+             <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Al</span></button>
            </div>
          </details>`
       : `<details class="runner-tools-menu">
            <summary class="st-btn runner-more-btn" title="Question tools" aria-label="More question tools">•••</summary>
            <div class="runner-tools-popover">
-             <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for AI</span></button>
+             <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Al</span></button>
              <button type="button" class="runner-menu-item" id="btn-open-tutor"><span>Desktop MCP Tutor</span></button>
              ${instantMcqToggleHtml}
              <div class="runner-menu-divider"></div>
@@ -1741,7 +1741,7 @@ window.StudyRunner = (() => {
         </div>
         <div class="runner-meta-actions" role="group" aria-label="Question actions">
           ${!isBlindUnfinished
-            ? `<button type="button" class="st-btn runner-pill-tool runner-ai-pill ${window.StudyAiTutor?.isOpen?.() ? 'active' : ''}" id="btn-ai-tutor-pill" aria-expanded="${window.StudyAiTutor?.isOpen?.() ? 'true' : 'false'}" title="Toggle Adamlite AI side panel (T)">Adamlite AI</button>` : ''}
+            ? `<button type="button" class="st-btn runner-pill-tool runner-ai-pill ${window.StudyAiTutor?.isOpen?.() ? 'active' : ''}" id="btn-ai-tutor-pill" aria-expanded="${window.StudyAiTutor?.isOpen?.() ? 'true' : 'false'}" title="Toggle Al side panel (T)">Al</button>` : ''}
           ${!isBlindUnfinished && (q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference)
             ? '<button type="button" class="st-btn runner-pill-tool" id="btn-question-notes" title="Open course notes (O)">Notes</button>' : ''}
           ${
@@ -2701,7 +2701,7 @@ window.StudyRunner = (() => {
     let message = `${clockSec(Math.ceil(remaining))} left`;
     if (st.loggedAttempt?.beatAi) {
       tone = 'beat';
-      message = 'Beat Adamlite AI';
+      message = 'Beat Al';
     } else if (remaining <= 0) {
       tone = 'overtime';
       const overtime = Math.floor(-remaining);
@@ -2791,7 +2791,7 @@ window.StudyRunner = (() => {
       <h2>${m.reviewed} / ${m.total} Verified · Run UPI ${m.liveUpi ?? '—'}</h2>
       ${examLine}
       <div class="metrics-grid" style="margin:12px 0 4px">
-        <div class="metric-tile"><small>Beat Adamlite AI</small><b>${m.beatCount} / ${m.reviewed || 0}</b></div>
+        <div class="metric-tile"><small>Beat Al</small><b>${m.beatCount} / ${m.reviewed || 0}</b></div>
         <div class="metric-tile"><small>Accuracy</small><b>${m.reviewed ? Math.round(m.avgAcc * 100) + '%' : '—'}</b></div>
         <div class="metric-tile"><small>Run Focus</small><b>${clockSec(m.activeSec)}</b><small>${activeRun.sessionFocusSwitches || 0} focus sw.</small></div>
         <div class="metric-tile"><small>Screen Today</small><b>${esc(scr.screenLabel || '0m')}</b><small>${esc(scr.offScreenLabel || '0m')} off-screen</small></div>

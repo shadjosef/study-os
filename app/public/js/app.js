@@ -2006,10 +2006,10 @@ window.StudyApp = (() => {
       <div class="metric-tile" data-layout-performance>
         <small>Universal Productivity (UPI)</small>
         <b>${ov.upi ?? '—'}</b>
-        <small>7-day: ${a.last7Days?.upi ?? '—'} · 100 = AI Par @ 100%</small>
+        <small>7-day: ${a.last7Days?.upi ?? '—'} · 100 = Al Par @ 100%</small>
       </div>
       <div class="metric-tile" data-layout-performance>
-        <small>Beat AI Par Rate</small>
+        <small>Beat Al Par Rate</small>
         <b>${ov.beatAiRate != null ? Math.round(ov.beatAiRate * 100) + '%' : '—'}</b>
         <small>Accuracy-gated (${ov.count || 0} attempts)</small>
       </div>
@@ -2118,9 +2118,9 @@ window.StudyApp = (() => {
         const provMixParts = [];
         if (Number(c.officialCount) > 0) provMixParts.push(`<span><b>${c.officialCount}</b> BI</span>`);
         if (Number(c.bookCount) > 0) provMixParts.push(`<span><b>${c.bookCount}</b> Book</span>`);
-        if (Number(c.aiSyntheticCount) > 0) provMixParts.push(`<span><b>${c.aiSyntheticCount}</b> AI</span>`);
+        if (Number(c.aiSyntheticCount) > 0) provMixParts.push(`<span><b>${c.aiSyntheticCount}</b> Al</span>`);
         const provMixHtml = homeDifficulty === 'all' && provMixParts.length
-          ? `<div class="course-prov-mix" title="Authentic BI past exams, exercises &amp; tutoring are prioritized before AI synthetics">${provMixParts.join(' · ')}</div>`
+          ? `<div class="course-prov-mix" title="Authentic BI past exams, exercises &amp; tutoring are prioritized before Al synthetics">${provMixParts.join(' · ')}</div>`
           : '';
 
         return `<article class="course-card" style="--course-accent:${esc(c.color)}">
@@ -2301,7 +2301,7 @@ window.StudyApp = (() => {
             <div class="onboarding-step">
               <div>
                 <span class="badge">Step 3</span>
-                <h4 style="margin:8px 0 4px">3. TimeEdit / AI Schedule</h4>
+                <h4 style="margin:8px 0 4px">3. TimeEdit / Al Schedule</h4>
                 <small class="muted">Paste your TimeEdit <code>.ics</code> link + weekly work hours, or generate a custom schedule with any LLM.</small>
               </div>
               <button type="button" class="ghost-btn" id="btn-onboard-sched">Open Schedule Studio →</button>
@@ -2948,7 +2948,7 @@ window.StudyApp = (() => {
                 <button type="button" class="primary-btn" style="flex:1" data-sit-course="${esc(c.courseId)}" data-sit-coll="${esc(
               col.id
             )}" data-sit-dur="${colDur}" data-sit-title="${esc(examLabel(col.title))}">
-                  ${colProv && !colProv.synthetic ? 'Practice past exam' : 'Start AI mock'}
+                  ${colProv && !colProv.synthetic ? 'Practice past exam' : 'Start Al mock'}
                 </button>
               </div>
             </div>`;
@@ -3005,7 +3005,7 @@ window.StudyApp = (() => {
             <span class="eyebrow">WISEflow &amp; Past Exam Simulator</span>
             <h1 class="hero-title" style="margin-bottom:6px">Mock exams and past papers</h1>
             <p class="muted" style="margin:0;font-size:14px">
-              Official BI past exams are listed first and clearly separated from AI-generated mocks (with model provenance). Open for all accounts &amp; demo — sync BI Canvas or drop your own PDFs inside any exercise to read original source sheets inline.
+              Official BI past exams are listed first and clearly separated from Al-generated mocks (with model provenance). Open for all accounts &amp; demo — sync BI Canvas or drop your own PDFs inside any exercise to read original source sheets inline.
             </p>
             <div class="row-actions" style="margin-top:10px;flex-wrap:wrap">
               ${isStaticWeb && !getBiSyncStatus().hasEverSynced
@@ -3300,7 +3300,7 @@ window.StudyApp = (() => {
         const hasBook = window.StudyLocalSources?.match?.(q.courseId, { kind: 'book', sourceId: 'textbook-12e' });
         return hasBook ? 0 : 1;
       }
-      return 2; // AI Mocks & Synthetic Drills AFTER authentic BI items
+      return 2; // Al Mocks & Synthetic Drills AFTER authentic BI items
     };
 
     pool.sort((a, b) => {
@@ -3581,11 +3581,11 @@ window.StudyApp = (() => {
         <div class="preset-chips-bar exp-composable-filters" role="group" aria-label="Composable source and difficulty filters">
           <div class="exp-filter-row">
             <small class="muted" style="font-weight:700;margin-right:2px">SOURCE:</small>
-            <button type="button" class="preset-chip exp-real-chip" id="chip-real-only" aria-pressed="false" title="Hide all AI mocks &amp; synthetic drills — show only authentic BI course tasks">Real BI Tasks Only</button>
+            <button type="button" class="preset-chip exp-real-chip" id="chip-real-only" aria-pressed="false" title="Hide all Al mocks &amp; synthetic drills — show only authentic BI course tasks">Real BI Tasks Only</button>
             <button type="button" class="preset-chip" data-chip-origin="past_exam" aria-pressed="false">Past Exams</button>
             <button type="button" class="preset-chip" data-chip-origin="exercise_tutoring" aria-pressed="false">Exercises &amp; Tutoring</button>
             ${hasBookItems ? '<button type="button" class="preset-chip" data-chip-origin="book" aria-pressed="false">Book Exercises</button>' : ''}
-            <button type="button" class="preset-chip" data-chip-origin="ai_only" aria-pressed="false">AI Practice</button>
+            <button type="button" class="preset-chip" data-chip-origin="ai_only" aria-pressed="false">Al Practice</button>
           </div>
           <div class="exp-filter-row">
             <small class="muted" style="font-weight:700;margin-right:2px">DLPFC:</small>
@@ -3602,13 +3602,13 @@ window.StudyApp = (() => {
           <input type="search" id="flt-search" placeholder="Search concepts, formulas, question IDs…" style="min-width:190px;flex:1.2">
           <select id="flt-origin" aria-label="Source provenance" style="min-width:165px">
             <option value="all">All Sources (Official First)</option>
-            <option value="official_only">Real BI Tasks Only (No AI)</option>
+            <option value="official_only">Real BI Tasks Only (No Al)</option>
             <option value="past_exam">Past Exams Only</option>
             <option value="exercise_tutoring">BI Exercises &amp; Tutoring</option>
             <option value="tutoring">Tutoring Sessions Only</option>
             <option value="lecture_reading">Lectures &amp; Readings</option>
             <option value="book">Book Exercises (BYOB)</option>
-            <option value="ai_only">AI Mocks &amp; Synthetics</option>
+            <option value="ai_only">Al Mocks &amp; Synthetics</option>
           </select>
           <select id="flt-topic" aria-label="Topic or chapter" style="min-width:160px;flex:1">${topicOptions}</select>
           <select id="flt-status" aria-label="Completion status" style="min-width:145px">
@@ -3665,24 +3665,24 @@ window.StudyApp = (() => {
             <label class="field-label">Sort Tasks By
               <select id="flt-sort">
                 <option value="deep_first" ${defaultSort === 'deep_first' ? 'selected' : ''}>Hard First (Interleaved)</option>
-                <option value="horizon_desc">Longest Horizon First (AI Par ↓)</option>
+                <option value="horizon_desc">Longest Horizon First (Al Par ↓)</option>
                 <option value="diff_desc">Difficulty: hard first</option>
                 <option value="smart_priority" ${defaultSort === 'smart_priority' ? 'selected' : ''}>Smart Priority (Revisit → Due → Todo)</option>
-                <option value="horizon_asc">Quickest First (AI Par ↑)</option>
+                <option value="horizon_asc">Quickest First (Al Par ↑)</option>
                 <option value="bank_order">Original Paper / Bank Order</option>
               </select>
             </label>
             <label class="field-label">Run Mode &amp; Size
               <select id="flt-budget">
-                <option value="budget:25">25 min Focus Block (AI Par)</option>
-                <option value="budget:50" selected>50 min Study Block (AI Par)</option>
-                <option value="budget:75">75 min Deep Block (AI Par)</option>
+                <option value="budget:25">25 min Focus Block (Al Par)</option>
+                <option value="budget:50" selected>50 min Study Block (Al Par)</option>
+                <option value="budget:75">75 min Deep Block (Al Par)</option>
                 <option value="count:12">Top 12 Matching Tasks</option>
                 <option value="all">All Matching (Full Set)</option>
                 <option value="exam_sim">Blind Exam Sit (Countdown + Submit)</option>
               </select>
             </label>
-            <label class="field-label">AI Pace Benchmark
+            <label class="field-label">Al Pace Benchmark
               <select id="flt-profile">
                 <option value="learning">Learning Par</option>
                 <option value="exam">Exam Mastery Par</option>
@@ -4035,7 +4035,7 @@ window.StudyApp = (() => {
     const refreshTable = () => {
       const matches = getMatching();
       const { list, estMin } = buildRunIds(matches);
-      document.getElementById('flt-summary-lbl').textContent = `${list.length} in run (of ${matches.length} matching) · ~${Math.round(estMin)}m AI Par`;
+      document.getElementById('flt-summary-lbl').textContent = `${list.length} in run (of ${matches.length} matching) · ~${Math.round(estMin)}m Al Par`;
 
       const tbody = document.getElementById('exp-table-body');
       tbody.innerHTML = matches
@@ -4377,7 +4377,7 @@ window.StudyApp = (() => {
           <h3>UPI by Course</h3>
           <div class="task-table-wrap">
             <table class="task-table">
-              <thead><tr><th>Course</th><th>Qs</th><th>UPI</th><th>Acc</th><th>Beat AI</th><th>Time</th></tr></thead>
+              <thead><tr><th>Course</th><th>Qs</th><th>UPI</th><th>Acc</th><th>Beat Al</th><th>Time</th></tr></thead>
               <tbody>${subgroupRows(sub.byCourse, (k) => courseNameMap[k] || k)}</tbody>
             </table>
           </div>
@@ -4387,7 +4387,7 @@ window.StudyApp = (() => {
           <h3>UPI by difficulty, Format &amp; Time</h3>
           <div class="task-table-wrap">
             <table class="task-table">
-              <thead><tr><th>Subgroup</th><th>Qs</th><th>UPI</th><th>Acc</th><th>Beat AI</th><th>Time</th></tr></thead>
+              <thead><tr><th>Subgroup</th><th>Qs</th><th>UPI</th><th>Acc</th><th>Beat Al</th><th>Time</th></tr></thead>
               <tbody>
                 ${subgroupRows(sub.byDlpfcTier, (k) => dlpfcNames[k] || k)}
                 ${subgroupRows(sub.byKind, (k) => `Format: ${k.toUpperCase()}`)}
@@ -4402,10 +4402,10 @@ window.StudyApp = (() => {
         <div class="row-between" style="margin-top:0">
           <div>
             <span class="eyebrow">Instant LLM Context</span>
-            <h3>AI Coach &amp; Session Brief</h3>
+            <h3>Al Coach &amp; Session Brief</h3>
             <small class="muted">Local agents (Antigravity / Codex / Claude) automatically read <code>Study-OS/data/logs/ai_context_snapshot.json</code>. Or copy this brief into any chat:</small>
           </div>
-          <button type="button" class="primary-btn" id="btn-copy-ai-brief">Copy AI Brief</button>
+          <button type="button" class="primary-btn" id="btn-copy-ai-brief">Copy Al Brief</button>
         </div>
         <textarea id="txt-ai-brief" readonly style="font-family:ui-monospace,monospace;font-size:12.5px;min-height:220px;margin-top:10px">${esc(aiBriefText)}</textarea>
       </div>
@@ -4415,11 +4415,11 @@ window.StudyApp = (() => {
       const txt = document.getElementById('txt-ai-brief').value;
       try {
         await navigator.clipboard.writeText(txt);
-        toast('Copied AI Coach Brief to clipboard!');
+        toast('Copied Al Coach Brief to clipboard!');
       } catch {
         document.getElementById('txt-ai-brief').select();
         document.execCommand('copy');
-        toast('Copied AI Coach Brief!');
+        toast('Copied Al Coach Brief!');
       }
     });
   }
@@ -4435,7 +4435,7 @@ window.StudyApp = (() => {
       '',
       `OVERALL METRICS & COGNITIVE BUDGET:`,
       `- Universal Productivity Index (UPI): ${ov.upi ?? 'N/A'} (7-day: ${a.last7Days?.upi ?? 'N/A'})`,
-      `- Verified Attempts: ${a.totalAttempts || 0} | Accuracy: ${ov.avgAccuracy != null ? Math.round(ov.avgAccuracy * 100) + '%' : 'N/A'} | Beat AI Par: ${ov.beatAiRate != null ? Math.round(ov.beatAiRate * 100) + '%' : 'N/A'}`,
+      `- Verified Attempts: ${a.totalAttempts || 0} | Accuracy: ${ov.avgAccuracy != null ? Math.round(ov.avgAccuracy * 100) + '%' : 'N/A'} | Beat Al Par: ${ov.beatAiRate != null ? Math.round(ov.beatAiRate * 100) + '%' : 'N/A'}`,
       `- Today Difficulty: High=${db.todayHighMinutes || 0}m / 270m cap, Med=${db.todayMedMinutes || 0}m, Low=${db.todayLowMinutes || 0}m | Focus Switches=${db.todayFocusSwitches || 0} (${db.todayAwayMinutes || 0}m away)`,
       `- Active Streak: ${a.streakDays || 0} day(s) | Logged Sessions: ${a.totalSessions || 0}`,
       '',
@@ -5408,7 +5408,7 @@ window.StudyApp = (() => {
             ${topicsHtml}
           </div>
           <div class="course-actions">
-            <button type="button" class="primary-btn" data-comm-ai="${idx}">Adamlite AI</button>
+            <button type="button" class="primary-btn" data-comm-ai="${idx}">Al</button>
             ${/^[1-9][0-9]{0,19}$/.test(course.canvasId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="https://canvas.bi.no/courses/${course.canvasId}">Canvas ↗</a>` : ''}
             ${/^[1-9][0-9]{0,19}$/.test(course.edCourseId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="https://${edHost}/courses/${course.edCourseId}">Ed ↗</a>` : ''}
           </div>
@@ -5722,7 +5722,7 @@ window.StudyApp = (() => {
         {
           group: 'Actions',
           title: 'Open Settings',
-          sub: 'Appearance, sound, AI tutor & backup (,)',
+          sub: 'Appearance, sound, Al tutor & backup (,)',
           keywords: 'settings preferences theme sound backup',
           run: () => window.StudyUI.openSettings?.(),
         },
@@ -5758,9 +5758,9 @@ window.StudyApp = (() => {
         },
         {
           group: 'Actions',
-          title: 'AI Tutor',
+          title: 'Al Tutor',
           sub: 'Live MCP exercise sharing & tutor prompt',
-          keywords: 'ai tutor mcp claude codex prompt',
+          keywords: 'al ai tutor mcp claude codex prompt',
           run: () => window.StudyTutor?.open?.(),
         },
         {

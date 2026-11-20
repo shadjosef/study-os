@@ -60,7 +60,7 @@ window.StudySets = (() => {
     try {
       draft = await decodeDraft(code);
     } catch {
-      notice = 'This study set link could not be read. Ask your AI for a fresh Study-OS link.';
+      notice = 'This study set link could not be read. Ask your Al for a fresh Study-OS link.';
     }
     const panel = document.getElementById('my-study-sets');
     panel.open = true;
@@ -96,10 +96,10 @@ window.StudySets = (() => {
           <button type="button" class="primary-btn" data-save-draft="private">Save to my sets</button>
           ${window.StudyCommunity.canShareSet() ? '<button type="button" class="ghost-btn" data-save-draft="community">Save and share with Community</button>' : ''}
         </div>
-      </section>` : `<p>Ask your AI to make a set, then open the Study-OS link it gives you.</p>
+      </section>` : `<p>Ask your Al to make a set, then open the Study-OS link it gives you.</p>
       <div class="row-actions">
         <button type="button" class="ghost-btn" id="copy-study-set-prompt">Copy starter prompt</button>
-        <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/study-sets-mcp.md" target="_blank" rel="noopener">Connect your AI</a>
+        <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/study-sets-mcp.md" target="_blank" rel="noopener">Connect your Al</a>
       </div>`}
       <p id="study-set-status" role="status">${esc(notice)}</p>
       <div class="study-set-list">${sets.map((set) => `<details>
@@ -111,7 +111,7 @@ window.StudySets = (() => {
       const status = root.querySelector('#study-set-status');
       try {
         await navigator.clipboard.writeText(prompt);
-        status.textContent = 'Prompt copied. Replace [topic] and send it to your AI.';
+        status.textContent = 'Prompt copied. Replace [topic] and send it to your Al.';
       } catch {
         status.textContent = prompt;
       }

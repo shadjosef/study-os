@@ -1,4 +1,4 @@
-# Study-OS AI Tutor (Live MCP Bridge)
+# Connect your assistant to Study-OS with MCP
 
 Connect Study-OS once in **Codex**, **Claude Code**, **Antigravity**, or any MCP-compatible AI client. While you practice, your AI tutor automatically sees the exact exercise you have open, your current working/draft, linked PDF excerpt text, and the matching section of your study notes — without you pasting anything.
 
@@ -8,7 +8,7 @@ By default, the Study-OS MCP instructions guide your AI to act as a **Socratic t
 
 1. Start the desktop Study-OS app (`OPEN_STUDY_OS.command` on macOS or `OPEN_STUDY_OS.cmd` on Windows) so `http://127.0.0.1:8765` is running.
 2. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if you don't already have it.
-3. In Study-OS, open **AI tutor** from Settings or from an exercise:
+3. In an exercise, open **••• → Desktop MCP Tutor**. You can also open **Settings → Al**, then use **Desktop MCP** in the model settings.
    - **Codex:** click **Copy Codex settings** and paste into `~/.codex/config.toml`.
    - **Claude Code / Antigravity / Cursor / other MCP clients:** click **Copy MCP JSON** and paste into your client's MCP server config.
 4. Restart or reconnect the `study-os` MCP server in your AI client.
@@ -28,8 +28,8 @@ Example MCP JSON config:
 
 ## 2. Share your active exercise
 
-- **Desktop Study-OS (`http://127.0.0.1:8765`):** Click **AI tutor → Share current exercise**. Sharing stays active for your current browser tab session and renews automatically while you work.
-- **Hosted website (`https://studyos.no/`):** Keep the desktop Study-OS app running, then click **AI tutor → Connect desktop app** and confirm sharing in the local popup. Keep that popup open or minimized. The website relays the active exercise directly to your desktop bridge. When you ask your AI for help, your AI client may send the tool results to its model provider.
+- **Desktop Study-OS (`http://127.0.0.1:8765`):** Click **Share current exercise** in the Desktop MCP Tutor dialog. Sharing stays active for your current browser tab session and renews automatically while you work.
+- **Hosted website (`https://studyos.no/`):** Keep the desktop Study-OS app running, then click **••• → Desktop MCP Tutor → Connect desktop app** and confirm sharing in the local popup. Keep that popup open or minimized. The website relays the active exercise directly to your desktop bridge. When you ask your AI for help, your AI client may send the tool results to its model provider.
 
 ## 3. Starter tutoring prompt
 

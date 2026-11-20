@@ -164,7 +164,7 @@ window.StudyCommunity = (() => {
         <input name="newsletterOptIn" type="checkbox" style="margin-top:2px">
         <span>
           <strong>Monthly Study-OS digest &amp; updates</strong> <small class="muted">(optional)</small><br>
-          <small class="muted">1–2 emails/month: newly added past exams &amp; courses, plus an upcoming end-of-month profile recap with tailored AI study tips. Unsubscribe anytime.</small>
+          <small class="muted">1–2 emails/month: newly added past exams &amp; courses, plus an upcoming end-of-month profile recap with tailored Al study tips. Unsubscribe anytime.</small>
         </span>
       </label>
       ${showEmailField ? `
@@ -1136,7 +1136,7 @@ window.StudyCommunity = (() => {
             <input name="newsletterOptIn" type="checkbox" ${profile.newsletterOptIn ? 'checked' : ''} style="margin-top:2px">
             <span>
               <strong>Monthly Study-OS digest &amp; updates</strong> <small class="muted">(1–2/month)</small><br>
-              <small class="muted">New past exams, courses &amp; upcoming monthly profile recap with tailored AI study tips.${profile.contactEmailHint ? ` Currently sent to ${esc(profile.contactEmailHint)}.` : ''}</small>
+              <small class="muted">New past exams, courses &amp; upcoming monthly profile recap with tailored Al study tips.${profile.contactEmailHint ? ` Currently sent to ${esc(profile.contactEmailHint)}.` : ''}</small>
             </span>
           </label>
           <label class="field-label" data-profile-newsletter-email ${profile.newsletterOptIn && !profile.contactEmailHint ? '' : 'hidden'}>Email for monthly digest
@@ -2263,7 +2263,7 @@ window.StudyCommunity = (() => {
     const { sets } = await request('/sets');
     if (!panel.isConnected) return;
     panel.innerHTML = `
-      <p>Open a Study-OS link from your AI to share a new set. Practice here earns no leaderboard or Elo points.</p>
+      <p>Open a Study-OS link from your Al to share a new set. Practice here earns no leaderboard or Elo points.</p>
       <p id="community-set-status" role="status"></p>
       <ul class="community-messages">${sets.map((set) => `
         <li><div class="community-member-inline">${avatarHtml(set.nickname, set.avatar, 22)}<strong>${esc(set.title)}</strong> <small>${set.card_count} cards · ${esc(set.nickname)}</small></div>

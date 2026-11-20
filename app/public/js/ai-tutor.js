@@ -249,7 +249,7 @@ window.StudyAiTutor = (() => {
     pane.className = 'ai-tutor-pane';
     pane.hidden = true;
     pane.setAttribute('role', 'complementary');
-    pane.setAttribute('aria-label', 'Adamlite AI');
+    pane.setAttribute('aria-label', 'Al');
     pane.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') {
         ev.stopPropagation();
@@ -272,10 +272,10 @@ window.StudyAiTutor = (() => {
       return m && m.id !== 'auto' ? `${m.label} (Key)` : 'Gemini Auto (Key)';
     }
     if (serverStatus?.available) {
-      return serverStatus.modelLabel || 'Study-OS AI';
+      return serverStatus.modelLabel || 'Study-OS Al';
     }
     if (window.StudyCommunity?.isSignedIn?.()) return 'Gemini 4 Hydrogen';
-    return 'Connect AI';
+    return 'Connect Al';
   }
 
   function quotaSuffix() {
@@ -374,7 +374,7 @@ window.StudyAiTutor = (() => {
            <h3>${snap.mode === 'blind' ? 'Paused for blind exam' : 'How can I help?'}</h3>
            <p class="muted">${
              snap.mode === 'blind'
-               ? 'Adamlite AI turns off automatically during blind timed exams.'
+               ? 'Al turns off automatically during blind timed exams.'
                : hasQuestion
                  ? 'Ask about any step, formula, or mistake — I can see this question and your current working.'
                  : 'Ask any study question, or open a practice problem for live context.'
@@ -382,14 +382,14 @@ window.StudyAiTutor = (() => {
          </div>`;
 
     const configPopoverHtml = configOpen ? `
-      <div class="ai-settings-popover" role="dialog" aria-label="AI model and key settings">
+      <div class="ai-settings-popover" role="dialog" aria-label="Al model and key settings">
         <div class="ai-pop-head">
-          <strong>AI Engine &amp; Gemini Key</strong>
+          <strong>Al Engine &amp; Gemini Key</strong>
           <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get free key ↗</a>
         </div>
         ${quotaSuffix() ? `<p class="ai-pop-quota">${esc(quotaSuffix())}</p>` : ''}
         <p class="ai-pop-desc">
-          Optionally use your own free Google AI Studio key (<b>Gemini 4 Hydrogen</b>, <b>3.8 Flash</b>, <b>3.5 Flash-Lite</b>). Stored only in this browser.
+          Optionally use your own Gemini API key from Google (<b>Gemini 4 Hydrogen</b>, <b>3.8 Flash</b>, <b>3.5 Flash-Lite</b>). Stored only in this browser.
         </p>
         <div class="ai-byok-fields">
           <input type="password" id="ai-byok-input" value="${esc(byok)}" placeholder="AIzaSy…" autocomplete="off" spellcheck="false" aria-label="Personal Gemini API key">
@@ -417,7 +417,7 @@ window.StudyAiTutor = (() => {
 
       <header class="ai-pane-head">
         <div class="ai-pane-head-left">
-          <span class="ai-pane-title">Adamlite AI</span>
+          <span class="ai-pane-title">Al</span>
           ${ctxTag ? `<span class="ai-pane-ctx-chip" title="${esc(ctxFull)}">${esc(ctxTag)}</span>` : ''}
         </div>
         <div class="ai-pane-head-actions">
@@ -428,7 +428,7 @@ window.StudyAiTutor = (() => {
           <button type="button" class="ai-head-icon-btn ai-dock-flip-btn" id="ai-dock-flip" title="${side === 'left' ? 'Dock to right side' : 'Dock to left side'}" aria-label="${side === 'left' ? 'Dock to right side' : 'Dock to left side'}">
             ${dockIconSvg}
           </button>
-          <button type="button" class="ai-head-icon-btn" id="ai-tutor-close" title="Close (Esc)" aria-label="Close Adamlite AI">
+          <button type="button" class="ai-head-icon-btn" id="ai-tutor-close" title="Close (Esc)" aria-label="Close Al">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
@@ -444,7 +444,7 @@ window.StudyAiTutor = (() => {
 
         ${!canAsk && snap.mode !== 'blind' ? `
           <div class="ai-signin-bar">
-            <span>Sign in for free AI tutoring or add your own Gemini key.</span>
+            <span>Sign in for free Al tutoring or add your own Gemini key.</span>
             <div class="ai-signin-bar-btns">
               ${window.StudyCommunity?.enabled ? '<button type="button" class="primary-btn ai-pop-btn" id="ai-tutor-signin">Sign in</button>' : ''}
               <button type="button" class="ghost-btn ai-pop-btn" id="ai-tutor-open-byok">Gemini key</button>
@@ -456,7 +456,7 @@ window.StudyAiTutor = (() => {
           <textarea
             id="ai-tutor-input"
             rows="1"
-            placeholder="${snap.mode === 'blind' ? 'Unavailable during blind exam…' : 'Message Adamlite AI…'}"
+            placeholder="${snap.mode === 'blind' ? 'Unavailable during blind exam…' : 'Message Al…'}"
             ${busy || !canAsk || snap.mode === 'blind' ? 'disabled' : ''}
           >${esc(draft)}</textarea>
           <div class="ai-composer-bar">
@@ -521,7 +521,7 @@ window.StudyAiTutor = (() => {
       setByokKey(val);
       setByokModel(mod);
       configOpen = false;
-      toast(val ? 'Personal Gemini key saved on this device.' : 'Switched back to Study-OS AI.');
+      toast(val ? 'Personal Gemini key saved on this device.' : 'Switched back to Study-OS Al.');
       renderPane({ focusInput: true });
     });
     pane.querySelector('#ai-byok-clear')?.addEventListener('click', () => {
@@ -585,7 +585,7 @@ window.StudyAiTutor = (() => {
     const includeSolution = action === 'solution';
     const snap = currentExerciseSnapshot(includeSolution);
     if (snap.mode === 'blind') {
-      toast('Adamlite AI is disabled during blind exams.');
+      toast('Al is disabled during blind exams.');
       return;
     }
 
@@ -632,9 +632,12 @@ window.StudyAiTutor = (() => {
       }
       thread.push({ role: 'assistant', text: res.reply, meta: res.modelLabel || '' });
     } catch (err) {
+      const message = err?.message
+        ?.replaceAll('AI Tutor', 'Al Tutor')
+        .replaceAll('Copy for AI', 'Copy for Al');
       thread.push({
         role: 'assistant',
-        text: `Could not get a reply: ${err?.message || 'Try again in a moment.'}`,
+        text: `Could not get a reply: ${message || 'Try again in a moment.'}`,
         meta: 'Error',
       });
     } finally {
