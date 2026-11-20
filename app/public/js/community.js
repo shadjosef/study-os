@@ -20,6 +20,7 @@ window.StudyCommunity = (() => {
   let lastChatAt = 0;
   let chatLoading = false;
   let openingBreak = false;
+  const demoMessages = [];
   const canUse = () => workClock.canUseBreakTools() && !window.StudyRooms?.running();
   try { token = localStorage.getItem(keyName) || ''; } catch {}
 
@@ -394,18 +395,20 @@ window.StudyCommunity = (() => {
   }
 
   function clockTick() {
-    if (!api || !token) return;
-    const state = timerStatus();
-    if (state.mode !== 'idle' || (lastPresence && lastPresence !== 'idle')) syncPresence(state).catch(() => {});
+    if (!api) return;
+    if (token) {
+      const state = timerStatus();
+      if (state.mode !== 'idle' || (lastPresence && lastPresence !== 'idle')) syncPresence(state).catch(() => {});
+    }
     const root = document.getElementById('community-root');
     if (document.getElementById('view-community').hidden) return;
     const available = canUse();
-    if (!available && root.querySelector('#community-social')) {
-      renderLocked(root, root.querySelector('#community-signed-in').textContent);
+    if (!available && root.querySelector('#community-social, #community-demo-view')) {
+      renderLocked(root, currentProfile);
     } else if (available && root.querySelector('#community-locked') && !openingBreak) {
       openingBreak = true;
       render().finally(() => { openingBreak = false; });
-    } else if (available && Date.now() - lastChatAt >= 30_000) {
+    } else if (available && token && Date.now() - lastChatAt >= 30_000) {
       refreshChat(root).catch(() => {});
     }
   }
@@ -1834,22 +1837,117 @@ window.StudyCommunity = (() => {
     setTimeout(() => URL.revokeObjectURL(url), 120_000);
   }
 
-  function renderLocked(root, profile) {
-    const me = typeof profile === 'string' ? { nickname: profile, avatar: '', bio: '', isAdmin: false, nextNicknameChangeAt: 0 } : profile;
+  function demoCardsHtml(interactive = false) {
+    return `
+      <div class="community-demo-grid">
+        <section class="panel">
+          <h2>Leaderboard</h2>
+          <div class="community-table">
+            <table>
+              <thead><tr><th>Rank</th><th>Member</th><th>Hours</th><th>Completed</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Mira</td><td>8.4</td><td>62</td></tr>
+                <tr><td>2</td><td>Noah</td><td>6.0</td><td>47</td></tr>
+                <tr><td>3</td><td>Lin</td><td>3.5</td><td>28</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>Chat &amp; messages</h2>
+          ${interactive ? `
+            <form id="community-demo-chat" class="community-demo-form">
+              <label class="field-label">Send to
+                <select name="channel">
+                  <option value="global">Global chat</option>
+                  <option value="direct">Mira · Direct message</option>
+                </select>
+              </label>
+              <ul id="community-demo-messages" class="community-messages" aria-live="polite"></ul>
+              <label class="field-label">Message
+                <input name="message" maxlength="300" placeholder="Try writing a message" autocomplete="off" required>
+              </label>
+              <button type="submit" class="ghost-btn">Send demo message</button>
+            </form>
+          ` : `
+            <ul class="community-messages">
+              <li><strong>Noah</strong><p>Anyone up for a group session after break?</p></li>
+              <li><strong>Lin</strong><p>Yes! I’m reviewing the last two chapters.</p></li>
+            </ul>
+          `}
+        </section>
+      </div>`;
+  }
+
+  function renderDemo(root) {
     root.innerHTML = `
-      <section class="panel" id="community-locked">
+      <section class="panel" id="community-demo-view">
+        <h1 id="community-demo-title" tabindex="-1">Study community</h1>
+        <p class="muted">Explore the sample leaderboard and try sending a message in this tab.</p>
+        <button type="button" class="primary-btn" id="community-join-live">Join live Community</button>
+        <p class="muted">Use a free Community profile for the live leaderboard, chat, messages, study rooms, duels, and shared sets.</p>
+      </section>
+      ${demoCardsHtml(true)}`;
+    const join = root.querySelector('#community-join-live');
+    join.onclick = async () => {
+      if (!canUse()) return;
+      const signedIn = await requireProfile({ allowDemo: true, forcePrompt: true });
+      if (!signedIn) return;
+      await window.StudyRooms?.restore();
+      await render();
+    };
+
+    const form = root.querySelector('#community-demo-chat');
+    const { channel, message } = form.elements;
+    const paintMessages = () => {
+      const sample = channel.value === 'global'
+        ? ['Noah', 'Anyone up for a group session after break?']
+        : ['Mira', 'How did your last practice block go?'];
+      form.querySelector('#community-demo-messages').innerHTML = [sample, ...demoMessages
+        .filter((entry) => entry.channel === channel.value)
+        .map((entry) => ['You', entry.message])]
+        .map(([name, text]) => `<li><strong>${esc(name)}</strong><p>${esc(text)}</p></li>`).join('');
+    };
+    channel.onchange = paintMessages;
+    form.onsubmit = (event) => {
+      event.preventDefault();
+      if (!canUse() || !message.value.trim()) return;
+      demoMessages.push({ channel: channel.value, message: message.value.trim() });
+      if (demoMessages.length > 20) demoMessages.shift();
+      message.value = '';
+      paintMessages();
+      message.focus();
+    };
+    paintMessages();
+  }
+
+  function renderLocked(root, me = null) {
+    const roomRunning = window.StudyRooms?.running();
+    root.innerHTML = `
+      <section class="panel" id="community-locked" aria-labelledby="community-locked-title">
+        <h1 id="community-locked-title">Study community</h1>
+        <div class="community-preview-lock">
+          <div class="community-preview-blur" inert aria-hidden="true">${demoCardsHtml()}</div>
+          <div class="community-break-gate">
+            <h2>${roomRunning ? 'Your study room is active' : 'Community opens on break'}</h2>
+            <p>${roomRunning
+              ? 'Finish your study room to return to the leaderboard, chat, and messages.'
+              : 'Use the leaderboard, chat, messages, and study rooms during breaks or from 20:00 to midnight Oslo time.'}</p>
+            ${roomRunning
+              ? '<button type="button" class="primary-btn" id="community-return-to-room">Return to study room</button>'
+              : '<button type="button" class="primary-btn" id="community-start-break">Start a break</button>'}
+          </div>
+        </div>
+      </section>
+      ${me ? `<section class="panel">
         <div class="community-identity">
           ${avatarHtml(me.nickname, me.avatar, 48)}
           <div>
-            <h1 style="margin-bottom:2px">Study community</h1>
-            <p class="muted" style="margin:0" id="community-signed-in">
-              Signed in as <strong>${esc(me.nickname)}</strong>${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}
-            </p>
+            <strong>Signed in as ${esc(me.nickname)}</strong>${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}
             ${me.bio ? `<p class="community-bio-sub">${esc(me.bio)}</p>` : ''}
           </div>
         </div>
         ${profileBreakStripHtml(me)}
-        <p>Community opens during a timed break and from 20:00 to midnight Oslo time. You can still edit your profile and avatar anytime:</p>
         ${profileEditorHtml(me)}
         <div class="row-actions" style="margin-top:12px">
           <button type="button" class="ghost-btn" id="community-logout">Sign out</button>
@@ -1858,7 +1956,16 @@ window.StudyCommunity = (() => {
       </section>
       ${feedbackPanelHtml()}
       ${adminPanelHtml(me)}
-      ${privacyNote}`;
+      ${privacyNote}` : ''}`;
+    root.querySelector('#community-return-to-room')?.addEventListener('click', () => window.StudyApp.navigate('room'));
+    root.querySelector('#community-start-break')?.addEventListener('click', () => {
+      workClock.triggerBreak();
+      if (canUse()) {
+        document.getElementById('break-modal').close();
+        root.querySelector('#community-demo-title')?.focus();
+      }
+    });
+    if (!me) return;
     profileActions(root);
     bindProfileEditor(root, me, () => render());
     bindFeedbackPanel(root);
@@ -2067,21 +2174,26 @@ window.StudyCommunity = (() => {
     if (!api) return;
     const root = document.getElementById('community-root');
     if (!token) {
-      renderEntry(root);
+      if (canUse()) renderDemo(root);
+      else renderLocked(root);
       return;
     }
+    const generation = token;
+    if (!canUse()) renderLocked(root, currentProfile);
     try {
       await syncStats().catch(() => {});
+      if (generation !== token) return;
       const state = timerStatus();
       if (!canUse()) {
         const profile = await request('/profile');
+        if (generation !== token) return;
         currentProfile = profile;
         window.StudyApp?.syncSettingsRows?.();
-        renderLocked(root, profile);
+        if (!canUse()) renderLocked(root, profile);
         return;
       }
-      const generation = token;
       await syncPresence(state);
+      if (generation !== token) return;
       const result = await request('/dashboard?offset=' + offset);
       if (generation !== token) return;
       currentProfile = result.me;
@@ -2089,15 +2201,12 @@ window.StudyCommunity = (() => {
       if (canUse()) renderDashboard(root, result, offset);
       else renderLocked(root, result.me);
     } catch (error) {
+      if (generation !== token) return;
       if (error.status === 401) {
         useProfile('');
-        await requireProfile({ allowDemo: true, forcePrompt: true });
         await render(offset);
       } else if (error.status === 423) {
-        const profile = await request('/profile');
-        currentProfile = profile;
-        window.StudyApp?.syncSettingsRows?.();
-        renderLocked(root, profile);
+        renderLocked(root, currentProfile);
       } else {
         root.innerHTML = '<section class="panel"><h1>Study community</h1><p>Community is unavailable. Open the Community tab to retry.</p></section>';
       }
