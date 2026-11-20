@@ -2923,10 +2923,6 @@ window.StudyApp = (() => {
           ${esc(doc.title)}</button></li>`).join('')}</ul>
       </details>`).join('');
 
-    const courseOptions = boot.catalog
-      .map((c) => `<option value="${esc(c.courseId)}" ${c.courseId === courseId ? 'selected' : ''}>${esc(c.code)} · ${esc(c.title)}</option>`)
-      .join('');
-
     const topicOptions =
       `<option value="all">All Topics / Chapters</option>` +
       (bank.topics || []).map((t) => `<option value="${esc(t.id)}">${esc(t.title)}</option>`).join('');
@@ -2958,21 +2954,34 @@ window.StudyApp = (() => {
       </li>`;
     }).join('');
 
+    const coursePillsHtml = boot.catalog
+      .map((c) => {
+        const active = c.courseId === courseId;
+        return `<button type="button" class="exp-course-pill ${active ? 'active' : ''}" data-pick-course="${esc(c.courseId)}" role="tab" aria-selected="${active}" style="--pill-accent:${esc(c.color)}">
+          <span class="exp-course-dot" aria-hidden="true"></span>
+          <strong>${esc(c.code)}</strong>
+          <span class="exp-course-pill-name">${esc(c.shortTitle || c.title)}</span>
+          <small>${Number(c.questionCount || 0)}</small>
+        </button>`;
+      })
+      .join('');
+
+    const hasBookItems = (bank.questions || []).some((q) => (q.provenance?.category || q.origin) === 'book' || q.origin === 'textbook');
+
     root.innerHTML = `
       <div class="panel">
-        <div class="row-between" style="margin-top:0">
-          <div style="flex:1;min-width:260px">
-            <span class="eyebrow">Course Builder &amp; Difficulty filters</span>
-            <div style="margin-top:4px">
-              <select id="exp-course-sel" aria-label="Choose subject" style="font-size:17px;font-weight:700;padding:8px 14px">${courseOptions}</select>
-            </div>
+        <div class="row-between" style="margin-top:0;align-items:flex-start;gap:10px">
+          <div>
+            <span class="eyebrow">Courses · Click a subject to switch</span>
+            <h2 style="margin:2px 0 0;font-size:19px">${esc(cMeta.code || '')} · ${esc(cMeta.title || bank.title || '')}</h2>
           </div>
-          <div class="row-actions">
+          <div class="row-actions" style="flex-shrink:0">
             <button type="button" class="ghost-btn" id="exp-open-exams">Mock Exams</button>
             <button type="button" class="ghost-btn" id="exp-open-ref">Reference</button>
             ${cMeta.obsidianUri ? `<a class="ghost-btn" href="${esc(cMeta.obsidianUri)}">Obsidian ↗</a>` : ''}
           </div>
         </div>
+        <div class="exp-course-pills" role="tablist" aria-label="Choose course">${coursePillsHtml}</div>
 
         ${isStaticWeb && curriculum ? `<details class="curriculum">
           <summary>Curriculum and study materials</summary>
@@ -3008,27 +3017,31 @@ window.StudyApp = (() => {
         })() : ''}
         ${localLibrary}
 
-        <div class="preset-chips-bar" role="group" aria-label="Source and difficulty presets">
-          <small class="muted" style="font-weight:700;margin-right:4px">SOURCE:</small>
-          <button type="button" class="preset-chip" data-exp-preset="official_only">Official BI Only</button>
-          <button type="button" class="preset-chip" data-exp-preset="past_exams">Past Exams</button>
-          <button type="button" class="preset-chip" data-exp-preset="course_work">Exercises &amp; Tutoring</button>
-          ${(bank.questions || []).some((q) => (q.provenance?.category || q.origin) === 'book' || q.origin === 'textbook') ? '<button type="button" class="preset-chip" data-exp-preset="book_only">Book Exercises</button>' : ''}
-          <button type="button" class="preset-chip" data-exp-preset="ai_only">AI Practice</button>
-          <small class="muted" style="font-weight:700;margin:0 4px 0 8px">EFFORT:</small>
-          <button type="button" class="preset-chip" data-exp-preset="high_dlpfc" data-layout-tier="3">${window.StudyLayout.label(3)}</button>
-          <button type="button" class="preset-chip" data-exp-preset="med_dlpfc" data-layout-tier="2">${window.StudyLayout.label(2)}</button>
-          <button type="button" class="preset-chip" data-exp-preset="low_dlpfc" data-layout-tier="1">${window.StudyLayout.label(1)}</button>
-          <button type="button" class="preset-chip" data-exp-preset="long_horizon">Long Horizon (10m+)</button>
-          ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-exp-preset="wiseflow_only">Worksheets</button>' : ''}
-          <button type="button" class="preset-chip active" data-exp-preset="reset">Reset filters</button>
+        <div class="preset-chips-bar exp-composable-filters" role="group" aria-label="Composable source and difficulty filters">
+          <div class="exp-filter-row">
+            <small class="muted" style="font-weight:700;margin-right:2px">SOURCE:</small>
+            <button type="button" class="preset-chip exp-real-chip" id="chip-real-only" aria-pressed="false" title="Hide all AI mocks &amp; synthetic drills — show only authentic BI course tasks">Real BI Tasks Only</button>
+            <button type="button" class="preset-chip" data-chip-origin="past_exam" aria-pressed="false">Past Exams</button>
+            <button type="button" class="preset-chip" data-chip-origin="exercise_tutoring" aria-pressed="false">Exercises &amp; Tutoring</button>
+            ${hasBookItems ? '<button type="button" class="preset-chip" data-chip-origin="book" aria-pressed="false">Book Exercises</button>' : ''}
+            <button type="button" class="preset-chip" data-chip-origin="ai_only" aria-pressed="false">AI Practice</button>
+          </div>
+          <div class="exp-filter-row">
+            <small class="muted" style="font-weight:700;margin-right:2px">DLPFC:</small>
+            <button type="button" class="preset-chip" data-chip-diff="3" data-layout-tier="3" aria-pressed="false">${window.StudyLayout.label(3)}</button>
+            <button type="button" class="preset-chip" data-chip-diff="2" data-layout-tier="2" aria-pressed="false">${window.StudyLayout.label(2)}</button>
+            <button type="button" class="preset-chip" data-chip-diff="1" data-layout-tier="1" aria-pressed="false">${window.StudyLayout.label(1)}</button>
+            <button type="button" class="preset-chip" data-chip-horizon="10plus" aria-pressed="false">10m+ Horizon</button>
+            ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-chip-kind="wiseflow" aria-pressed="false">Worksheets</button>' : ''}
+            <button type="button" class="preset-chip" id="chip-reset-filters">Reset</button>
+          </div>
         </div>
 
         <div class="explorer-primary-bar" style="margin-top:12px">
           <input type="search" id="flt-search" placeholder="Search concepts, formulas, question IDs…" style="min-width:190px;flex:1.2">
           <select id="flt-origin" aria-label="Source provenance" style="min-width:165px">
             <option value="all">All Sources (Official First)</option>
-            <option value="official_only">Official BI Only (Hide AI)</option>
+            <option value="official_only">Real BI Tasks Only (No AI)</option>
             <option value="past_exam">Past Exams Only</option>
             <option value="exercise_tutoring">BI Exercises &amp; Tutoring</option>
             <option value="tutoring">Tutoring Sessions Only</option>
@@ -3131,20 +3144,20 @@ window.StudyApp = (() => {
         <div class="row-between" style="margin-top:0">
           <div>
             <h3>Exercises</h3>
-            <small class="muted">Click any status dot or Practice to launch straight into a question.</small>
+            <small class="muted">Click any column header to sort (↑ → ↓ → default), or click Practice to launch.</small>
           </div>
         </div>
         <div class="task-table-wrap">
           <table class="task-table">
             <thead>
               <tr>
-                <th>Question</th>
-                <th>Topic</th>
-                <th>Difficulty</th>
-                <th>Format</th>
-                <th>Horizon (Learn / Exam)</th>
-                <th>Your Best</th>
-                <th>Status</th>
+                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="question">Question <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="topic">Topic <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="difficulty">Difficulty <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="format">Format <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="horizon">Horizon (Learn / Exam) <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="best">Your Best <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="status">Status <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -3153,6 +3166,60 @@ window.StudyApp = (() => {
         </div>
       </div>
     `;
+
+    // Composable filter + 3-state column header sort state
+    let realTasksOnly = false;
+    let colSort = { col: null, dir: null };
+    const COL_FIRST_DIR = {
+      question: 'asc',
+      topic: 'asc',
+      difficulty: 'desc',
+      format: 'asc',
+      horizon: 'desc',
+      best: 'asc',
+      status: 'asc',
+    };
+
+    const syncFilterChipUi = () => {
+      const oVal = document.getElementById('flt-origin')?.value || 'all';
+      const dVal = document.getElementById('flt-diff')?.value || 'all';
+      const hVal = document.getElementById('flt-horizon')?.value || 'all';
+      const kVal = document.getElementById('flt-kind')?.value || 'all';
+
+      const realChip = document.getElementById('chip-real-only');
+      if (realChip) {
+        const isRealActive = realTasksOnly || oVal === 'official_only';
+        realChip.classList.toggle('active', isRealActive);
+        realChip.setAttribute('aria-pressed', String(isRealActive));
+      }
+      root.querySelectorAll('[data-chip-origin]').forEach((chip) => {
+        const on = oVal === chip.dataset.chipOrigin;
+        chip.classList.toggle('active', on);
+        chip.setAttribute('aria-pressed', String(on));
+      });
+      root.querySelectorAll('[data-chip-diff]').forEach((chip) => {
+        const on = dVal === chip.dataset.chipDiff;
+        chip.classList.toggle('active', on);
+        chip.setAttribute('aria-pressed', String(on));
+      });
+      root.querySelectorAll('[data-chip-horizon]').forEach((chip) => {
+        const on = hVal === chip.dataset.chipHorizon;
+        chip.classList.toggle('active', on);
+        chip.setAttribute('aria-pressed', String(on));
+      });
+      root.querySelectorAll('[data-chip-kind]').forEach((chip) => {
+        const on = kVal === chip.dataset.chipKind;
+        chip.classList.toggle('active', on);
+        chip.setAttribute('aria-pressed', String(on));
+      });
+      root.querySelectorAll('.th-sort-btn').forEach((btn) => {
+        const isCol = colSort.col === btn.dataset.sortCol && Boolean(colSort.dir);
+        btn.classList.toggle('active', isCol);
+        const ind = btn.querySelector('.th-sort-ind');
+        if (ind) ind.textContent = !isCol ? '⇅' : colSort.dir === 'asc' ? '↑' : '↓';
+        btn.closest('th')?.setAttribute('aria-sort', !isCol ? 'none' : colSort.dir === 'asc' ? 'ascending' : 'descending');
+      });
+    };
 
     const applyPreset = (rawPreset) => {
       const presetName = rawPreset === 'pre15_deep' ? 'high_dlpfc' : rawPreset === 'post15_mcq' ? 'low_dlpfc' : rawPreset;
@@ -3165,71 +3232,41 @@ window.StudyApp = (() => {
       const bEl = document.getElementById('flt-budget');
 
       if (presetName === 'official_only') {
+        realTasksOnly = true;
         oEl.value = 'official_only';
-        kEl.value = 'all';
-        dEl.value = 'all';
-        hEl.value = 'all';
-        sEl.value = 'unfinished';
       } else if (presetName === 'past_exams') {
         oEl.value = 'past_exam';
-        kEl.value = 'all';
-        dEl.value = 'all';
-        hEl.value = 'all';
         sEl.value = 'all';
-        sortEl.value = 'bank_order';
       } else if (presetName === 'course_work') {
         oEl.value = 'exercise_tutoring';
-        kEl.value = 'all';
-        dEl.value = 'all';
-        hEl.value = 'all';
-        sEl.value = 'unfinished';
       } else if (presetName === 'book_only') {
         oEl.value = 'book';
-        kEl.value = 'all';
-        dEl.value = 'all';
-        hEl.value = 'all';
-        sEl.value = 'unfinished';
       } else if (presetName === 'ai_only') {
+        realTasksOnly = false;
         oEl.value = 'ai_only';
-        kEl.value = 'all';
-        dEl.value = 'all';
-        hEl.value = 'all';
-        sEl.value = 'unfinished';
       } else if (presetName === 'high_dlpfc' || presetName === 'hard_only') {
-        kEl.value = 'all';
         dEl.value = '3';
-        hEl.value = 'all';
-        sEl.value = 'unfinished';
         sortEl.value = 'deep_first';
         bEl.value = 'budget:50';
       } else if (presetName === 'med_dlpfc') {
-        kEl.value = 'all';
         dEl.value = '2';
-        hEl.value = 'all';
-        sEl.value = 'unfinished';
         sortEl.value = 'smart_priority';
         bEl.value = 'budget:50';
       } else if (presetName === 'low_dlpfc') {
-        kEl.value = 'all';
         dEl.value = '1';
-        hEl.value = 'all';
-        sEl.value = 'unfinished';
         sortEl.value = 'horizon_asc';
         bEl.value = 'budget:50';
       } else if (presetName === 'long_horizon') {
         kEl.value = 'no_mcq';
-        dEl.value = 'all';
         hEl.value = '10plus';
-        sEl.value = 'unfinished';
         sortEl.value = 'horizon_desc';
         bEl.value = 'budget:75';
       } else if (presetName === 'wiseflow_only') {
         kEl.value = 'wiseflow';
-        dEl.value = 'all';
-        hEl.value = 'all';
-        sEl.value = 'unfinished';
         sortEl.value = 'horizon_desc';
       } else {
+        realTasksOnly = false;
+        colSort = { col: null, dir: null };
         oEl.value = 'all';
         document.getElementById('flt-topic').value = 'all';
         document.getElementById('flt-coll').value = 'all';
@@ -3240,10 +3277,7 @@ window.StudyApp = (() => {
         sortEl.value = defaultSort;
         document.getElementById('flt-search').value = '';
       }
-
-      root.querySelectorAll('[data-exp-preset]').forEach((chip) => {
-        chip.classList.toggle('active', chip.dataset.expPreset === presetName);
-      });
+      syncFilterChipUi();
     };
 
     const getMatching = () => {
@@ -3265,8 +3299,9 @@ window.StudyApp = (() => {
       let filtered = (bank.questions || []).filter((q) => {
         if (q.available === false) return false;
         const prov = window.StudyProvenance?.describe?.(q, bank);
+        if (realTasksOnly && prov?.synthetic) return false;
         if (oVal === 'official_only') {
-          if (prov?.synthetic || prov?.category === 'book') return false;
+          if (prov?.synthetic) return false;
         } else if (oVal === 'past_exam') {
           if (prov?.category !== 'past_exam') return false;
         } else if (oVal === 'exercise_tutoring') {
@@ -3330,7 +3365,44 @@ window.StudyApp = (() => {
       };
 
       const provOrder = (q) => window.StudyProvenance?.describe?.(q, bank)?.priorityRank ?? 3;
-      if (sortVal === 'deep_first') {
+      const topicNum = (q) => {
+        const m = String(q.topicId ?? '').match(/\d+/);
+        return m ? Number(m[0]) : 999;
+      };
+      const formatKey = (q) => (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length ? 'worksheet' : String(q.kind || ''));
+      const statusRank = (q) => {
+        const st = getProgressRecord(q.id)?.status || 'not_started';
+        return st === 'revisit' ? 0 : st === 'in_progress' ? 1 : st === 'not_started' ? 2 : 3;
+      };
+
+      if (colSort.col && colSort.dir) {
+        const mult = colSort.dir === 'asc' ? 1 : -1;
+        filtered.sort((a, b) => {
+          let cmp = 0;
+          if (colSort.col === 'question') {
+            cmp = String(a.title || a.id || '').localeCompare(String(b.title || b.id || ''), undefined, { numeric: true, sensitivity: 'base' });
+          } else if (colSort.col === 'topic') {
+            cmp = topicNum(a) - topicNum(b) || String(a.topicId || '').localeCompare(String(b.topicId || ''), undefined, { numeric: true });
+          } else if (colSort.col === 'difficulty') {
+            cmp = effectiveDlpfc(a, getProgressRecord(a.id)).tier - effectiveDlpfc(b, getProgressRecord(b.id)).tier;
+          } else if (colSort.col === 'format') {
+            cmp = formatKey(a).localeCompare(formatKey(b));
+          } else if (colSort.col === 'horizon') {
+            cmp = qActiveMin(a) - qActiveMin(b);
+          } else if (colSort.col === 'best') {
+            const pa = getProgressRecord(a.id)?.pbEffectiveSec;
+            const pb = getProgressRecord(b.id)?.pbEffectiveSec;
+            if (pa == null && pb == null) cmp = 0;
+            else if (pa == null) return 1; // unattempted always stays at bottom
+            else if (pb == null) return -1;
+            else cmp = Number(pa) - Number(pb);
+          } else if (colSort.col === 'status') {
+            cmp = statusRank(a) - statusRank(b);
+          }
+          if (cmp !== 0) return cmp * mult;
+          return provOrder(a) - provOrder(b) || String(a.title || '').localeCompare(String(b.title || ''), undefined, { numeric: true });
+        });
+      } else if (sortVal === 'deep_first') {
         filtered.sort((a, b) => {
           const da = effectiveDlpfc(a).tier;
           const db = effectiveDlpfc(b).tier;
@@ -3464,9 +3536,85 @@ window.StudyApp = (() => {
       });
     };
 
-    root.querySelectorAll('[data-exp-preset]').forEach((chip) => {
+    root.querySelectorAll('[data-pick-course]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const nextId = btn.dataset.pickCourse;
+        if (nextId && nextId !== courseId) renderCourseExplorer(nextId, '');
+      });
+    });
+
+    // Composable Source + DLPFC + Real BI Tasks Only filter chips
+    document.getElementById('chip-real-only')?.addEventListener('click', () => {
+      const oEl = document.getElementById('flt-origin');
+      realTasksOnly = !realTasksOnly;
+      if (realTasksOnly && oEl.value === 'ai_only') oEl.value = 'all';
+      if (!realTasksOnly && oEl.value === 'official_only') oEl.value = 'all';
+      syncFilterChipUi();
+      refreshTable();
+    });
+
+    root.querySelectorAll('[data-chip-origin]').forEach((chip) => {
       chip.addEventListener('click', () => {
-        applyPreset(chip.dataset.expPreset);
+        const oEl = document.getElementById('flt-origin');
+        const val = chip.dataset.chipOrigin;
+        const next = oEl.value === val ? 'all' : val;
+        oEl.value = next;
+        if (next === 'ai_only') realTasksOnly = false;
+        if (next === 'past_exam') document.getElementById('flt-status').value = 'all';
+        syncFilterChipUi();
+        refreshTable();
+      });
+    });
+
+    root.querySelectorAll('[data-chip-diff]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const dEl = document.getElementById('flt-diff');
+        const val = chip.dataset.chipDiff;
+        dEl.value = dEl.value === val ? 'all' : val;
+        syncFilterChipUi();
+        refreshTable();
+      });
+    });
+
+    root.querySelectorAll('[data-chip-horizon]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const hEl = document.getElementById('flt-horizon');
+        const val = chip.dataset.chipHorizon;
+        hEl.value = hEl.value === val ? 'all' : val;
+        syncFilterChipUi();
+        refreshTable();
+      });
+    });
+
+    root.querySelectorAll('[data-chip-kind]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const kEl = document.getElementById('flt-kind');
+        const val = chip.dataset.chipKind;
+        kEl.value = kEl.value === val ? 'all' : val;
+        syncFilterChipUi();
+        refreshTable();
+      });
+    });
+
+    document.getElementById('chip-reset-filters')?.addEventListener('click', () => {
+      applyPreset('reset');
+      refreshTable();
+    });
+
+    // 3-state clickable table header sorting (1st click -> 2nd click flip -> 3rd click default)
+    root.querySelectorAll('.th-sort-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const col = btn.dataset.sortCol;
+        const firstDir = COL_FIRST_DIR[col] || 'asc';
+        const secondDir = firstDir === 'asc' ? 'desc' : 'asc';
+        if (colSort.col !== col) {
+          colSort = { col, dir: firstDir };
+        } else if (colSort.dir === firstDir) {
+          colSort = { col, dir: secondDir };
+        } else {
+          colSort = { col: null, dir: null };
+        }
+        syncFilterChipUi();
         refreshTable();
       });
     });
@@ -3534,14 +3682,24 @@ window.StudyApp = (() => {
         topic.focus();
       });
     });
-    document.getElementById('exp-course-sel').onchange = (e) => renderCourseExplorer(e.target.value, initialPreset);
     document.getElementById('exp-open-exams').onclick = () => navigate('exams', { focusCourseId: courseId });
     document.getElementById('exp-open-ref').onclick = () => openReferenceDrawer(cMeta);
     for (const id of ['flt-origin', 'flt-topic', 'flt-coll', 'flt-kind', 'flt-diff', 'flt-horizon', 'flt-status', 'flt-sort', 'flt-profile', 'flt-budget', 'flt-shuffle']) {
       const el = document.getElementById(id);
-      if (el) el.onchange = refreshTable;
+      if (el) {
+        el.onchange = () => {
+          if (id === 'flt-sort') colSort = { col: null, dir: null };
+          if (id === 'flt-origin') {
+            if (el.value === 'official_only') realTasksOnly = true;
+            else if (el.value === 'ai_only' || el.value === 'all') realTasksOnly = false;
+          }
+          syncFilterChipUi();
+          refreshTable();
+        };
+      }
     }
     document.getElementById('flt-search').oninput = refreshTable;
+    syncFilterChipUi();
 
     if (initialPreset) {
       applyPreset(initialPreset);

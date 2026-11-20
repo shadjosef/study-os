@@ -5984,6 +5984,116 @@ html[data-theme="dark"] .lb-status-break { color: #fcd34d; }
   font-weight: 700;
 }
 
+/* ==========================================================================
+   COURSE EXPLORER: DIRECT COURSE PILLS, COMPOSABLE FILTERS & 3-STATE SORT
+   ========================================================================== */
+.exp-course-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 14px;
+}
+.exp-course-pill {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel-alt);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+}
+.exp-course-pill:hover {
+  border-color: var(--pill-accent, var(--accent));
+  transform: translateY(-1px);
+}
+.exp-course-pill.active {
+  background: var(--pill-accent, var(--accent));
+  border-color: var(--pill-accent, var(--accent));
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+}
+.exp-course-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--pill-accent, var(--accent));
+  flex-shrink: 0;
+}
+.exp-course-pill.active .exp-course-dot {
+  background: #fff;
+}
+.exp-course-pill small {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(127, 127, 127, 0.14);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.exp-course-pill.active small {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.exp-composable-filters {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.exp-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.exp-real-chip {
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.th-sort-btn {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 700;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: color 0.14s ease, background 0.14s ease;
+}
+.th-sort-btn:hover {
+  color: var(--ink);
+  background: rgba(127, 127, 127, 0.09);
+}
+.th-sort-btn.active {
+  color: var(--accent);
+}
+.th-sort-ind {
+  font-size: 11px;
+  opacity: 0.42;
+  transition: opacity 0.14s ease;
+}
+.th-sort-btn:hover .th-sort-ind,
+.th-sort-btn.active .th-sort-ind {
+  opacity: 1;
+}
+
 @media (max-width: 720px) {
   .lb-podium {
     grid-template-columns: 1fr;
