@@ -887,7 +887,7 @@ window.StudyRunner = (() => {
           : 'Paper submitted · use the worked solutions and marking checklists'}</span>`
       : activeRun.calendarBlock
       ? `<span class="badge live">${esc(activeRun.calendarBlock.summary)}</span>`
-      : `<span class="badge">${activeRun.profile === 'exam' ? 'Exam Par' : 'Learning Par'}</span>`;
+      : `<span class="badge">${activeRun.profile === 'exam' ? 'Exam pace' : 'Learning pace'}</span>`;
 
     const breakNudgeHtml =
       activeRun.mode === 'practice' && activeRun.consecutiveMisses >= 2
@@ -904,7 +904,7 @@ window.StudyRunner = (() => {
           <strong style="margin-left:8px">${m.reviewed} / ${m.total} verified</strong>
         </div>
         <div class="row-actions">
-          <span class="badge gold" title="Accuracy-gated Beat-AI count">Beat AI: ${m.beatCount}/${m.reviewed || 0}</span>
+          <span class="badge gold" title="Verified wins against Adamlite AI">Beat Adamlite AI: ${m.beatCount}/${m.reviewed || 0}</span>
           <span class="badge" title="Live Run Universal Productivity Index">UPI: <b>${m.liveUpi ?? '—'}</b></span>
           <span class="badge">Accuracy: <b>${m.reviewed ? Math.round(m.avgAcc * 100) + '%' : '—'}</b></span>
         </div>
@@ -982,10 +982,10 @@ window.StudyRunner = (() => {
 
     renderRunnerDashboard();
 
-    const parType = activeRun.profile === 'exam' ? 'Exam' : 'Learning';
+    const parType = activeRun.profile === 'exam' ? 'exam' : 'learning';
     const parRange = `${minLabel(st.minSec / 60)}–${minLabel(st.maxSec / 60)}`;
     const personalBest = rec.pbEffectiveSec ? ` · Best ${clockSec(rec.pbEffectiveSec)}` : '';
-    document.getElementById('run-pace-target').title = `${parType} par · Typical range ${parRange}${personalBest}`;
+    document.getElementById('run-pace-target').title = `Adamlite AI · ${parType} target · Typical range ${parRange}${personalBest}`;
     document.getElementById('run-pace-par').textContent = clockSec(st.targetSec);
 
     // Question Body / Left Reader Content
@@ -1299,12 +1299,12 @@ window.StudyRunner = (() => {
         ? `<div class="badge ${st.loggedAttempt.beatAi ? 'live' : 'warn'}" style="margin-bottom:10px;font-size:12.5px;padding:5px 11px">
             ${
               st.loggedAttempt.beatAi
-                ? `Beat AI Par · ${clockSec(st.loggedAttempt.effectiveSec)} vs ${clockSec(
+                ? `Beat Adamlite AI · ${clockSec(st.loggedAttempt.effectiveSec)} vs ${clockSec(
                     st.loggedAttempt.aiParSec
                   )} · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}%${attemptUpi}`
-                : `Logged · ${clockSec(st.loggedAttempt.effectiveSec)} vs ${clockSec(
+                : `Logged · ${clockSec(st.loggedAttempt.effectiveSec)} vs Adamlite AI ${clockSec(
                     st.loggedAttempt.aiParSec
-                  )} Par · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}%${attemptUpi}`
+                  )} · Accuracy ${Math.round(st.loggedAttempt.qualityAccuracy * 100)}%${attemptUpi}`
             }
           </div>`
         : '';
@@ -2151,11 +2151,11 @@ window.StudyRunner = (() => {
     let message = `${clockSec(Math.ceil(remaining))} left`;
     if (st.loggedAttempt?.beatAi) {
       tone = 'beat';
-      message = 'Beat par';
+      message = 'Beat Adamlite AI';
     } else if (remaining <= 0) {
       tone = 'overtime';
       const overtime = Math.floor(-remaining);
-      message = overtime ? `${clockSec(overtime)} over` : 'Par reached';
+      message = overtime ? `${clockSec(overtime)} over` : 'Target reached';
     } else if (finished) {
       tone = 'review';
       message = 'Review';
@@ -2241,7 +2241,7 @@ window.StudyRunner = (() => {
       <h2>${m.reviewed} / ${m.total} Verified · Run UPI ${m.liveUpi ?? '—'}</h2>
       ${examLine}
       <div class="metrics-grid" style="margin:12px 0 4px">
-        <div class="metric-tile"><small>Beat AI Par</small><b>${m.beatCount} / ${m.reviewed || 0}</b></div>
+        <div class="metric-tile"><small>Beat Adamlite AI</small><b>${m.beatCount} / ${m.reviewed || 0}</b></div>
         <div class="metric-tile"><small>Accuracy</small><b>${m.reviewed ? Math.round(m.avgAcc * 100) + '%' : '—'}</b></div>
         <div class="metric-tile"><small>Run Focus</small><b>${clockSec(m.activeSec)}</b><small>${activeRun.sessionFocusSwitches || 0} focus sw.</small></div>
         <div class="metric-tile"><small>Screen Today</small><b>${esc(scr.screenLabel || '0m')}</b><small>${esc(scr.offScreenLabel || '0m')} off-screen</small></div>

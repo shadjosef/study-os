@@ -559,7 +559,11 @@ textarea {
 .runner-pace-play,
 .runner-pace[data-paused] .runner-pace-pause { display: none; }
 .runner-pace[data-paused] .runner-pace-play { display: initial; }
-.runner-pace-status { color: var(--pace-color); font-weight: 700; }
+.runner-pace-status { color: var(--pace-color); font-weight: 700; text-align: center; }
+@media (max-width: 410px) {
+  .runner-pace { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .runner-pace-status { white-space: normal; line-height: 1.2; }
+}
 .runner-pace-target { justify-self: end; padding-inline-end: 4px; }
 .runner-pace-track {
   position: relative;
