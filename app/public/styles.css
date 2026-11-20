@@ -497,6 +497,13 @@ textarea {
 .runner-title-wrap { flex: 1; min-width: 180px; }
 .runner-title-wrap b { display: block; font-size: 14.5px; }
 .runner-title-wrap small { display: block; font-size: 12px; }
+.runner-domain {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.runner-domain-mobile { display: none; }
 
 .live-clock-pill {
   background: var(--good-soft);
@@ -4598,6 +4605,14 @@ body.ai-pane-left .ai-pane-resize-handle {
   #runner-header .runner-title-wrap {
     flex: 1;
     min-width: 0;
+  }
+  .runner-domain-desktop { display: none; }
+  .runner-domain-mobile {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11.5px;
+    line-height: 1.2;
   }
   #run-header-title {
     display: none !important;
