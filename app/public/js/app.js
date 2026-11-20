@@ -986,6 +986,18 @@ window.StudyApp = (() => {
     if (opts.courseId) selectedCourseId = opts.courseId;
     if (opts.refFile) selectedRefFile = opts.refFile;
     showRawView(viewName);
+    const activeCourse = (boot?.catalog || []).find((c) => c.courseId === selectedCourseId);
+    const titleMap = {
+      home: 'Study-OS · BI Oslo Exam Prep, Course Notes & WISEflow Practice',
+      references: 'Course Notes & Reference Hub · Study-OS',
+      exams: 'WISEflow Mock Exams Hub · Study-OS',
+      course: activeCourse ? `${activeCourse.code} ${activeCourse.title} · Study-OS` : 'Courses · Study-OS',
+      schedule: 'Adaptive Schedule Studio · Study-OS',
+      analytics: 'Study Metrics & UPI · Study-OS',
+      community: 'BI Oslo Study Community · Study-OS',
+      room: 'Study Room · Study-OS',
+    };
+    if (titleMap[viewName]) document.title = titleMap[viewName];
     if (viewName === 'home') renderHome();
     else if (viewName === 'references') await renderReferencesHub(opts.refDoc, opts.heading);
     else if (viewName === 'schedule') renderScheduleStudio();

@@ -29,7 +29,7 @@ Example MCP JSON config:
 ## 2. Share your active exercise
 
 - **Desktop Study-OS (`http://127.0.0.1:8765`):** Click **AI tutor → Share current exercise**. Sharing stays active for your current browser tab session and renews automatically while you work.
-- **Hosted website (`https://shadjosef.github.io/study-os/`):** Keep the desktop Study-OS app running, then click **AI tutor → Connect desktop app** and confirm sharing in the local popup. Keep that popup open or minimized. The website relays the active exercise directly to your desktop bridge. When you ask your AI for help, your AI client may send the tool results to its model provider.
+- **Hosted website (`https://studyos.no/`):** Keep the desktop Study-OS app running, then click **AI tutor → Connect desktop app** and confirm sharing in the local popup. Keep that popup open or minimized. The website relays the active exercise directly to your desktop bridge. When you ask your AI for help, your AI client may send the tool results to its model provider.
 
 ## 3. Starter tutoring prompt
 

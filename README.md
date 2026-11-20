@@ -1,8 +1,8 @@
-# Study-OS
+# Study-OS · BI Oslo Exam Prep & Study Workspace
 
-[Open Study-OS in your browser](https://shadjosef.github.io/study-os/)
+**[Open Study-OS (`https://studyos.no`)](https://studyos.no/)** · [BI Oslo Guide](https://studyos.no/bi-oslo.html) · [Norsk (BI Oslo)](https://studyos.no/norsk.html) · [WISEflow Practice](https://studyos.no/wiseflow-practice.html) · [BI Canvas & TimeEdit Sync](https://studyos.no/bi-canvas-timeedit-sync.html) · [Course Notes](https://studyos.no/notes.html)
 
-Open-source (`MIT`), zero-dependency university practice engine, **WISEflow `FLOWmulti` (`±2%`) exam simulator**, **Multi-Semester Reference Hub**, and **Adaptive Timetable Studio** — built to pair seamlessly with **[`canvas-study-sync`](https://github.com/shadjosef/canvas-study-sync)** (cookie-session `Canvas-Archive` downloader) and **`Obsidian Vault`**.
+Open-source (`MIT`), zero-dependency university practice engine built for **Oslo / BI Norwegian Business School** courses (**[EXC 3420](https://studyos.no/courses/econ-2522.html)**, **[EXC 3430](https://studyos.no/courses/acct-2527.html)**, **[EXC 3460](https://studyos.no/courses/ob-2537.html)**, **[EBA 3400](https://studyos.no/courses/prog-3021.html)**, **[EBA 1181](https://studyos.no/courses/math-2588.html)**) with a **WISEflow `FLOWmulti` (`±2%`) exam simulator**, **Multi-Semester Reference Hub**, **AI Tutor**, **Adaptive Timetable Studio**, and 1-click **BI Canvas / TimeEdit / Ed Discussion** browser sync — plus compatibility with **[`canvas-study-sync`](https://github.com/shadjosef/canvas-study-sync)** and **`Obsidian Vault`**.
 
 Choose a subject, open **Topics & practice**, or use **Notes** for the reference sheets and worked examples. The public edition includes original exercises and mocks for the five subjects. **Exams** links to BI's former papers and marking guides, and the curriculum pages link to BI Canvas for course handouts and assignments.
 

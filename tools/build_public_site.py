@@ -399,7 +399,8 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {SEO_THEME_SCRIPT}
   <title>{escape(page_title)}</title>
-  <link rel="icon" href="../pwa/study-os-192.png">
+  <link rel="icon" href="../favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="../pwa/study-os-192.png" sizes="192x192">
   <link rel="stylesheet" href="../styles.css">
 {SEO_PAGE_STYLE}
   <script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False)}</script>
@@ -555,8 +556,8 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta name="geo.position" content="59.9483;10.7686">
   <meta name="ICBM" content="59.9483, 10.7686">
   <link rel="canonical" href="{base}/bi-oslo.html">
-  <link rel="alternate" hreflang="nb-NO" href="{base}/bi-oslo.html">
-  <link rel="alternate" hreflang="en" href="{base}/">
+  <link rel="alternate" hreflang="nb-NO" href="{base}/norsk.html">
+  <link rel="alternate" hreflang="en" href="{base}/bi-oslo.html">
   <link rel="alternate" hreflang="x-default" href="{base}/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
@@ -573,7 +574,8 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {SEO_THEME_SCRIPT}
   <title>{escape(oslo_title)}</title>
-  <link rel="icon" href="./pwa/study-os-192.png">
+  <link rel="icon" href="./favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
   <link rel="stylesheet" href="./styles.css">
 {SEO_PAGE_STYLE}
   <script type="application/ld+json">{json.dumps(oslo_json_ld, ensure_ascii=False)}</script>
@@ -632,9 +634,12 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <span>Study-OS · Independent student project in Oslo, Norway (not officially affiliated with BI Norwegian Business School).</span>
       <nav aria-label="Footer links">
         <a href="./">Home</a>
+        <a href="./norsk.html" lang="nb">Norsk</a>
+        <a href="./wiseflow-practice.html">WISEflow</a>
+        <a href="./bi-canvas-timeedit-sync.html">BI Sync</a>
+        <a href="./notes.html">Notes</a>
         <a href="./privacy.html">Privacy</a>
         <a href="./terms.html">Terms</a>
-        <a href="https://github.com/shadjosef/study-os" target="_blank" rel="noopener">GitHub</a>
       </nav>
     </footer>
   </main>
@@ -643,7 +648,506 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
 """
     (out_dir / "bi-oslo.html").write_text(oslo_html, encoding="utf-8")
 
-    # 3. Auto-generated XML Sitemap (`sitemap.xml`)
+    # 3. Pure Norwegian Bokmål Oslo landing page (`/norsk.html`, lang="nb")
+    nb_title = "Study-OS Norge · Gratis eksamensøving for BI Oslo (WISEflow & Canvas)"
+    nb_desc = (
+        f"Gratis studieplattform for studenter ved Handelshøyskolen BI i Oslo: {total_qs}+ øvingsoppgaver, "
+        f"WISEflow FLOWmulti-eksamener, kursnotater, AI-veileder og 1-klikks synk med BI Canvas og TimeEdit."
+    )
+    nb_faqs = [
+        (
+            "Hvilke BI-emner i Oslo støttes i Study-OS?",
+            "Den åpne utgaven har øvingsoppgaver og notater for EXC 3420 (Economics I / samfunnsøkonomi), EXC 3430 (finansregnskap og bedriftsøkonomi), EXC 3460 (organisasjonsatferd og ledelse), EBA 3400 (Python-programmering og datavisualisering) og EBA 1181 (matematikk for datavitenskap). Du kan også synke alle dine egne BI Canvas-emner med 1 klikk.",
+        ),
+        (
+            "Hvordan fungerer WISEflow FLOWmulti-simulatoren?",
+            "I Exams-fanen kan du kjøre 3-timers tidsstyrte prøveeksamener som følger BI sine regler for desimalpunktum (.), minustegn for utbetalinger og ±2 % avrundingsmargin — med umiddelbar gjennomgang etter innlevering.",
+        ),
+        (
+            "Hvordan synker jeg BI Canvas, TimeEdit og Ed Discussion?",
+            "Med Chrome-utvidelsen Study-OS Sync kobler du deg opp én gang med en 6-tegns kode fra studyos.no. Når du har åpne innloggede faner for BI Canvas, TimeEdit eller Ed, klikker du Sync én gang for å oppdatere fag, frister og forelesningstimeplan — helt uten passord eller kopiering av cookies.",
+        ),
+        (
+            "Er Study-OS gratis og trygt å bruke?",
+            "Ja. Study-OS er et gratis, uavhengig studentprosjekt i Oslo uten reklame eller sporingscookies. Alt kan brukes lokalt i nettleseren uten konto, og valgfri profilsynk lagres innenfor EU/EØS (GDPR).",
+        ),
+    ]
+    nb_json_ld = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "WebPage",
+                "@id": f"{base}/norsk.html#webpage",
+                "url": f"{base}/norsk.html",
+                "name": nb_title,
+                "description": nb_desc,
+                "inLanguage": "nb",
+                "about": {"@type": "City", "name": "Oslo"},
+            },
+            {
+                "@type": "FAQPage",
+                "mainEntity": [
+                    {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}}
+                    for q, a in nb_faqs
+                ],
+            },
+        ],
+    }
+    nb_faq_html = "".join(
+        f"        <details><summary>{escape(q)}</summary><p>{escape(a)}</p></details>\n"
+        for q, a in nb_faqs
+    )
+    nb_html = f"""<!doctype html>
+<html lang="nb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{escape(nb_desc, quote=True)}">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="geo.region" content="NO-03">
+  <meta name="geo.placename" content="Oslo, Norway">
+  <meta name="geo.position" content="59.9483;10.7686">
+  <link rel="canonical" href="{base}/norsk.html">
+  <link rel="alternate" hreflang="nb-NO" href="{base}/norsk.html">
+  <link rel="alternate" hreflang="en" href="{base}/">
+  <link rel="alternate" hreflang="x-default" href="{base}/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Study-OS">
+  <meta property="og:locale" content="nb_NO">
+  <meta property="og:locale:alternate" content="en_GB">
+  <meta property="og:url" content="{base}/norsk.html">
+  <meta property="og:title" content="{escape(nb_title, quote=True)}">
+  <meta property="og:description" content="{escape(nb_desc, quote=True)}">
+  <meta property="og:image" content="{base}/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{escape(nb_title, quote=True)}">
+  <meta name="twitter:description" content="{escape(nb_desc, quote=True)}">
+  <meta name="twitter:image" content="{base}/og-image.png">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+{SEO_THEME_SCRIPT}
+  <title>{escape(nb_title)}</title>
+  <link rel="icon" href="./favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+  <link rel="stylesheet" href="./styles.css">
+{SEO_PAGE_STYLE}
+  <script type="application/ld+json">{json.dumps(nb_json_ld, ensure_ascii=False)}</script>
+</head>
+<body>
+  <main class="seo-shell">
+    <nav class="seo-nav" aria-label="Hovednavigasjon">
+      <div class="seo-cta-row">
+        <a href="./" class="ghost-btn">← Åpne Study-OS</a>
+        <a href="./bi-oslo.html" class="ghost-btn" lang="en">English Guide</a>
+      </div>
+      <span class="badge">Oslo, Norge · Gratis for BI-studenter</span>
+    </nav>
+
+    <article class="panel seo-hero">
+      <span class="eyebrow">Oslo · Handelshøyskolen BI · Eksamensforberedelse</span>
+      <h1>Eksamensøving for BI-studenter i Oslo — helt gratis</h1>
+      <p class="seo-lead">{escape(nb_desc)}</p>
+      <div class="seo-cta-row">
+        <a class="primary-btn btn-lg" href="./">Start øving i Study-OS →</a>
+        <a class="ghost-btn btn-lg" href="./wiseflow-practice.html">WISEflow-simulator</a>
+        <a class="ghost-btn btn-lg" href="./bi-canvas-timeedit-sync.html">Synk BI Canvas &amp; TimeEdit</a>
+      </div>
+      <div class="seo-stats">
+        <div class="seo-stat"><strong>{len(catalog)}</strong><small>BI-emner klare nå</small></div>
+        <div class="seo-stat"><strong>{total_qs}+</strong><small>Øvingsoppgaver</small></div>
+        <div class="seo-stat"><strong>{len(references)}</strong><small>Kursnotater &amp; formler</small></div>
+        <div class="seo-stat"><strong>0 kr</strong><small>Ingen reklame</small></div>
+      </div>
+    </article>
+
+    <section>
+      <h2 style="margin:0 0 8px">BI-emner og tidligere oppgavetyper</h2>
+      <div class="seo-grid">
+{course_cards_html}      </div>
+    </section>
+
+    <section class="panel seo-card" style="margin-bottom:18px">
+      <span class="eyebrow">Smart studieteknikk i eksamensperioden</span>
+      <h2>Alt du trenger til eksamen i Nydalen samlet på ett sted</h2>
+      <ul class="seo-topics">
+        <li><strong>Nedtelling til eksamen i Oslo-tid:</strong> Se nøyaktig hvor mange dager, timer og minutter som gjenstår til hver BI-eksamen.</li>
+        <li><strong>Døgnrytme og DLPFC-nivåer:</strong> Planlegg krevende regne- og caseoppgaver på formiddagen (08:00–15:00) og lettere repetisjon på kvelden.</li>
+        <li><strong>Egne pensum-PDF-er &amp; AI-veileder:</strong> Last opp egne forelesningsnotater privat til profilen din og få hjelp av AI-veilederen rett ved siden av oppgaven.</li>
+        <li><strong>Fungerende offline som app:</strong> Lagre fagene lokalt i nettleseren og øv videre på T-banen eller lesesalen uten nett.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2 style="margin:0 0 6px">Ofte stilte spørsmål</h2>
+      <div class="seo-faq">
+{nb_faq_html}      </div>
+    </section>
+
+    <footer class="seo-foot">
+      <span>Study-OS · Uavhengig studentprosjekt i Oslo (ikke offisielt tilknyttet Handelshøyskolen BI).</span>
+      <nav aria-label="Bunnlenker">
+        <a href="./">Åpne app</a>
+        <a href="./bi-oslo.html" lang="en">English</a>
+        <a href="./wiseflow-practice.html">WISEflow</a>
+        <a href="./bi-canvas-timeedit-sync.html">Canvas Sync</a>
+        <a href="./notes.html">Notater</a>
+        <a href="./privacy.html">Personvern</a>
+        <a href="./terms.html">Vilkår</a>
+      </nav>
+    </footer>
+  </main>
+</body>
+</html>
+"""
+    (out_dir / "norsk.html").write_text(nb_html, encoding="utf-8")
+    sitemap_urls.append((f"{base}/norsk.html", "0.9", "weekly"))
+
+    # 4. WISEflow FLOWmulti & BYOD Simulator landing page (`/wiseflow-practice.html`)
+    wf_title = "WISEflow FLOWmulti & BYOD Exam Simulator for BI Oslo · Study-OS"
+    wf_desc = (
+        "Practice timed 3-hour WISEflow FLOWmulti and BYOD digital school exams for BI Oslo (EXC 3430, EXC 3420, EXC 3460, EBA 3400) "
+        "with dot-decimal formatting, ±2% rounding checks, and instant grading."
+    )
+    wf_json_ld = {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": wf_title,
+        "url": f"{base}/wiseflow-practice.html",
+        "description": wf_desc,
+        "inLanguage": ["en", "nb"],
+        "about": ["WISEflow", "FLOWmulti", "BI Norwegian Business School", "Oslo exam preparation"],
+    }
+    wf_html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{escape(wf_desc, quote=True)}">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="geo.region" content="NO-03">
+  <meta name="geo.placename" content="Oslo, Norway">
+  <link rel="canonical" href="{base}/wiseflow-practice.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Study-OS">
+  <meta property="og:url" content="{base}/wiseflow-practice.html">
+  <meta property="og:title" content="{escape(wf_title, quote=True)}">
+  <meta property="og:description" content="{escape(wf_desc, quote=True)}">
+  <meta property="og:image" content="{base}/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{escape(wf_title, quote=True)}">
+  <meta name="twitter:description" content="{escape(wf_desc, quote=True)}">
+  <meta name="twitter:image" content="{base}/og-image.png">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+{SEO_THEME_SCRIPT}
+  <title>{escape(wf_title)}</title>
+  <link rel="icon" href="./favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+  <link rel="stylesheet" href="./styles.css">
+{SEO_PAGE_STYLE}
+  <script type="application/ld+json">{json.dumps(wf_json_ld, ensure_ascii=False)}</script>
+</head>
+<body>
+  <main class="seo-shell">
+    <nav class="seo-nav" aria-label="Breadcrumb">
+      <div class="seo-cta-row">
+        <a href="./" class="ghost-btn">← Open Study-OS</a>
+        <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
+      </div>
+      <span class="badge">WISEflow · FLOWmulti · Oslo</span>
+    </nav>
+
+    <article class="panel seo-hero">
+      <span class="eyebrow">WISEflow Practice · BI Oslo Digital Exams</span>
+      <h1>WISEflow FLOWmulti &amp; BYOD Mock Exam Simulator</h1>
+      <p class="seo-lead">{escape(wf_desc)}</p>
+      <p class="seo-lead" lang="nb" style="font-size:14.5px;margin-top:-8px">
+        Øv på realistiske 3-timers WISEflow-eksamener i Oslo før eksamensdagen: lær reglene for desimalpunktum (.), negative kontantstrømmer (-50), avrundingsmargin (±2 %) og tidsstyring.
+      </p>
+      <div class="seo-cta-row">
+        <a class="primary-btn btn-lg" href="./?view=exams">Launch WISEflow Exams Hub →</a>
+        <a class="ghost-btn btn-lg" href="./courses/acct-2527.html">EXC 3430 FLOWmulti</a>
+        <a class="ghost-btn btn-lg" href="./courses/econ-2522.html">EXC 3420 Economics</a>
+        <a class="ghost-btn btn-lg" href="./courses/ob-2537.html">EXC 3460 MCQ</a>
+      </div>
+    </article>
+
+    <section class="panel seo-card" style="margin-bottom:16px">
+      <span class="eyebrow">Built for BI WISEflow rules</span>
+      <h2>What Study-OS trains before exam day</h2>
+      <ul class="seo-topics">
+        <li><strong>Multi-box FLOWmulti grading (EXC 3430):</strong> Trains dot-decimal input (<code>.</code> never comma), leading minus signs for outflows, and ±2% tolerance checks across multi-section accounting and finance exercises.</li>
+        <li><strong>Timed 180-minute exam clock:</strong> Full paper countdown paired with per-question pace telemetry so you never run out of time on Part 3 analytical cases.</li>
+        <li><strong>No-hint blind exam mode:</strong> Hides solutions and hints until you click <em>Submit Paper</em>, then produces a full error breakdown by topic and cognitive tier.</li>
+        <li><strong>Live Oslo exam countdowns:</strong> Track exact days, hours, minutes, and seconds remaining to every upcoming BI Oslo exam date.</li>
+      </ul>
+    </section>
+
+    <footer class="seo-foot">
+      <span>Study-OS · Independent student project in Oslo, Norway.</span>
+      <nav aria-label="Footer links">
+        <a href="./">App</a>
+        <a href="./bi-oslo.html">BI Oslo</a>
+        <a href="./norsk.html" lang="nb">Norsk</a>
+        <a href="./bi-canvas-timeedit-sync.html">BI Sync</a>
+        <a href="./notes.html">Notes</a>
+        <a href="./privacy.html">Privacy</a>
+      </nav>
+    </footer>
+  </main>
+</body>
+</html>
+"""
+    (out_dir / "wiseflow-practice.html").write_text(wf_html, encoding="utf-8")
+    sitemap_urls.append((f"{base}/wiseflow-practice.html", "0.85", "monthly"))
+
+    # 5. BI Canvas, TimeEdit & Ed Discussion Sync landing page (`/bi-canvas-timeedit-sync.html`)
+    sync_title = "BI Canvas, TimeEdit & Ed Discussion 1-Click Sync · Study-OS Sync"
+    sync_desc = (
+        "Sync BI Norwegian Business School Canvas courses & deadlines, TimeEdit class schedules (.ics), and Ed Discussion threads "
+        "into Study-OS in 1 click using the Study-OS Sync Chrome extension — zero passwords or cookies copied."
+    )
+    sync_json_ld = {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Study-OS Sync",
+        "applicationCategory": "BrowserApplication",
+        "operatingSystem": "Chrome, Brave, Edge, Vivaldi",
+        "url": f"{base}/bi-canvas-timeedit-sync.html",
+        "downloadUrl": f"{base}/downloads/study-os-sync-extension.zip",
+        "softwareVersion": "1.3.1",
+        "isAccessibleForFree": True,
+        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "NOK"},
+        "description": sync_desc,
+    }
+    sync_html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{escape(sync_desc, quote=True)}">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="geo.region" content="NO-03">
+  <meta name="geo.placename" content="Oslo, Norway">
+  <link rel="canonical" href="{base}/bi-canvas-timeedit-sync.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Study-OS">
+  <meta property="og:url" content="{base}/bi-canvas-timeedit-sync.html">
+  <meta property="og:title" content="{escape(sync_title, quote=True)}">
+  <meta property="og:description" content="{escape(sync_desc, quote=True)}">
+  <meta property="og:image" content="{base}/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{escape(sync_title, quote=True)}">
+  <meta name="twitter:description" content="{escape(sync_desc, quote=True)}">
+  <meta name="twitter:image" content="{base}/og-image.png">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+{SEO_THEME_SCRIPT}
+  <title>{escape(sync_title)}</title>
+  <link rel="icon" href="./favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+  <link rel="stylesheet" href="./styles.css">
+{SEO_PAGE_STYLE}
+  <script type="application/ld+json">{json.dumps(sync_json_ld, ensure_ascii=False)}</script>
+</head>
+<body>
+  <main class="seo-shell">
+    <nav class="seo-nav" aria-label="Breadcrumb">
+      <div class="seo-cta-row">
+        <a href="./" class="ghost-btn">← Open Study-OS</a>
+        <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
+      </div>
+      <span class="badge">Chrome Extension · v1.3.1 · MV3</span>
+    </nav>
+
+    <article class="panel seo-hero">
+      <span class="eyebrow">BI Canvas · TimeEdit · Ed Discussion</span>
+      <h1>1-Click BI Canvas, TimeEdit &amp; Ed Sync</h1>
+      <p class="seo-lead">{escape(sync_desc)}</p>
+      <p class="seo-lead" lang="nb" style="font-size:14.5px;margin-top:-8px">
+        Synkroniser aktive emner og frister fra <strong>canvas.bi.no</strong>, timeplanen din fra <strong>TimeEdit</strong> og tråder fra <strong>Ed Discussion</strong> rett inn i Study-OS — uten å gi bort BI-passordet ditt.
+      </p>
+      <div class="seo-cta-row">
+        <a class="primary-btn btn-lg" href="./">Open Study-OS → Sync BI</a>
+        <a class="ghost-btn btn-lg" href="./downloads/study-os-sync-extension.zip" download>Download Extension ZIP (v1.3.1)</a>
+        <a class="ghost-btn btn-lg" href="./?view=schedule">Schedule Studio</a>
+      </div>
+    </article>
+
+    <section class="panel seo-card" style="margin-bottom:16px">
+      <span class="eyebrow">How it works in 30 seconds</span>
+      <h2>Zero OAuth, zero passwords, zero cookie copying</h2>
+      <ul class="seo-topics">
+        <li><strong>1. Pair once:</strong> Sign in at <code>studyos.no</code>, click <strong>Sync BI</strong>, and copy a 6-character pairing code into the extension popup.</li>
+        <li><strong>2. Keep BI tabs open:</strong> Leave your signed-in <code>canvas.bi.no</code>, <code>cloud.timeedit.net</code>, or <code>edstem.org</code> tabs open in Chrome, Brave, Edge, or Vivaldi.</li>
+        <li><strong>3. Click Sync once:</strong> Pulls active courses, module outlines, assignment due dates, and TimeEdit class lectures into your private Study-OS schedule and course list.</li>
+        <li><strong>4. Attach your own PDFs:</strong> Drop personal curriculum PDFs, lecture slides, or cheat sheets inside Sync BI to keep them synced privately to your Study-OS profile.</li>
+      </ul>
+    </section>
+
+    <footer class="seo-foot">
+      <span>Study-OS · Independent student project in Oslo, Norway.</span>
+      <nav aria-label="Footer links">
+        <a href="./">App</a>
+        <a href="./bi-oslo.html">BI Oslo</a>
+        <a href="./norsk.html" lang="nb">Norsk</a>
+        <a href="./wiseflow-practice.html">WISEflow</a>
+        <a href="./notes.html">Notes</a>
+        <a href="./privacy.html">Privacy</a>
+      </nav>
+    </footer>
+  </main>
+</body>
+</html>
+"""
+    (out_dir / "bi-canvas-timeedit-sync.html").write_text(sync_html, encoding="utf-8")
+    sitemap_urls.append((f"{base}/bi-canvas-timeedit-sync.html", "0.85", "monthly"))
+
+    # 6. Static Course Notes & Reference Sheets Directory (`/notes.html`)
+    notes_title = "BI Oslo Course Notes, Formula Sheets & Reference Hub · Study-OS"
+    notes_desc = (
+        f"Browse {len(references)} structured BI Oslo semester reference sheets with KaTeX formulas, diagrams, and section index "
+        f"for Economics I (EXC 3420), Accounting & Finance (EXC 3430), Org. Behavior (EXC 3460), Python (EBA 3400) & Math (EBA 1181)."
+    )
+    ref_cards_parts: list[str] = []
+    llms_ref_lines: list[str] = []
+    static_refs_dir = out_dir / "static-data" / "references"
+    for ref in references:
+        rfile = str(ref.get("file") or "")
+        rtitle = str(ref.get("title") or rfile)
+        rsub = str(ref.get("subtitle") or ref.get("semester") or "Reference Sheet")
+        toc_items: list[str] = []
+        rjson = static_refs_dir / f"{ref_slug(rfile)}.json"
+        if rjson.is_file():
+            try:
+                rdata = json.loads(rjson.read_text(encoding="utf-8"))
+                for h in (rdata.get("toc") or []):
+                    htext = str(h.get("text") or h.get("title") or "").strip() if isinstance(h, dict) else str(h).strip()
+                    if htext and len(htext) >= 3:
+                        toc_items.append(htext)
+            except Exception:
+                pass
+        shown_toc = toc_items[:12]
+        llms_ref_lines.append(f"- {rtitle} ({len(toc_items)} sections): {', '.join(shown_toc[:6])}")
+        toc_html = (
+            "<ul class=\"seo-topics\">"
+            + "".join(f"<li>{escape(h)}</li>" for h in shown_toc)
+            + "</ul>"
+            if shown_toc else ""
+        )
+        note_qs = quote(rfile, safe="")
+        ref_cards_parts.append(
+            f"""    <section class="panel seo-card" style="margin-bottom:14px">
+      <div class="seo-nav" style="margin-bottom:4px">
+        <div>
+          <span class="eyebrow">{escape(rsub)}</span>
+          <h2 style="margin:2px 0 0">{escape(rtitle)}</h2>
+        </div>
+        <a class="primary-btn" href="./?view=references&amp;note={note_qs}">Open notes →</a>
+      </div>
+      {toc_html}
+    </section>\n"""
+        )
+    notes_html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{escape(notes_desc, quote=True)}">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="geo.region" content="NO-03">
+  <meta name="geo.placename" content="Oslo, Norway">
+  <link rel="canonical" href="{base}/notes.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Study-OS">
+  <meta property="og:url" content="{base}/notes.html">
+  <meta property="og:title" content="{escape(notes_title, quote=True)}">
+  <meta property="og:description" content="{escape(notes_desc, quote=True)}">
+  <meta property="og:image" content="{base}/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{escape(notes_title, quote=True)}">
+  <meta name="twitter:description" content="{escape(notes_desc, quote=True)}">
+  <meta name="twitter:image" content="{base}/og-image.png">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+{SEO_THEME_SCRIPT}
+  <title>{escape(notes_title)}</title>
+  <link rel="icon" href="./favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+  <link rel="stylesheet" href="./styles.css">
+{SEO_PAGE_STYLE}
+</head>
+<body>
+  <main class="seo-shell">
+    <nav class="seo-nav" aria-label="Breadcrumb">
+      <div class="seo-cta-row">
+        <a href="./" class="ghost-btn">← Open Study-OS</a>
+        <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
+      </div>
+      <span class="badge">{len(references)} Reference Sheets · KaTeX &amp; Diagrams</span>
+    </nav>
+
+    <article class="panel seo-hero">
+      <span class="eyebrow">Multi-Semester Reference Hub · Oslo</span>
+      <h1>BI Oslo Course Notes &amp; Formula Sheets</h1>
+      <p class="seo-lead">{escape(notes_desc)}</p>
+      <div class="seo-cta-row">
+        <a class="primary-btn btn-lg" href="./?view=references">Open Interactive Notes Reader →</a>
+        <a class="ghost-btn btn-lg" href="./bi-oslo.html">Browse Courses</a>
+      </div>
+    </article>
+
+{"".join(ref_cards_parts)}
+    <footer class="seo-foot">
+      <span>Study-OS · Independent student project in Oslo, Norway.</span>
+      <nav aria-label="Footer links">
+        <a href="./">App</a>
+        <a href="./bi-oslo.html">BI Oslo</a>
+        <a href="./norsk.html" lang="nb">Norsk</a>
+        <a href="./wiseflow-practice.html">WISEflow</a>
+        <a href="./bi-canvas-timeedit-sync.html">BI Sync</a>
+        <a href="./privacy.html">Privacy</a>
+      </nav>
+    </footer>
+  </main>
+</body>
+</html>
+"""
+    (out_dir / "notes.html").write_text(notes_html, encoding="utf-8")
+    sitemap_urls.append((f"{base}/notes.html", "0.8", "weekly"))
+
+    # 7. AI Search / GEO discovery file (`/llms.txt`)
+    llms_course_lines = [
+        f"- [{c.get('code', '')} · {c.get('title', '')}]({base}/courses/{c['courseId']}.html): "
+        f"{int(c.get('questionCount') or 0)} practice questions · {(c.get('examInfo') or {}).get('format', 'Exam prep')}"
+        for c in catalog if c.get("courseId")
+    ]
+    llms_txt = "\n".join([
+        "# Study-OS (https://studyos.no)",
+        "",
+        "> Free, independent student exam preparation workspace for Oslo, Norway and BI Norwegian Business School courses. "
+        "Includes active-recall practice questions, timed WISEflow FLOWmulti & BYOD mock exams, KaTeX course notes, "
+        "side-pane AI Tutor, circadian DLPFC study scheduling, and 1-click BI Canvas / TimeEdit / Ed Discussion sync.",
+        "",
+        "## Core Pages",
+        f"- [Study-OS Interactive Workspace]({base}/): Main web application with practice runner, timers, and progress tracking.",
+        f"- [BI Oslo Study Guide (English)]({base}/bi-oslo.html): Overview of BI Oslo courses, exam tools, and FAQ.",
+        f"- [Study-OS på norsk (BI Oslo)]({base}/norsk.html): Norwegian Bokmål guide for BI Oslo students.",
+        f"- [WISEflow FLOWmulti & BYOD Exam Simulator]({base}/wiseflow-practice.html): Timed 3-hour mock exams with BI formatting rules.",
+        f"- [BI Canvas, TimeEdit & Ed Discussion Sync]({base}/bi-canvas-timeedit-sync.html): Manifest V3 Chrome extension for 1-click sync.",
+        f"- [BI Oslo Course Notes & Reference Hub]({base}/notes.html): Full index of semester reference sheets and formulas.",
+        "",
+        "## Public BI Oslo Courses",
+        *llms_course_lines,
+        "",
+        "## Reference Sheets",
+        *llms_ref_lines,
+        "",
+        "## Legal & Source",
+        f"- [Privacy Policy (GDPR Norway / EEA)]({base}/privacy.html)",
+        f"- [Terms of Use]({base}/terms.html)",
+        "- [Open-source repository](https://github.com/shadjosef/study-os)",
+        "",
+    ])
+    (out_dir / "llms.txt").write_text(llms_txt, encoding="utf-8")
+
+    # 8. Auto-generated XML Sitemap (`sitemap.xml`)
     sitemap_urls.extend([
         (f"{base}/privacy.html", "0.3", "yearly"),
         (f"{base}/terms.html", "0.3", "yearly"),
@@ -738,8 +1242,14 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
     template = (ROOT_DIR / "tools" / "offline-worker.js").read_bytes()
     fingerprint = hashlib.sha256(template)
     assets = []
+    seo_skip_files = {
+        ".nojekyll", "CNAME", "robots.txt", "sitemap.xml", "llms.txt",
+        "og-image.png", "favicon.ico", "bi-oslo.html", "norsk.html",
+        "wiseflow-practice.html", "bi-canvas-timeedit-sync.html", "notes.html",
+        "7d4c9e2a8b1f4063a5e7c2d9f1b84e60.txt",
+    }
     for path in sorted(out_dir.rglob("*")):
-        if path.is_file() and path.name not in {".nojekyll", "CNAME", "robots.txt", "sitemap.xml", "og-image.png", "bi-oslo.html"}:
+        if path.is_file() and path.name not in seo_skip_files:
             rel = path.relative_to(out_dir).as_posix()
             if rel.startswith("downloads/") or rel.startswith("courses/"):
                 continue
