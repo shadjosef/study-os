@@ -1240,7 +1240,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         "operatingSystem": "Chrome, Brave, Edge, Vivaldi",
         "url": f"{base}/bi-canvas-timeedit-sync.html",
         "downloadUrl": f"{base}/downloads/study-os-sync-extension.zip",
-        "softwareVersion": "1.4.0",
+        "softwareVersion": "1.6.0",
         "isAccessibleForFree": True,
         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "NOK"},
         "description": sync_desc,
@@ -1281,19 +1281,19 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a href="./" class="ghost-btn">← Open Study-OS</a>
         <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
       </div>
-      <span class="badge">Chrome Extension · v1.4.0 · Auto-Sync + MV3</span>
+      <span class="badge">Chrome Extension · v1.6.0 · Multi-School Auto-Sync + MV3</span>
     </nav>
 
     <article class="panel seo-hero">
-      <span class="eyebrow">BI Canvas · TimeEdit · Ed Discussion</span>
-      <h1>1-Click &amp; Auto BI Canvas, TimeEdit &amp; Ed Sync</h1>
+      <span class="eyebrow">Canvas LMS (BI · UiA · NHH · UiO · NTNU · UiB) · TimeEdit / TP · Ed</span>
+      <h1>1-Click &amp; Auto Canvas, TimeEdit/TP &amp; Ed Sync</h1>
       <p class="seo-lead">{escape(sync_desc)}</p>
       <p class="seo-lead" lang="nb" style="font-size:14.5px;margin-top:-8px">
-        Synkroniser aktive emner og frister fra <strong>canvas.bi.no</strong>, timeplanen din fra <strong>TimeEdit</strong> og tråder fra <strong>Ed Discussion</strong> automatisk eller med 1 klikk — helt uten BI-passord.
+        Synkroniser aktive emner og frister fra <strong>Canvas</strong> (BI Oslo, UiA, NHH, UiO, NTNU, OsloMet, UiB m.fl.), timeplanen din fra <strong>TimeEdit / TP</strong> og tråder fra <strong>Ed Discussion</strong> automatisk eller med 1 klikk — helt uten skolepassord.
       </p>
       <div class="seo-cta-row">
-        <a class="primary-btn btn-lg" href="./">Open Study-OS → Sync BI</a>
-        <a class="ghost-btn btn-lg" href="./downloads/study-os-sync-extension.zip" download>Download Extension ZIP (v1.4.0)</a>
+        <a class="primary-btn btn-lg" href="./">Open Study-OS → Sync Canvas</a>
+        <a class="ghost-btn btn-lg" href="./downloads/study-os-sync-extension.zip" download>Download Extension ZIP (v1.6.0)</a>
         <a class="ghost-btn btn-lg" href="./?view=schedule">Schedule Studio</a>
       </div>
     </article>

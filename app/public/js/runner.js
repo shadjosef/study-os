@@ -701,7 +701,9 @@ window.StudyRunner = (() => {
 
       (async () => {
         try {
-          const file = await window.StudyApp.fetchCanvasPdfViaExtension(ref.canvasCourseId, ref.canvasFileId);
+          let origin = 'https://canvas.bi.no';
+          try { if (ref.canvasUrl) origin = new URL(ref.canvasUrl).origin; } catch {}
+          const file = await window.StudyApp.fetchCanvasPdfViaExtension(ref.canvasCourseId, ref.canvasFileId, origin);
           await window.StudyLocalSources.save(q.courseId, ref.sourceId, file, {
             kind: 'canvas',
             title: ref.title || file.name,
@@ -821,7 +823,7 @@ window.StudyRunner = (() => {
           </div>
           <div class="row-actions">
             ${canDirectFetch
-              ? `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-fetch-canvas-pdf data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-canvas-course="${esc(c.canvasCourseId)}" data-canvas-file="${esc(c.canvasFileId)}" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">${fetchErr ? 'Retry inline' : 'Load PDF inline'}</button>`
+              ? `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-fetch-canvas-pdf data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-canvas-course="${esc(c.canvasCourseId)}" data-canvas-file="${esc(c.canvasFileId)}" data-canvas-url="${esc(c.canvasUrl || '')}" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">${fetchErr ? 'Retry inline' : 'Load PDF inline'}</button>`
               : isSynced && c.canvasUrl
               ? `<a class="primary-btn" style="padding:6px 12px;font-size:12.5px;text-decoration:none" href="${esc(c.canvasUrl)}" target="_blank" rel="noopener">Open on BI Canvas ↗</a>`
               : `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-open-bi-sync>Sync BI Canvas</button>`}
@@ -845,7 +847,7 @@ window.StudyRunner = (() => {
         <div class="row-actions" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">
           ${canDirectFetch
             ? canvasRefs.slice(0, 3).map((r) => r.canvasCourseId && r.canvasFileId
-                ? `<button type="button" class="primary-btn" data-fetch-canvas-pdf data-course-id="${esc(q.courseId)}" data-source-id="${esc(r.sourceId)}" data-canvas-course="${esc(r.canvasCourseId)}" data-canvas-file="${esc(r.canvasFileId)}" data-source-title="${esc(r.title)}" data-source-page="${esc(r.page || 1)}">Load ${esc(r.filename || r.title)} inline (p. ${esc(r.page || 1)})</button>`
+                ? `<button type="button" class="primary-btn" data-fetch-canvas-pdf data-course-id="${esc(q.courseId)}" data-source-id="${esc(r.sourceId)}" data-canvas-course="${esc(r.canvasCourseId)}" data-canvas-file="${esc(r.canvasFileId)}" data-canvas-url="${esc(r.canvasUrl || '')}" data-source-title="${esc(r.title)}" data-source-page="${esc(r.page || 1)}">Load ${esc(r.filename || r.title)} inline (p. ${esc(r.page || 1)})</button>`
                 : '').join('')
             : ''}
           ${isSynced
@@ -2049,9 +2051,12 @@ window.StudyRunner = (() => {
         btn.disabled = true;
         btn.textContent = 'Loading PDF…';
         try {
+          let origin = 'https://canvas.bi.no';
+          try { if (btn.dataset.canvasUrl) origin = new URL(btn.dataset.canvasUrl).origin; } catch {}
           const file = await window.StudyApp.fetchCanvasPdfViaExtension(
             btn.dataset.canvasCourse,
-            btn.dataset.canvasFile
+            btn.dataset.canvasFile,
+            origin
           );
           await handleLocalPdfAttach(file, btn);
         } catch (err) {

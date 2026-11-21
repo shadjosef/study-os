@@ -1,14 +1,28 @@
 const limit = 2_000_000;
+const ALLOWED_TIMETABLE_ORIGINS = new Set([
+  'https://cloud.timeedit.net',
+  'https://tp.educloud.no',
+  'https://tp.uio.no',
+]);
+
+function isAllowedTimetableUrl(raw) {
+  try {
+    const input = typeof raw === 'string' ? raw.trim() : '';
+    const url = new URL(input.replace(/^webcal:/i, 'https:'));
+    if (input.length > 4096 || !ALLOWED_TIMETABLE_ORIGINS.has(url.origin) ||
+        url.username || url.password || url.hash) return null;
+    const looksIcal = /\.ics$/i.test(url.pathname) || /\/ical(?:\.php)?$/i.test(url.pathname);
+    if (!looksIcal) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
 
 export async function readTimeEdit(data, reply) {
-  let url;
-  try {
-    const input = typeof data.url === 'string' ? data.url.trim() : '';
-    url = new URL(input.replace(/^webcal:/i, 'https:'));
-    if (input.length > 4096 || url.origin !== 'https://cloud.timeedit.net' ||
-        url.username || url.password || url.hash || !/\.ics$/i.test(url.pathname)) throw new Error();
-  } catch {
-    return reply({ error: 'Paste your cloud.timeedit.net subscription link ending in .ics, or upload an .ics file.' }, 400);
+  const url = isAllowedTimetableUrl(data?.url);
+  if (!url) {
+    return reply({ error: 'Paste a TimeEdit (cloud.timeedit.net) or TP (tp.educloud.no / tp.uio.no) iCal/.ics subscription link, or upload an .ics file.' }, 400);
   }
   try {
     const result = await fetch(url, {
@@ -25,7 +39,7 @@ export async function readTimeEdit(data, reply) {
       size += value.length;
       if (size > limit) {
         await reader.cancel();
-        return reply({ error: 'Choose a TimeEdit calendar under 2 MB.' }, 413);
+        return reply({ error: 'Choose a timetable calendar under 2 MB.' }, 413);
       }
       calendar += decoder.decode(value, { stream: true });
     }
@@ -33,18 +47,22 @@ export async function readTimeEdit(data, reply) {
     if (!/^\s*BEGIN:VCALENDAR/i.test(calendar)) throw new Error();
     return reply({ calendar });
   } catch {
-    return reply({ error: 'Could not read that TimeEdit link. Check that it is the .ics subscription link or upload the downloaded file.' }, 422);
+    return reply({ error: 'Could not read that timetable link. Check that it is an iCal/.ics subscription link or upload the downloaded file.' }, 422);
   }
 }
 
 export async function pushTimeEditFeed(db, profileId, data, now, reply) {
   const calendar = typeof data.calendar === 'string' ? data.calendar : '';
   if (!calendar || calendar.length > limit || !/^\s*BEGIN:VCALENDAR/i.test(calendar)) {
-    return reply({ error: 'Invalid TimeEdit .ics calendar payload.' }, 400);
+    return reply({ error: 'Invalid timetable .ics calendar payload.' }, 400);
   }
-  const sourceUrl = typeof data.sourceUrl === 'string' && data.sourceUrl.startsWith('https://cloud.timeedit.net/')
-    ? data.sourceUrl.slice(0, 1024)
-    : '';
+  let sourceUrl = '';
+  if (typeof data.sourceUrl === 'string') {
+    try {
+      const u = new URL(data.sourceUrl.trim());
+      if (ALLOWED_TIMETABLE_ORIGINS.has(u.origin)) sourceUrl = u.href.slice(0, 1024);
+    } catch {}
+  }
   await db.prepare(`
     INSERT INTO user_timeedit_feeds(profile_id, ics_text, source_url, updated_at)
     VALUES (?, ?, ?, ?)

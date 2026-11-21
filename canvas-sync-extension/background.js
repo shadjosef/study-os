@@ -1,11 +1,88 @@
-const CANVAS_ORIGIN = 'https://canvas.bi.no';
-const TIMEEDIT_ORIGIN = 'https://cloud.timeedit.net';
+const DEFAULT_CANVAS_ORIGIN = 'https://canvas.bi.no';
+const TIMETABLE_ORIGINS = new Set([
+  'https://cloud.timeedit.net',
+  'https://tp.educloud.no',
+  'https://tp.uio.no',
+]);
 const ED_ORIGINS = new Set(['https://edstem.org', 'https://eu.edstem.org', 'https://us.edstem.org', 'https://au.edstem.org']);
 const CLOUD_API = 'https://shadjosef-study-os.shadjosef-study-os.workers.dev';
 const DESKTOP = 'http://127.0.0.1:8765';
+
+const KNOWN_CANVAS_SCHOOLS = {
+  'canvas.bi.no': 'BI Oslo',
+  'bi.instructure.com': 'BI Oslo',
+  'uia.instructure.com': 'UiA',
+  'canvas.uia.no': 'UiA',
+  'mitt.uib.no': 'UiB',
+  'uib.instructure.com': 'UiB',
+  'uio.instructure.com': 'UiO',
+  'canvas.uio.no': 'UiO',
+  'ntnu.instructure.com': 'NTNU',
+  'canvas.ntnu.no': 'NTNU',
+  'oslomet.instructure.com': 'OsloMet',
+  'canvas.oslomet.no': 'OsloMet',
+  'nhh.instructure.com': 'NHH',
+  'canvas.nhh.no': 'NHH',
+  'uis.instructure.com': 'UiS',
+  'canvas.uis.no': 'UiS',
+  'uit.instructure.com': 'UiT',
+  'canvas.uit.no': 'UiT',
+  'usn.instructure.com': 'USN',
+  'canvas.usn.no': 'USN',
+  'nmbu.instructure.com': 'NMBU',
+  'canvas.nmbu.no': 'NMBU',
+  'hvl.instructure.com': 'HVL',
+  'canvas.hvl.no': 'HVL',
+  'kristiania.instructure.com': 'Kristiania',
+  'canvas.kristiania.no': 'Kristiania',
+};
+
+const INSTRUCTURE_SKIP_SUBS = new Set(['login', 'sso', 'sso-login', 'cdn', 'canvas-cdn', 'community', 'www', 'status']);
+
+function isCanvasOrigin(originStr) {
+  if (typeof originStr !== 'string' || !originStr) return false;
+  try {
+    const u = new URL(originStr);
+    if (u.protocol !== 'https:') return false;
+    const host = u.hostname.toLowerCase();
+    if (KNOWN_CANVAS_SCHOOLS[host]) return true;
+    const m = host.match(/^([a-z0-9-]+)\.instructure\.com$/);
+    if (m && !INSTRUCTURE_SKIP_SUBS.has(m[1])) return true;
+  } catch {}
+  return false;
+}
+
+function schoolLabelForOrigin(originStr) {
+  try {
+    const host = new URL(originStr).hostname.toLowerCase();
+    if (KNOWN_CANVAS_SCHOOLS[host]) return KNOWN_CANVAS_SCHOOLS[host];
+    const m = host.match(/^([a-z0-9-]+)\.instructure\.com$/);
+    if (m) {
+      const sub = m[1];
+      return sub.length <= 4 ? sub.toUpperCase() : sub.charAt(0).toUpperCase() + sub.slice(1);
+    }
+  } catch {}
+  return 'Canvas';
+}
+
 const TARGET_URL_PATTERNS = [
   'https://canvas.bi.no/*',
+  'https://*.instructure.com/*',
+  'https://canvas.uia.no/*',
+  'https://mitt.uib.no/*',
+  'https://canvas.uio.no/*',
+  'https://canvas.ntnu.no/*',
+  'https://canvas.oslomet.no/*',
+  'https://canvas.nhh.no/*',
+  'https://canvas.uis.no/*',
+  'https://canvas.uit.no/*',
+  'https://canvas.usn.no/*',
+  'https://canvas.nmbu.no/*',
+  'https://canvas.hvl.no/*',
+  'https://canvas.kristiania.no/*',
   'https://cloud.timeedit.net/*',
+  'https://tp.educloud.no/*',
+  'https://tp.uio.no/*',
   'https://edstem.org/*',
   'https://eu.edstem.org/*',
   'https://us.edstem.org/*',
@@ -20,12 +97,37 @@ let syncJob = null;
 const autoSyncTimers = new Map();
 const autoSyncInFlight = new Set();
 
-// Runs inside the user's already signed-in BI Canvas tab using browser same-origin cookies.
-// Never extracts, copies, or transmits raw Canvas session tokens.
+// Runs inside the user's already signed-in Canvas LMS tab (BI, UiA, NHH, UiO, NTNU, UiB, or any *.instructure.com).
+// Uses browser same-origin cookies — never extracts, copies, or transmits raw Canvas session tokens.
 async function collectCanvas() {
-  const canvasOrigin = 'https://canvas.bi.no';
+  const canvasOrigin = location.origin;
+  const host = location.hostname.toLowerCase();
   const capturedAt = new Date().toISOString();
-  if (location.origin !== canvasOrigin) return { error: 'Open your signed-in BI Canvas tab first.' };
+  const validHost = location.protocol === 'https:' && (
+    host === 'canvas.bi.no' ||
+    host === 'mitt.uib.no' ||
+    /^canvas\.[a-z0-9-]+\.no$/.test(host) ||
+    /^[a-z0-9-]+\.instructure\.com$/.test(host)
+  );
+  if (!validHost) return { error: 'Open your signed-in Canvas LMS tab first.' };
+
+  const CODE_3_6 = /(?:^|[^A-Za-z0-9ÆØÅæøå])([A-Za-zÆØÅæøå]{2,6})(?:\s*[-_]\s*|\s?)(\d{3,6})(?!\d)/;
+  const CODE_2 = /(?:^|[^A-Za-z0-9ÆØÅæøå])([A-Za-zÆØÅæøå]{2,6})[-_]?(\d{2})(?![A-Za-z0-9ÆØÅæøå])/;
+  const SKIP_2 = new Set(['WEEK', 'UKE', 'KAP', 'DEL', 'PART', 'MOD', 'SEM', 'DAG', 'DAY', 'TEMA', 'LEC', 'LAB', 'SET', 'CH', 'NO', 'NR', 'VG', 'H2', 'V2']);
+
+  function extractCode(courseCode, courseName) {
+    for (const text of [courseCode, courseName]) {
+      if (typeof text !== 'string' || !text.trim()) continue;
+      const m3 = text.match(CODE_3_6);
+      if (m3) return (m3[1] + m3[2]).toUpperCase();
+    }
+    for (const text of [courseCode, courseName]) {
+      if (typeof text !== 'string' || !text.trim()) continue;
+      const m2 = text.match(CODE_2);
+      if (m2 && !SKIP_2.has(m2[1].toUpperCase())) return (m2[1] + m2[2]).toUpperCase();
+    }
+    return '';
+  }
 
   async function list(path, params, maximum) {
     let page = new URL(path, canvasOrigin);
@@ -45,7 +147,7 @@ async function collectCanvas() {
       });
       if (response.type === 'opaqueredirect' || response.status === 401 || response.status === 403 ||
           (response.ok && !response.headers.get('Content-Type')?.includes('json'))) {
-        throw new Error('Sign in to BI Canvas in that tab, then click Sync again.');
+        throw new Error('Sign in to Canvas in that tab, then click Sync again.');
       }
       if (!response.ok) throw new Error('Canvas could not load courses or assignments.');
       const items = JSON.parse((await response.text()).replace(/^\s*while\s*\(1\)\s*;\s*/, ''));
@@ -66,18 +168,23 @@ async function collectCanvas() {
   }
 
   try {
-    const all = await list('/api/v1/courses', { enrollment_type: 'student', enrollment_state: 'active' }, 80);
+    let all = await list('/api/v1/courses', { enrollment_type: 'student', enrollment_state: 'active' }, 80);
+    if (!all.length) {
+      all = await list('/api/v1/courses', { enrollment_state: 'active' }, 80);
+    }
     const courses = all
-      .filter((course) => typeof course.name === 'string' && course.name.trim())
-      .map((course) => ({
-        id: id(course.id),
-        name: course.name.trim().slice(0, 300),
-        code: [course.course_code, course.name]
-          .map((text) => (typeof text === 'string' ? text.match(/\b([A-Z]{2,6})\s*[-_]?\s*(\d{3,6})(?!\d)\b/i)?.slice(1).join('').toUpperCase() : ''))
-          .find(Boolean) || '',
-        topics: [],
-        assignments: [],
-      }));
+      .filter((course) => typeof course.name === 'string' && course.name.trim() && course.workflow_state !== 'deleted')
+      .map((course) => {
+        const cid = id(course.id);
+        return {
+          id: cid,
+          name: course.name.trim().slice(0, 300),
+          code: extractCode(course.course_code, course.name),
+          url: `${canvasOrigin}/courses/${cid}`,
+          topics: [],
+          assignments: [],
+        };
+      });
 
     let remaining = 4000;
     for (const course of courses) {
@@ -103,17 +210,24 @@ async function collectCanvas() {
   } catch (error) {
     return {
       error: error.name === 'TimeoutError' || error instanceof TypeError || error instanceof SyntaxError
-        ? 'Could not load BI Canvas. Make sure you are signed in.'
+        ? 'Could not load Canvas. Make sure you are signed in.'
         : error.message,
     };
   }
 }
 
-// Runs inside the open BI TimeEdit tab — extracts the .ics timetable feed with the most VEVENTs.
+// Runs inside the open TimeEdit (cloud.timeedit.net) or Norwegian TP (tp.educloud.no / tp.uio.no) tab
+// — extracts the .ics / iCal timetable feed with the most VEVENTs.
 async function collectTimeEdit() {
-  if (location.origin !== 'https://cloud.timeedit.net') {
-    return { error: 'Open your BI TimeEdit timetable tab first.' };
+  const allowedOrigins = new Set([
+    'https://cloud.timeedit.net',
+    'https://tp.educloud.no',
+    'https://tp.uio.no',
+  ]);
+  if (!allowedOrigins.has(location.origin)) {
+    return { error: 'Open your TimeEdit or TP timetable tab first.' };
   }
+  const isTimeEdit = location.origin === 'https://cloud.timeedit.net';
   const candidates = new Set();
   const addCandidate = (raw) => {
     if (typeof raw !== 'string') return;
@@ -121,14 +235,15 @@ async function collectTimeEdit() {
     if (!clean) return;
     try {
       const u = new URL(clean, location.href);
-      if (u.origin === 'https://cloud.timeedit.net' && /\.ics(\?|$)/i.test(u.pathname + u.search)) {
+      if (u.origin !== location.origin) return;
+      if (/\.ics(\?|$)/i.test(u.pathname + u.search) || /\/ical(?:\.php)?(\?|$)/i.test(u.pathname + u.search)) {
         candidates.add(u.href);
       }
     } catch {}
   };
 
-  // 1. Prefer the exact current schedule URL converted from .html -> .ics (preserving query params!)
-  if (/\.html$/i.test(location.pathname)) {
+  // 1. TimeEdit: convert exact .html schedule URL -> .ics (preserving query params)
+  if (isTimeEdit && /\.html$/i.test(location.pathname)) {
     const derived = new URL(location.href);
     derived.pathname = derived.pathname.replace(/\.html$/i, '.ics');
     derived.hash = '';
@@ -136,25 +251,30 @@ async function collectTimeEdit() {
   }
 
   // 2. Scan links, subscription inputs, textareas, and data attributes
-  document.querySelectorAll('a[href*=".ics"], input[value*=".ics"], textarea, [data-url*=".ics"], [data-href*=".ics"]').forEach((el) => {
+  document.querySelectorAll('a[href*=".ics"], a[href*="ical"], input[value*=".ics"], input[value*="ical"], textarea, [data-url*=".ics"], [data-href*=".ics"], [data-url*="ical"], [data-href*="ical"]').forEach((el) => {
     const val = el.getAttribute('href') || el.getAttribute('data-url') || el.getAttribute('data-href') || el.value || el.textContent || '';
-    const matches = val.match(/(?:https?|webcal):\/\/cloud\.timeedit\.net\/[^\s"'<>]+\.ics(?:\?[^\s"'<>]*)?/gi) || [];
+    const matches = val.match(/(?:https?|webcal):\/\/(?:cloud\.timeedit\.net|tp\.educloud\.no|tp\.uio\.no)\/[^\s"'<>]+(?:\.ics|ical(?:\.php)?)[^\s"'<>]*/gi) || [];
     matches.forEach(addCandidate);
     if (el.tagName === 'A') addCandidate(el.getAttribute('href'));
   });
 
-  // 3. Scan page HTML for any TimeEdit .ics subscription URLs (including query params)
-  const htmlMatches = document.documentElement.innerHTML.match(/(?:https?|webcal):\/\/cloud\.timeedit\.net\/[^\s"'<>\\]+\.ics(?:\?[^\s"'<>\\]*)?/gi) || [];
-  htmlMatches.slice(0, 12).forEach(addCandidate);
+  // 3. Scan page HTML for timetable .ics / ical subscription URLs
+  const htmlMatches = document.documentElement.innerHTML.match(/(?:https?|webcal):\/\/(?:cloud\.timeedit\.net|tp\.educloud\.no|tp\.uio\.no)\/[^\s"'<>\\]+(?:\.ics|ical(?:\.php)?)[^\s"'<>\\]*/gi) || [];
+  htmlMatches.slice(0, 14).forEach(addCandidate);
 
-  // 4. Also check TimeEdit's subscribe/iCal path pattern (e.g. /ri...html -> /ri...ics)
-  const riMatches = document.documentElement.innerHTML.match(/\/ri[A-Za-z0-9_-]{8,}\.ics/g) || [];
-  riMatches.slice(0, 6).forEach((rel) => {
-    try {
-      const base = location.pathname.replace(/[^/]*$/, '');
-      addCandidate(new URL(base + rel.replace(/^\//, ''), location.origin).href);
-    } catch {}
-  });
+  // 4. Relative TimeEdit /ri...ics or TP ical.php?... references
+  if (isTimeEdit) {
+    const riMatches = document.documentElement.innerHTML.match(/\/ri[A-Za-z0-9_-]{8,}\.ics/g) || [];
+    riMatches.slice(0, 6).forEach((rel) => {
+      try {
+        const base = location.pathname.replace(/[^/]*$/, '');
+        addCandidate(new URL(base + rel.replace(/^\//, ''), location.origin).href);
+      } catch {}
+    });
+  } else {
+    const tpRel = document.documentElement.innerHTML.match(/(?:\/[a-z0-9_-]+)*\/ical\.php\?[^\s"'<>\\]+/gi) || [];
+    tpRel.slice(0, 8).forEach((rel) => addCandidate(rel.replace(/&amp;/g, '&')));
+  }
 
   let best = null;
   let sawEmptyCalendar = false;
@@ -181,11 +301,15 @@ async function collectTimeEdit() {
 
   if (sawEmptyCalendar) {
     return {
-      error: 'TimeEdit returned 0 classes on this view. Select your courses on TimeEdit, click "Show schedule", then click Sync again.',
+      error: isTimeEdit
+        ? 'TimeEdit returned 0 classes on this view. Select your courses on TimeEdit, click "Show schedule", then click Sync again.'
+        : 'TP returned 0 upcoming classes on this view. Open your personal timetable ("Min timeplan") and click Sync again.',
     };
   }
   return {
-    error: 'Open your BI TimeEdit schedule view ("Show schedule"), then click Sync again.',
+    error: isTimeEdit
+      ? 'Open your TimeEdit schedule view ("Show schedule"), then click Sync again.'
+      : 'Open your TP timetable (or click "Abonnér" / Subscribe to reveal the iCal link), then click Sync again.',
   };
 }
 
@@ -236,7 +360,7 @@ function collectEdTabContext() {
     const text = (a.textContent || '').replace(/\s+/g, ' ').trim();
     if (!text || text.length < 2) return;
     seenIds.add(m[1]);
-    const codeMatch = text.match(/\b([A-Z]{2,6})\s*[-_]?\s*(\d{3,6})(?!\d)\b/i);
+    const codeMatch = text.match(/(?:^|[^A-Za-z0-9ÆØÅæøå])([A-Za-zÆØÅæøå]{2,6})(?:\s*[-_]\s*|\s?)(\d{3,6})(?!\d)/);
     domCourses.push({
       id: m[1],
       name: text.slice(0, 160),
@@ -262,7 +386,7 @@ async function fetchEdCoursesFromContext(ctx) {
       .slice(0, 60)
       .map((c) => {
         const codeMatch = [c.code, c.name]
-          .map((t) => (typeof t === 'string' ? t.match(/\b([A-Z]{2,6})\s*[-_]?\s*(\d{3,6})(?!\d)\b/i)?.slice(1).join('').toUpperCase() : ''))
+          .map((t) => (typeof t === 'string' ? t.match(/(?:^|[^A-Za-z0-9ÆØÅæøå])([A-Za-zÆØÅæøå]{2,6})(?:\s*[-_]\s*|\s?)(\d{3,6})(?!\d)/)?.slice(1).join('').toUpperCase() : ''))
           .find(Boolean) || '';
         const categories = Array.isArray(c?.settings?.discussion?.categories)
           ? c.settings.discussion.categories.map((cat) => cat?.name).filter(Boolean).slice(0, 25)
@@ -354,8 +478,8 @@ function detectSite(urlStr) {
   if (!urlStr) return 'other';
   try {
     const u = new URL(urlStr);
-    if (u.origin === CANVAS_ORIGIN) return 'canvas';
-    if (u.origin === TIMEEDIT_ORIGIN) return 'timeedit';
+    if (isCanvasOrigin(u.origin)) return 'canvas';
+    if (TIMETABLE_ORIGINS.has(u.origin)) return 'timeedit';
     if (ED_ORIGINS.has(u.origin)) return 'ed';
   } catch {}
   return 'other';
@@ -364,7 +488,7 @@ function detectSite(urlStr) {
 async function findOpenStudyTabs() {
   const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS }).catch(() => []);
   const found = { canvas: null, timeedit: null, ed: null };
-  // Prefer active tab in current window, then most recently accessed / schedule-view TimeEdit tabs
+  // Prefer active tab in current window, then most recently accessed / schedule-view timetable tabs
   const sorted = [...tabs].sort((a, b) => {
     if (a.active !== b.active) return a.active ? -1 : 1;
     if (a.lastAccessed && b.lastAccessed) return b.lastAccessed - a.lastAccessed;
@@ -385,13 +509,20 @@ async function findOpenStudyTabs() {
 async function syncSingleSite(tabId, site, sharePublic, cloudToken, desktopToken) {
   if (site === 'canvas') {
     const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: collectCanvas });
-    if (!result || result.error) throw new Error(result?.error || 'BI Canvas tab closed during sync.');
+    if (!result || result.error) throw new Error(result?.error || 'Canvas tab closed during sync.');
+
+    const canvasOrigin = isCanvasOrigin(result.snapshot?.canvasOrigin)
+      ? result.snapshot.canvasOrigin
+      : DEFAULT_CANVAS_ORIGIN;
+    const school = schoolLabelForOrigin(canvasOrigin);
 
     let cloudSummary = null;
     if (cloudToken) {
       cloudSummary = await cloudRequest('/courses/sync', {
         source: 'canvas',
         sharePublic,
+        canvasOrigin,
+        school,
         capturedAt: result.snapshot.capturedAt,
         courses: result.snapshot.courses,
       }, cloudToken);
@@ -403,8 +534,11 @@ async function syncSingleSite(tabId, site, sharePublic, cloudToken, desktopToken
     if (!cloudSummary && !desktopSummary) {
       throw new Error('Pair your Study-OS account first (paste a 6-char code from studyos.no).');
     }
+    await chrome.storage.local.set({ lastCanvasOrigin: canvasOrigin, lastCanvasSchool: school }).catch(() => {});
     return {
       site: 'canvas',
+      school,
+      canvasOrigin,
       courses: cloudSummary?.syncedCourses ?? desktopSummary?.courses ?? result.snapshot.courses.length,
       deadlines: cloudSummary?.deadlineCount ?? desktopSummary?.assignments ?? 0,
       createdCount: cloudSummary?.createdCount ?? 0,
@@ -416,14 +550,18 @@ async function syncSingleSite(tabId, site, sharePublic, cloudToken, desktopToken
 
   if (site === 'timeedit') {
     if (!cloudToken) {
-      throw new Error('Link your studyos.no profile (6-char code) to sync TimeEdit.');
+      throw new Error('Link your studyos.no profile (6-char code) to sync your timetable.');
     }
+    const tab = await chrome.tabs.get(tabId).catch(() => null);
     const [{ result } = {}] = await chrome.scripting.executeScript({ target: { tabId }, func: collectTimeEdit });
-    if (!result || result.error) throw new Error(result?.error || 'Could not read TimeEdit schedule.');
+    if (!result || result.error) throw new Error(result?.error || 'Could not read timetable.');
     const pushed = await cloudRequest('/schedule/timeedit-push', {
       calendar: result.calendar,
       sourceUrl: result.sourceUrl || '',
     }, cloudToken);
+    if (tab?.url && /^https:\/\//i.test(tab.url)) {
+      await chrome.storage.local.set({ lastTimeEditUrl: tab.url }).catch(() => {});
+    }
     return {
       site: 'timeedit',
       eventCount: pushed.eventCount || 0,
@@ -487,22 +625,31 @@ function bytesToBase64(bytes) {
   return btoa(bin);
 }
 
-// Fetches a BI Canvas PDF directly using the student's own signed-in Chrome session.
+// Fetches a Canvas PDF directly using the student's own signed-in Chrome session.
 // Bytes return strictly to the student's local studyos.no tab (never uploaded to any server).
-async function fetchCanvasFileDirect(courseId, fileId) {
+async function fetchCanvasFileDirect(courseId, fileId, originOverride = '') {
   if (!/^\d{1,12}$/.test(String(courseId)) || !/^\d{1,12}$/.test(String(fileId))) {
-    throw new Error('Invalid BI Canvas file reference.');
+    throw new Error('Invalid Canvas file reference.');
   }
+  const stored = await chrome.storage.local.get(['lastCanvasOrigin']).catch(() => ({}));
+  const canvasOrigin = isCanvasOrigin(originOverride)
+    ? new URL(originOverride).origin
+    : isCanvasOrigin(stored.lastCanvasOrigin)
+    ? new URL(stored.lastCanvasOrigin).origin
+    : DEFAULT_CANVAS_ORIGIN;
+  const hostLabel = new URL(canvasOrigin).hostname;
+  const schoolName = schoolLabelForOrigin(canvasOrigin);
+
   let signedUrl = '';
   let apiFilename = '';
   try {
-    const metaRes = await fetch(`${CANVAS_ORIGIN}/api/v1/courses/${courseId}/files/${fileId}`, {
+    const metaRes = await fetch(`${canvasOrigin}/api/v1/courses/${courseId}/files/${fileId}`, {
       credentials: 'include',
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(15_000),
     });
     if (metaRes.status === 401 || metaRes.status === 403) {
-      throw new Error('Sign in to BI Canvas (canvas.bi.no) in Chrome first, then click Retry inline.');
+      throw new Error(`Sign in to ${schoolName} Canvas (${hostLabel}) in Chrome first, then click Retry inline.`);
     }
     if (metaRes.ok) {
       const meta = await metaRes.json().catch(() => null);
@@ -510,26 +657,26 @@ async function fetchCanvasFileDirect(courseId, fileId) {
       if (meta?.display_name || meta?.filename) apiFilename = String(meta.display_name || meta.filename);
     }
   } catch (err) {
-    if (/sign in to bi canvas/i.test(String(err?.message || ''))) throw err;
+    if (/sign in to .* canvas/i.test(String(err?.message || ''))) throw err;
   }
 
-  const targetUrl = signedUrl || `${CANVAS_ORIGIN}/courses/${courseId}/files/${fileId}/download?download_frd=1`;
-  const isSameOrigin = targetUrl.startsWith(CANVAS_ORIGIN);
+  const targetUrl = signedUrl || `${canvasOrigin}/courses/${courseId}/files/${fileId}/download?download_frd=1`;
+  const isSameOrigin = targetUrl.startsWith(canvasOrigin);
   const res = await fetch(targetUrl, {
     credentials: isSameOrigin ? 'include' : 'omit',
     redirect: 'follow',
     signal: AbortSignal.timeout(25_000),
   });
-  if (res.status === 401 || res.status === 403 || /login|saml|microsoftonline/i.test(res.url || '')) {
-    throw new Error('Sign in to BI Canvas (canvas.bi.no) in Chrome first, then click Retry inline.');
+  if (res.status === 401 || res.status === 403 || /login|saml|microsoftonline|feide/i.test(res.url || '')) {
+    throw new Error(`Sign in to ${schoolName} Canvas (${hostLabel}) in Chrome first, then click Retry inline.`);
   }
-  if (!res.ok) throw new Error(`BI Canvas returned HTTP ${res.status}. Open BI Canvas to refresh your login.`);
+  if (!res.ok) throw new Error(`${schoolName} Canvas returned HTTP ${res.status}. Open Canvas to refresh your login.`);
   const buf = await res.arrayBuffer();
   if (buf.byteLength > 60 * 1024 * 1024) throw new Error('PDF exceeds 60 MB direct-fetch limit. Download and drop it locally instead.');
   const bytes = new Uint8Array(buf);
   const sig = String.fromCharCode(...bytes.subarray(0, 5));
   if (sig !== '%PDF-') {
-    throw new Error('BI Canvas returned a login or preview page instead of a PDF. Sign in to canvas.bi.no in Chrome first.');
+    throw new Error(`${schoolName} Canvas returned a login or preview page instead of a PDF. Sign in to ${hostLabel} in Chrome first.`);
   }
   const disp = res.headers.get('Content-Disposition') || '';
   const nameMatch = disp.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
@@ -639,8 +786,25 @@ async function handle(message) {
       'sharePublic',
       'autoSyncEnabled',
       'lastSiteSyncAt',
+      'lastCanvasOrigin',
+      'lastCanvasSchool',
+      'lastTimeEditUrl',
     ]);
     const openTabs = await findOpenStudyTabs();
+    const activeCanvasOrigin = openTabs.canvas?.url ? new URL(openTabs.canvas.url).origin : '';
+    const canvasOrigin = isCanvasOrigin(activeCanvasOrigin)
+      ? activeCanvasOrigin
+      : isCanvasOrigin(stored.lastCanvasOrigin)
+      ? stored.lastCanvasOrigin
+      : DEFAULT_CANVAS_ORIGIN;
+    const canvasSchool = isCanvasOrigin(activeCanvasOrigin)
+      ? schoolLabelForOrigin(activeCanvasOrigin)
+      : (stored.lastCanvasSchool || '');
+    const defaultTimetableUrl = canvasSchool === 'UiA'
+      ? 'https://tp.educloud.no/uia/'
+      : canvasSchool === 'BI Oslo'
+      ? 'https://cloud.timeedit.net/bi/web/public/'
+      : 'https://cloud.timeedit.net/';
     return {
       connectedCloud: Boolean(stored.cloudToken),
       nickname: stored.cloudNickname || '',
@@ -648,6 +812,9 @@ async function handle(message) {
       sharePublic: stored.sharePublic !== false,
       autoSyncEnabled: stored.autoSyncEnabled !== false,
       lastSiteSyncAt: stored.lastSiteSyncAt || {},
+      canvasOrigin,
+      canvasSchool,
+      timeeditUrl: openTabs.timeedit?.url || stored.lastTimeEditUrl || defaultTimetableUrl,
       openSites: {
         canvas: Boolean(openTabs.canvas),
         timeedit: Boolean(openTabs.timeedit),
@@ -723,8 +890,8 @@ function isTrustedBridgeSender(sender) {
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (message?.action === 'fetchCanvasFile' && isTrustedBridgeSender(sender)) {
-    fetchCanvasFileDirect(message.courseId, message.fileId).then(respond, (error) => {
-      respond({ ok: false, error: error?.message || 'Could not load PDF from BI Canvas.' });
+    fetchCanvasFileDirect(message.courseId, message.fileId, message.canvasOrigin || '').then(respond, (error) => {
+      respond({ ok: false, error: error?.message || 'Could not load PDF from Canvas.' });
     });
     return true;
   }

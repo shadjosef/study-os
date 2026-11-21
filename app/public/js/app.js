@@ -1608,6 +1608,114 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   const BI_SYNC_STALE_DAYS = 5;
 
+  const KNOWN_CANVAS_SCHOOL_LABELS = {
+    'canvas.bi.no': 'BI Oslo',
+    'bi.instructure.com': 'BI Oslo',
+    'uia.instructure.com': 'UiA',
+    'canvas.uia.no': 'UiA',
+    'mitt.uib.no': 'UiB',
+    'uib.instructure.com': 'UiB',
+    'uio.instructure.com': 'UiO',
+    'canvas.uio.no': 'UiO',
+    'ntnu.instructure.com': 'NTNU',
+    'canvas.ntnu.no': 'NTNU',
+    'oslomet.instructure.com': 'OsloMet',
+    'canvas.oslomet.no': 'OsloMet',
+    'nhh.instructure.com': 'NHH',
+    'canvas.nhh.no': 'NHH',
+    'uis.instructure.com': 'UiS',
+    'canvas.uis.no': 'UiS',
+    'uit.instructure.com': 'UiT',
+    'canvas.uit.no': 'UiT',
+    'usn.instructure.com': 'USN',
+    'canvas.usn.no': 'USN',
+    'nmbu.instructure.com': 'NMBU',
+    'canvas.nmbu.no': 'NMBU',
+    'hvl.instructure.com': 'HVL',
+    'canvas.hvl.no': 'HVL',
+    'kristiania.instructure.com': 'Kristiania',
+    'canvas.kristiania.no': 'Kristiania',
+  };
+
+  function safeCanvasOrigin(raw) {
+    if (typeof raw !== 'string' || !raw.trim()) return 'https://canvas.bi.no';
+    try {
+      const u = new URL(raw.trim());
+      if (u.protocol !== 'https:') return 'https://canvas.bi.no';
+      const host = u.hostname.toLowerCase();
+      if (KNOWN_CANVAS_SCHOOL_LABELS[host]) return `https://${host}`;
+      if (/^canvas\.[a-z0-9-]+\.no$/.test(host)) return `https://${host}`;
+      const m = host.match(/^([a-z0-9-]+)\.instructure\.com$/);
+      if (m && !['login', 'sso', 'sso-login', 'cdn', 'canvas-cdn', 'community', 'www', 'status'].includes(m[1])) {
+        return `https://${host}`;
+      }
+    } catch {}
+    return 'https://canvas.bi.no';
+  }
+
+  function schoolLabelForCanvasOrigin(raw) {
+    try {
+      const host = new URL(safeCanvasOrigin(raw)).hostname.toLowerCase();
+      if (KNOWN_CANVAS_SCHOOL_LABELS[host]) return KNOWN_CANVAS_SCHOOL_LABELS[host];
+      const mNo = host.match(/^canvas\.([a-z0-9-]+)\.no$/);
+      if (mNo) return mNo[1].toUpperCase();
+      const m = host.match(/^([a-z0-9-]+)\.instructure\.com$/);
+      if (m) return m[1].length <= 4 ? m[1].toUpperCase() : m[1].charAt(0).toUpperCase() + m[1].slice(1);
+    } catch {}
+    return 'BI Oslo';
+  }
+
+  function getSyncedSchoolInfo() {
+    if (!isStaticWeb) return { origin: 'https://canvas.bi.no', school: 'BI Oslo', shortSchool: 'BI' };
+    const snap = loadWebState().canvasSnapshot;
+    const rawOrigin = snap?.canvasOrigin || snap?.courses?.[0]?.url || '';
+    if (!rawOrigin) return { origin: 'https://canvas.bi.no', school: '', shortSchool: '' };
+    const origin = safeCanvasOrigin(rawOrigin);
+    const school = (typeof snap?.school === 'string' && snap.school.trim())
+      ? snap.school.trim().slice(0, 32)
+      : schoolLabelForCanvasOrigin(origin);
+    const shortSchool = school === 'BI Oslo' ? 'BI' : school;
+    return { origin, school, shortSchool };
+  }
+
+  function matchRelatedPracticeCourse(syncedCourse) {
+    if (!syncedCourse || !Array.isArray(boot.catalog) || !boot.catalog.length) return null;
+    const hay = [
+      syncedCourse.code || '',
+      syncedCourse.name || '',
+      ...(Array.isArray(syncedCourse.topics) ? syncedCourse.topics.slice(0, 12) : []),
+    ].join(' ').toLowerCase();
+    const rules = [
+      {
+        courseId: 'acct-2527',
+        re: /\b(bed[- ]?\d|bøa|regnskap|bedriftsøk|finans|investering|økonomistyring|kostnad|revisjon|skatt|accounting|finance|financial|corporate finance|auditing|fie\d|exc[- ]?3430)\b/i,
+      },
+      {
+        courseId: 'econ-2522',
+        re: /\b(se[- ]?\d|søk[- ]?\d|samfunnsøk|mikroøk|makroøk|mikro|makro|næringsøk|sam[- ]?[12]\b|econ\d*|economics|microeconomics|macroeconomics|exc[- ]?3420)\b/i,
+      },
+      {
+        courseId: 'math-2588',
+        re: /\b(ma[- ]?\d|mat[- ]?\d|me[- ]?\d|sta[- ]?\d|met[- ]?\d|matematikk|matte|kalkulus|statistikk|kvantitativ|økonometri|metode|mathematics|calculus|linear algebra|statistics|econometrics|eba[- ]?1181)\b/i,
+      },
+      {
+        courseId: 'ob-2537',
+        re: /\b(org[- ]?\d|led[- ]?\d|mf[- ]?\d|sol[- ]?\d|organisasjon|ledelse|strategi|markedsføring|etikk|personal|organizational|organisation|leadership|management|strategy|marketing|exc[- ]?3460)\b/i,
+      },
+      {
+        courseId: 'prog-3021',
+        re: /\b(inf[- ]?\d|tdt[- ]?\d|in[- ]?1\d|dat[- ]?\d|is[- ]?\d|ikt[- ]?\d|programmering|python|informatikk|algoritm|database|sql|programming|data science|visualisation|visualization|eba[- ]?3400)\b/i,
+      },
+    ];
+    for (const rule of rules) {
+      if (rule.re.test(hay)) {
+        const found = boot.catalog.find((c) => c.courseId === rule.courseId);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
   function getBiSyncStatus() {
     if (!isStaticWeb) return { hasEverSynced: true, lastSyncMs: Date.now(), daysSinceSync: 0, isStale: false };
     const ws = loadWebState();
@@ -1638,13 +1746,15 @@ window.StudyApp = (() => {
 
   function biSyncHeroButtonHtml() {
     const st = getBiSyncStatus();
+    const info = getSyncedSchoolInfo();
+    const label = info.shortSchool || 'Canvas';
     if (!st.hasEverSynced) {
-      return '<button type="button" class="primary-btn bi-sync-cta-prominent" id="btn-web-bi-sync"><span class="bi-sync-pulse" aria-hidden="true"></span>Sync BI Canvas &amp; Ed</button>';
+      return '<button type="button" class="primary-btn bi-sync-cta-prominent" id="btn-web-bi-sync"><span class="bi-sync-pulse" aria-hidden="true"></span>Sync Canvas &amp; Schedule</button>';
     }
     if (st.isStale) {
-      return `<button type="button" class="ghost-btn bi-sync-cta-stale" id="btn-web-bi-sync"><span class="bi-sync-stale-dot" aria-hidden="true"></span>Sync BI · ${st.daysSinceSync}d ago</button>`;
+      return `<button type="button" class="ghost-btn bi-sync-cta-stale" id="btn-web-bi-sync"><span class="bi-sync-stale-dot" aria-hidden="true"></span>Sync ${esc(label)} · ${st.daysSinceSync}d ago</button>`;
     }
-    return '<button type="button" class="ghost-btn" id="btn-web-bi-sync">Sync BI ✓</button>';
+    return `<button type="button" class="ghost-btn" id="btn-web-bi-sync">${esc(label)} Synced ✓</button>`;
   }
 
   function maybePromptFirstLoginBiSync() {
@@ -1674,19 +1784,19 @@ window.StudyApp = (() => {
           </div>
           <button type="button" class="ghost-btn" id="bi-demo-toggle" style="padding:3px 10px;font-size:11.5px">Pause</button>
         </div>
-        <div class="bi-demo-viewport" aria-label="Animated walkthrough of pairing Study-OS Sync and syncing BI Canvas, TimeEdit, and Ed Discussion">
+        <div class="bi-demo-viewport" aria-label="Animated walkthrough of pairing Study-OS Sync and syncing Canvas LMS, TimeEdit or TP, and Ed Discussion">
           <div class="bi-demo-camera">
             <div class="bi-demo-browser">
               <div class="bi-demo-chrome">
                 <span class="bi-demo-dots"><i></i><i></i><i></i></span>
                 <div class="bi-demo-tab active">studyos.no</div>
-                <div class="bi-demo-tab">● canvas.bi.no</div>
-                <div class="bi-demo-tab">● timeedit.net</div>
+                <div class="bi-demo-tab">● your Canvas</div>
+                <div class="bi-demo-tab">● TimeEdit / TP</div>
                 <div class="bi-demo-tab">● eu.edstem.org</div>
               </div>
               <div class="bi-demo-canvas">
                 <div class="bi-demo-left">
-                  <div class="bi-demo-eyebrow">Study-OS · Sync BI</div>
+                  <div class="bi-demo-eyebrow">Study-OS · Sync</div>
                   <div class="bi-demo-h">Pair once in 10 seconds</div>
                   <div class="bi-demo-code-btn">Generate 6-char code</div>
                   <div class="bi-demo-code-pill">K7M-9P2</div>
@@ -1698,8 +1808,8 @@ window.StudyApp = (() => {
                     <span class="bi-demo-ppill">3 tabs ready</span>
                   </div>
                   <div class="bi-demo-pchips">
-                    <span>BI Canvas<i>● Ready</i></span>
-                    <span>TimeEdit<i>● Ready</i></span>
+                    <span>Canvas LMS<i>● Ready</i></span>
+                    <span>Timetable<i>● Ready</i></span>
                     <span>Ed<i>● Ready</i></span>
                   </div>
                   <div class="bi-demo-pbtn">Sync all 3 open tabs</div>
@@ -2021,6 +2131,9 @@ window.StudyApp = (() => {
     // 3B. Canvas-Archive Cookie-Session Strip & Fresh-Clone Onboarding
     renderCanvasBridgeStrip();
 
+    // 3C. Synced Personal Canvas Courses (UiA, NHH, UiO, NTNU, extra electives, etc.)
+    renderSyncedCoursesSection();
+
     // 4. Difficulty / DLPFC Picker + Duration Picker + Semester Filter + Courses Grid
     const diffWord = homeDifficultyLabels[Number(homeDifficulty)] || '';
     const diffSeg = document.getElementById('home-difficulty-seg');
@@ -2172,12 +2285,160 @@ window.StudyApp = (() => {
     });
   }
 
+  function renderSyncedCoursesSection() {
+    const section = document.getElementById('synced-courses-section');
+    const headingEl = document.getElementById('home-courses-heading-title');
+    if (!section) return;
+    if (!isStaticWeb) {
+      section.hidden = true;
+      section.innerHTML = '';
+      if (headingEl) headingEl.textContent = 'Courses';
+      return;
+    }
+    const snap = loadWebState().canvasSnapshot;
+    const rawCourses = Array.isArray(snap?.courses) ? snap.courses : [];
+    const catalogCanvasIds = new Set(
+      (boot.catalog || []).map((c) => String(c.canvasId || c.courseId?.split('-').pop() || '')).filter(Boolean)
+    );
+    const catalogCodes = new Set(
+      (boot.catalog || []).map((c) => String(c.code || '').toUpperCase().replace(/[\s-]+/g, '')).filter(Boolean)
+    );
+    const schoolInfo = getSyncedSchoolInfo();
+    const isBiOrigin = schoolInfo.origin === 'https://canvas.bi.no' || schoolInfo.origin === 'https://bi.instructure.com';
+
+    const syncedExtra = rawCourses.filter((c) => {
+      if (!c || !c.name) return false;
+      const cid = String(c.id || '');
+      const normCode = String(c.code || '').toUpperCase().replace(/[\s-]+/g, '');
+      if (isBiOrigin && cid && catalogCanvasIds.has(cid)) return false;
+      if (normCode && catalogCodes.has(normCode)) return false;
+      return true;
+    });
+
+    if (!syncedExtra.length) {
+      section.hidden = true;
+      section.innerHTML = '';
+      if (headingEl) headingEl.textContent = 'Courses';
+      return;
+    }
+
+    if (headingEl) {
+      headingEl.textContent = isBiOrigin ? 'Core Practice Courses' : 'Practice Banks & Exam Prep';
+    }
+
+    const nowMs = Date.now();
+    const fmtShortDate = (isoStr) => {
+      try {
+        return new Date(isoStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      } catch {
+        return '';
+      }
+    };
+
+    section.hidden = false;
+    section.innerHTML = `
+      <div class="synced-courses-head">
+        <div class="synced-courses-head-left">
+          <h2>Your synced courses</h2>
+          ${schoolInfo.school ? `<span class="badge live">${esc(schoolInfo.school)}</span>` : ''}
+          <span class="course-school-pill">${syncedExtra.length} Canvas course${syncedExtra.length === 1 ? '' : 's'}</span>
+        </div>
+        <div class="row-actions">
+          <button type="button" class="ghost-btn" id="btn-synced-manage">Sync / Drop PDFs</button>
+          <a class="ghost-btn" href="${esc(schoolInfo.origin)}/" target="_blank" rel="noopener">Open ${esc(schoolInfo.shortSchool || 'Canvas')} ↗</a>
+        </div>
+      </div>
+      <div class="courses-grid">
+        ${syncedExtra.map((c, idx) => {
+          const validId = /^[1-9][0-9]{0,19}$/.test(String(c.id || ''));
+          const courseOrigin = typeof c.url === 'string' && c.url.startsWith('https://')
+            ? safeCanvasOrigin(c.url)
+            : schoolInfo.origin;
+          const courseUrl = validId ? `${courseOrigin}/courses/${c.id}` : `${courseOrigin}/`;
+          const upcoming = (Array.isArray(c.assignments) ? c.assignments : [])
+            .filter((a) => a && Number.isFinite(Date.parse(a.dueAt)) && Date.parse(a.dueAt) >= nowMs)
+            .sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt));
+          const nextDue = upcoming[0] || null;
+          const topics = Array.isArray(c.topics) ? c.topics.filter(Boolean) : [];
+          const related = matchRelatedPracticeCourse(c);
+          const accent = related?.color || '#0f766e';
+          const codeLabel = c.code || (schoolInfo.shortSchool ? `${schoolInfo.shortSchool} Course` : 'Canvas Course');
+
+          return `<article class="course-card synced-course-card" style="--course-accent:${esc(accent)}">
+            <div>
+              <div class="row-between" style="margin:0 0 8px;gap:6px">
+                <span class="course-code-pill" style="--pill-color:${esc(accent)}">${esc(codeLabel)}</span>
+                <div class="row-actions" style="gap:5px">
+                  ${upcoming.length
+                    ? `<span class="badge ${Date.parse(nextDue.dueAt) - nowMs <= 7 * 86_400_000 ? 'warn' : ''}">${upcoming.length} due</span>`
+                    : `<span class="course-school-pill">${esc(schoolInfo.shortSchool || 'Canvas')}</span>`}
+                </div>
+              </div>
+              <h3 class="course-card-title" style="cursor:default">${esc(c.name)}</h3>
+              ${nextDue
+                ? `<p class="synced-course-deadlines">Next: <strong>${esc(nextDue.name)}</strong> · ${esc(fmtShortDate(nextDue.dueAt))}</p>`
+                : `<p class="synced-course-deadlines">Synced from ${esc(schoolInfo.school || 'Canvas')} · ${topics.length ? `${topics.length} module${topics.length === 1 ? '' : 's'}` : 'Ready to study with Al'}</p>`}
+              ${topics.length
+                ? `<div class="community-course-topics">${topics.slice(0, 4).map((t) => `<span class="topic-mini-chip">${esc(t)}</span>`).join('')}${topics.length > 4 ? `<span class="topic-mini-chip">+${topics.length - 4}</span>` : ''}</div>`
+                : ''}
+              ${related
+                ? `<div class="synced-match-strip">
+                     <span>Matches <b>${esc(related.shortTitle || related.title)}</b> (${related.questionCount} Qs)</span>
+                     <button type="button" class="ghost-btn" style="padding:3px 9px;font-size:11.5px;flex-shrink:0" data-synced-notes="${esc(related.courseId)}">Notes</button>
+                   </div>`
+                : ''}
+            </div>
+            <div class="course-actions">
+              ${related
+                ? `<button type="button" class="primary-btn" data-synced-practice="${esc(related.courseId)}">Practice ${esc(related.shortTitle || 'Bank')} →</button>`
+                : `<button type="button" class="primary-btn" data-synced-ai="${idx}">Study with Al</button>`}
+              ${related ? `<button type="button" class="ghost-btn" data-synced-ai="${idx}">Al</button>` : ''}
+              <a class="ghost-btn" href="${esc(courseUrl)}" target="_blank" rel="noopener">Canvas ↗</a>
+            </div>
+          </article>`;
+        }).join('')}
+      </div>
+    `;
+
+    section.querySelector('#btn-synced-manage')?.addEventListener('click', () => openBiSyncHub());
+    section.querySelectorAll('[data-synced-practice]').forEach((btn) => {
+      btn.addEventListener('click', () => navigate('course', { courseId: btn.dataset.syncedPractice }));
+    });
+    section.querySelectorAll('[data-synced-notes]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const cm = boot.catalog.find((x) => x.courseId === btn.dataset.syncedNotes);
+        if (cm) openReferenceDrawer(cm);
+      });
+    });
+    section.querySelectorAll('[data-synced-ai]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const c = syncedExtra[Number(btn.dataset.syncedAi)];
+        if (!c || !window.StudyAiTutor?.openForCourse) return;
+        const upcomingNames = (Array.isArray(c.assignments) ? c.assignments : [])
+          .filter((a) => a && Date.parse(a.dueAt) >= Date.now())
+          .slice(0, 6)
+          .map((a) => `${a.name} (due ${new Date(a.dueAt).toISOString().slice(0, 10)})`);
+        window.StudyAiTutor.openForCourse({
+          id: `canvas-${c.id}`,
+          code: c.code || schoolInfo.shortSchool || 'Canvas',
+          title: schoolInfo.school ? `${c.name} (${schoolInfo.school})` : c.name,
+          topics: [
+            ...(Array.isArray(c.topics) ? c.topics : []),
+            ...upcomingNames.map((u) => `Upcoming deadline: ${u}`),
+          ],
+        });
+      });
+    });
+  }
+
   function renderCanvasBridgeStrip() {
     const strip = document.getElementById('canvas-bridge-strip');
     if (!strip) return;
 
     if (isStaticWeb) {
       const syncSt = getBiSyncStatus();
+      const schoolInfo = getSyncedSchoolInfo();
+      const schoolTag = schoolInfo.school || 'Canvas';
       let snoozeUntil = 0;
       try { snoozeUntil = Number(localStorage.getItem('study-os-bi-banner-snooze') || 0); } catch {}
       const snoozed = Number.isFinite(snoozeUntil) && snoozeUntil > Date.now();
@@ -2187,16 +2448,16 @@ window.StudyApp = (() => {
             <div class="row-between" style="gap:14px;flex-wrap:wrap;align-items:center">
               <div style="flex:1;min-width:240px">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
-                  <span class="badge live">BI Canvas · TimeEdit · Ed</span>
-                  <span class="badge">Auto-Sync v1.4.0</span>
+                  <span class="badge live">Canvas LMS · TimeEdit / TP · Ed</span>
+                  <span class="badge">Multi-School v1.6.0</span>
                 </div>
-                <h3 style="margin:0 0 4px;font-size:16px">Connect BI Canvas, TimeEdit &amp; Ed in 30 seconds</h3>
+                <h3 style="margin:0 0 4px;font-size:16px">Connect Canvas, Timetable &amp; Ed in 30 seconds</h3>
                 <p class="muted" style="margin:0;font-size:13.5px;line-height:1.45">
-                  Pull your courses, assignment deadlines, Ed Discussion courses, and TimeEdit schedule in 1 click — and automatically stay synced whenever you open a BI tab.
+                  Works for <b>BI Oslo, UiA, NHH, UiO, NTNU, OsloMet, UiB</b> &amp; any Canvas school. Pull your courses, deadlines, and timetable in 1 click — and stay synced automatically.
                 </p>
               </div>
               <div class="row-actions" style="flex-wrap:wrap">
-                <button type="button" class="primary-btn" id="btn-banner-bi-setup">Set up BI Sync →</button>
+                <button type="button" class="primary-btn" id="btn-banner-bi-setup">Set up Canvas Sync →</button>
                 <button type="button" class="ghost-btn" id="btn-banner-bi-demo">▶ 10s Demo</button>
                 <button type="button" class="ghost-btn" id="btn-banner-bi-snooze" title="Hide for 3 days">Later</button>
               </div>
@@ -2215,13 +2476,13 @@ window.StudyApp = (() => {
             <div class="row-between" style="gap:14px;flex-wrap:wrap;align-items:center">
               <div style="flex:1;min-width:240px">
                 <span class="badge warn" style="margin-bottom:4px">Resync reminder · ${syncSt.daysSinceSync} days ago</span>
-                <h3 style="margin:0 0 4px;font-size:15.5px">Refresh your BI Canvas &amp; Ed deadlines</h3>
+                <h3 style="margin:0 0 4px;font-size:15.5px">Refresh your ${esc(schoolTag)} Canvas &amp; Ed deadlines</h3>
                 <p class="muted" style="margin:0;font-size:13.5px;line-height:1.45">
-                  It's been ${syncSt.daysSinceSync} days since your last BI sync. Open your BI Canvas or Ed tab (v1.4.0 auto-syncs silently) or click Sync BI now to pull new assignments.
+                  It's been ${syncSt.daysSinceSync} days since your last sync. Open your Canvas or Ed tab (v1.6.0 auto-syncs silently) or click Sync now to pull new assignments.
                 </p>
               </div>
               <div class="row-actions" style="flex-wrap:wrap">
-                <button type="button" class="primary-btn" id="btn-banner-bi-resync">Sync BI now</button>
+                <button type="button" class="primary-btn" id="btn-banner-bi-resync">Sync now</button>
                 <button type="button" class="ghost-btn" id="btn-banner-bi-snooze">Remind in 3 days</button>
               </div>
             </div>
@@ -4820,11 +5081,22 @@ window.StudyApp = (() => {
     const root = document.getElementById('schedule-studio-root');
     const cfg = boot.scheduleConfig || {};
     const personalCanvas = isStaticWeb ? loadWebState().canvasSnapshot : null;
+    const snapOrigin = safeCanvasOrigin(personalCanvas?.canvasOrigin || personalCanvas?.courses?.[0]?.url || '');
     const validCanvasId = id => /^[1-9][0-9]{0,19}$/.test(id || '');
-    const due = (personalCanvas?.courses || []).filter(course => validCanvasId(course.id)).flatMap(course => (course.assignments || [])
-      .filter(task => validCanvasId(task.id) && Date.parse(task.dueAt) >= Date.now())
-      .map(task => ({ ...task, course: course.name, url: `https://canvas.bi.no/courses/${course.id}/assignments/${task.id}` })))
-      .sort((a, b) => a.dueAt.localeCompare(b.dueAt)).slice(0, 15);
+    const due = (personalCanvas?.courses || []).filter(course => validCanvasId(course.id)).flatMap(course => {
+      const cOrigin = typeof course.url === 'string' && course.url.startsWith('https://')
+        ? safeCanvasOrigin(course.url)
+        : snapOrigin;
+      return (course.assignments || [])
+        .filter(task => validCanvasId(task.id) && Date.parse(task.dueAt) >= Date.now())
+        .map(task => ({
+          ...task,
+          course: course.name,
+          url: typeof task.url === 'string' && task.url.startsWith('https://')
+            ? task.url
+            : `${cOrigin}/courses/${course.id}/assignments/${task.id}`,
+        }));
+    }).sort((a, b) => a.dueAt.localeCompare(b.dueAt)).slice(0, 15);
     let suggestCourses = true;
     try { suggestCourses = localStorage.getItem('study-os-course-suggestions') !== 'off'; } catch {}
     const prefs = {
@@ -4902,16 +5174,16 @@ window.StudyApp = (() => {
         </section>` : ''}
 
       <section class="panel device-setup-card">
-        <h2>One-click browser sync (Canvas · TimeEdit · Ed)</h2>
+        <h2>One-click browser sync (Canvas · TimeEdit / TP · Ed)</h2>
         ${isStaticWeb
-          ? `<p class="muted">Install the Study-OS Chrome extension once, pair it with a 6-char device code, then click the extension while on <b>BI Canvas</b>, <b>TimeEdit</b>, or <b>Ed Discussion</b> to sync automatically across desktop and phone.</p>
+          ? `<p class="muted">Install the Study-OS Chrome extension once, pair it with a 6-char device code, then click the extension while on <b>Canvas</b> (BI, UiA, NHH, UiO, NTNU, UiB &amp; any school), <b>TimeEdit / TP</b>, or <b>Ed Discussion</b> to sync automatically across desktop and phone.</p>
              <div class="row-actions" style="flex-wrap:wrap">
                <button type="button" class="primary-btn" id="btn-pair-sync-ext">Get 6-char pairing code</button>
-               <button type="button" class="ghost-btn" id="btn-pull-ext-timeedit">${cfg.enabled && cfg.source !== 'timeedit_extension_sync' ? 'Replace plan with synced TimeEdit' : 'Import synced TimeEdit'}</button>
+               <button type="button" class="ghost-btn" id="btn-pull-ext-timeedit">${cfg.enabled && cfg.source !== 'timeedit_extension_sync' ? 'Replace plan with synced timetable' : 'Import synced timetable'}</button>
                <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Extension guide ↗</a>
              </div>`
           : '<p class="muted">After syncing your courses in Chrome, send your plan and Canvas deadlines to your online profile.</p><button type="button" class="ghost-btn" id="btn-send-desktop-setup">Send to phone ↗</button>'}
-        ${personalCanvas ? '<h3>Canvas deadlines</h3>' + (due.length ? '<ul class="mobile-deadline-list">' +
+        ${personalCanvas ? `<h3>Canvas deadlines${personalCanvas.school ? ` · ${esc(personalCanvas.school)}` : ''}</h3>` + (due.length ? '<ul class="mobile-deadline-list">' +
           due.map(task => `<li><a href="${esc(task.url)}" target="_blank" rel="noopener">${esc(task.name)}</a><small>${esc(task.course)} · ${esc(new Date(task.dueAt).toLocaleString())}</small></li>`).join('') + '</ul>'
           : '<p class="muted">No upcoming Canvas deadlines.</p>') : ''}
       </section>
@@ -4927,16 +5199,18 @@ window.StudyApp = (() => {
         </section>` : ''}
 
       <div class="schedule-studio-grid">
-        <!-- PANEL A: TIMEEDIT + WORK HOURS AUTO-SCHEDULER -->
+        <!-- PANEL A: TIMEEDIT / TP + WORK HOURS AUTO-SCHEDULER -->
         <section class="panel" style="margin:0">
-          <h2>Plan around TimeEdit</h2>
-          <p class="muted">Open your timetable in TimeEdit, choose Subscribe (Abonnér), and copy the .ics link.</p>
-          <div class="row-actions timetable-links">
-            <a class="ghost-btn" href="https://cloud.timeedit.net/bi/web/public/ri1Q7.html" target="_blank" rel="noopener">Open BI TimeEdit ↗</a>
+          <h2>Plan around TimeEdit or TP (.ics)</h2>
+          <p class="muted">Open your timetable in TimeEdit or TP (UiA, UiO, NTNU, UiB), choose Subscribe (Abonnér), and paste the iCal / .ics link — or upload any .ics file.</p>
+          <div class="row-actions timetable-links" style="flex-wrap:wrap">
+            <a class="ghost-btn" href="https://cloud.timeedit.net/bi/web/public/ri1Q7.html" target="_blank" rel="noopener">BI TimeEdit ↗</a>
+            <a class="ghost-btn" href="https://tp.educloud.no/uia/" target="_blank" rel="noopener">UiA TP Timetable ↗</a>
+            <a class="ghost-btn" href="https://cloud.timeedit.net/" target="_blank" rel="noopener">Other TimeEdit ↗</a>
           </div>
 
-          <label class="field-label">TimeEdit subscription link
-            <input type="url" id="sch-te-url" value="${esc(prefs.timeeditUrl || '')}" placeholder="https://cloud.timeedit.net/… .ics" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <label class="field-label">TimeEdit or TP iCal / .ics subscription link
+            <input type="url" id="sch-te-url" value="${esc(prefs.timeeditUrl || '')}" placeholder="https://cloud.timeedit.net/… or https://tp.educloud.no/…" autocomplete="off" autocapitalize="off" spellcheck="false">
           </label>
 
           <label class="field-label" style="margin-top:8px">Or upload an .ics file
@@ -5233,6 +5507,7 @@ window.StudyApp = (() => {
           const plan = window.StudySchedule.plan(fixed, formPrefs, boot.catalog, boot.analytics?.courseProgress || {}, computeClientStudyEstimate);
           if (!plan.blocks.length) throw new Error('No time fits these settings. Widen your awake hours or choose fewer rest days.');
           ws.customSchedule = {
+            ...ws.customSchedule,
             enabled: true, source: 'timeedit_auto_scheduler', prefs: formPrefs, blocks: plan.blocks,
             estimate: plan.estimate, updatedAt: new Date().toISOString(),
           };
@@ -5407,27 +5682,36 @@ window.StudyApp = (() => {
       const root = document.getElementById('community-course-directory');
       const grid = root.querySelector('.courses-grid');
       const currentIds = new Set(boot.catalog.map(course => String(course.canvasId || course.courseId?.split('-').pop() || '')));
-      const currentCodes = new Set(boot.catalog.map(course => (course.code || '').toUpperCase().replace(/\s/g, '')));
+      const currentCodes = new Set(boot.catalog.map(course => (course.code || '').toUpperCase().replace(/[\s-]+/g, '')));
       const shown = items.filter(course => {
         const hasCanvas = /^[1-9][0-9]{0,19}$/.test(course.canvasId || '');
         const hasEd = /^[1-9][0-9]{0,19}$/.test(course.edCourseId || '');
         if (!hasCanvas && !hasEd) return false;
-        if (hasCanvas && currentIds.has(course.canvasId)) return false;
-        if (course.code && currentCodes.has(course.code.toUpperCase().replace(/\s/g, ''))) return false;
+        const origin = safeCanvasOrigin(course.canvasOrigin || '');
+        const isBi = origin === 'https://canvas.bi.no' || origin === 'https://bi.instructure.com';
+        if (hasCanvas && isBi && currentIds.has(course.canvasId)) return false;
+        if (course.code && currentCodes.has(course.code.toUpperCase().replace(/[\s-]+/g, ''))) return false;
         return true;
       });
       grid.innerHTML = shown.map((course, idx) => {
         const topics = Array.isArray(course.topics) ? course.topics : [];
         const contrib = Number(course.contributorCount || 1);
+        const origin = safeCanvasOrigin(course.canvasOrigin || '');
+        const schoolName = (typeof course.school === 'string' && course.school.trim())
+          ? course.school.trim()
+          : schoolLabelForCanvasOrigin(origin);
         const topicsHtml = topics.length
           ? `<div class="community-course-topics">${topics.slice(0, 5).map(t => `<span class="topic-mini-chip">${esc(t)}</span>`).join('')}${topics.length > 5 ? `<span class="topic-mini-chip">+${topics.length - 5}</span>` : ''}</div>`
           : '';
         const edHost = /^(?:[a-z]{2}\.)?edstem\.org$/.test(course.edHost || '') ? course.edHost : 'eu.edstem.org';
         return `<article class="course-card">
           <div>
-            <div class="row-between" style="margin:0 0 8px">
-              <span class="course-code-pill">${esc(course.code || 'BI Course')}</span>
-              <span class="badge ${course.verified ? 'good' : ''}">${course.verified ? 'Verified' : 'Community'}</span>
+            <div class="row-between" style="margin:0 0 8px;gap:6px">
+              <span class="course-code-pill">${esc(course.code || `${schoolName} Course`)}</span>
+              <div class="row-actions" style="gap:5px">
+                ${schoolName ? `<span class="course-school-pill">${esc(schoolName)}</span>` : ''}
+                <span class="badge ${course.verified ? 'good' : ''}">${course.verified ? 'Verified' : 'Community'}</span>
+              </div>
             </div>
             <h3 class="course-card-title" style="cursor:default">${esc(course.title)}</h3>
             <p class="muted course-contrib-meta">${contrib} student${contrib === 1 ? '' : 's'} synced${topics.length ? ` · ${topics.length} module${topics.length === 1 ? '' : 's'}` : ''}</p>
@@ -5435,7 +5719,7 @@ window.StudyApp = (() => {
           </div>
           <div class="course-actions">
             <button type="button" class="primary-btn" data-comm-ai="${idx}">Al</button>
-            ${/^[1-9][0-9]{0,19}$/.test(course.canvasId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="https://canvas.bi.no/courses/${course.canvasId}">Canvas ↗</a>` : ''}
+            ${/^[1-9][0-9]{0,19}$/.test(course.canvasId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="${esc(origin)}/courses/${course.canvasId}">Canvas ↗</a>` : ''}
             ${/^[1-9][0-9]{0,19}$/.test(course.edCourseId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="https://${edHost}/courses/${course.edCourseId}">Ed ↗</a>` : ''}
           </div>
         </article>`;
@@ -6228,12 +6512,17 @@ window.StudyApp = (() => {
       const courseChoices = getCourseChoices();
       const usedLabel = `${(materialsState.usedBytes / (1024 * 1024)).toFixed(1)} / ${Math.round(materialsState.maxBytes / (1024 * 1024))} MB`;
 
+      const schoolInfo = getSyncedSchoolInfo();
+      const customSchoolLink = schoolInfo.origin && schoolInfo.origin !== 'https://canvas.bi.no' && schoolInfo.origin !== 'https://uia.instructure.com'
+        ? `<a class="ghost-btn" href="${esc(schoolInfo.origin)}/" target="_blank" rel="noopener">${esc(schoolInfo.school || 'My')} Canvas ↗</a>`
+        : '';
+
       dlg.innerHTML = `
         <div class="playbook-head">
           <div>
-            <span class="eyebrow">${opts.firstLogin ? 'Welcome to Study-OS · Quick 30s Setup' : '1-Click &amp; Auto Multi-Tab Browser Sync'}</span>
-            <h2 id="bi-sync-title" style="margin:2px 0 4px">${opts.firstLogin ? 'Connect BI Canvas, TimeEdit &amp; Ed' : 'Sync BI Canvas · TimeEdit · Ed'}</h2>
-            <p class="muted" style="margin:0;font-size:13px">Uses your already signed-in browser tabs — no passwords or cookies copied. Auto-syncs quietly when you open Canvas or Ed.</p>
+            <span class="eyebrow">${opts.firstLogin ? 'Welcome to Study-OS · Quick 30s Setup' : 'Multi-School 1-Click &amp; Auto Browser Sync'}</span>
+            <h2 id="bi-sync-title" style="margin:2px 0 4px">${opts.firstLogin ? 'Connect Canvas, Timetable &amp; Ed' : 'Sync Canvas · TimeEdit / TP · Ed'}</h2>
+            <p class="muted" style="margin:0;font-size:13px">Works for BI Oslo, UiA, NHH, UiO, NTNU, OsloMet, UiB &amp; any Instructure Canvas school — uses your already signed-in browser tabs, zero passwords copied.</p>
           </div>
           <button type="button" class="ios-done-btn" id="bi-sync-done">Done</button>
         </div>
@@ -6242,16 +6531,16 @@ window.StudyApp = (() => {
           <article class="playbook-card">
             <div class="row-between" style="margin:0 0 6px;gap:8px">
               <h3 style="margin:0;font-size:15px">1. Install Study-OS Sync extension</h3>
-              <span class="badge live">v1.4.0 · Auto-Sync</span>
+              <span class="badge live">v1.6.0 · Multi-School</span>
             </div>
             <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
-              Works in Chrome, Brave, Edge, and Vivaldi. Pulls <b>BI Canvas</b> courses &amp; deadlines, <b>TimeEdit</b> lectures, and <b>Ed Discussion</b> courses in 1 click — and optionally auto-refreshes whenever you open a signed-in BI tab (every 12h for Canvas/Ed, every 3d for TimeEdit).
+              Works in Chrome, Brave, Edge, and Vivaldi. Pulls <b>Canvas LMS</b> courses &amp; deadlines (BI, UiA, NHH, UiO, NTNU, UiB &amp; any <code>*.instructure.com</code>), <b>TimeEdit / TP</b> timetables, and <b>Ed Discussion</b> in 1 click — and auto-refreshes quietly when you open a signed-in tab.
             </p>
             <div class="row-actions">
               <a class="primary-btn" href="./downloads/study-os-sync-extension.zip" download="study-os-sync-extension.zip">Download Extension (.zip)</a>
               <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Install steps ↗</a>
             </div>
-            <small class="muted" style="display:block;margin-top:8px">Unzip → open <code>chrome://extensions</code> → turn on <b>Developer mode</b> → <b>Load unpacked</b> (Chrome Web Store listing coming soon).</small>
+            <small class="muted" style="display:block;margin-top:8px">Unzip → open <code>chrome://extensions</code> → turn on <b>Developer mode</b> → <b>Load unpacked</b> (Chrome Web Store approval in review — seamless 1-click install soon!).</small>
           </article>
 
           <article class="playbook-card">
@@ -6262,7 +6551,7 @@ window.StudyApp = (() => {
             <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
               ${signedIn
                 ? 'Generate a 5-minute pairing code and paste it into the Study-OS Sync extension once.'
-                : 'Sign in with Google or a Passkey first so your synced courses, TimeEdit schedule, and personal PDFs carry across desktop and phone.'}
+                : 'Sign in with Google or a Passkey first so your synced courses, timetable, and personal PDFs carry across desktop and phone.'}
             </p>
             ${formattedCode ? `
               <div class="row-between" style="padding:10px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--accent);margin-bottom:8px;gap:10px">
@@ -6279,16 +6568,19 @@ window.StudyApp = (() => {
 
           <article class="playbook-card">
             <div class="row-between" style="margin:0 0 6px;gap:8px">
-              <h3 style="margin:0;font-size:15px">3. Keep signed-in tabs open &amp; click Sync</h3>
-              <span class="badge ${syncedCourses || hasTe ? 'live' : ''}">${syncedCourses ? `${syncedCourses} courses · ${syncedDeadlines} deadlines` : hasTe ? 'TimeEdit active' : 'Ready'}</span>
+              <h3 style="margin:0;font-size:15px">3. Keep your signed-in school tab open &amp; click Sync</h3>
+              <span class="badge ${syncedCourses || hasTe ? 'live' : ''}">${syncedCourses ? `${schoolInfo.shortSchool ? `${esc(schoolInfo.shortSchool)} · ` : ''}${syncedCourses} courses · ${syncedDeadlines} deadlines` : hasTe ? 'Timetable active' : 'Ready'}</span>
             </div>
             <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
-              Open whichever tabs you want to sync, stay signed in, and click the <b>Study-OS Sync</b> icon once — TimeEdit only needs to be synced once per semester.
+              Open your school's Canvas (plus TimeEdit/TP or Ed if you use them), stay signed in, and click the <b>Study-OS Sync</b> icon once. Other universities (NTNU, UiO, NHH, UiB, OsloMet, etc.) are auto-detected as soon as your Canvas tab is open.
             </p>
-            <div class="row-actions">
+            <div class="row-actions" style="flex-wrap:wrap">
+              ${customSchoolLink}
               <a class="ghost-btn" href="https://canvas.bi.no/" target="_blank" rel="noopener">BI Canvas ↗</a>
+              <a class="ghost-btn" href="https://uia.instructure.com/" target="_blank" rel="noopener">UiA Canvas ↗</a>
               <a class="ghost-btn" href="https://cloud.timeedit.net/bi/web/public/" target="_blank" rel="noopener">BI TimeEdit ↗</a>
-              <a class="ghost-btn" href="https://eu.edstem.org/" target="_blank" rel="noopener">Ed Discussion ↗</a>
+              <a class="ghost-btn" href="https://tp.educloud.no/uia/" target="_blank" rel="noopener">UiA TP ↗</a>
+              <a class="ghost-btn" href="https://eu.edstem.org/" target="_blank" rel="noopener">Ed ↗</a>
               ${signedIn ? '<button type="button" class="ghost-btn" id="bi-refresh-sync">Refresh synced data</button>' : ''}
             </div>
           </article>
@@ -6299,11 +6591,11 @@ window.StudyApp = (() => {
               <span class="badge good">${window.StudyLocalSources?.list?.().length ? `${window.StudyLocalSources.list().length} local PDF${window.StudyLocalSources.list().length === 1 ? '' : 's'}` : 'Up to 260 MB/file local'}${signedIn ? ` · Cloud ${esc(usedLabel)}` : ''}</span>
             </div>
             <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
-              Drop multiple BI Canvas PDFs, slides, past exams, or full textbooks (like <b>Atrill &amp; McLaney 12th ed.</b>) at once — even <b>over 40 MB</b>. Study-OS automatically matches your files privately in this browser to unlock inline page-by-page jumps inside exercises.
+              Drop multiple Canvas PDFs, slides, past exams, or full textbooks (like <b>Atrill &amp; McLaney 12th ed.</b>) at once — even <b>over 40 MB</b>. Study-OS automatically matches your files privately in this browser to unlock inline page-by-page jumps inside exercises.
             </p>
             <div style="margin-bottom:8px">
               <select id="bi-mat-course" aria-label="Course tag for uploaded files" style="width:100%;font-size:13px;padding:7px 10px">
-                <option value="">Auto-detect BI course (recommended)</option>
+                <option value="">Auto-detect course (recommended)</option>
                 ${courseChoices.map((c) => `<option value="${esc(c.code)}" data-title="${esc(c.title)}" data-course-id="${esc(c.courseId || '')}" ${selectedMatCourse === c.code ? 'selected' : ''}>${esc(c.code)} · ${esc(c.title)}</option>`).join('')}
               </select>
             </div>
@@ -6570,16 +6862,17 @@ window.StudyApp = (() => {
 
   const pendingExtFetches = new Map();
 
-  function fetchCanvasPdfViaExtension(courseId, fileId) {
+  function fetchCanvasPdfViaExtension(courseId, fileId, canvasOrigin = '') {
     return new Promise((resolve, reject) => {
       if (!document.documentElement.dataset.studyOsSyncExt) {
-        reject(new Error('Install or reload Study-OS Sync v1.5.0 in Chrome to load BI Canvas PDFs inline.'));
+        reject(new Error('Install or reload Study-OS Sync v1.6.0 in Chrome to load Canvas PDFs inline.'));
         return;
       }
+      const origin = canvasOrigin ? safeCanvasOrigin(canvasOrigin) : getSyncedSchoolInfo().origin;
       const requestId = `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const timer = setTimeout(() => {
         pendingExtFetches.delete(requestId);
-        reject(new Error('Timed out loading PDF from BI Canvas. Make sure you are signed in on canvas.bi.no in Chrome.'));
+        reject(new Error(`Timed out loading PDF from Canvas (${new URL(origin).hostname}). Make sure you are signed in to Canvas in Chrome.`));
       }, 28_000);
       pendingExtFetches.set(requestId, { resolve, reject, timer });
       window.postMessage({
@@ -6587,6 +6880,7 @@ window.StudyApp = (() => {
         requestId,
         courseId: String(courseId || ''),
         fileId: String(fileId || ''),
+        canvasOrigin: origin,
       }, window.location.origin);
     });
   }
@@ -6608,7 +6902,7 @@ window.StudyApp = (() => {
       clearTimeout(pending.timer);
       pendingExtFetches.delete(msg.requestId);
       if (!msg.ok || !msg.dataBase64) {
-        pending.reject(new Error(msg.error || 'Could not load PDF from BI Canvas.'));
+        pending.reject(new Error(msg.error || 'Could not load PDF from Canvas.'));
         return;
       }
       try {
@@ -6618,7 +6912,7 @@ window.StudyApp = (() => {
         const file = new File([bytes], msg.filename || 'canvas-source.pdf', { type: 'application/pdf' });
         pending.resolve(file);
       } catch {
-        pending.reject(new Error('Could not decode PDF received from BI Canvas.'));
+        pending.reject(new Error('Could not decode PDF received from Canvas.'));
       }
       return;
     }
@@ -6626,15 +6920,18 @@ window.StudyApp = (() => {
     if (msg.type === 'STUDY_OS_SYNC_COMPLETE') {
       markBiSyncedNow();
       if (isDevSandbox()) {
-        toast('BI sync completed in cloud (turn off Dev Sandbox to pull live updates into this tab).');
+        toast('Sync completed in cloud (turn off Dev Sandbox to pull live updates into this tab).');
         return;
       }
       if (isStaticWeb && window.StudyCommunity?.isSignedIn?.()) {
         syncCloudProgress({ interactive: false }).then(() => {
-          if (currentView === 'home') renderHome();
-          else if (currentView === 'schedule') renderScheduleStudio();
+          if (currentView === 'home') {
+            renderHome();
+            renderCourseDirectory();
+          } else if (currentView === 'schedule') renderScheduleStudio();
           else if (currentView === 'exams') renderExamsHub();
-          toast('BI Canvas & Schedule updated from Study-OS Sync!');
+          const sInfo = getSyncedSchoolInfo();
+          toast(`${sInfo.shortSchool ? `${sInfo.shortSchool} ` : ''}Canvas & Schedule updated from Study-OS Sync!`);
         }).catch(() => {});
       }
     }

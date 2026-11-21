@@ -198,15 +198,15 @@
 
   <div class="tabs-grid" id="tabs-grid">
     <a class="tab-chip" id="chip-canvas" href="https://canvas.bi.no/" target="_blank" rel="noopener">
-      <span>BI Canvas</span>
+      <span class="tab-chip-title">Canvas LMS</span>
       <span class="tab-chip-sub">Open tab ↗</span>
     </a>
-    <a class="tab-chip" id="chip-timeedit" href="https://cloud.timeedit.net/bi/web/public/" target="_blank" rel="noopener">
-      <span>TimeEdit</span>
+    <a class="tab-chip" id="chip-timeedit" href="https://cloud.timeedit.net/" target="_blank" rel="noopener">
+      <span class="tab-chip-title">Timetable</span>
       <span class="tab-chip-sub">Open tab ↗</span>
     </a>
     <a class="tab-chip" id="chip-ed" href="https://eu.edstem.org/" target="_blank" rel="noopener">
-      <span>Ed</span>
+      <span class="tab-chip-title">Ed</span>
       <span class="tab-chip-sub">Open tab ↗</span>
     </a>
   </div>
@@ -219,15 +219,15 @@
       <label class="field">6-character pairing code (from studyos.no)
         <input id="code" type="text" required minlength="6" maxlength="64" placeholder="K7M-9P2" autocomplete="off" spellcheck="false">
       </label>
-      <p class="muted" style="margin-top:5px">On <b>studyos.no</b>, click <b>Sync BI</b> and generate a 6-character code.</p>
+      <p class="muted" style="margin-top:5px">On <b>studyos.no</b>, click <b>Sync Canvas</b> and generate a 6-character code.</p>
       <button type="submit" class="btn btn-primary">Connect to Study-OS</button>
     </form>
 
     <label class="check-row" id="autosync-wrap" hidden>
       <input type="checkbox" id="auto-sync" checked>
       <span>
-        <b>Auto-sync when BI tabs open</b><br>
-        <span class="muted">Quietly refreshes Canvas &amp; Ed every 12h (TimeEdit every 3d) whenever you open a signed-in tab.</span>
+        <b>Auto-sync when school tabs open</b><br>
+        <span class="muted">Quietly refreshes Canvas &amp; Ed every 12h (Timetable every 3d) whenever you open a signed-in tab.</span>
       </span>
     </label>
 

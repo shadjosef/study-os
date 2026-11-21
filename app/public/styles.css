@@ -6988,3 +6988,71 @@ body.in-runner .ref-drawer {
   margin-top: 6px;
   font-size: 12.5px;
 }
+
+/* Multi-school synced Canvas courses on Home */
+.synced-courses-section {
+  margin-bottom: 22px;
+}
+.synced-courses-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.synced-courses-head-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.synced-courses-head h2 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+.synced-course-card {
+  position: relative;
+}
+.synced-course-deadlines {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+.synced-course-deadlines strong {
+  color: var(--ink);
+}
+.synced-match-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--course-accent, var(--accent)) 8%, var(--panel-alt));
+  border: 1px solid color-mix(in srgb, var(--course-accent, var(--accent)) 26%, var(--line));
+  font-size: 12px;
+}
+.synced-match-strip span {
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.synced-match-strip b {
+  color: var(--ink);
+}
+.course-school-pill {
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+

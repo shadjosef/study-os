@@ -1,5 +1,5 @@
 // Cross-Device Cloud Progress Sync stored in Cloudflare D1 (EU)
-import { courseMetadata } from './courses.mjs';
+import { courseMetadata, cleanCanvasOrigin, schoolForOrigin } from './courses.mjs';
 
 const MAX_PAYLOAD_BYTES = 500_000;
 const MAX_RECORDS = 5000;
@@ -12,23 +12,69 @@ function isObj(v) {
 
 function canvasForSync(raw) {
   if (!isObj(raw) || !Number.isFinite(Date.parse(raw.syncedAt)) || !Array.isArray(raw.courses)) return null;
+  const snapshotOrigin = cleanCanvasOrigin(raw.canvasOrigin || raw.courses[0]?.url || '');
+  const school = schoolForOrigin(snapshotOrigin);
   let left = 1200;
   const courses = [];
   for (const item of raw.courses.slice(0, 100)) {
     const course = courseMetadata(item);
     if (!course) continue;
-    const url = 'https://canvas.bi.no/courses/' + course.id;
+    const itemOrigin = typeof item.url === 'string' && item.url.startsWith('https://')
+      ? cleanCanvasOrigin(item.url)
+      : snapshotOrigin;
+    const url = `${itemOrigin}/courses/${course.id}`;
     const assignments = (Array.isArray(item.assignments) ? item.assignments : []).filter(task =>
       isObj(task) && /^[1-9][0-9]{0,19}$/.test(task.id || '') && typeof task.name === 'string' &&
       Number.isFinite(Date.parse(task.dueAt))
     ).slice(0, left).map(task => ({
       id: String(task.id), name: task.name.slice(0, 200), dueAt: new Date(task.dueAt).toISOString(),
-      url: url + '/assignments/' + task.id,
+      url: `${url}/assignments/${task.id}`,
     }));
     left -= assignments.length;
-    courses.push({ ...course, url, assignments });
+    courses.push({
+      ...course,
+      topics: course.topics.slice(0, 20).map((t) => t.slice(0, 80)),
+      url,
+      assignments,
+    });
   }
-  return { syncedAt: new Date(raw.syncedAt).toISOString(), courses };
+  return { syncedAt: new Date(raw.syncedAt).toISOString(), canvasOrigin: snapshotOrigin, school, courses };
+}
+
+function cleanCompletedEvents(raw) {
+  if (!isObj(raw)) return {};
+  const out = {};
+  let count = 0;
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof k !== 'string' || !k || k.length > 160) continue;
+    if (typeof v === 'string' && Number.isFinite(Date.parse(v))) {
+      out[k] = { at: new Date(v).toISOString(), early: false, method: 'manual' };
+    } else if (isObj(v) && typeof v.at === 'string' && Number.isFinite(Date.parse(v.at))) {
+      out[k] = {
+        at: new Date(v.at).toISOString(),
+        early: Boolean(v.early),
+        method: typeof v.method === 'string' ? v.method.slice(0, 24) : 'manual',
+      };
+    } else {
+      continue;
+    }
+    if (++count >= 300) break;
+  }
+  return out;
+}
+
+function cleanDismissedEvents(raw) {
+  if (!isObj(raw)) return {};
+  const out = {};
+  let count = 0;
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof k !== 'string' || !k || k.length > 160) continue;
+    if (typeof v === 'string' && Number.isFinite(Date.parse(v))) {
+      out[k] = new Date(v).toISOString();
+      if (++count >= 300) break;
+    }
+  }
+  return out;
 }
 
 export async function handleSync({ request, db, me, now, data, reply }) {
@@ -75,8 +121,10 @@ export async function handleSync({ request, db, me, now, data, reply }) {
           updatedAt: typeof data.customSchedule.updatedAt === 'string' ? data.customSchedule.updatedAt.slice(0, 64) : '',
           prefs: Object.fromEntries(Object.entries(data.customSchedule.prefs).filter(([key]) => key !== 'timeeditUrl')),
           blocks: data.customSchedule.blocks.filter(isObj).slice(0, 200),
+          completedEvents: cleanCompletedEvents(data.customSchedule.completedEvents),
+          dismissedEvents: cleanDismissedEvents(data.customSchedule.dismissedEvents),
         }
-      : { enabled: false, prefs: {}, blocks: [] };
+      : { enabled: false, prefs: {}, blocks: [], completedEvents: {}, dismissedEvents: {} };
 
     const cleanPayload = {
       format: 'study-os-backup-v1',

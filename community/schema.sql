@@ -217,6 +217,8 @@ CREATE TABLE IF NOT EXISTS community_courses (
   code TEXT NOT NULL,
   title TEXT NOT NULL,
   canvas_id TEXT NOT NULL DEFAULT '',
+  canvas_origin TEXT NOT NULL DEFAULT 'https://canvas.bi.no',
+  school TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
   last_seen_at INTEGER NOT NULL,
   topics_json TEXT NOT NULL DEFAULT '[]',

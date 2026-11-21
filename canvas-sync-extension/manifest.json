@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Study-OS Sync",
-  "version": "1.5.1",
-  "description": "One-click & optional auto-sync for BI Canvas courses, inline PDFs, TimeEdit schedules, and Ed Discussion directly to Study-OS.",
+  "version": "1.6.0",
+  "description": "One-click & auto-sync for Canvas LMS (BI, UiA, NHH, UiO, NTNU & any Instructure school), TimeEdit/TP timetables, and Ed Discussion.",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
@@ -12,10 +12,24 @@
   "host_permissions": [
     "https://canvas.bi.no/*",
     "https://*.instructure.com/*",
+    "https://canvas.uia.no/*",
+    "https://mitt.uib.no/*",
+    "https://canvas.uio.no/*",
+    "https://canvas.ntnu.no/*",
+    "https://canvas.oslomet.no/*",
+    "https://canvas.nhh.no/*",
+    "https://canvas.uis.no/*",
+    "https://canvas.uit.no/*",
+    "https://canvas.usn.no/*",
+    "https://canvas.nmbu.no/*",
+    "https://canvas.hvl.no/*",
+    "https://canvas.kristiania.no/*",
     "https://instructure-uploads-eu.s3.eu-west-1.amazonaws.com/*",
     "https://instructure-uploads-eu.s3.amazonaws.com/*",
     "https://instructure-uploads.s3.amazonaws.com/*",
     "https://cloud.timeedit.net/*",
+    "https://tp.educloud.no/*",
+    "https://tp.uio.no/*",
     "https://edstem.org/*",
     "https://eu.edstem.org/*",
     "https://us.edstem.org/*",
@@ -26,7 +40,7 @@
     "http://127.0.0.1/*"
   ],
   "action": {
-    "default_title": "Sync BI Canvas, TimeEdit & Ed to Study-OS",
+    "default_title": "Sync Canvas, TimeEdit/TP & Ed to Study-OS",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
