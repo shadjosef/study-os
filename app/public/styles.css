@@ -6422,6 +6422,10 @@ html[data-theme="dark"] .is-debt-row td {
 .pdf-figure-inline-local {
   margin: 12px 0 14px;
 }
+.pdf-figure-inline-local figcaption .pdf-zoom-tools {
+  padding: 0;
+  flex-wrap: nowrap;
+}
 .pdf-figure-inline-local:not([data-excerpt-ready]) :is(.pdf-zoom-tools, .pdf-zoom-scroll) {
   display: none;
 }

@@ -1092,6 +1092,12 @@ window.StudyApp = (() => {
     return bank;
   }
 
+  async function refreshArchiveViews() {
+    for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
+    await refreshBootstrap();
+    if (!document.getElementById('view-runner').hidden) window.StudyRunner.refreshCurrent();
+  }
+
   function refSlug(relFile) {
     return String(relFile || '')
       .replace(/\.md$/i, '')
@@ -1306,10 +1312,7 @@ window.StudyApp = (() => {
     const prof = window.StudyCommunity?.getCurrentProfile?.() || null;
     if (signedIn && prof?.isAdmin && prof?.memberKey && members.enabled && !members.isUnlocked() && !adminAutoUnlockAttempted) {
       adminAutoUnlockAttempted = true;
-      members.unlock(prof.memberKey, true).then(() => {
-        for (const id of Object.keys(bankCache)) delete bankCache[id];
-        return refreshBootstrap(false);
-      }).catch(() => {});
+      members.unlock(prof.memberKey, true).then(refreshArchiveViews).catch(() => {});
     }
     const hdrSignIn = document.getElementById('hdr-signin-btn');
     if (hdrSignIn) hdrSignIn.hidden = !isStaticWeb || !communityOn || signedIn;
@@ -2807,15 +2810,13 @@ window.StudyApp = (() => {
           return;
         }
         try { sessionStorage.removeItem('study-os-member-dismissed'); } catch {}
-        for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
-        await refreshBootstrap();
+        await refreshArchiveViews();
         toast('Private PDF archive locked.');
         show();
       } else {
         await members.restore();
         if (members.isUnlocked()) {
-          for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
-          await refreshBootstrap();
+          await refreshArchiveViews();
           toast('Private PDF archive restored.');
         } else {
           show();
@@ -2839,8 +2840,7 @@ window.StudyApp = (() => {
         key.value = '';
         key.type = 'password';
         if (toggleBtn) toggleBtn.textContent = 'Show';
-        for (const courseId of Object.keys(bankCache)) delete bankCache[courseId];
-        await refreshBootstrap();
+        await refreshArchiveViews();
         const totalQ = (boot.catalog || []).reduce((s, c) => s + Number(c.questionCount || 0), 0);
         setFeedback(`Archive unlocked (${totalQ} questions + original PDFs).`, 'success');
         dialog.close();

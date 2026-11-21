@@ -598,7 +598,7 @@ window.StudyRunner = (() => {
       }
       if (!seen.has(entry.key)) {
         seen.add(entry.key);
-        out.push({ ...entry, sourceId: a.sourceId, questionId: q.id, questionTitle: q.title });
+        out.push({ ...entry, sourceId: a.sourceId, questionId: q.id, questionTitle: q.title, isSolution: isSol });
       }
     };
 
@@ -627,32 +627,30 @@ window.StudyRunner = (() => {
         out.push(fallback);
       }
     }
-    // Check user's private browser-local BYOC PDFs (books & downloaded Canvas PDFs)
-    if (window.StudyLocalSources && Array.isArray(q.sourceRefs)) {
+    if (Array.isArray(q.sourceRefs)) {
       for (const ref of q.sourceRefs) {
         if (!ref) continue;
-        if (isBlindUnfinished && ref.isSolution) continue;
-        if (!includeSolutionPdfs && ref.role === 'solution') continue;
-        const localRec = window.StudyLocalSources.match(q.courseId, ref);
-        if (!localRec) continue;
+        const isSolution = Boolean(ref.isSolution || ref.role === 'solution');
+        if ((isBlindUnfinished || !includeSolutionPdfs) && isSolution) continue;
         const page = Math.max(1, Number(ref.page) || 1);
-        const key = `local:${localRec.key}#p${page}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+        const local = window.StudyLocalSources?.match(q.courseId, ref);
+        const title = ref.title || local?.title;
+        const entry = local ? {
+          key: `local:${local.key}#p${page}`, localSourceKey: local.key, localFile: local,
+          title, page, isPdf: true, pathStr: local.filename,
+          label: ref.caption || `${title || local.filename} · p. ${page}`,
+        } : !isBlindUnfinished
+          ? resolveSourceEntry(window.StudyMembers?.sourceDocument?.(q.courseId, ref), page, ref.caption)
+          : null;
+        if (!entry || seen.has(entry.key)) continue;
+        seen.add(entry.key);
         out.push({
-          key,
-          localSourceKey: localRec.key,
-          localFile: localRec,
+          ...entry,
           sourceId: ref.sourceId,
           questionId: q.id,
           questionTitle: q.title,
-          title: ref.title || localRec.title,
-          label: ref.caption || `${ref.title || localRec.filename} · p. ${page}`,
-          page,
           role: ref.role || 'prompt',
-          isSolution: Boolean(ref.isSolution || ref.role === 'solution'),
-          isPdf: true,
-          pathStr: localRec.filename,
+          isSolution,
         });
       }
     }
@@ -673,10 +671,10 @@ window.StudyRunner = (() => {
           <figcaption>
             <span>${esc(entry.label)}</span>
             <span class="row-actions" style="gap:6px">
+              ${window.StudyPdf.toolbar(true)}
               <button type="button" class="mini-tool-btn" data-open-inline-pdf="${esc(entry.key)}" title="Open full multi-page PDF reader">Full PDF (p.${esc(entry.page || 1)})</button>
             </span>
           </figcaption>
-          ${window.StudyPdf.toolbar()}
           <p class="muted pdf-status" data-pdf-status role="status" style="margin:6px 10px">Loading question excerpt…</p>
           <div class="pdf-zoom-scroll pdf-figure-scroll" tabindex="0" aria-label="Scrollable question excerpt">
             <div class="pdf-zoom-page"><canvas aria-hidden="true"></canvas><div class="textLayer"></div></div>
@@ -725,8 +723,6 @@ window.StudyRunner = (() => {
     const refs = Array.isArray(q?.sourceRefs) ? q.sourceRefs : [];
     if (!refs.length) return [];
     const unlockedIds = new Set(unlockedPdfs.map((p) => `${p.sourceId || ''}:${p.page || 1}`));
-    const hasMemberOrDesktop = unlockedPdfs.some((p) => !p.localSourceKey);
-    if (hasMemberOrDesktop) return [];
     const out = [];
     const seen = new Set();
     for (const ref of refs) {
@@ -757,13 +753,16 @@ window.StudyRunner = (() => {
         return `<div class="source-gate-card source-gate-compact source-gate-book" data-local-dropzone data-course-id="${esc(q.courseId)}" data-source-id="${esc(b.sourceId)}" data-source-kind="book" data-source-title="${esc(b.title)}" data-source-page="${esc(b.page || 1)}">
           <div class="source-gate-copy">
             <strong>Textbook context · ${esc(b.title)} (${esc(pages)})</strong>
-            <small class="muted">Drop your own PDF copy of the book here to read ${esc(pages)} inline — stays 100% private in your browser.</small>
+            <small class="muted">Attach your copy once to read these pages in this browser.</small>
           </div>
           <div class="row-actions">
             <label class="primary-btn source-gate-upload-btn" style="padding:6px 12px;font-size:12.5px">
               Drop / Choose PDF Book
               <input type="file" accept=".pdf,application/pdf" hidden data-local-pdf-input data-course-id="${esc(q.courseId)}" data-source-id="${esc(b.sourceId)}" data-source-kind="book" data-source-title="${esc(b.title)}" data-source-page="${esc(b.page || 1)}">
             </label>
+            ${window.StudyMembers?.enabled && !window.StudyMembers.isUnlocked()
+              ? '<button type="button" class="ghost-btn source-gate-upload-btn" data-open-member-unlock>Use archive key</button>'
+              : ''}
           </div>
         </div>`;
       }
@@ -1270,7 +1269,12 @@ window.StudyRunner = (() => {
       (q.contextMarkdown ? `<div class="markdown-body">${renderMarkdownWithMath(q.contextMarkdown)}</div>` : '') +
       renderAssets(q.contextAssets, q.courseId, sourcesMap, isBlindUnfinished);
 
-    const promptAssetsHtml = renderAssets(q.promptAssets, q.courseId, sourcesMap, isBlindUnfinished);
+    const croppedArchivePdfs = sourcePdfs.filter(source => source.memberAsset && !source.isSolution &&
+      window.StudyPdf.hasSavedExcerpt(source) &&
+      (q.promptAssets || []).some(asset => asset.sourceId === source.sourceId && (asset.page || 1) === source.page));
+    const promptAssets = (q.promptAssets || []).filter(asset => !croppedArchivePdfs.some(source =>
+      asset.sourceId === source.sourceId && (asset.page || 1) === source.page));
+    const promptAssetsHtml = renderAssets(promptAssets, q.courseId, sourcesMap, isBlindUnfinished);
     const svgHtml = q.svgDiagram ? `<div class="diagram-wrap" style="margin:14px 0">${q.svgDiagram}</div>` : '';
     const promptMdHtml = q.promptMarkdown
       ? `<div class="markdown-body" style="font-size:16px">${renderMarkdownWithMath(q.promptMarkdown)}</div>`
@@ -1331,10 +1335,13 @@ window.StudyRunner = (() => {
         : `<h2 style="margin-top:0">${esc(q.title)}</h2>`;
       const inlineGateRefs = lockedSourceRefs.filter((r) => r.role !== 'solution');
       const taskGateHtml = inlineGateRefs.length ? renderSourceContextGate(q, inlineGateRefs, true) : '';
-      const localPromptPdfs = !promptAssetsHtml
-        ? sourcePdfs.filter((p) => p.localSourceKey && !p.isSolution)
-        : [];
-      const inlineLocalPrompt = renderInlineLocalPdfFigures(localPromptPdfs);
+      const promptPdfs = sourcePdfs.filter(source => croppedArchivePdfs.includes(source) ||
+        (!promptAssetsHtml && source.role && !source.isSolution));
+      // The H10 handout only lists the assigned exercises, which are already shown below.
+      const hasTextbookPages = q.id === 'acct-2527:H10' && promptPdfs.some(source => source.sourceId === 'textbook-12e');
+      const inlineLocalPrompt = renderInlineLocalPdfFigures(hasTextbookPages
+        ? promptPdfs.filter(source => source.sourceId !== '203552')
+        : promptPdfs);
       if (inlineLocalPrompt.mountItems.length) inlineLocalMountItems.push(...inlineLocalPrompt.mountItems);
       readerBodyHtml = `
         <div class="${isExamSheet ? 'exam-paper-sheet' : ''}">
@@ -1598,7 +1605,7 @@ window.StudyRunner = (() => {
       const solLockedRefs = lockedSourceRefs.filter((r) => r.role === 'solution' || r.isSolution);
       const solGateHtml = solLockedRefs.length ? renderSourceContextGate(q, solLockedRefs, true) : '';
       const localSolPdfs = !solAssets
-        ? sourcePdfs.filter((p) => p.localSourceKey && p.isSolution)
+        ? sourcePdfs.filter((p) => p.role && p.isSolution)
         : [];
       const inlineLocalSol = renderInlineLocalPdfFigures(localSolPdfs);
       if (inlineLocalSol.mountItems.length) inlineLocalMountItems.push(...inlineLocalSol.mountItems);
@@ -1884,7 +1891,7 @@ window.StudyRunner = (() => {
       noteFile: q.obsidianLink?.file || activeRun.courseMeta.obsidian?.mainReference,
       revealed: st.revealed && !isBlindUnfinished,
       sources: sourcePdfs.filter((source) => source.isPdf && (
-        promptSourceKeys.has(source.key) || source.localSourceKey && !source.isSolution
+        promptSourceKeys.has(source.key) || (source.role && !source.isSolution)
       )),
     });
     card.querySelector('#btn-open-tutor')?.addEventListener('click', window.StudyTutor.open);

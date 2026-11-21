@@ -6,7 +6,13 @@ window.StudyPdf = (() => {
   let engine;
   let active;
   let inlineBatch = null;
-  let savedExcerpts;
+  let excerptIndex;
+  const indexUrl = new URL('../pdf-excerpts.json', script);
+  indexUrl.search = script.search;
+  const savedExcerpts = fetch(indexUrl)
+    .then(response => response.ok ? response.json() : null)
+    .then(index => { excerptIndex = index; })
+    .catch(() => {});
   const geometry = new WeakMap();
   const pageText = new Map();
 
@@ -35,17 +41,18 @@ window.StudyPdf = (() => {
     };
   }
 
+  function savedRange(source, page) {
+    const range = excerptIndex?.[source.questionId]?.[`${source.sourceId}:${page}`];
+    return range && 0 <= range[0] && range[0] < range[1] && range[1] <= 1 ? range : null;
+  }
+
   async function excerptRange(source, page, content) {
     const { questionId, questionTitle, sourceId } = source;
     if (!questionId) return [0, 1];
     if (sourceId) {
-      if (!savedExcerpts) {
-        const url = new URL('../pdf-excerpts.json', script);
-        url.search = script.search;
-        savedExcerpts = fetch(url).then((response) => response.ok ? response.json() : null).catch(() => null);
-      }
-      const saved = (await savedExcerpts)?.[questionId]?.[`${sourceId}:${page.pageNumber}`];
-      if (saved && 0 <= saved[0] && saved[0] < saved[1] && saved[1] <= 1) return saved;
+      await savedExcerpts;
+      const saved = savedRange(source, page.pageNumber);
+      if (saved) return saved;
     }
 
     const heading = /\b(problem|exercise|question|oppgave|task)\s+(\d+)\b/i;
@@ -380,7 +387,11 @@ window.StudyPdf = (() => {
         try {
           const doc = await getDoc(item.source);
           if (!doc || batch.cancelled || inlineBatch !== batch || !figure.isConnected) return;
-          const targetPage = Math.max(1, Math.min(doc.numPages, Number(item.page) || 1));
+          const targetPage = Math.max(1, Number(item.page) || 1);
+          if (targetPage > doc.numPages) {
+            if (notice) notice.textContent = `This PDF has ${doc.numPages} pages. The exercise needs page ${targetPage}.`;
+            return;
+          }
           const page = await doc.getPage(targetPage);
           const content = await page.getTextContent().catch(() => ({ items: [], styles: {} }));
           const range = await excerptRange(item.source, page, content);
@@ -504,5 +515,7 @@ window.StudyPdf = (() => {
     }
   }
 
-  return { toolbar, viewer, bindExcerpts, mount, mountInlineFigures, dispose, disposeInline, textForPage, clearText: () => pageText.clear() };
+  return { toolbar, viewer, bindExcerpts, mount, mountInlineFigures, dispose, disposeInline,
+    hasSavedExcerpt: source => Boolean(savedRange(source, source.page)),
+    textForPage, clearText: () => pageText.clear() };
 })();

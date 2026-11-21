@@ -124,6 +124,15 @@ window.StudyMembers = (() => {
     return session?.courses[courseId];
   }
 
+  function sourceDocument(courseId, ref) {
+    const title = courseId === 'acct-2527' && ref.sourceId === 'textbook-12e'
+      ? 'Accounting and Finance for Non-Specialists - Atrill and McLaney - 12th edition.pdf'
+      : ref.filename;
+    if (!title) return null;
+    return course(courseId)?.documents.find(doc =>
+      doc.mime === 'application/pdf' && doc.title.toLowerCase() === title.toLowerCase()) || null;
+  }
+
   async function loadBank(courseId) {
     const entry = course(courseId);
     if (!entry) return null;
@@ -132,6 +141,10 @@ window.StudyMembers = (() => {
     if (courseId === 'acct-2527' && !bank.sources.E23F) {
       const paper = entry.documents.find((doc) => doc.title === 'EXC 3430_Exam_2023.pdf');
       if (paper) bank.sources.E23F = paper;
+    }
+    if (courseId === 'acct-2527' && !bank.sources['textbook-12e']) {
+      const textbook = sourceDocument(courseId, { sourceId: 'textbook-12e' });
+      if (textbook) bank.sources['textbook-12e'] = textbook;
     }
     return bank;
   }
@@ -201,5 +214,5 @@ window.StudyMembers = (() => {
     }
   }
 
-  return { enabled, unlock, verifyAccessString, restore, forget, isUnlocked: () => Boolean(session), course, loadBank, pdfBytes, fillPreviews, bindDownloads };
+  return { enabled, unlock, verifyAccessString, restore, forget, isUnlocked: () => Boolean(session), course, sourceDocument, loadBank, pdfBytes, fillPreviews, bindDownloads };
 })();
