@@ -6084,7 +6084,20 @@ window.StudyApp = (() => {
         ['Schedule', 'schedule', 'timeedit calendar planner'],
         ['Metrics', 'analytics', 'upi telemetry analytics ai brief'],
       ];
-      if (window.StudyCommunity?.enabled) views.push(['Community', 'community', 'leaderboard chat rooms profile']);
+      if (window.StudyCommunity?.enabled) {
+        views.push(['Community', 'community', 'leaderboard chat rooms profile ed discussion forum']);
+        out.push({
+          group: 'Views',
+          title: 'Ed Discussion',
+          sub: 'Course Q&A forums, categories & pinned Ed links inside Community',
+          keywords: 'ed discussion edstem forum qa questions community',
+          run: async () => {
+            leaveRunner();
+            await navigate('community');
+            document.getElementById('community-ed-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          },
+        });
+      }
       for (const [label, viewId, kw] of views) {
         out.push({
           group: 'Views',

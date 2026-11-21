@@ -1236,8 +1236,9 @@ window.StudyRunner = (() => {
     if (st.readerTab === 'context' && !lockedSourceRefs.length) st.readerTab = sourcePdfs.length ? 'pdf' : 'task';
     if (st.readerTab === 'ref') st.readerTab = 'task';
 
-    const autoNeedsSplit = needsSplitByContent(q, st);
-    const preferredSplit = uiPrefs.preferredLayout !== 'focus';
+    const isWideViewport = dockReferenceLayout.matches;
+    const autoNeedsSplit = isWideViewport && needsSplitByContent(q, st);
+    const preferredSplit = isWideViewport && uiPrefs.preferredLayout !== 'focus';
     const isSplit = autoNeedsSplit
       ? true
       : st.layoutOverride === 'split'
@@ -1774,9 +1775,9 @@ window.StudyRunner = (() => {
           <button type="button" class="ghost-btn" id="btn-prev-q" ${activeRun.index === 0 ? 'disabled' : ''}>← Prev</button>
           ${
             !isSplit && sourcePdfs.length
-              ? `<button type="button" class="ghost-btn" id="btn-bottom-pdf" title="Open embedded Source PDF side-by-side">PDF</button>`
+              ? `<button type="button" class="ghost-btn" id="btn-bottom-pdf" title="Toggle Source PDF">${st.readerTab === 'pdf' ? 'Task' : 'PDF'}</button>`
               : !isSplit && lockedSourceRefs.length
-              ? `<button type="button" class="ghost-btn" id="btn-bottom-context" title="Open Source Context (Sync BI Canvas or Drop PDF)">Source</button>`
+              ? `<button type="button" class="ghost-btn" id="btn-bottom-context" title="Toggle Source Context (Sync Canvas or Drop PDF)">${st.readerTab === 'context' ? 'Task' : 'Source'}</button>`
               : ''
           }
           <button type="button" class="ghost-btn" id="btn-end-run">${isBlindUnfinished ? 'Submit…' : 'End Run'}</button>
@@ -1871,8 +1872,10 @@ window.StudyRunner = (() => {
         </div>
       `;
     } else {
+      const showFocusTabs = st.readerTab !== 'task' && (sourcePdfs.length > 0 || lockedSourceRefs.length > 0);
       card.innerHTML = `
         ${statusBarHtml}
+        ${showFocusTabs ? readerTabBarHtml : ''}
         <div class="foveal-prompt-block">
           ${readerBodyHtml}
         </div>
@@ -2011,13 +2014,13 @@ window.StudyRunner = (() => {
 
     document.getElementById('btn-bottom-pdf')?.addEventListener('click', () => {
       st.readerTab = st.readerTab === 'pdf' ? 'task' : 'pdf';
-      if (st.readerTab === 'pdf') st.layoutOverride = null; // Auto-expand into side-by-side split for PDF reading
+      if (st.readerTab === 'pdf' && dockReferenceLayout.matches) st.layoutOverride = null; // Auto-expand side-by-side only on wide screens
       renderRunner();
     });
 
     document.getElementById('btn-bottom-context')?.addEventListener('click', () => {
       st.readerTab = st.readerTab === 'context' ? 'task' : 'context';
-      if (st.readerTab === 'context') st.layoutOverride = null;
+      if (st.readerTab === 'context' && dockReferenceLayout.matches) st.layoutOverride = null;
       renderRunner();
     });
 
@@ -2889,11 +2892,13 @@ window.StudyRunner = (() => {
     const st = itemState(q.id);
     const curSplit = document.body.classList.contains('runner-split-wide');
     const nextSplit = !curSplit;
-    if (!nextSplit && st.readerTab === 'pdf') {
+    if (!nextSplit && st.readerTab === 'pdf' && dockReferenceLayout.matches) {
       st.readerTab = 'task';
     }
     st.layoutOverride = nextSplit ? 'split' : 'foveal';
-    saveRunnerUiPrefs({ preferredLayout: nextSplit ? 'split' : 'focus' });
+    if (dockReferenceLayout.matches) {
+      saveRunnerUiPrefs({ preferredLayout: nextSplit ? 'split' : 'focus' });
+    }
     toast(nextSplit ? 'Split view' : 'Focus view');
     renderRunner();
   }

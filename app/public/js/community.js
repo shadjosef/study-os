@@ -2339,12 +2339,13 @@ window.StudyCommunity = (() => {
     root.innerHTML = `
       <section class="panel" id="community-demo-view">
         <h1 id="community-demo-title" tabindex="-1">Study community</h1>
-        <p class="muted">Explore the Chess-style leaderboard, upcoming ELO arena, and try sending a message in this tab. Live Community opens during breaks or 18:00–22:30 Oslo time.</p>
+        <p class="muted">Explore the Chess-style leaderboard, upcoming ELO arena, Ed Discussion course forums, and try sending a message in this tab. Live Community opens during breaks or 18:00–22:30 Oslo time.</p>
         <div class="row-actions">
           <button type="button" class="primary-btn" id="community-join-live">Join live Community</button>
         </div>
       </section>
-      ${demoCardsHtml(true)}`;
+      ${demoCardsHtml(true)}
+      ${edDiscussionSectionHtml()}`;
     root.querySelectorAll('[data-lb-tab]').forEach((btn) => {
       btn.onclick = () => {
         activeBoardTab = btn.dataset.lbTab || 'overall';
@@ -2382,6 +2383,7 @@ window.StudyCommunity = (() => {
       message.focus();
     };
     paintMessages();
+    mountEdDiscussionSection(root);
   }
 
   function renderLocked(root, me = null) {
@@ -2402,6 +2404,7 @@ window.StudyCommunity = (() => {
           </div>
         </div>
       </section>
+      ${edDiscussionSectionHtml()}
       ${me ? `<section class="panel">
         <div class="community-identity">
           ${avatarHtml(me.nickname, me.avatar, 48)}
@@ -2428,6 +2431,7 @@ window.StudyCommunity = (() => {
         root.querySelector('#community-demo-title')?.focus();
       }
     });
+    mountEdDiscussionSection(root);
     if (!me) return;
     profileActions(root);
     bindProfileEditor(root, me, () => render());
@@ -2520,6 +2524,322 @@ window.StudyCommunity = (() => {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // ED DISCUSSION HUB (Accessible inside Community even during focus blocks)
+  // ---------------------------------------------------------------------------
+  const LOCAL_ED_LINKS_KEY = 'study-os-ed-links-v1';
+  let cachedApprovedCourses = null;
+  let cachedApprovedAt = 0;
+
+  function loadLocalEdLinks() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(LOCAL_ED_LINKS_KEY) || '[]');
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveLocalEdLinks(list) {
+    try {
+      localStorage.setItem(LOCAL_ED_LINKS_KEY, JSON.stringify((list || []).slice(0, 30)));
+    } catch {}
+  }
+
+  function parseEdCourseInput(rawUrl) {
+    const val = String(rawUrl || '').trim();
+    if (!val) return null;
+    const candidate = /^https?:\/\//i.test(val) ? val : `https://${val}`;
+    try {
+      const u = new URL(candidate);
+      if (u.protocol !== 'https:' && u.protocol !== 'http:') return null;
+      const host = u.hostname.toLowerCase();
+      if (!/^(?:(?:eu|us|au)\.)?edstem\.org$/.test(host)) return null;
+      const pathMatch = u.pathname.match(/^(?:\/(eu|us|au))?\/courses\/([1-9][0-9]{0,19})(?:\/|$)/i);
+      if (!pathMatch) return null;
+      const pathRegion = (pathMatch[1] || '').toLowerCase();
+      const edHost = host === 'edstem.org' && pathRegion ? `${pathRegion}.edstem.org` : host;
+      return { edHost, edCourseId: pathMatch[2] };
+    } catch {
+      return null;
+    }
+  }
+
+  function edDiscussionSectionHtml() {
+    return `
+      <section class="panel ed-hub-panel" id="community-ed-section" aria-labelledby="community-ed-title">
+        <div class="row-between ed-hub-header">
+          <div>
+            <div class="ed-hub-title-row">
+              <h2 id="community-ed-title" style="margin:0">Ed Discussion</h2>
+              <span class="badge" id="ed-hub-count-badge">Loading…</span>
+            </div>
+            <p class="muted" style="margin:4px 0 0">Jump straight into synced course Q&amp;A forums, browse Ed categories, ask questions, or turn discussion topics into practice sets. Always open during focus blocks.</p>
+          </div>
+          <div class="row-actions" style="gap:7px">
+            <button type="button" class="primary-btn" id="ed-hub-sync-btn">Sync Ed Discussion</button>
+            <a class="ghost-btn" id="ed-hub-open-portal" href="https://eu.edstem.org/" target="_blank" rel="noopener">Open Ed ↗</a>
+          </div>
+        </div>
+        <div class="ed-hub-controls" id="ed-hub-controls" hidden>
+          <input type="search" id="ed-hub-search" class="ed-hub-search" placeholder="Filter by course code, name, school, or Ed topic…" aria-label="Filter Ed Discussion courses" />
+          <div class="ed-hub-filter-pills" id="ed-hub-school-pills"></div>
+        </div>
+        <div class="ed-course-grid" id="community-ed-grid">
+          <p class="muted" style="margin:6px 0">Loading synced Ed Discussion course forums…</p>
+        </div>
+        <details class="ed-pin-details" id="ed-hub-pin-details">
+          <summary>+ Pin an Ed Discussion course link (EU / US / AU)</summary>
+          <form class="ed-pin-form" id="ed-hub-pin-form">
+            <label class="field-label">
+              Ed Discussion course URL
+              <input type="url" name="url" placeholder="https://eu.edstem.org/courses/3304" required />
+            </label>
+            <div class="ed-pin-row">
+              <label class="field-label">
+                Course code (optional)
+                <input type="text" name="code" placeholder="e.g. EXC 3420" maxlength="24" />
+              </label>
+              <label class="field-label">
+                Course name (optional)
+                <input type="text" name="title" placeholder="e.g. Economics I" maxlength="120" />
+              </label>
+            </div>
+            <div class="row-actions" style="gap:8px;margin-top:6px">
+              <button type="submit" class="primary-btn">Pin Course</button>
+              <span class="muted" id="ed-hub-pin-status" role="status"></span>
+            </div>
+          </form>
+        </details>
+      </section>`;
+  }
+
+  async function loadApprovedCoursesCached() {
+    if (!api) return [];
+    if (cachedApprovedCourses && Date.now() - cachedApprovedAt < 60_000) {
+      return cachedApprovedCourses;
+    }
+    try {
+      const list = await approvedCourses();
+      cachedApprovedCourses = Array.isArray(list) ? list : [];
+      cachedApprovedAt = Date.now();
+      return cachedApprovedCourses;
+    } catch {
+      return cachedApprovedCourses || [];
+    }
+  }
+
+  async function mountEdDiscussionSection(root) {
+    const section = root?.querySelector('#community-ed-section');
+    if (!section) return;
+    const grid = section.querySelector('#community-ed-grid');
+    const badge = section.querySelector('#ed-hub-count-badge');
+    const controls = section.querySelector('#ed-hub-controls');
+    const searchEl = section.querySelector('#ed-hub-search');
+    const schoolPills = section.querySelector('#ed-hub-school-pills');
+    const portalLink = section.querySelector('#ed-hub-open-portal');
+    const pinForm = section.querySelector('#ed-hub-pin-form');
+    const pinStatus = section.querySelector('#ed-hub-pin-status');
+
+    section.querySelector('#ed-hub-sync-btn')?.addEventListener('click', () => {
+      if (window.StudyApp?.openBiSyncHub) window.StudyApp.openBiSyncHub();
+      else toast('Install & open the Study-OS Sync extension on your Ed Discussion tab.');
+    });
+
+    let activeSchool = 'all';
+    let query = '';
+    const catalog = window.StudyApp?.getCatalog?.() || [];
+    const catalogByCode = new Map();
+    for (const c of catalog) {
+      const norm = String(c.code || '').toUpperCase().replace(/[\s-]+/g, '');
+      if (norm) catalogByCode.set(norm, c);
+    }
+
+    const userSchool = (currentProfile?.school || readLocalSchool().school || '').trim();
+
+    let remoteEdCourses = [];
+    const buildMergedList = () => {
+      const merged = [];
+      const seen = new Set();
+      for (const local of loadLocalEdLinks()) {
+        const key = `${local.edHost}:${local.edCourseId}`;
+        if (!local.edCourseId || seen.has(key)) continue;
+        seen.add(key);
+        merged.push({ ...local, pinned: true });
+      }
+      for (const c of remoteEdCourses) {
+        if (!/^[1-9][0-9]{0,19}$/.test(String(c.edCourseId || ''))) continue;
+        const edHost = /^(?:(?:eu|us|au)\.)?edstem\.org$/.test(c.edHost || '') ? c.edHost : 'eu.edstem.org';
+        const key = `${edHost}:${c.edCourseId}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push({
+          code: c.code || '',
+          title: c.title || `Ed Course #${c.edCourseId}`,
+          school: c.school || '',
+          edCourseId: String(c.edCourseId),
+          edHost,
+          topics: Array.isArray(c.topics) ? c.topics : [],
+          contributorCount: Number(c.contributorCount || 1),
+          verified: Boolean(c.verified),
+          pinned: false,
+        });
+      }
+      return merged;
+    };
+
+    const paintGrid = () => {
+      if (!section.isConnected) return;
+      const all = buildMergedList();
+      if (portalLink && all.length) {
+        portalLink.href = `https://${all[0].edHost}/`;
+      }
+      if (badge) {
+        badge.textContent = all.length
+          ? `${all.length} linked forum${all.length === 1 ? '' : 's'}`
+          : 'Not synced yet';
+        badge.classList.toggle('live', all.length > 0);
+      }
+
+      const schools = [...new Set(all.map((c) => c.school).filter(Boolean))];
+      if (controls) controls.hidden = all.length < 2;
+      if (schoolPills) {
+        if (schools.length > 1) {
+          schoolPills.innerHTML = [
+            `<button type="button" class="ed-filter-pill ${activeSchool === 'all' ? 'active' : ''}" data-ed-school="all">All schools</button>`,
+            ...schools.map((s) => `<button type="button" class="ed-filter-pill ${activeSchool === s ? 'active' : ''}" data-ed-school="${esc(s)}">${esc(s)}</button>`),
+          ].join('');
+          schoolPills.querySelectorAll('[data-ed-school]').forEach((btn) => {
+            btn.onclick = () => {
+              activeSchool = btn.dataset.edSchool || 'all';
+              paintGrid();
+            };
+          });
+        } else {
+          schoolPills.innerHTML = '';
+        }
+      }
+
+      const qNorm = query.trim().toLowerCase();
+      const filtered = all.filter((c) => {
+        if (activeSchool !== 'all' && c.school !== activeSchool) return false;
+        if (!qNorm) return true;
+        const hay = `${c.code} ${c.title} ${c.school} ${(c.topics || []).join(' ')}`.toLowerCase();
+        return hay.includes(qNorm);
+      });
+
+      if (!all.length) {
+        grid.innerHTML = `
+          <div class="ed-empty-card">
+            <strong>No Ed Discussion courses linked yet</strong>
+            <p class="muted">Open your signed-in Ed Discussion tab (<code>eu.edstem.org</code>, <code>us.edstem.org</code>, or <code>au.edstem.org</code>) and click <strong>Sync Ed Discussion</strong> with the Study-OS extension — or pin any Ed course URL below.</p>
+          </div>`;
+        return;
+      }
+
+      if (!filtered.length) {
+        grid.innerHTML = `<p class="muted" style="margin:6px 0">No Ed Discussion forums match “${esc(query)}”.</p>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map((c, idx) => {
+        const normCode = String(c.code || '').toUpperCase().replace(/[\s-]+/g, '');
+        const matchedLocal = normCode ? catalogByCode.get(normCode) : null;
+        const topics = Array.isArray(c.topics) ? c.topics : [];
+        const topicsHtml = topics.length
+          ? `<div class="community-course-topics">${topics.slice(0, 6).map((t) => `<span class="topic-mini-chip">${esc(t)}</span>`).join('')}${topics.length > 6 ? `<span class="topic-mini-chip">+${topics.length - 6}</span>` : ''}</div>`
+          : '';
+        const forumUrl = `https://${c.edHost}/courses/${c.edCourseId}/discussion/`;
+        const askUrl = `https://${c.edHost}/courses/${c.edCourseId}/discussion/new`;
+        return `
+          <article class="ed-course-card">
+            <div class="ed-course-top">
+              <div class="row-actions" style="gap:6px;flex-wrap:wrap">
+                <span class="course-code-pill">${esc(c.code || `Ed #${c.edCourseId}`)}</span>
+                ${c.school ? `<span class="course-school-pill">${esc(c.school)}</span>` : ''}
+              </div>
+              <span class="badge ${c.verified ? 'good' : ''}">${c.pinned ? 'Pinned' : c.verified ? 'Verified' : 'Synced'}</span>
+            </div>
+            <h3 class="ed-course-title">${esc(c.title)}</h3>
+            <p class="muted ed-course-meta">${esc(c.edHost)}${!c.pinned ? ` · ${c.contributorCount} student${c.contributorCount === 1 ? '' : 's'} synced` : ''}${topics.length ? ` · ${topics.length} categor${topics.length === 1 ? 'y' : 'ies'}` : ''}</p>
+            ${topicsHtml}
+            <div class="ed-course-actions">
+              <a class="primary-btn" href="${esc(forumUrl)}" target="_blank" rel="noopener">Open Forum ↗</a>
+              <a class="ghost-btn" href="${esc(askUrl)}" target="_blank" rel="noopener">Ask Question ↗</a>
+              ${matchedLocal ? `<button type="button" class="ghost-btn" data-ed-practice="${esc(matchedLocal.courseId)}">Practice →</button>` : ''}
+              <button type="button" class="ghost-btn" data-ed-ai-set="${idx}">✨ AI Set</button>
+              ${c.pinned ? `<button type="button" class="ghost-btn" data-ed-unpin="${esc(c.edHost + ':' + c.edCourseId)}" title="Remove pinned link">Remove</button>` : ''}
+            </div>
+          </article>`;
+      }).join('');
+
+      grid.querySelectorAll('[data-ed-practice]').forEach((btn) => {
+        btn.onclick = () => window.StudyApp?.navigate?.('course', { courseId: btn.dataset.edPractice });
+      });
+      grid.querySelectorAll('[data-ed-ai-set]').forEach((btn) => {
+        btn.onclick = () => {
+          const course = filtered[Number(btn.dataset.edAiSet)];
+          if (!course || !window.StudySets?.openGenerator) return;
+          window.StudySets.openGenerator({
+            courseCode: course.code || '',
+            courseTitle: course.title || '',
+            school: course.school || userSchool || '',
+            topics: Array.isArray(course.topics) ? course.topics : [],
+          });
+        };
+      });
+      grid.querySelectorAll('[data-ed-unpin]').forEach((btn) => {
+        btn.onclick = () => {
+          const targetKey = btn.dataset.edUnpin;
+          const next = loadLocalEdLinks().filter((item) => `${item.edHost}:${item.edCourseId}` !== targetKey);
+          saveLocalEdLinks(next);
+          toast('Removed pinned Ed Discussion course.');
+          paintGrid();
+        };
+      });
+    };
+
+    if (searchEl) {
+      searchEl.oninput = () => {
+        query = searchEl.value || '';
+        paintGrid();
+      };
+    }
+
+    if (pinForm) {
+      pinForm.onsubmit = (ev) => {
+        ev.preventDefault();
+        const fd = new FormData(pinForm);
+        const parsed = parseEdCourseInput(fd.get('url'));
+        if (!parsed) {
+          if (pinStatus) pinStatus.textContent = 'Enter a valid Ed Discussion course URL (e.g. https://eu.edstem.org/courses/3304).';
+          return;
+        }
+        const code = String(fd.get('code') || '').trim().toUpperCase().slice(0, 24);
+        const title = String(fd.get('title') || '').trim().slice(0, 120) || (code ? `${code} Discussion` : `Ed Discussion #${parsed.edCourseId}`);
+        const existing = loadLocalEdLinks().filter((item) => `${item.edHost}:${item.edCourseId}` !== `${parsed.edHost}:${parsed.edCourseId}`);
+        existing.unshift({
+          edHost: parsed.edHost,
+          edCourseId: parsed.edCourseId,
+          code,
+          title,
+          school: userSchool || '',
+          topics: [],
+        });
+        saveLocalEdLinks(existing);
+        pinForm.reset();
+        if (pinStatus) pinStatus.textContent = 'Pinned to your Ed Discussion hub.';
+        toast('Pinned Ed Discussion course.');
+        paintGrid();
+      };
+    }
+
+    // Paint local pins immediately, then merge live synced community Ed courses
+    paintGrid();
+    remoteEdCourses = await loadApprovedCoursesCached();
+    paintGrid();
+  }
+
   function renderDashboard(root, dashboardData, offset) {
     const { me, ranks, hasMoreRanks, contacts, messages, blocked, now } = dashboardData;
     const messageRows = messages.map((row) => {
@@ -2557,6 +2877,7 @@ window.StudyCommunity = (() => {
       ${adminPanelHtml(me)}
       ${window.StudyRooms.lobbyHtml()}
       <div id="community-leaderboard-mount">${chessLeaderboardHtml({ rows: ranks, meId: me.id, offset, now, isDemo: false, tab: activeBoardTab, hasMoreRanks })}</div>
+      ${edDiscussionSectionHtml()}
       <section class="panel">
         <div class="row-between"><h2>Global chat</h2><button type="button" class="ghost-btn" id="community-chat-refresh">Refresh</button></div>
         <p class="muted">All Community members can read these conversations during breaks or 18:00–22:30 Oslo time.</p>
@@ -2617,6 +2938,7 @@ window.StudyCommunity = (() => {
     bindFeedbackPanel(root);
     bindAdminPanel(root, me);
     window.StudyRooms.bindLobby(root);
+    mountEdDiscussionSection(root);
     bindChatJoinButtons(root);
     doAction(root.querySelector('#community-refresh'), () => render(offset));
     doAction(root.querySelector('#community-chat-refresh'), () => refreshChat(root));
@@ -2685,7 +3007,8 @@ window.StudyCommunity = (() => {
       } else if (error.status === 423) {
         renderLocked(root, currentProfile);
       } else {
-        root.innerHTML = '<section class="panel"><h1>Study community</h1><p>Community is unavailable. Open the Community tab to retry.</p></section>';
+        root.innerHTML = `<section class="panel"><h1>Study community</h1><p>Community is unavailable. Open the Community tab to retry.</p></section>${edDiscussionSectionHtml()}`;
+        mountEdDiscussionSection(root);
       }
     }
   }
