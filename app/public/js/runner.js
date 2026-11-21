@@ -1284,36 +1284,33 @@ window.StudyRunner = (() => {
       const curPdf = sourcePdfs[pdfIdx];
       const memberFile = curPdf.memberAsset;
       if (curPdf.isPdf) inlinePdf = curPdf;
-      const selectorHtml =
-        sourcePdfs.length > 1
-          ? `<select id="sel-inline-pdf" style="font-size:12.5px;padding:4px 8px;max-width:340px">` +
-            sourcePdfs
-              .map((p, idx) => `<option value="${idx}" ${idx === pdfIdx ? 'selected' : ''}>${esc(p.label)}</option>`)
-              .join('') +
-            `</select>`
-          : `<strong>${esc(curPdf.label)}</strong>`;
+      const documents = new Map();
+      sourcePdfs.forEach((source, index) => {
+        const key = source.key.replace(/#p\d+$/, '');
+        if (!documents.has(key) || index === pdfIdx) documents.set(key, index);
+      });
+      const selectorHtml = documents.size > 1
+        ? `<select id="sel-inline-pdf" aria-label="Source document">${[...documents.values()].map((index) =>
+             `<option value="${index}" ${index === pdfIdx ? 'selected' : ''}>${esc(sourcePdfs[index].title)}</option>`
+           ).join('')}</select>`
+        : `<strong title="${esc(curPdf.title)}">${esc(curPdf.title)}</strong>`;
+      const fileActions = `<button type="button" class="mini-tool-btn ${st.invertPdfFrame ? 'active' : ''}" id="btn-invert-pdf-frame" aria-pressed="${Boolean(st.invertPdfFrame)}">Invert PDF</button>
+        ${memberFile ? memberDownload(memberFile) : curPdf.localSourceKey ? `
+          <button type="button" class="mini-tool-btn" data-remove-local-pdf="${esc(curPdf.localSourceKey)}">Remove local PDF</button>` : `
+          <button type="button" class="mini-tool-btn" data-open-native-pdf="${esc(curPdf.openAppUrl)}">Open in PDF App</button>
+          <a class="mini-tool-btn" href="${esc(curPdf.embedUrl)}" target="_blank" rel="noopener">Open in new tab ↗</a>`}`;
       readerBodyHtml = `
         <div class="inline-pdf-wrap">
-          <div class="inline-pdf-toolbar">
-            <div>${selectorHtml}</div>
-            <div class="row-actions" style="gap:6px">
-              <button type="button" class="mini-tool-btn ${st.invertPdfFrame ? 'active' : ''}" id="btn-invert-pdf-frame" title="Invert embedded PDF colors for night reading">Invert PDF</button>
-              ${memberFile ? memberDownload(memberFile) : curPdf.localSourceKey ? `
-                <span class="badge good" style="font-size:11px">Private Local PDF</span>
-                <button type="button" class="mini-tool-btn" data-remove-local-pdf="${esc(curPdf.localSourceKey)}" title="Remove this local PDF from browser storage">Remove</button>` : `
-                <button type="button" class="mini-tool-btn" data-open-native-pdf="${esc(curPdf.openAppUrl)}">Open in PDF App</button>
-                <a class="mini-tool-btn" href="${esc(curPdf.embedUrl)}" target="_blank" rel="noopener">New Tab ↗</a>`}
-            </div>
-          </div>
           ${
             curPdf.isPdf ? `
-              <div id="source-pdf-reader">${window.StudyPdf.viewer(curPdf.page, st.invertPdfFrame)}</div>`
-            : memberFile && !memberFile.mime.startsWith('image/')
-              ? '<p class="muted">Download this file to open it on your device.</p>'
-              : `<figure class="pdf-figure" data-pdf-excerpt="${esc(curPdf.key)}">${window.StudyPdf.toolbar()}
+              <div id="source-pdf-reader">${window.StudyPdf.viewer(curPdf.page, st.invertPdfFrame, selectorHtml, fileActions)}</div>`
+            : `<div class="inline-pdf-toolbar">${selectorHtml}<div class="row-actions">${fileActions}</div></div>
+              ${memberFile && !memberFile.mime.startsWith('image/')
+                ? '<p class="muted">Download this file to open it on your device.</p>'
+                : `<figure class="pdf-figure" data-pdf-excerpt="${esc(curPdf.key)}">${window.StudyPdf.toolbar()}
                   <div class="pdf-zoom-scroll pdf-figure-scroll" tabindex="0" aria-label="Scrollable source image">
                     <div class="pdf-zoom-page"><img ${memberFile ? memberPreviewAttrs(memberFile) : `src="${esc(curPdf.rawUrl)}"`} alt="${esc(curPdf.title)}"></div>
-                  </div></figure>`
+                  </div></figure>`}`
           }
         </div>
       `;
@@ -1352,7 +1349,6 @@ window.StudyRunner = (() => {
       `;
     }
 
-    const firstPdfPageLbl = sourcePdfs[0]?.isPdf ? ` (p.${sourcePdfs[0].page})` : '';
     const firstLockedLbl = lockedSourceRefs[0]?.kind === 'book'
       ? `Book PDF (p.${lockedSourceRefs[0].page || 1})`
       : 'Source Context';
@@ -1362,7 +1358,7 @@ window.StudyRunner = (() => {
           <button type="button" class="reader-tab-btn ${st.readerTab === 'task' ? 'active' : ''}" data-reader-tab="task">Task</button>
           ${
             sourcePdfs.length
-              ? `<button type="button" class="reader-tab-btn ${st.readerTab === 'pdf' ? 'active' : ''}" data-reader-tab="pdf">Source PDF${firstPdfPageLbl}</button>`
+              ? `<button type="button" class="reader-tab-btn ${st.readerTab === 'pdf' ? 'active' : ''}" data-reader-tab="pdf">Source ${sourcePdfs[0].isPdf ? 'PDF' : 'file'}</button>`
               : lockedSourceRefs.length
               ? `<button type="button" class="reader-tab-btn ${st.readerTab === 'context' ? 'active' : ''}" data-reader-tab="context">${esc(firstLockedLbl)}</button>`
               : ''
@@ -1893,7 +1889,7 @@ window.StudyRunner = (() => {
     });
     card.querySelector('#btn-open-tutor')?.addEventListener('click', window.StudyTutor.open);
     if (inlinePdf) {
-      const view = st.pdfViews[inlinePdf.key] ||= { page: inlinePdf.page, zoom: 100, trim: false };
+      const view = st.pdfViews[inlinePdf.key.replace(/#p\d+$/, '')] ||= { page: inlinePdf.page, zoom: 100, trim: true };
       window.StudyPdf.mount(card.querySelector('#source-pdf-reader'), inlinePdf, view);
     } else if (inlineLocalMountItems.length) {
       window.StudyPdf.mountInlineFigures(card, inlineLocalMountItems, st.pdfViews);
@@ -1924,7 +1920,11 @@ window.StudyRunner = (() => {
         ev.stopPropagation();
         const key = btn.dataset.openInlinePdf;
         const foundIdx = sourcePdfs.findIndex((p) => p.key === key);
-        if (foundIdx >= 0) st.selectedPdfIdx = foundIdx;
+        if (foundIdx >= 0) {
+          st.selectedPdfIdx = foundIdx;
+          const view = st.pdfViews[key.replace(/#p\d+$/, '')];
+          if (view) view.page = sourcePdfs[foundIdx].page;
+        }
         st.readerTab = 'pdf';
         renderRunner();
       });
@@ -1952,6 +1952,7 @@ window.StudyRunner = (() => {
     document.getElementById('btn-invert-pdf-frame')?.addEventListener('click', (event) => {
       st.invertPdfFrame = !st.invertPdfFrame;
       event.currentTarget.classList.toggle('active', st.invertPdfFrame);
+      event.currentTarget.setAttribute('aria-pressed', String(st.invertPdfFrame));
       document.querySelector('.pdf-document-scroll')?.classList.toggle('pdf-ink-inverted', st.invertPdfFrame);
     });
 
@@ -2947,7 +2948,7 @@ window.StudyRunner = (() => {
     document.addEventListener('keydown', (e) => {
       if (document.querySelector('dialog[open]')) return;
       if (!activeRun || document.getElementById('view-runner').hidden || !document.getElementById('checkin-modal').hidden) return;
-      if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-page-tools, .pdf-zoom-tools, #ai-tutor-pane')) return;
+      if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-reader-bar, .pdf-zoom-tools, #ai-tutor-pane')) return;
       if (!document.getElementById('img-lightbox')?.hidden) return;
 
       // Cmd/Ctrl + Enter works even while typing inside the answer textarea:

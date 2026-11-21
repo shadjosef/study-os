@@ -65,7 +65,7 @@ window.StudySchedule = (() => {
     };
   }
 
-  async function readCalendar(text, now = Date.now()) {
+  async function readCalendar(text, now = Date.now(), { includeTransparent = false } = {}) {
     if (text.length > 2_000_000 || !/BEGIN:VCALENDAR/i.test(text)) {
       throw new Error('Choose a valid .ics calendar file under 2 MB.');
     }
@@ -102,8 +102,9 @@ window.StudySchedule = (() => {
     let iterations = 0;
     function addEvent(original, details) {
       const item = details?.item || original;
+      const transparent = item.component.getFirstPropertyValue('transp')?.toUpperCase() === 'TRANSPARENT';
       if (item.component.getFirstPropertyValue('status')?.toUpperCase() === 'CANCELLED' ||
-          item.component.getFirstPropertyValue('transp')?.toUpperCase() === 'TRANSPARENT') return;
+          (transparent && !includeTransparent)) return;
       const dateProperty = item.component.getFirstProperty('dtstart');
       const tzid = dateProperty?.getParameter('tzid');
       const start = epoch(details?.startDate || item.startDate, tzid);
@@ -112,7 +113,7 @@ window.StudySchedule = (() => {
       if (!Number.isFinite(start) || end <= from || start >= until) return;
       const summary = item.summary?.trim() || 'Busy';
       const uid = `${original.uid || summary}-${start}`;
-      fixed.set(uid, { uid, start, end, summary, allDay: Boolean(item.startDate?.isDate) });
+      fixed.set(uid, { uid, start, end, summary, allDay: Boolean(item.startDate?.isDate), transparent });
       if (fixed.size > 1500) throw new Error('This calendar has too many events in the next two weeks.');
     }
     for (const event of events) {
@@ -128,6 +129,38 @@ window.StudySchedule = (() => {
     }
     if (!events.length) throw new Error('This calendar contains no events.');
     return [...fixed.values()];
+  }
+
+  function importStudyPlan(events, catalog, currentBlocks, now = Date.now()) {
+    const normalize = name => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const courseNames = new Map();
+    for (const course of catalog) {
+      for (const name of [course.code, course.title, course.shortTitle].filter(Boolean)) {
+        courseNames.set(normalize(name), course);
+      }
+      const shortName = course.shortTitle?.split(' & ')[0];
+      if (shortName) courseNames.set(normalize(shortName), course);
+      if (shortName === 'Mathematics') {
+        courseNames.set('maths', course);
+        courseNames.set('math', course);
+      }
+    }
+    const appliedIds = new Set(currentBlocks.map(item => item.eventId));
+    const result = [];
+    for (const event of events) {
+      if (event.allDay) continue;
+      const title = event.summary.replace(/^\[(?:high|med(?:ium)?|low)\s*dlpfc\]\s*/i, '');
+      const [, name, topic] = /^(.+?)(?:\s*[:·]\s*|\s+[–—-]\s+)(.+)$/.exec(title) || [];
+      const course = courseNames.get(normalize(name || title));
+      if (!course) continue;
+      const id = `calendar-plan-${event.uid}`;
+      if (event.end <= now && !appliedIds.has(id)) continue;
+      const kind = /^(?:(?:home|final|written|oral)\s+)?(?:exam|eksamen)(?:\s*[·:–—-]|$)/i.test(topic || '')
+        ? 'exam' : 'study_block';
+      result.push({ ...block(id, event.summary, event.start, event.end, kind, course.courseId),
+        optional: event.transparent });
+    }
+    return result.sort((a, b) => a.startIso.localeCompare(b.startIso));
   }
 
   function plan(fixed, prefs, catalog, courseProgress, estimate, now = Date.now()) {
@@ -277,5 +310,5 @@ window.StudySchedule = (() => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  return { bounds, download, plan, readCalendar };
+  return { bounds, download, importStudyPlan, plan, readCalendar };
 })();

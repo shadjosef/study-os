@@ -38,7 +38,7 @@ window.StudyPdf = (() => {
   async function excerptRange(source, page, content) {
     const { questionId, questionTitle, sourceId } = source;
     if (!questionId) return [0, 1];
-    if (questionId.startsWith('math-2588:') && sourceId) {
+    if (sourceId) {
       if (!savedExcerpts) {
         const url = new URL('../pdf-excerpts.json', script);
         url.search = script.search;
@@ -170,25 +170,36 @@ window.StudyPdf = (() => {
     return bounds;
   }
 
-  function toolbar() {
+  const fitControls = `<button type="button" class="mini-tool-btn" data-pdf-fit="page">Fit width</button>
+      <button type="button" class="mini-tool-btn" data-pdf-fit="content">Trim margins</button>`;
+
+  function toolbar(compact = false) {
     return `<div class="pdf-zoom-tools" aria-label="Document zoom">
       <button type="button" class="mini-tool-btn" data-pdf-scale="-" aria-label="Zoom out">−</button>
       <span data-pdf-level>100%</span>
       <button type="button" class="mini-tool-btn" data-pdf-scale="+" aria-label="Zoom in">+</button>
-      <button type="button" class="mini-tool-btn" data-pdf-fit="page">Fit width</button>
-      <button type="button" class="mini-tool-btn" data-pdf-fit="content">Trim margins</button>
+      ${compact ? '' : fitControls}
     </div>`;
   }
 
-  function viewer(page = 1, invert = false) {
-    return `<div class="pdf-page-tools">
-      <button type="button" class="mini-tool-btn" data-pdf-prev aria-label="Previous PDF page">‹</button>
-      <form data-pdf-page-form><label>Page <input name="page" type="number" min="1" value="${Number(page) || 1}"></label>
-        <button type="submit" class="mini-tool-btn">Go</button></form>
-      <span data-pdf-page-count></span>
-      <button type="button" class="mini-tool-btn" data-pdf-next aria-label="Next PDF page">›</button>
+  function viewer(page = 1, invert = false, sourceControl = '', fileActions = '') {
+    return `<div class="pdf-reader-bar">
+      <div class="pdf-page-tools" aria-label="PDF pages">
+        <button type="button" class="mini-tool-btn" data-pdf-prev aria-label="Previous PDF page" disabled>‹</button>
+        <form data-pdf-page-form><input name="page" type="number" min="1" value="${Number(page) || 1}" aria-label="PDF page number" title="Page number (press Enter)"></form>
+        <span data-pdf-page-count></span>
+        <button type="button" class="mini-tool-btn" data-pdf-next aria-label="Next PDF page" disabled>›</button>
+      </div>
+      ${toolbar(true)}
+      <details class="pdf-options">
+        <summary class="mini-tool-btn" aria-label="PDF options" title="PDF options">⋯</summary>
+        <div class="pdf-options-panel">
+          ${sourceControl}
+          ${fitControls}
+          ${fileActions}
+        </div>
+      </details>
     </div>
-    ${toolbar()}
     <p class="muted pdf-status" data-pdf-status role="status">Loading PDF…</p>
     <div class="pdf-zoom-scroll pdf-document-scroll ${invert ? 'pdf-ink-inverted' : ''}" tabindex="0" aria-label="Scrollable source PDF">
       <div class="pdf-zoom-page"><canvas aria-hidden="true"></canvas><div class="textLayer"></div></div>
@@ -436,7 +447,7 @@ window.StudyPdf = (() => {
       const doc = await session.task.promise;
       if (active !== session || !root.isConnected) return;
       pageField.max = doc.numPages;
-      root.querySelector('[data-pdf-page-count]').textContent = `of ${doc.numPages}`;
+      root.querySelector('[data-pdf-page-count]').textContent = `/ ${doc.numPages}`;
       const scroll = root.querySelector('.pdf-zoom-scroll');
       const paper = root.querySelector('.pdf-zoom-page');
       const text = root.querySelector('.textLayer');

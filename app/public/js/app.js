@@ -615,7 +615,7 @@ window.StudyApp = (() => {
           );
           const dismissed = !completed && Boolean(savedDismissed[block.eventId]);
           const isStudy = block.blockKind === 'study_block' || block.blockKind === 'recall_sprint';
-          const isDebt = Boolean(isStudy && timingState === 'past' && !completed && !dismissed && Number.isFinite(end) && end >= debtCutoff);
+          const isDebt = Boolean(isStudy && !block.optional && timingState === 'past' && !completed && !dismissed && Number.isFinite(end) && end >= debtCutoff);
           return { ...block, timingState, completed, completedAt, completedEarly, dismissed, isDebt };
         }),
       };
@@ -690,7 +690,7 @@ window.StudyApp = (() => {
 
     const isStudy = block?.blockKind === 'study_block' || block?.blockKind === 'recall_sprint';
     const isDebt = Boolean(
-      isStudy && timingState === 'past' && !completed && !dismissed && Number.isFinite(endMs) && endMs >= nowMs - SCHED_DEBT_WINDOW_MS
+      isStudy && !block.optional && timingState === 'past' && !completed && !dismissed && Number.isFinite(endMs) && endMs >= nowMs - SCHED_DEBT_WINDOW_MS
     );
     return { timingState, completed, completedAt, completedEarly, dismissed, isDebt, startMs, endMs };
   }
@@ -987,7 +987,7 @@ window.StudyApp = (() => {
 
     const debtMinutes = debtBlocks.reduce((sum, b) => sum + Number(b.focusMinutes || 50), 0);
     const earlyCount = completedBlocks.filter((b) => getBlockEffectiveState(b).completedEarly).length;
-    const queue = [...debtBlocks, ...liveBlocks, ...upcomingBlocks];
+    const queue = [...liveBlocks, ...debtBlocks, ...upcomingBlocks];
     return { debtBlocks, liveBlocks, upcomingBlocks, completedBlocks, queue, debtMinutes, earlyCount };
   }
 
@@ -4879,9 +4879,9 @@ window.StudyApp = (() => {
         <div class="row-between" style="margin:0;flex-wrap:wrap;gap:12px">
           <div>
             <h1 class="hero-title" style="margin:2px 0 4px">Study schedule</h1>
-            <p class="muted" style="margin:0;font-size:13.5px">
-              Plan two weeks around your classes, work hours, and sleep.
-            </p>
+            <p class="muted" style="margin:0;font-size:13.5px">${cfg.source === 'calendar_plan_import'
+              ? 'Using your imported calendar plan · Europe/Oslo'
+              : 'Plan two weeks around your classes, work hours, and sleep.'}</p>
           </div>
           <div class="row-actions">
             <button type="button" class="ghost-btn" id="btn-export-schedule">Download calendar (.ics)</button>
@@ -4907,7 +4907,7 @@ window.StudyApp = (() => {
           ? `<p class="muted">Install the Study-OS Chrome extension once, pair it with a 6-char device code, then click the extension while on <b>BI Canvas</b>, <b>TimeEdit</b>, or <b>Ed Discussion</b> to sync automatically across desktop and phone.</p>
              <div class="row-actions" style="flex-wrap:wrap">
                <button type="button" class="primary-btn" id="btn-pair-sync-ext">Get 6-char pairing code</button>
-               <button type="button" class="ghost-btn" id="btn-pull-ext-timeedit">Import synced TimeEdit</button>
+               <button type="button" class="ghost-btn" id="btn-pull-ext-timeedit">${cfg.enabled && cfg.source !== 'timeedit_extension_sync' ? 'Replace plan with synced TimeEdit' : 'Import synced TimeEdit'}</button>
                <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Extension guide ↗</a>
              </div>`
           : '<p class="muted">After syncing your courses in Chrome, send your plan and Canvas deadlines to your online profile.</p><button type="button" class="ghost-btn" id="btn-send-desktop-setup">Send to phone ↗</button>'}
@@ -4915,6 +4915,16 @@ window.StudyApp = (() => {
           due.map(task => `<li><a href="${esc(task.url)}" target="_blank" rel="noopener">${esc(task.name)}</a><small>${esc(task.course)} · ${esc(new Date(task.dueAt).toLocaleString())}</small></li>`).join('') + '</ul>'
           : '<p class="muted">No upcoming Canvas deadlines.</p>') : ''}
       </section>
+
+      ${isStaticWeb ? `
+        <section class="panel">
+          <h2>Use your calendar plan</h2>
+          <p class="muted">Import the next two weeks from Google Calendar or Apple Calendar. Start study event titles with the course name or code, such as “Accounting: Cash flow”.</p>
+          <div class="row-actions">
+            <button type="button" class="ghost-btn" id="btn-import-calendar-plan">Import study plan (.ics)</button>
+            <input type="file" id="sch-calendar-plan" accept=".ics,text/calendar" hidden>
+          </div>
+        </section>` : ''}
 
       <div class="schedule-studio-grid">
         <!-- PANEL A: TIMEEDIT + WORK HOURS AUTO-SCHEDULER -->
@@ -5161,6 +5171,40 @@ window.StudyApp = (() => {
       try { window.StudySchedule.download(boot.calendar?.blocks || []); }
       catch (error) { toast(error.message); }
     };
+    const calendarPlanInput = document.getElementById('sch-calendar-plan');
+    const calendarPlanButton = document.getElementById('btn-import-calendar-plan');
+    if (calendarPlanInput && calendarPlanButton) {
+      calendarPlanButton.onclick = () => calendarPlanInput.click();
+      calendarPlanInput.onchange = async () => {
+        const file = calendarPlanInput.files?.[0];
+        if (!file) return;
+        calendarPlanButton.disabled = true;
+        try {
+          if (file.size > 2_000_000) throw new Error('Choose an .ics file under 2 MB.');
+          const now = Date.now();
+          const events = await window.StudySchedule.readCalendar(await file.text(), now, { includeTransparent: true });
+          const ws = loadWebState();
+          const blocks = window.StudySchedule.importStudyPlan(events, boot.catalog, ws.customSchedule.blocks || [], now);
+          const studyCount = blocks.filter(block => block.blockKind === 'study_block').length;
+          if (!blocks.length) throw new Error('No upcoming events matched your courses. Start event titles with the course name or code.');
+          ws.customSchedule = {
+            ...ws.customSchedule,
+            enabled: true, source: 'calendar_plan_import', prefs: collectFormPrefs(), blocks,
+            estimate: null, updatedAt: new Date().toISOString(),
+          };
+          saveWebState(ws);
+          recomputeWebAnalytics();
+          syncCloudProgress().catch(() => {});
+          toast(`Imported ${studyCount} study blocks and ${blocks.length - studyCount} exams.`);
+          renderScheduleStudio();
+        } catch (error) {
+          toast(error.message || 'Could not import that calendar.');
+        } finally {
+          calendarPlanInput.value = '';
+          calendarPlanButton.disabled = false;
+        }
+      };
+    }
     document.getElementById('btn-send-desktop-setup')?.addEventListener('click', sendDesktopSetup);
     document.getElementById('btn-save-desktop-setup')?.addEventListener('click', async (event) => {
       const button = event.currentTarget;
@@ -5278,21 +5322,25 @@ window.StudyApp = (() => {
         return;
       }
       try {
+        const activePlan = loadWebState().customSchedule;
+        if (silent && activePlan.enabled && activePlan.source !== 'timeedit_extension_sync') return;
         const feed = await window.StudyCommunity.fetchExtensionTimeEdit();
         if (!feed?.hasFeed || !feed.calendar) {
           if (!silent) toast('No TimeEdit timetable synced from the extension yet. Open BI TimeEdit in Chrome and click Study-OS Sync.');
           return;
         }
-        const lastApplied = Number(localStorage.getItem('study-os-ext-te-ts') || 0);
-        if (silent && feed.updatedAt <= lastApplied) return;
         const formPrefs = collectFormPrefs();
         const fixed = await window.StudySchedule.readCalendar(feed.calendar);
         const plan = window.StudySchedule.plan(fixed, formPrefs, boot.catalog, boot.analytics?.courseProgress || {}, computeClientStudyEstimate);
         if (!plan.blocks.length) return;
         const ws = loadWebState();
+        const lastApplied = Number(localStorage.getItem('study-os-ext-te-ts') || 0);
+        if (silent && (feed.updatedAt <= lastApplied ||
+            (ws.customSchedule.enabled && ws.customSchedule.source !== 'timeedit_extension_sync'))) return;
         ws.customSchedule = {
+          ...ws.customSchedule,
           enabled: true, source: 'timeedit_extension_sync', prefs: formPrefs, blocks: plan.blocks,
-          estimate: plan.estimate, updatedAt: new Date(feed.updatedAt || Date.now()).toISOString(),
+          estimate: plan.estimate, updatedAt: new Date().toISOString(),
         };
         saveWebState(ws);
         try { localStorage.setItem('study-os-ext-te-ts', String(feed.updatedAt || Date.now())); } catch {}

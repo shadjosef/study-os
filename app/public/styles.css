@@ -1523,6 +1523,73 @@ html[data-theme="dark"][data-pdf-dark="1"] .pdf-figure-scroll {
 }
 .pdf-page-tools, .pdf-zoom-tools { padding: 6px 8px; background: var(--panel-alt); }
 .pdf-page-tools input { width: 4.5em; min-width: 0; padding: 2px 4px; }
+.pdf-reader-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 4px 8px;
+  background: var(--panel-alt);
+  border-bottom: 1px solid var(--line);
+}
+.pdf-reader-bar > :is(.pdf-page-tools, .pdf-zoom-tools) { padding: 0; flex-wrap: nowrap; }
+.pdf-reader-bar .mini-tool-btn { min-width: 28px; min-height: 28px; }
+.pdf-reader-bar input {
+  width: 3em;
+  height: 28px;
+  box-sizing: border-box;
+  padding-inline: 2px;
+  text-align: center;
+  appearance: textfield;
+}
+.pdf-reader-bar input::-webkit-inner-spin-button { appearance: none; }
+.pdf-reader-bar [data-pdf-level] { min-width: 3em; text-align: center; }
+.pdf-options { position: relative; margin-inline-start: auto; }
+.pdf-options > summary {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  list-style: none;
+}
+.pdf-options > summary::-webkit-details-marker { display: none; }
+.pdf-options-panel {
+  position: absolute;
+  inset: calc(100% + 5px) 0 auto auto;
+  z-index: 2;
+  display: grid;
+  gap: 4px;
+  width: 190px;
+  max-width: calc(100vw - 85px);
+  padding: 6px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  font-size: 12px;
+}
+.pdf-options-panel > * { min-width: 0; width: 100%; box-sizing: border-box; text-align: left; }
+.pdf-options-panel > strong { padding: 4px 8px; overflow-wrap: anywhere; }
+.runner-pane-left-scroll:has(> .inline-pdf-wrap > #source-pdf-reader) {
+  display: flex;
+  flex-basis: auto;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.runner-pane-left-scroll > .inline-pdf-wrap:has(> #source-pdf-reader),
+.runner-pane-left-scroll #source-pdf-reader {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.runner-pane-left-scroll .pdf-reader-bar { flex: none; }
+.runner-pane-left-scroll #source-pdf-reader .pdf-document-scroll {
+  min-height: 0;
+  max-height: none;
+  flex: 1 1 auto;
+}
 .pdf-status { margin: 4px 8px; }
 .pdf-status:empty { display: none; }
 .pdf-zoom-scroll { overflow: auto; max-height: min(68vh, 860px); }
