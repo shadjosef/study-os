@@ -10,6 +10,8 @@ on:
       - examples/**
       - site-pack/**
       - tools/build_public_site.py
+      - tools/seo_pages.py
+      - tools/seo_audit.py
       - .github/workflows/pages.yml
   workflow_dispatch:
 
@@ -43,6 +45,7 @@ jobs:
           else
             python3 tools/build_public_site.py --out ./dist
           fi
+          python3 tools/seo_audit.py --dir ./dist
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

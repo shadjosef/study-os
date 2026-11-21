@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="google-site-verification" content="6dI-s97tt2Pe7AA-rUB1nUxc9Uk8MLQMQu9sWqLs2zY">
-  <meta name="description" content="Free BI Oslo exam prep workspace: WISEflow mock exams, practice questions, course notes, Al tutor &amp; Canvas/TimeEdit sync for EXC 3420, EXC 3430, EXC 3460, EBA 3400 &amp; EBA 1181.">
+  <meta name="description" content="Free Canvas LMS, TimeEdit &amp; TP study workspace for BI Oslo, UiA, NTNU, UiO, NHH, UiB &amp; any university: 1,000+ practice questions, WISEflow mocks, instant inline PDFs &amp; AI tutor.">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <meta name="geo.region" content="NO-03">
   <meta name="geo.placename" content="Oslo, Norway">
@@ -19,16 +19,16 @@
   <meta property="og:locale" content="en_GB">
   <meta property="og:locale:alternate" content="nb_NO">
   <meta property="og:url" content="https://studyos.no/">
-  <meta property="og:title" content="Study-OS · BI Oslo Exam Prep, Course Notes &amp; WISEflow Practice">
-  <meta property="og:description" content="Free student study hub for Oslo &amp; BI Norwegian Business School courses: 364+ practice questions, timed WISEflow FLOWmulti mock exams, course notes, Al tutor, and 1-click Canvas &amp; TimeEdit sync.">
+  <meta property="og:title" content="Study-OS · Free Canvas LMS Sync, Exam Prep &amp; WISEflow Workspace">
+  <meta property="og:description" content="1-click Canvas, TimeEdit &amp; TP sync for BI Oslo, UiA, NTNU, UiO, NHH, UiB &amp; any *.instructure.com school: 1,000+ practice questions, WISEflow FLOWmulti mocks, instant inline PDFs &amp; AI tutor.">
   <meta property="og:image" content="https://studyos.no/og-image.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Study-OS — BI Oslo exam prep, WISEflow practice, course notes, and Canvas sync">
+  <meta property="og:image:alt" content="Study-OS — Free Canvas LMS sync, WISEflow exam prep, course notes, and instant inline PDF reader">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Study-OS · BI Oslo Exam Prep, Course Notes &amp; WISEflow Practice">
-  <meta name="twitter:description" content="Practice questions, timed WISEflow mock exams, course notes, Al tutor &amp; Canvas/TimeEdit sync for BI Oslo students (EXC 3420, EXC 3430, EXC 3460, EBA 3400, EBA 1181).">
+  <meta name="twitter:title" content="Study-OS · Free Canvas LMS Sync, Exam Prep &amp; WISEflow Workspace">
+  <meta name="twitter:description" content="Free Canvas LMS &amp; TimeEdit/TP study hub for Norway (BI, UiA, NTNU, UiO, NHH, UiB, OsloMet) &amp; worldwide: 1,000+ practice questions, WISEflow mocks, instant PDFs &amp; AI tutor.">
   <meta name="twitter:image" content="https://studyos.no/og-image.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Study-OS">
@@ -52,17 +52,28 @@
   <link rel="icon" href="./favicon.ico" sizes="48x48">
   <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="./pwa/study-os-192.png">
-  <title>Study-OS · BI Oslo Exam Prep, Course Notes &amp; WISEflow Practice</title>
+  <title>Study-OS · Free Canvas LMS Sync, Exam Prep &amp; WISEflow Workspace</title>
   <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@graph": [
         {
+          "@type": "Organization",
+          "@id": "https://studyos.no/#org",
+          "name": "Study-OS",
+          "url": "https://studyos.no/",
+          "logo": "https://studyos.no/pwa/study-os-192.png",
+          "sameAs": [
+            "https://github.com/shadjosef/study-os"
+          ]
+        },
+        {
           "@type": "WebSite",
           "@id": "https://studyos.no/#website",
           "url": "https://studyos.no/",
           "name": "Study-OS",
-          "alternateName": ["Study-OS Oslo", "Study-OS BI"],
+          "alternateName": ["StudyOS", "Study-OS Norway", "Study-OS BI"],
+          "publisher": { "@id": "https://studyos.no/#org" },
           "inLanguage": ["en", "nb"]
         },
         {
@@ -75,7 +86,7 @@
           "browserRequirements": "Requires JavaScript",
           "isAccessibleForFree": true,
           "inLanguage": ["en", "nb"],
-          "description": "Free exam preparation, WISEflow FLOWmulti simulator, course notes, Al tutor, circadian study scheduling, and 1-click BI Canvas & TimeEdit sync for students in Oslo, Norway.",
+          "description": "Free Canvas LMS, TimeEdit & TP study workspace for BI Oslo, UiA, NTNU, UiO, NHH, UiB, OsloMet, and any Instructure Canvas university: 1,000+ practice questions, timed WISEflow FLOWmulti mock exams, instant inline PDF reader, FSRS spaced repetition, and AI tutor.",
           "image": "https://studyos.no/og-image.png",
           "offers": {
             "@type": "Offer",
@@ -83,8 +94,11 @@
             "priceCurrency": "NOK"
           },
           "areaServed": [
+            { "@type": "Country", "name": "Norway" },
             { "@type": "City", "name": "Oslo" },
-            { "@type": "Country", "name": "Norway" }
+            { "@type": "City", "name": "Kristiansand" },
+            { "@type": "City", "name": "Trondheim" },
+            { "@type": "City", "name": "Bergen" }
           ],
           "audience": {
             "@type": "EducationalAudience",
@@ -382,14 +396,17 @@
       <section id="up-next-hero" class="hero-card">
         <div class="hero-top">
           <div style="flex:1;min-width:240px">
-            <span class="eyebrow">Oslo, Norway · BI Exam Prep Workspace</span>
-            <h1>Study-OS · BI Oslo Exam Prep, Course Notes &amp; WISEflow Practice</h1>
-            <p class="muted" style="margin:6px 0 12px;max-width:66ch">Free active-recall workspace for Oslo &amp; BI Norwegian Business School courses (EXC 3420, EXC 3430, EXC 3460, EBA 3400, EBA 1181): timed WISEflow FLOWmulti mock exams, course notes, Al Tutor, and 1-click BI Canvas &amp; TimeEdit sync.</p>
-            <div class="row-actions">
-              <a class="ghost-btn" href="./bi-oslo.html">BI Oslo Guide</a>
+            <span class="eyebrow">Norway &amp; Global Canvas LMS · Free Exam Prep Workspace</span>
+            <h1>Study-OS · Free Canvas LMS Sync, WISEflow Practice &amp; Study Workspace</h1>
+            <p class="muted" style="margin:6px 0 12px;max-width:68ch">Free active-recall study workspace for BI Oslo, UiA, NTNU, UiO, NHH, UiB, OsloMet, and any Instructure Canvas university: 1,000+ practice questions, timed WISEflow FLOWmulti mock exams, instant inline PDF reader, course notes, AI Tutor, and 1-click Canvas + TimeEdit/TP sync.</p>
+            <div class="row-actions" style="flex-wrap:wrap">
+              <a class="ghost-btn" href="./universities.html">Supported Universities</a>
+              <a class="ghost-btn" href="./bi-oslo.html">BI Oslo</a>
+              <a class="ghost-btn" href="./uni/uia.html">UiA</a>
+              <a class="ghost-btn" href="./gpa-calculator.html">GPA Calculator</a>
+              <a class="ghost-btn" href="./compare.html">Compare</a>
               <a class="ghost-btn" href="./norsk.html" lang="nb">Norsk</a>
               <a class="ghost-btn" href="./wiseflow-practice.html">WISEflow Exams</a>
-              <a class="ghost-btn" href="./notes.html">Course Notes</a>
             </div>
           </div>
         </div>
@@ -497,12 +514,15 @@
       </section>
     </noscript>
     <footer class="site-footer">
-      <span>Study-OS · Independent student project · Oslo, Norway</span>
-      <nav class="site-footer-links" aria-label="Course directory, legal and project links">
+      <span>Study-OS · Independent open-source student workspace · Norway</span>
+      <nav class="site-footer-links" aria-label="University guides, tools, legal and project links">
+        <a href="./universities.html">Universities</a>
         <a href="./bi-oslo.html">BI Oslo</a>
         <a href="./norsk.html" lang="nb">Norsk</a>
+        <a href="./gpa-calculator.html">GPA Calc</a>
+        <a href="./compare.html">Compare</a>
         <a href="./wiseflow-practice.html">WISEflow</a>
-        <a href="./bi-canvas-timeedit-sync.html">BI Sync</a>
+        <a href="./bi-canvas-timeedit-sync.html">Canvas Sync</a>
         <a href="./notes.html">Notes</a>
         <a href="./privacy.html">Privacy</a>
         <a href="./terms.html">Terms</a>

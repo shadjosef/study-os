@@ -975,11 +975,11 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
 """
     (out_dir / "bi-oslo.html").write_text(oslo_html, encoding="utf-8")
 
-    # 3. Pure Norwegian Bokmål Oslo landing page (`/norsk.html`, lang="nb")
-    nb_title = "Study-OS Norge · Gratis eksamensøving for BI Oslo (WISEflow & Canvas)"
+    # 3. Pure Norwegian Bokmål landing page (`/norsk.html`, lang="nb")
+    nb_title = "Study-OS Norge · Gratis eksamensøving, Canvas-synk & WISEflow (BI, UiA, NTNU, UiO)"
     nb_desc = (
-        f"Gratis studieplattform for studenter ved Handelshøyskolen BI i Oslo: {total_qs}+ øvingsoppgaver, "
-        f"WISEflow FLOWmulti-eksamener, kursnotater, Al-veileder og 1-klikks synk med BI Canvas og TimeEdit."
+        f"Gratis studieplattform for norske studenter (BI Oslo, UiA, NTNU, UiO, NHH, UiB, OsloMet): {total_qs}+ øvingsoppgaver, "
+        f"WISEflow-eksamener, karaktersnittkalkulator, AI-veileder og 1-klikks Canvas + TimeEdit/TP-synk."
     )
     nb_faqs = [
         (
@@ -1075,8 +1075,9 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <p class="seo-lead">{escape(nb_desc)}</p>
       <div class="seo-cta-row">
         <a class="primary-btn btn-lg" href="./">Start øving i Study-OS →</a>
-        <a class="ghost-btn btn-lg" href="./wiseflow-practice.html">WISEflow-simulator</a>
-        <a class="ghost-btn btn-lg" href="./bi-canvas-timeedit-sync.html">Synk BI Canvas &amp; TimeEdit</a>
+        <a class="ghost-btn btn-lg" href="./universities.html">Velg universitet (UiA, NTNU, UiO, NHH…)</a>
+        <a class="ghost-btn btn-lg" href="./gpa-calculator.html">Karaktersnitt Kalkulator</a>
+        <a class="ghost-btn btn-lg" href="./bi-canvas-timeedit-sync.html">Canvas &amp; TimeEdit/TP Sync</a>
       </div>
       <div class="seo-stats">
         <div class="seo-stat"><strong>{len(catalog)}</strong><small>BI-emner klare nå</small></div>
@@ -1226,25 +1227,72 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     (out_dir / "wiseflow-practice.html").write_text(wf_html, encoding="utf-8")
     sitemap_urls.append((f"{base}/wiseflow-practice.html", "0.85", "monthly"))
 
-    # 5. BI Canvas, TimeEdit & Ed Discussion Sync landing page (`/bi-canvas-timeedit-sync.html`)
-    sync_title = "BI Canvas, TimeEdit & Ed Discussion 1-Click Sync · Study-OS Sync"
+    # 5. Multi-School Canvas, TimeEdit/TP & Ed Discussion Sync landing page (`/bi-canvas-timeedit-sync.html`)
+    sync_title = "Canvas LMS, TimeEdit & TP 1-Click Sync Extension (BI, UiA, NTNU, UiO, NHH) · Study-OS"
     sync_desc = (
-        "Sync BI Norwegian Business School Canvas courses & deadlines, TimeEdit class schedules (.ics), and Ed Discussion threads "
-        "into Study-OS in 1 click using the Study-OS Sync Chrome extension — zero passwords or cookies copied."
+        "Sync Canvas LMS courses & deadlines (BI Oslo, UiA, NHH, UiO, NTNU, UiB, OsloMet & any *.instructure.com), "
+        "TimeEdit / TP timetables (.ics), and Ed Discussion in 1 click using Study-OS Sync v1.6.0 — zero passwords copied."
     )
+    sync_faqs = [
+        (
+            "Which universities work with Study-OS Sync v1.6.0?",
+            "Study-OS Sync works out of the box with BI Oslo (canvas.bi.no), UiA (uia.instructure.com & tp.educloud.no/uia), NTNU, UiO (canvas.uio.no & tp.uio.no), NHH, UiB (mitt.uib.no), OsloMet, UiS, UiT, USN, NMBU, HVL, Kristiania, and any university worldwide running Instructure Canvas (*.instructure.com).",
+        ),
+        (
+            "Does Study-OS Sync need my school password or Feide credentials?",
+            "Never. It runs locally inside your already signed-in Canvas, TimeEdit, TP, or Ed browser tab using same-origin browser requests and only transmits course codes, module titles, and private deadlines to your paired Study-OS account.",
+        ),
+        (
+            "Does it support both TimeEdit and Norwegian TP (tp.educloud.no)?",
+            "Yes. Study-OS Sync auto-detects both cloud.timeedit.net (BI, NHH, etc.) and tp.educloud.no / tp.uio.no (UiA, NTNU, UiO, UiB, OsloMet) and imports your lectures directly into your circadian study schedule.",
+        ),
+    ]
     sync_json_ld = {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Study-OS Sync",
-        "applicationCategory": "BrowserApplication",
-        "operatingSystem": "Chrome, Brave, Edge, Vivaldi",
-        "url": f"{base}/bi-canvas-timeedit-sync.html",
-        "downloadUrl": f"{base}/downloads/study-os-sync-extension.zip",
-        "softwareVersion": "1.6.0",
-        "isAccessibleForFree": True,
-        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "NOK"},
-        "description": sync_desc,
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {"@type": "ListItem", "position": 1, "name": "Study-OS", "item": f"{base}/"},
+                    {"@type": "ListItem", "position": 2, "name": "Canvas & Timetable Sync", "item": f"{base}/bi-canvas-timeedit-sync.html"},
+                ],
+            },
+            {
+                "@type": "SoftwareApplication",
+                "name": "Study-OS Sync",
+                "applicationCategory": "BrowserApplication",
+                "operatingSystem": "Chrome, Brave, Edge, Vivaldi",
+                "url": f"{base}/bi-canvas-timeedit-sync.html",
+                "downloadUrl": f"{base}/downloads/study-os-sync-extension.zip",
+                "softwareVersion": "1.6.0",
+                "isAccessibleForFree": True,
+                "offers": {"@type": "Offer", "price": "0", "priceCurrency": "NOK"},
+                "description": sync_desc,
+            },
+            {
+                "@type": "HowTo",
+                "name": "How to sync Canvas LMS, TimeEdit or TP, and Ed Discussion to Study-OS",
+                "totalTime": "PT1M",
+                "step": [
+                    {"@type": "HowToStep", "position": 1, "text": "Install Study-OS Sync v1.6.0 in Chrome, Brave, Edge, or Vivaldi."},
+                    {"@type": "HowToStep", "position": 2, "text": "Sign in at studyos.no, open Sync Canvas, and generate a one-time 6-character pairing code."},
+                    {"@type": "HowToStep", "position": 3, "text": "Open your signed-in Canvas (e.g. canvas.bi.no, uia.instructure.com, mitt.uib.no, or any *.instructure.com) and TimeEdit/TP tab, then click Sync once."},
+                    {"@type": "HowToStep", "position": 4, "text": "Drop any personal lecture PDFs or textbooks (up to 260 MB locally) to unlock instant inline side-by-side PDF viewing."},
+                ],
+            },
+            {
+                "@type": "FAQPage",
+                "mainEntity": [
+                    {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}}
+                    for q, a in sync_faqs
+                ],
+            },
+        ],
     }
+    sync_faq_html = "".join(
+        f"        <details><summary>{escape(q)}</summary><p>{escape(a)}</p></details>\n"
+        for q, a in sync_faqs
+    )
     sync_html = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1362,17 +1410,34 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <span class="eyebrow">How it works in 30 seconds</span>
       <h2>Zero OAuth, zero passwords, zero cookie copying</h2>
       <ul class="seo-topics">
-        <li><strong>1. Pair once:</strong> Sign in at <code>studyos.no</code>, click <strong>Sync BI</strong>, and copy a 6-character pairing code into the extension popup.</li>
-        <li><strong>2. Keep BI tabs open:</strong> Leave your signed-in <code>canvas.bi.no</code>, <code>cloud.timeedit.net</code>, or <code>edstem.org</code> tabs open in Chrome, Brave, Edge, or Vivaldi.</li>
-        <li><strong>3. Click Sync once:</strong> Pulls active courses, module outlines, assignment due dates, and TimeEdit class lectures into your private Study-OS schedule and course list.</li>
-        <li><strong>4. Attach your own PDFs:</strong> Drop personal curriculum PDFs, lecture slides, or cheat sheets inside Sync BI to keep them synced privately to your Study-OS profile.</li>
+        <li><strong>1. Pair once:</strong> Sign in at <code>studyos.no</code>, click <strong>Sync Canvas</strong>, and copy a 6-character pairing code into the extension popup.</li>
+        <li><strong>2. Keep your school tabs open:</strong> Leave your signed-in Canvas tab (<code>canvas.bi.no</code>, <code>uia.instructure.com</code>, <code>mitt.uib.no</code>, <code>*.instructure.com</code>), <code>cloud.timeedit.net</code> / <code>tp.educloud.no</code>, or <code>edstem.org</code> open in Chrome, Brave, Edge, or Vivaldi.</li>
+        <li><strong>3. Click Sync once:</strong> Pulls active courses, module outlines, assignment due dates, and TimeEdit/TP class lectures into your private Study-OS schedule and course list.</li>
+        <li><strong>4. Attach your own PDFs:</strong> Drop personal curriculum PDFs, lecture slides, or full textbooks (up to 260 MB locally) for instant inline split-screen PDF viewing with built-in search.</li>
       </ul>
+      <div class="seo-cta-row" style="margin-top:12px">
+        <a class="ghost-btn" href="./universities.html">All Universities</a>
+        <a class="ghost-btn" href="./uni/uia.html">UiA Guide</a>
+        <a class="ghost-btn" href="./uni/ntnu.html">NTNU Guide</a>
+        <a class="ghost-btn" href="./uni/uio.html">UiO Guide</a>
+        <a class="ghost-btn" href="./uni/nhh.html">NHH Guide</a>
+        <a class="ghost-btn" href="./uni/canvas-lms.html">Any Canvas School</a>
+      </div>
+    </section>
+
+    <section style="margin-bottom:16px">
+      <h2 style="margin:0 0 6px">Sync FAQ / Ofte stilte spørsmål</h2>
+      <div class="seo-faq">
+{sync_faq_html}      </div>
     </section>
 
     <footer class="seo-foot">
-      <span>Study-OS · Independent student project in Oslo, Norway.</span>
+      <span>Study-OS · Independent open-source student project in Norway.</span>
       <nav aria-label="Footer links">
         <a href="./">App</a>
+        <a href="./universities.html">Universities</a>
+        <a href="./gpa-calculator.html">GPA Calculator</a>
+        <a href="./compare.html">Compare</a>
         <a href="./bi-oslo.html">BI Oslo</a>
         <a href="./norsk.html" lang="nb">Norsk</a>
         <a href="./wiseflow-practice.html">WISEflow</a>
@@ -1500,28 +1565,50 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     (out_dir / "notes.html").write_text(notes_html, encoding="utf-8")
     sitemap_urls.append((f"{base}/notes.html", "0.8", "weekly"))
 
+    # 6B. Multi-University Hubs (`/universities.html`, `/uni/*.html`), GPA Calculator (`/gpa-calculator.html`), and Comparison (`/compare.html`)
+    from seo_pages import UNIVERSITIES, generate_growth_seo_pages
+    growth_entries = generate_growth_seo_pages(
+        out_dir=out_dir,
+        base=base,
+        total_qs=total_qs,
+        ref_count=len(references),
+        seo_theme_script=SEO_THEME_SCRIPT,
+        seo_page_style=SEO_PAGE_STYLE,
+    )
+    sitemap_urls.extend(growth_entries)
+
     # 7. AI Search / GEO discovery file (`/llms.txt`)
     llms_course_lines = [
         f"- [{c.get('code', '')} · {c.get('title', '')}]({base}/courses/{c['courseId']}.html): "
         f"{int(c.get('questionCount') or 0)} practice questions · {(c.get('examInfo') or {}).get('format', 'Exam prep')}"
         for c in catalog if c.get("courseId")
     ]
+    llms_uni_lines = [
+        f"- [{u['name']} ({u['canvas_host']})]({base}/uni/{u['slug']}.html): {u['timetable_name']} · {u['program_focus']}"
+        for u in UNIVERSITIES
+    ]
     llms_txt = "\n".join([
         "# Study-OS (https://studyos.no)",
         "",
-        "> Free, independent student exam preparation workspace for Oslo, Norway and BI Norwegian Business School courses. "
-        "Includes active-recall practice questions, timed WISEflow FLOWmulti & BYOD mock exams, KaTeX course notes, "
-        "side-pane Al Tutor, circadian DLPFC study scheduling, and 1-click BI Canvas / TimeEdit / Ed Discussion sync.",
+        f"> Free, independent open-source student workspace for Canvas LMS, TimeEdit & TP timetables, WISEflow exam prep, "
+        f"instant inline PDF reading, FSRS spaced repetition, and AI tutoring. Built in Norway for BI Oslo, UiA, NTNU, UiO, "
+        f"NHH, UiB, OsloMet, and any university running Instructure Canvas (*.instructure.com) — with {total_qs}+ practice questions.",
         "",
-        "## Core Pages",
-        f"- [Study-OS Interactive Workspace]({base}/): Main web application with practice runner, timers, and progress tracking.",
+        "## Core Pages & Free Tools",
+        f"- [Study-OS Interactive Workspace]({base}/): Main web application with practice runner, instant inline PDF viewer, timers, and progress tracking.",
+        f"- [Supported Universities Directory]({base}/universities.html): Setup guides for BI Oslo, UiA, NTNU, UiO, NHH, UiB, OsloMet & any Canvas LMS university.",
+        f"- [Karaktersnitt Kalkulator / Norwegian ECTS GPA Calculator]({base}/gpa-calculator.html): Free zero-login A–F & studiepoeng weighted GPA calculator with Master's target planner.",
+        f"- [Study-OS vs Notion, Anki & Quizlet]({base}/compare.html): Honest feature comparison and trade-offs for university students.",
+        f"- [Canvas LMS, TimeEdit/TP & Ed Discussion Sync]({base}/bi-canvas-timeedit-sync.html): Manifest V3 Chrome extension (v1.6.0) for 1-click multi-school sync.",
         f"- [BI Oslo Study Guide (English)]({base}/bi-oslo.html): Overview of BI Oslo courses, exam tools, and FAQ.",
-        f"- [Study-OS på norsk (BI Oslo)]({base}/norsk.html): Norwegian Bokmål guide for BI Oslo students.",
-        f"- [WISEflow FLOWmulti & BYOD Exam Simulator]({base}/wiseflow-practice.html): Timed 3-hour mock exams with BI formatting rules.",
-        f"- [BI Canvas, TimeEdit & Ed Discussion Sync]({base}/bi-canvas-timeedit-sync.html): Manifest V3 Chrome extension for 1-click sync.",
-        f"- [BI Oslo Course Notes & Reference Hub]({base}/notes.html): Full index of semester reference sheets and formulas.",
+        f"- [Study-OS på norsk]({base}/norsk.html): Norwegian Bokmål guide for Norwegian university & BI students.",
+        f"- [WISEflow FLOWmulti & BYOD Exam Simulator]({base}/wiseflow-practice.html): Timed 3-hour mock exams with ±2% numeric & formatting rules.",
+        f"- [Course Notes & Reference Hub]({base}/notes.html): Full index of semester reference sheets and KaTeX formulas.",
         "",
-        "## Public BI Oslo Courses",
+        "## Supported Universities",
+        *llms_uni_lines,
+        "",
+        "## Public Practice Courses",
         *llms_course_lines,
         "",
         "## Reference Sheets",
@@ -1640,12 +1727,13 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
         ".nojekyll", "CNAME", "404.html", "robots.txt", "sitemap.xml", "llms.txt",
         "og-image.png", "favicon.ico", "bi-oslo.html", "norsk.html",
         "wiseflow-practice.html", "bi-canvas-timeedit-sync.html", "notes.html",
+        "universities.html", "gpa-calculator.html", "compare.html",
         "7d4c9e2a8b1f4063a5e7c2d9f1b84e60.txt",
     }
     for path in sorted(out_dir.rglob("*")):
         if path.is_file() and path.name not in seo_skip_files:
             rel = path.relative_to(out_dir).as_posix()
-            if rel.startswith("downloads/") or rel.startswith("courses/"):
+            if rel.startswith("downloads/") or rel.startswith("courses/") or rel.startswith("uni/"):
                 continue
             assets.append(quote(rel, safe="/"))
             fingerprint.update(rel.encode() + b"\0" + hashlib.sha256(path.read_bytes()).digest())
