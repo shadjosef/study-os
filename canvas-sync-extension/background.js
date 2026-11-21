@@ -205,6 +205,36 @@ async function collectCanvas() {
           .filter(Boolean)
           .slice(0, 35);
       } catch {}
+
+      if (!course.topics.length) {
+        try {
+          const fpRes = await fetch(`${canvasOrigin}/api/v1/courses/${course.id}/front_page`, {
+            credentials: 'same-origin',
+            redirect: 'manual',
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(8_000),
+          });
+          if (fpRes.ok && fpRes.headers.get('Content-Type')?.includes('json')) {
+            const fp = JSON.parse((await fpRes.text()).replace(/^\s*while\s*\(1\)\s*;\s*/, ''));
+            if (typeof fp?.body === 'string' && fp.body.trim()) {
+              const doc = new DOMParser().parseFromString(fp.body, 'text/html');
+              const extracted = [];
+              const seen = new Set();
+              doc.querySelectorAll('h2, h3, li, p').forEach((el) => {
+                if (extracted.length >= 25) return;
+                const txt = (el.textContent || '').replace(/\s+/g, ' ').trim();
+                const m = txt.match(/^(?:Lecture|Forelesning|Week|Uke|Module|Modul|Topic|Tema|Session|Øving)\s*\d+[^.!?\n]{0,75}/i);
+                const candidate = m ? m[0].replace(/\bDownload\b.*$/i, '').trim() : (el.tagName === 'H2' || el.tagName === 'H3' ? txt : '');
+                if (candidate && candidate.length >= 4 && candidate.length <= 95 && !seen.has(candidate.toLowerCase())) {
+                  seen.add(candidate.toLowerCase());
+                  extracted.push(candidate);
+                }
+              });
+              if (extracted.length) course.topics = extracted.slice(0, 25);
+            }
+          }
+        } catch {}
+      }
     }
     return { snapshot: { version: 2, canvasOrigin, capturedAt, courses } };
   } catch (error) {

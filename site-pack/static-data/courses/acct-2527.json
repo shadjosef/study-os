@@ -190,7 +190,7 @@
     },
     {
       "id": "tutoring",
-      "title": "Tutoring Sessions 1–6 (T1–T6)",
+      "title": "Tutoring Sessions 1–7 (T1–T7)",
       "kind": "tutoring",
       "provenance": {
         "category": "tutoring",
@@ -1036,6 +1036,36 @@
       "canvasFileId": "209314",
       "canvasUrl": "https://canvas.bi.no/courses/2527/files/209314",
       "isSolution": false
+    },
+    "212220": {
+      "id": "212220",
+      "title": "Tutoring Session 7 · Capital Investment Appraisal (Questions)",
+      "filename": "Tutoring session 7.pdf",
+      "kind": "canvas",
+      "canvasCourseId": "2527",
+      "canvasFileId": "212220",
+      "canvasUrl": "https://canvas.bi.no/courses/2527/files/212220",
+      "isSolution": false
+    },
+    "213663": {
+      "id": "213663",
+      "title": "Tutoring Session 7 · Question 1 Solutions (NPV vs Residual Income)",
+      "filename": "Question 1 solutions (part b&c).pdf",
+      "kind": "canvas",
+      "canvasCourseId": "2527",
+      "canvasFileId": "213663",
+      "canvasUrl": "https://canvas.bi.no/courses/2527/files/213663",
+      "isSolution": true
+    },
+    "213665": {
+      "id": "213665",
+      "title": "Tutoring Session 7 · Question 1a & Question 2 Solutions",
+      "filename": "Solution exercise 1 (part a) & 2 -1.pdf",
+      "kind": "canvas",
+      "canvasCourseId": "2527",
+      "canvasFileId": "213665",
+      "canvasUrl": "https://canvas.bi.no/courses/2527/files/213665",
+      "isSolution": true
     }
   },
   "questions": [
@@ -3898,7 +3928,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -3994,7 +4024,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -4090,7 +4120,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -4212,7 +4242,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -4308,7 +4338,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -4404,7 +4434,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -4513,7 +4543,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -4610,7 +4640,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -4732,7 +4762,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -4841,7 +4871,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -4950,7 +4980,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -5118,7 +5148,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -5270,7 +5300,7 @@
         "label": "Tutoring Session",
         "synthetic": false,
         "llmModel": null,
-        "sourceDetail": "Tutoring Sessions 1–6 (T1–T6)"
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
       },
       "sourceRefs": [
         {
@@ -33648,7 +33678,7 @@
       "available": true,
       "difficulty": 1,
       "dlpfcBase": 1,
-      "cognitiveType": "conceptual",
+      "cognitiveType": "recall",
       "points": 4,
       "promptMarkdown": "Which pair lists two **enhancing** (rather than fundamental) qualitative characteristics of useful financial information?",
       "contextMarkdown": "",
@@ -33697,7 +33727,7 @@
       "available": true,
       "difficulty": 1,
       "dlpfcBase": 1,
-      "cognitiveType": "conceptual",
+      "cognitiveType": "recall",
       "points": 4,
       "promptMarkdown": "Which statement best distinguishes **management accounting** from financial accounting?",
       "contextMarkdown": "",
@@ -33746,7 +33776,7 @@
       "available": true,
       "difficulty": 1,
       "dlpfcBase": 1,
-      "cognitiveType": "conceptual",
+      "cognitiveType": "recall",
       "points": 4,
       "promptMarkdown": "Which equation correctly expresses the relationship among Assets (A), Liabilities (L), Opening Equity (E₀), Revenues (R), Expenses (Ex), and Owner Drawings (D)?",
       "contextMarkdown": "",
@@ -33795,7 +33825,7 @@
       "available": true,
       "difficulty": 2,
       "dlpfcBase": 2,
-      "cognitiveType": "calculation",
+      "cognitiveType": "procedural",
       "points": 4,
       "promptMarkdown": "At the start of the year, a business had equity of `62,000`, and by year-end equity had risen to `74,500`. During the year, the owner withdrew `15,000` in cash for personal use and contributed equipment valued at `9,500`. What was the **profit or loss** for the year?",
       "contextMarkdown": "",
@@ -33843,8 +33873,8 @@
       "origin": "mock_exam",
       "available": true,
       "difficulty": 2,
-      "dlpfcBase": 2,
-      "cognitiveType": "calculation",
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
       "points": 4,
       "promptMarkdown": "During a period of **falling** purchase prices (deflation), using the **FIFO** inventory valuation method instead of LIFO will report ______ at year-end.",
       "contextMarkdown": "",
@@ -33893,7 +33923,7 @@
       "available": true,
       "difficulty": 1,
       "dlpfcBase": 1,
-      "cognitiveType": "conceptual",
+      "cognitiveType": "recall",
       "points": 4,
       "promptMarkdown": "Consider two statements concerning costs:\n- **a)** Variable costs per unit remain constant within the relevant range of output.\n- **b)** Sunk costs should be included in short-term special-order pricing decisions.\n\nWhich combination is correct?",
       "contextMarkdown": "",
@@ -33942,7 +33972,7 @@
       "available": true,
       "difficulty": 1,
       "dlpfcBase": 1,
-      "cognitiveType": "conceptual",
+      "cognitiveType": "recall",
       "points": 4,
       "promptMarkdown": "The contribution forgone by diverting a scarce resource from its next-best alternative use is known as a(n) ______ cost and is always **relevant**.",
       "contextMarkdown": "",
@@ -33991,7 +34021,7 @@
       "available": true,
       "difficulty": 1,
       "dlpfcBase": 1,
-      "cognitiveType": "conceptual",
+      "cognitiveType": "recall",
       "points": 4,
       "promptMarkdown": "Under **full (absorption) costing**, indirect manufacturing overheads are assigned to individual jobs primarily by:",
       "contextMarkdown": "",
@@ -34040,7 +34070,7 @@
       "available": true,
       "difficulty": 2,
       "dlpfcBase": 2,
-      "cognitiveType": "calculation",
+      "cognitiveType": "procedural",
       "points": 4,
       "promptMarkdown": "A conventional investment project has an initial cash outlay at t = 0 followed by positive net cash inflows in years 1–4. If the firm's **cost of capital increases**, what happens to the project's **NPV** and **IRR**?",
       "contextMarkdown": "",
@@ -34088,8 +34118,8 @@
       "origin": "mock_exam",
       "available": true,
       "difficulty": 2,
-      "dlpfcBase": 2,
-      "cognitiveType": "calculation",
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
       "points": 4,
       "promptMarkdown": "Nordvik AS owns a specialised press bought 3 years ago for `450,000` (current carrying value `270,000`). If not used on Project X, the press could be sold today for `140,000` or deployed on Project Y where it would save purchasing a replacement press for `195,000`. What is the **relevant cost** of the press for Project X?",
       "contextMarkdown": "",
@@ -34337,8 +34367,8 @@
       "origin": "mock_exam",
       "available": true,
       "difficulty": 2,
-      "dlpfcBase": 2,
-      "cognitiveType": "calculation",
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
       "points": 30,
       "promptMarkdown": "**Lillehammer Services AS** provides a single standard service. The business's results for a representative month are as follows:\n\n| Metric | Monthly Result |\n| --- | ---: |\n| Sales [units of service] | 800 |\n| Sales revenue | 48,000 |\n| Operating profit | 18,000 |\n\nThere were no changes in selling price or cost structure over the period. Variable costs were **15** per unit of service.\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Contribution per unit equals selling price per unit minus variable cost per unit.\n   - **b.** Irrelevant costs include future differential cash flows.\n   - **c.** At the break-even point, total contribution equals total fixed costs and operating profit is zero.\n2. Calculate the **selling price per unit** and the **fixed costs per month**. *(6 points)*\n3. Calculate the **break-even point** in units and in sales revenue. *(6 points)*\n4. Calculate: (i) the **margin of safety (%)** at 800 units *(6 points)*, and (ii) the monthly **units required** to earn a target operating profit of **27,000** *(6 points)*. *(12 points in total)*",
       "contextMarkdown": "",
@@ -34497,8 +34527,8 @@
       "origin": "mock_exam",
       "available": true,
       "difficulty": 2,
-      "dlpfcBase": 2,
-      "cognitiveType": "calculation",
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
       "points": 20,
       "promptMarkdown": "The following information has been taken from the budget for the forthcoming financial year of **Drammen Metalworks AS**:\n\n| Budgeted Activity / Manufacturing Cost | Amount |\n| --- | ---: |\n| Direct labor hours [hours] | 80,000 |\n| Machine hours [hours] | 60,000 |\n| Direct labor | 480,000 |\n| Indirect labor | 96,000 |\n| Direct materials | 160,000 |\n| Power | 32,000 |\n| Factory heat and light | 8,000 |\n| Machine maintenance | 40,000 |\n| Cleaning material | 4,000 |\n| Depreciation: factory | 100,000 |\n| Depreciation: machinery | 280,000 |\n| **Total manufacturing costs** | **1,200,000** |\n\nAll direct labor is paid at the same hourly rate.\n\nFor the specific order **\"No 204\"**, the following is required:\n- Direct materials: **6,500**\n- Direct labor hours: **3,000 [hours]**\n- Machine hours: **1,400 [hours]**\n\n### Requirements:\n\n1. **Right or wrong?** *(6 points in total, 2 points each)*\n   - **a.** Indirect costs are costs that cannot be directly measured in respect of a particular job or cost unit.\n   - **b.** Direct labor and direct materials should be included in the overhead pool when calculating the overhead recovery rate.\n   - **c.** Full cost information is used for inventory valuation and long-run pricing decisions.\n2. Calculate the **overhead recovery rate** based on direct labor hours. *(4 points)*\n3. Calculate the **direct labor cost**, **overheads absorbed**, and **full cost** for order **\"No 204\"** using the overhead rate based on direct labor hours. *(10 points)*",
       "contextMarkdown": "",
@@ -34819,6 +34849,324 @@
         "llmModel": "Gemini (Antigravity)",
         "sourceDetail": "WISEflow Mock Exam D · Classic BI Exam Format (180 pts, ±2% Auto-Graded)"
       }
+    },
+    {
+      "id": "acct-2527:T7.1",
+      "localId": "T7.1",
+      "courseId": "acct-2527",
+      "topicId": "10",
+      "collectionId": "tutoring",
+      "origin": "tutoring",
+      "kind": "calculation",
+      "difficulty": 2,
+      "title": "T7.1 · Session 7 · Speedy Delivery Ltd (Payback, NPV & Residual Income)",
+      "promptMarkdown": "**Speedy Delivery Ltd** is considering investing in a fleet of new delivery trucks to expand its delivery services. The trucks cost **£500,000**, have a useful life of **5 years**, and an estimated salvage value of **£50,000** at the end of Year 5. They will be depreciated on a **straight-line** basis. The investment is expected to generate additional annual revenue of **£200,000** and incur annual operating expenses of **£50,000**.\n\n| Parameter | Amount |\n|---|---:|\n| Initial cost of trucks ($I_0$) | £500,000 |\n| Useful life | 5 years |\n| Estimated salvage value ($t=5$) | £50,000 |\n| Annual revenue | £200,000 |\n| Annual operating expenses (cash) | £50,000 |\n| Discount rate / required return ($r$) | 10% |\n\n**Required:**\n1. Calculate the **Payback Period** for the investment.\n2. Calculate the **Net Present Value (NPV)** of the investment using a discount rate of $10\\%$.\n3. Calculate the **Residual Income (RI)** for each year ($t = 1, \\dots, 5$), using a required return of $10\\%$ and the opening carrying value of the trucks as operating assets ($OA_{t-1}$). **Show that the present value of the residual incomes equals the NPV.**",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Annual operating cash flow $C = £200,000 - £50,000 = £150,000$; Year 5 total inflow $= £150,000 + £50,000 = £200,000$",
+        "Payback Period $= £500,000 / £150,000 = \\mathbf{3.33\\text{ years}}$ (3 years 4 months)",
+        "NPV at $10\\%$ $= -£500,000 + \\sum_{t=1}^{4} \\frac{150,000}{1.10^t} + \\frac{200,000}{1.10^5} = \\mathbf{£99,664}$",
+        "Annual depreciation $= (£500,000 - £50,000)/5 = £90,000$; Annual Net Income $= £150,000 - £90,000 = £60,000$",
+        "Opening carrying values $OA_{t-1}$: £500k, £410k, £320k, £230k, £140k → $RI_t = £10\\text{k}, £19\\text{k}, £28\\text{k}, £37\\text{k}, £46\\text{k}$",
+        "Total Present Value of Residual Income $TPV(RI) = £9,091 + £15,702 + £21,037 + £25,271 + £28,562 = \\mathbf{£99,664 = NPV}$"
+      ],
+      "hints": [
+        "Hint 1: Separate **cash flows** (ignoring depreciation!) from **accounting profit** (which deducts straight-line depreciation of $(500,000 - 50,000)/5 = £90,000$/year).",
+        "Hint 2: For Residual Income, charge $10\\%$ on the **opening** carrying value $OA_{t-1}$ at the start of each year: $OA_0 = £500,000$, $OA_1 = £410,000$, $OA_2 = £320,000$, $OA_3 = £230,000$, $OA_4 = £140,000$.",
+        "Hint 3: Discount each year's $RI_t = \\text{Net Income}_t - 0.10 \\cdot OA_{t-1}$ back to $t=0$ at $10\\%$ — the Preinreich–Lücke theorem guarantees $\\sum PV(RI_t) = \\text{NPV}$."
+      ],
+      "solutionMarkdown": "### 1. Payback Period\n- Annual net operating cash inflow: $C = £200,000 - £50,000 = £150,000$.\n- After 3 years: cumulative cash flow $= 3 \\times £150,000 = £450,000$ (remaining $£50,000$).\n- $$\\text{Payback Period} = \\frac{£500,000}{£150,000} = 3 + \\frac{50,000}{150,000} = \\mathbf{3.33\\text{ years}} \\text{ (3 years, 4 months)}$$\n\n### 2. Net Present Value (NPV at $r = 10\\%$)\nIn Year 5, add the £50,000 salvage value to the £150,000 operating cash flow ($£200,000$ total):\n\n| Year $t$ | Operating CF (£) | Investment / Salvage (£) | Net Cash Flow (£) | $PV$ at $10\\%$ (£) |\n|---:|---:|---:|---:|---:|\n| 0 | — | $(500,000)$ | $(500,000)$ | $(500,000)$ |\n| 1 | 150,000 | — | 150,000 | 136,364 |\n| 2 | 150,000 | — | 150,000 | 123,967 |\n| 3 | 150,000 | — | 150,000 | 112,697 |\n| 4 | 150,000 | — | 150,000 | 102,452 |\n| 5 | 150,000 | 50,000 | 200,000 | 124,184 |\n| **Total** | | | **300,000** | **NPV = £99,664** |\n\n### 3. Residual Income (RI) & Proof that $TPV(RI) = NPV$\n- Straight-line depreciation per year: $\\frac{£500,000 - £50,000}{5} = £90,000$.\n- Annual accounting Net Income: $£200,000 - £50,000 - £90,000 = £60,000$ (total over 5 years $= £300,000 = \\sum(C - I)$).\n- Opening carrying value $OA_{t-1}$ declines by £90,000 each year (reaching £50,000 salvage at end of Year 5 before disposal to £0):\n\n| Year $t$ | Opening $OA_{t-1}$ (£) | Net Income (£) | Capital Charge $10\\% \\cdot OA_{t-1}$ (£) | Residual Income $RI_t$ (£) | $PV(RI_t)$ at $10\\%$ (£) |\n|---:|---:|---:|---:|---:|---:|\n| 1 | 500,000 | 60,000 | 50,000 | **10,000** | 9,091 |\n| 2 | 410,000 | 60,000 | 41,000 | **19,000** | 15,702 |\n| 3 | 320,000 | 60,000 | 32,000 | **28,000** | 21,037 |\n| 4 | 230,000 | 60,000 | 23,000 | **37,000** | 25,271 |\n| 5 | 140,000 | 60,000 | 14,000 | **46,000** | 28,562 |\n| **Total** | | **300,000** | | **140,000** | **$TPV(RI) = £99,664 = \\text{NPV}$** |\n\n*(Note: Official solution Part 1a is in Canvas file `213665`; Parts 1b & 1c are in Canvas file `213663`.)*",
+      "solutionAssets": [],
+      "pitfall": "Two classic traps: (1) deducting £90,000 depreciation from cash flows when computing Payback or NPV (depreciation is non-cash!), and (2) using **closing** carrying value $OA_t$ instead of **opening** carrying value $OA_{t-1}$ in $RI_t = NI_t - r \\cdot OA_{t-1}$, which breaks the $TPV(RI) = NPV$ identity.",
+      "sourceId": "212220",
+      "sourcePage": 1,
+      "solutionSourceId": "213663",
+      "solutionPage": 1,
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10.8 Why discounted residual income can equal NPV"
+      },
+      "pacing": {
+        "learning": {
+          "target": 24.0,
+          "min": 16.0,
+          "max": 34.0
+        },
+        "exam": {
+          "target": 14.0,
+          "min": 10.0,
+          "max": 19.0
+        },
+        "stuckMinutes": 14.0,
+        "reviewMinutes": 3.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Multi-part capital appraisal + full 5-year Residual Income vs NPV reconciliation."
+      },
+      "available": true,
+      "tags": [
+        "tutoring",
+        "topic-10",
+        "calculation",
+        "npv",
+        "residual-income",
+        "payback",
+        "nov-2026"
+      ],
+      "wiseflowFields": [
+        {
+          "id": "payback",
+          "group": "Speedy Delivery Ltd",
+          "label": "Payback Period (years, 2 decimals)",
+          "type": "number",
+          "expected": 3.33,
+          "altExpected": [
+            3.3
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "yrs",
+          "points": 3
+        },
+        {
+          "id": "npv",
+          "group": "Speedy Delivery Ltd",
+          "label": "Net Present Value (NPV at 10%)",
+          "type": "number",
+          "expected": 99664.0,
+          "altExpected": [
+            99664.08
+          ],
+          "relTol": 0.02,
+          "absTol": 20.0,
+          "decimals": 0,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "ri1",
+          "group": "Residual Income Schedule",
+          "label": "Residual Income — Year 1",
+          "type": "number",
+          "expected": 10000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 1.0,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ri5",
+          "group": "Residual Income Schedule",
+          "label": "Residual Income — Year 5",
+          "type": "number",
+          "expected": 46000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 1.0,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "tpv_ri",
+          "group": "Residual Income Schedule",
+          "label": "Total Present Value of Residual Incomes — TPV(RI)",
+          "type": "number",
+          "expected": 99664.0,
+          "altExpected": [
+            99664.08
+          ],
+          "relTol": 0.02,
+          "absTol": 20.0,
+          "decimals": 0,
+          "unit": "£",
+          "points": 4
+        }
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "tutoring",
+        "label": "Tutoring Session",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "212220",
+          "kind": "canvas",
+          "title": "Tutoring Session 7 · Capital Investment Appraisal (Questions)",
+          "filename": "Tutoring session 7.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Tutoring Session 7 · Capital Investment Appraisal (Questions) · p. 1",
+          "canvasCourseId": "2527",
+          "canvasFileId": "212220",
+          "canvasUrl": "https://canvas.bi.no/courses/2527/files/212220",
+          "isSolution": false
+        },
+        {
+          "sourceId": "213663",
+          "kind": "canvas",
+          "title": "Tutoring Session 7 · Question 1 Solutions (NPV vs Residual Income)",
+          "filename": "Question 1 solutions (part b&c).pdf",
+          "page": 1,
+          "role": "solution",
+          "caption": "Tutoring Session 7 · Question 1 Solutions (NPV vs Residual Income) · p. 1",
+          "canvasCourseId": "2527",
+          "canvasFileId": "213663",
+          "canvasUrl": "https://canvas.bi.no/courses/2527/files/213663",
+          "isSolution": true
+        }
+      ]
+    },
+    {
+      "id": "acct-2527:T7.2",
+      "localId": "T7.2",
+      "courseId": "acct-2527",
+      "topicId": "10",
+      "collectionId": "tutoring",
+      "origin": "tutoring",
+      "kind": "calculation",
+      "difficulty": 2,
+      "title": "T7.2 · Session 7 · Logistics Solutions Ltd (Uneven Cash Flows, Payback & NPV)",
+      "promptMarkdown": "**Logistics Solutions Ltd** is considering an investment in a new automated warehousing system to improve efficiency and reduce labour costs. The project requires an upfront capital investment of **£2,000,000** ($t=0$), has an estimated useful life of **7 years**, a residual (salvage) value of **£200,000** at the end of Year 7 (already included in the Year 7 total below), and a discount rate of **12%**.\n\n| Year | Expected Cash Flow (£) |\n|---:|---:|\n| 0 | $(2,000,000)$ |\n| 1 | 300,000 |\n| 2 | 450,000 |\n| 3 | 500,000 |\n| 4 | 550,000 |\n| 5 | 450,000 |\n| 6 | 400,000 |\n| 7 | $250,000 + 200,000\\text{ (salvage)} = 450,000$ |\n\n**Required:**\n1. Calculate the **Payback Period** for the project.\n2. Calculate the **Net Present Value (NPV)** of the project using a discount rate of $12\\%$.\n3. Based on the NPV and payback period, provide a **recommendation** on whether Logistics Solutions Ltd should proceed with the investment.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Cumulative cash flows: Y1 $-£1,700\\text{k}$, Y2 $-£1,250\\text{k}$, Y3 $-£750\\text{k}$, Y4 $-£200\\text{k}$, Y5 $+£250\\text{k}$",
+        "Payback Period $= 4 + \\frac{200,000}{450,000} = \\mathbf{4.44\\text{ years}}$ (4 years, 5 months)",
+        "Discount each cash flow at $12\\%$ (3-dp table factors: 0.893, 0.797, 0.712, 0.636, 0.567, 0.507, 0.452) → **NPV = −£6,300** (exact unrounded: **−£6,429**)",
+        "Recommendation: **Reject** on purely financial grounds (negative NPV fails to meet the 12% required return), unless unquantified strategic/non-financial benefits (e.g. customer satisfaction, labour stability) outweigh the slight value reduction"
+      ],
+      "hints": [
+        "Hint 1: Because cash flows are **uneven**, build a cumulative cash flow column starting at $-£2,000,000$ to locate the exact year where the sign flips from negative to positive (between Year 4 and Year 5).",
+        "Hint 2: Do NOT add £200,000 salvage value twice — the table already shows Year 7 $= 250,000 + 200,000 = £450,000$.",
+        "Hint 3: Remember that NPV is the **primary decision rule** (wealth maximisation): a slightly negative NPV means the project earns less than the 12% cost of capital, even if the 4.44-year payback looks reasonable."
+      ],
+      "solutionMarkdown": "### 1. Payback Period (Uneven Cash Flows)\n\n| Year | Cash Flow (£) | Cumulative Cash Flow (£) |\n|---:|---:|---:|\n| 0 | $(2,000,000)$ | $(2,000,000)$ |\n| 1 | 300,000 | $(1,700,000)$ |\n| 2 | 450,000 | $(1,250,000)$ |\n| 3 | 500,000 | $(750,000)$ |\n| 4 | 550,000 | $(200,000)$ |\n| 5 | 450,000 | $+250,000$ |\n| 6 | 400,000 | $+650,000$ |\n| 7 | 450,000 | $+1,100,000$ |\n\nAt the end of Year 4, £200,000 remains unrecovered, and Year 5 generates £450,000:\n$$\\text{Payback Period} = 4 + \\frac{200,000}{450,000} = 4 + 0.44 = \\mathbf{4.44\\text{ years}} \\text{ (4 years, 5 months)}$$\n\n### 2. Net Present Value (NPV at $r = 12\\%$)\nUsing the standard 3-decimal BI Present Value table factors $(1.12)^{-t}$:\n\n| Year $t$ | Cash Flow (£) | 12% Table Factor | Present Value (£) |\n|---:|---:|---:|---:|\n| 0 | $(2,000,000)$ | 1.000 | $(2,000,000)$ |\n| 1 | 300,000 | 0.893 | 267,900 |\n| 2 | 450,000 | 0.797 | 358,650 |\n| 3 | 500,000 | 0.712 | 356,000 |\n| 4 | 550,000 | 0.636 | 349,800 |\n| 5 | 450,000 | 0.567 | 255,150 |\n| 6 | 400,000 | 0.507 | 202,800 |\n| 7 | 450,000 | 0.452 | 203,400 |\n| **Total** | **1,100,000** | | **NPV = −£6,300** |\n\n*(Note: Using exact unrounded powers $1 / 1.12^t$ on a calculator gives **NPV = −£6,428.86**; both are accepted in WISEflow grading.)*\n\n### 3. Investment Recommendation\n- **Payback Period:** $4.44$ years (out of a 7-year useful life) may look acceptable depending on management's target cut-off.\n- **NPV:** Negative (**−£6,300**), meaning the project earns slightly below the required $12\\%$ hurdle rate and reduces shareholder wealth.\n- **Conclusion:** **Do not proceed** on purely financial grounds. However, because the NPV is only marginally negative relative to a £2 million project, Logistics Solutions Ltd might still reconsider if significant **strategic or non-financial benefits** not captured in the cash flows (e.g., improved customer satisfaction, higher reliability, reduced labour turnover) clearly outweigh £6,300.",
+      "solutionAssets": [],
+      "pitfall": "Double-counting the £200,000 salvage value in Year 7 (it is already summed into £450,000), or recommending acceptance simply because total undiscounted cash flows are positive (+£1.1M) and payback is under 5 years.",
+      "sourceId": "212220",
+      "sourcePage": 2,
+      "solutionSourceId": "213665",
+      "solutionPage": 1,
+      "obsidianLink": {
+        "file": "EXC3430-Obsidian/EXC3430 - Accounting and Finance.md",
+        "heading": "10.4 Time value of money and NPV"
+      },
+      "pacing": {
+        "learning": {
+          "target": 18.0,
+          "min": 12.0,
+          "max": 26.0
+        },
+        "exam": {
+          "target": 11.0,
+          "min": 8.0,
+          "max": 15.0
+        },
+        "stuckMinutes": 11.0,
+        "reviewMinutes": 2.5,
+        "hintHandicapSeconds": 60,
+        "rationale": "7-year uneven cash-flow payback + 12% NPV schedule + financial vs non-financial recommendation."
+      },
+      "available": true,
+      "tags": [
+        "tutoring",
+        "topic-10",
+        "calculation",
+        "npv",
+        "payback",
+        "investment-appraisal",
+        "nov-2026"
+      ],
+      "wiseflowFields": [
+        {
+          "id": "payback",
+          "group": "Logistics Solutions Ltd",
+          "label": "Payback Period (years, 2 decimals)",
+          "type": "number",
+          "expected": 4.44,
+          "altExpected": [
+            4.444
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "yrs",
+          "points": 3
+        },
+        {
+          "id": "npv",
+          "group": "Logistics Solutions Ltd",
+          "label": "Net Present Value (NPV at 12%)",
+          "type": "number",
+          "expected": -6300.0,
+          "altExpected": [
+            -6428.86,
+            -6429.0
+          ],
+          "relTol": 0.02,
+          "absTol": 50.0,
+          "decimals": 0,
+          "unit": "£",
+          "points": 5
+        }
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "procedural",
+      "sources": {},
+      "provenance": {
+        "category": "tutoring",
+        "label": "Tutoring Session",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Tutoring Sessions 1–7 (T1–T7)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "212220",
+          "kind": "canvas",
+          "title": "Tutoring Session 7 · Capital Investment Appraisal (Questions)",
+          "filename": "Tutoring session 7.pdf",
+          "page": 2,
+          "role": "prompt",
+          "caption": "Tutoring Session 7 · Capital Investment Appraisal (Questions) · p. 2",
+          "canvasCourseId": "2527",
+          "canvasFileId": "212220",
+          "canvasUrl": "https://canvas.bi.no/courses/2527/files/212220",
+          "isSolution": false
+        },
+        {
+          "sourceId": "213665",
+          "kind": "canvas",
+          "title": "Tutoring Session 7 · Question 1a & Question 2 Solutions",
+          "filename": "Solution exercise 1 (part a) & 2 -1.pdf",
+          "page": 1,
+          "role": "solution",
+          "caption": "Tutoring Session 7 · Question 1a & Question 2 Solutions · p. 1",
+          "canvasCourseId": "2527",
+          "canvasFileId": "213665",
+          "canvasUrl": "https://canvas.bi.no/courses/2527/files/213665",
+          "isSolution": true
+        }
+      ]
     }
   ]
 }

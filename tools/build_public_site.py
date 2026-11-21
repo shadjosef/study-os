@@ -266,9 +266,9 @@ def build_question_source_refs(
                 add_ref(str(item["sourceId"]), int(item.get("page") or 1), role, str(item.get("caption") or ""))
 
     if q.get("sourceId") and str(q["sourceId"]) in public_sources:
-        add_ref(str(q["sourceId"]), 1, "prompt")
+        add_ref(str(q["sourceId"]), int(q.get("sourcePage") or 1), "prompt")
     if q.get("solutionSourceId") and str(q["solutionSourceId"]) in public_sources:
-        add_ref(str(q["solutionSourceId"]), 1, "solution")
+        add_ref(str(q["solutionSourceId"]), int(q.get("solutionPage") or 1), "solution")
     if not refs and q.get("collectionId"):
         col_id = str(q["collectionId"])
         col_source_aliases = {

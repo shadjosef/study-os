@@ -167,6 +167,17 @@
       }
     },
     {
+      "id": "official-mock-2",
+      "title": "Official Short Mock Exam 2 (Luggage & Spotify · 60 min)",
+      "kind": "exam",
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null
+      }
+    },
+    {
       "id": "debugging-practice",
       "title": "Official Debugging Practice (D1–D5)",
       "kind": "exercise",
@@ -388,6 +399,26 @@
       "canvasFileId": "207234",
       "canvasUrl": "https://canvas.bi.no/courses/3021/files/207234",
       "isSolution": false
+    },
+    "MOCK2_QP": {
+      "id": "MOCK2_QP",
+      "title": "Official Short Mock Exam 2 · Question Paper (Luggage & Spotify)",
+      "filename": "Mock Exam2.pdf",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "213102",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files/213102",
+      "isSolution": false
+    },
+    "MOCK2_SOL": {
+      "id": "MOCK2_SOL",
+      "title": "Official Short Mock Exam 2 · Solutions (.ipynb)",
+      "filename": "Mock Exam2_solution.ipynb",
+      "kind": "canvas",
+      "canvasCourseId": "3021",
+      "canvasFileId": "214942",
+      "canvasUrl": "https://canvas.bi.no/courses/3021/files/214942",
+      "isSolution": true
     }
   },
   "questions": [
@@ -4843,6 +4874,212 @@
         "llmModel": "LLM-generated (legacy — model unlogged)",
         "sourceDetail": "Python & Pandas Trap Diagnostics (MCQ)"
       }
+    },
+    {
+      "id": "prog-3021:M2.1",
+      "localId": "M2.1",
+      "courseId": "prog-3021",
+      "topicId": "2",
+      "collectionId": "official-mock-2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "M2.1 · Official Mock Exam 2 · Luggage Packing (Heaviest-First)",
+      "promptMarkdown": "Suppose you have a list of items you want to pack into your luggage, subject to a maximum weight limit.\n\nWrite a function that takes two parameters:\n- `l`: A list of numbers representing the weights of the items.\n- `w`: The maximum weight limit.\n\nThe function should determine which items you can bring in your luggage, **starting with the heaviest item first** (stop once the next heaviest item would exceed `w`). The function should then print out the **number of items** you can bring and the **total weight**.\n\n**Test your function with both scenarios:**\n1. `l1 = [5, 3, 2, 3, 4, 6, 2, 5, 4, 1, 3]`, maximum weight `w = 23`.\n2. `l2 = [4, 2, 4, 6, 5, 1, 2, 6, 2, 5, 3]`, maximum weight `w = 30`.\n\n**Starter Code:**\n```python\ndef luggage_packing(l, w):\n    # Sort descending, accumulate until exceeding w, then print count & total weight\n    pass\n\nl1 = [5, 3, 2, 3, 4, 6, 2, 5, 4, 1, 3]\nl2 = [4, 2, 4, 6, 5, 1, 2, 6, 2, 5, 3]\nluggage_packing(l1, 23)\nluggage_packing(l2, 30)\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "Sort item weights descending (`sorted(l, reverse=True)` or `l.sort(reverse=True)`)",
+        "Pack heaviest-first while total weight stays `<= w` (either `while sum(items) > w: items.pop()` or loop + `break`)",
+        "Print both item count and total weight for both scenarios (`l1` → 4 items, weight 20; `l2` → 6 items, weight 30)"
+      ],
+      "hints": [
+        "Hint 1: Sort the list from heaviest to lightest using `sorted(l, reverse=True)` (which also avoids mutating the caller's list in place!).",
+        "Hint 2: Either accumulate into a `luggage = []` list and `break` as soon as `sum(luggage) + item > w`, OR pop the lightest items off the end of the descending list while `sum(items) > w`."
+      ],
+      "solutionMarkdown": "### Official Solution 1 (Reverse-sort & `pop` lightest until `<= w`)\n```python\ndef luggage_packing1(l, w):\n    items = sorted(l, reverse=True)  # copy avoids mutating caller's list\n    while sum(items) > w:\n        items.pop()\n    print(f\"You can bring {len(items)} items, and the total weight is {sum(items)}.\")\n```\n\n### Official Solution 2 (Greedy accumulator loop with `break`)\n```python\ndef luggage_packing2(l, w):\n    items = sorted(l, reverse=True)\n    luggage = []\n    for x in items:\n        if sum(luggage) + x <= w:\n            luggage.append(x)\n        else:\n            break\n    print(f\"You can bring {len(luggage)} items, and the total weight is {sum(luggage)}.\")\n```\n\n### Test Outputs\n- **Scenario 1** (`l1` sorted descending: `[6, 5, 5, 4, 4, 3, 3, 3, 2, 2, 1]`, `w = 23`): packs `[6, 5, 5, 4]` → `You can bring 4 items, and the total weight is 20.`\n- **Scenario 2** (`l2` sorted descending: `[6, 6, 5, 5, 4, 4, 3, 2, 2, 2, 1]`, `w = 30`): packs `[6, 6, 5, 5, 4, 4]` → `You can bring 6 items, and the total weight is 30.`\n\n*(Note: If you remove the `break` and keep scanning lighter items, you could squeeze in an extra light item — e.g. a `3` or `1` — which differs from strict heaviest-first stopping. Both official BI solutions stop as soon as the next heaviest item overflows `w`.)*",
+      "solutionAssets": [],
+      "pitfall": "Mutating `l` in place with `l.sort(reverse=True)` and `l.pop()` alters the caller's list `l1` / `l2`! Notice in the official notebook that calling `luggage_packing1(l1, 23)` shrinks `l1` in place before `luggage_packing2(l1, 23)` runs. Using `items = sorted(l, reverse=True)` keeps the input list intact.",
+      "sourceId": "MOCK2_QP",
+      "sourcePage": 1,
+      "solutionSourceId": "MOCK2_SOL",
+      "solutionPage": 1,
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "05.3 `for`: visit each item"
+      },
+      "pacing": {
+        "learning": {
+          "target": 20.0,
+          "min": 13.0,
+          "max": 29.0
+        },
+        "exam": {
+          "target": 15.0,
+          "min": 9.8,
+          "max": 21.0
+        },
+        "stuckMinutes": 11.2,
+        "reviewMinutes": 3.8,
+        "hintHandicapSeconds": 60,
+        "rationale": "Official Short Mock Exam 2 Task 1 (half of a 60-minute timed mock)."
+      },
+      "available": true,
+      "tags": [
+        "official-mock-2",
+        "coding",
+        "loops",
+        "sorting",
+        "topic-2"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Official Short Mock Exam 2 (Luggage & Spotify · 60 min)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "MOCK2_QP",
+          "kind": "canvas",
+          "title": "Official Short Mock Exam 2 · Question Paper (Luggage & Spotify)",
+          "filename": "Mock Exam2.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Official Short Mock Exam 2 · Question Paper (Luggage & Spotify) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "213102",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/213102",
+          "isSolution": false
+        },
+        {
+          "sourceId": "MOCK2_SOL",
+          "kind": "canvas",
+          "title": "Official Short Mock Exam 2 · Solutions (.ipynb)",
+          "filename": "Mock Exam2_solution.ipynb",
+          "page": 1,
+          "role": "solution",
+          "caption": "Official Short Mock Exam 2 · Solutions (.ipynb) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "214942",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/214942",
+          "isSolution": true
+        }
+      ]
+    },
+    {
+      "id": "prog-3021:M2.2",
+      "localId": "M2.2",
+      "courseId": "prog-3021",
+      "topicId": "5",
+      "collectionId": "official-mock-2",
+      "origin": "original_exam",
+      "kind": "coding",
+      "difficulty": 2,
+      "title": "M2.2 · Official Mock Exam 2 · Spotify Dataset (Pandas & Visualisation)",
+      "promptMarkdown": "The dataset `spotify.csv` contains information about Spotify tracks, including audio characteristics and genres.\n\n| Column name | Description |\n|---|---|\n| `artists` | Names of the artists who performed the track |\n| `album_name` | Name of the album to which the track belongs |\n| `track_name` | Name of the track |\n| `popularity` | Score between 0 and 100 (100 = most popular) |\n| `duration_ms` | Duration of the track in milliseconds |\n| `track_genre` | Genre to which the track is categorized |\n\n**Tasks:**\n- **a.** Load `spotify.csv` into a pandas DataFrame and display the **first five rows**.\n- **b.** Display the **top five most popular tracks** in the `\"pop\"` genre.\n- **c.** Calculate the **average popularity score for each album** by the artists `\"Taylor Swift\"`, `\"Ed Sheeran\"`, and `\"The Weeknd\"` (grouped by `artists` and `album_name`).\n- **d.** Count the number of tracks for each genre and display the results as a **horizontal bar chart**.\n- **e.** Use a plot to compare the **distribution of `duration_ms`** for the genres `\"hip-hop\"` and `\"metal\"`.\n\n**Starter Code:**\n```python\nimport pandas as pd\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\n# a) Load spotify.csv and show first 5 rows\n# b) Top 5 tracks in track_genre == 'pop'\n# c) Mean popularity per (artists, album_name) for Taylor Swift, Ed Sheeran, The Weeknd\n# d) Horizontal bar chart of track counts per track_genre\n# e) Distribution comparison of duration_ms for hip-hop vs metal\n```",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [],
+      "answerIndex": null,
+      "numericCheck": null,
+      "rubricChecks": [
+        "a) `pd.read_csv('spotify.csv')` and `spotify_df.head(5)` (or `.head()`)",
+        "b) Filter `track_genre == 'pop'`, then `.nlargest(5, 'popularity')` or `.sort_values('popularity', ascending=False).head(5)`",
+        "c) Filter with `.isin(['Taylor Swift', 'Ed Sheeran', 'The Weeknd'])` then `.groupby(['artists', 'album_name'])['popularity'].mean()`",
+        "d) `spotify_df.groupby('track_genre').size().plot(kind='barh')` (or `value_counts().plot(kind='barh')`)",
+        "e) Filter `track_genre.isin(['hip-hop', 'metal'])` and compare via `sns.histplot(sub_df, x='duration_ms', hue='track_genre')` (or `kdeplot` / `boxplot`)"
+      ],
+      "hints": [
+        "Hint 1: Use `.isin([...])` whenever filtering a column against multiple target strings (Tasks **c** and **e**).",
+        "Hint 2: For Task **b**, `.nlargest(5, 'popularity')` is the cleanest one-liner; `.sort_values(by='popularity', ascending=False).head(5)` also works.",
+        "Hint 3: For Task **d**, `kind='barh'` produces horizontal bars; for Task **e**, passing `hue='track_genre'` to `sns.histplot(...)` overlays both distributions on the same axis."
+      ],
+      "solutionMarkdown": "```python\nimport pandas as pd\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\n# (a) Load CSV and display first 5 rows\nspotify_df = pd.read_csv(\"spotify.csv\")\nspotify_df.head(5)\n\n# (b) Top 5 most popular tracks in the 'pop' genre\n# Option 1:\nspotify_df[spotify_df[\"track_genre\"] == \"pop\"].nlargest(5, \"popularity\")\n# Option 2:\nspotify_df[spotify_df[\"track_genre\"] == \"pop\"].sort_values(by=\"popularity\", ascending=False).head(5)\n\n# (c) Average popularity per album for Taylor Swift, Ed Sheeran, and The Weeknd\ntop_df = spotify_df[spotify_df[\"artists\"].isin([\"Taylor Swift\", \"Ed Sheeran\", \"The Weeknd\"])]\ntop_df.groupby([\"artists\", \"album_name\"])[\"popularity\"].mean()\n\n# (d) Number of tracks per genre as a horizontal bar chart\nspotify_df.groupby(\"track_genre\").size().plot(kind=\"barh\")\nplt.xlabel(\"Number of tracks\")\nplt.title(\"Track count by genre\")\nplt.show()\n\n# (e) Compare distribution of duration_ms for 'hip-hop' vs 'metal'\nsub_df = spotify_df[spotify_df[\"track_genre\"].isin([\"hip-hop\", \"metal\"])]\nsns.histplot(sub_df, x=\"duration_ms\", hue=\"track_genre\")\nplt.title(\"Track duration distribution: hip-hop vs metal\")\nplt.show()\n```\n\n*(Note: The official solution notebook used `.head(10)` in cells (a)/(b) during live walkthrough — on the real exam follow the prompt literally with `.head(5)` / `.nlargest(5, ...)`.)*",
+      "solutionAssets": [],
+      "pitfall": "Passing `artists == ['Taylor Swift', ...]` instead of `.isin([...])` (raises `ValueError`), or forgetting `ascending=False` when sorting popularity (returns the 5 *least* popular tracks instead of top 5!).",
+      "sourceId": "MOCK2_QP",
+      "sourcePage": 1,
+      "solutionSourceId": "MOCK2_SOL",
+      "solutionPage": 1,
+      "obsidianLink": {
+        "file": "EBA3400 - Semester Reference.md",
+        "heading": "13.5 GroupBy and aggregation"
+      },
+      "pacing": {
+        "learning": {
+          "target": 35.0,
+          "min": 22.8,
+          "max": 50.8
+        },
+        "exam": {
+          "target": 28.0,
+          "min": 18.2,
+          "max": 39.2
+        },
+        "stuckMinutes": 21.0,
+        "reviewMinutes": 7.0,
+        "hintHandicapSeconds": 60,
+        "rationale": "Official Short Mock Exam 2 Task 2 (5-part Pandas + Matplotlib/Seaborn workflow)."
+      },
+      "available": true,
+      "tags": [
+        "official-mock-2",
+        "coding",
+        "pandas",
+        "groupby",
+        "seaborn",
+        "topic-5"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "synthesis",
+      "sources": {},
+      "provenance": {
+        "category": "past_exam",
+        "label": "Past Exam",
+        "synthetic": false,
+        "llmModel": null,
+        "sourceDetail": "Official Short Mock Exam 2 (Luggage & Spotify · 60 min)"
+      },
+      "sourceRefs": [
+        {
+          "sourceId": "MOCK2_QP",
+          "kind": "canvas",
+          "title": "Official Short Mock Exam 2 · Question Paper (Luggage & Spotify)",
+          "filename": "Mock Exam2.pdf",
+          "page": 1,
+          "role": "prompt",
+          "caption": "Official Short Mock Exam 2 · Question Paper (Luggage & Spotify) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "213102",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/213102",
+          "isSolution": false
+        },
+        {
+          "sourceId": "MOCK2_SOL",
+          "kind": "canvas",
+          "title": "Official Short Mock Exam 2 · Solutions (.ipynb)",
+          "filename": "Mock Exam2_solution.ipynb",
+          "page": 1,
+          "role": "solution",
+          "caption": "Official Short Mock Exam 2 · Solutions (.ipynb) · p. 1",
+          "canvasCourseId": "3021",
+          "canvasFileId": "214942",
+          "canvasUrl": "https://canvas.bi.no/courses/3021/files/214942",
+          "isSolution": true
+        }
+      ]
     }
   ]
 }

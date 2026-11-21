@@ -614,12 +614,12 @@ window.StudyRunner = (() => {
       }
     }
     if (q.sourceId && sourcesMap?.[q.sourceId]) {
-      addFromAsset({ sourceId: q.sourceId, page: 1, caption: sourcesMap[q.sourceId].title || '' }, false);
+      addFromAsset({ sourceId: q.sourceId, page: Number(q.sourcePage) || 1, caption: sourcesMap[q.sourceId].title || '' }, false);
     }
     if (includeSolutionPdfs && !isBlindUnfinished) {
       for (const a of q.solutionAssets || []) addFromAsset(a, true);
       if (q.solutionSourceId && sourcesMap?.[q.solutionSourceId]) {
-        addFromAsset({ sourceId: q.solutionSourceId, page: 1, caption: `Solution · ${sourcesMap[q.solutionSourceId].title || ''}` }, true);
+        addFromAsset({ sourceId: q.solutionSourceId, page: Number(q.solutionPage) || 1, caption: `Solution · ${sourcesMap[q.solutionSourceId].title || ''}` }, true);
       }
     }
     if (!out.length && q.collectionId && sourcesMap?.[q.collectionId]) {
