@@ -2,11 +2,20 @@
 
 **[Open Study-OS (`https://studyos.no`)](https://studyos.no/)** · [BI Oslo Guide](https://studyos.no/bi-oslo.html) · [Norsk (BI Oslo)](https://studyos.no/norsk.html) · [WISEflow Practice](https://studyos.no/wiseflow-practice.html) · [BI Canvas & TimeEdit Sync](https://studyos.no/bi-canvas-timeedit-sync.html) · [Course Notes](https://studyos.no/notes.html)
 
-Open-source (`MIT`), zero-dependency university practice engine built for **Oslo / BI Norwegian Business School** courses (**[EXC 3420](https://studyos.no/courses/econ-2522.html)**, **[EXC 3430](https://studyos.no/courses/acct-2527.html)**, **[EXC 3460](https://studyos.no/courses/ob-2537.html)**, **[EBA 3400](https://studyos.no/courses/prog-3021.html)**, **[EBA 1181](https://studyos.no/courses/math-2588.html)**) with a **WISEflow `FLOWmulti` (`±2%`) exam simulator**, **Multi-Semester Reference Hub**, **AI Tutor**, **Adaptive Timetable Studio**, and 1-click **BI Canvas / TimeEdit / Ed Discussion** browser sync — plus compatibility with **[`canvas-study-sync`](https://github.com/shadjosef/canvas-study-sync)** and **`Obsidian Vault`**.
+Open-source (`MIT`), zero-dependency university practice engine built for **Oslo / BI Norwegian Business School** courses (**[EXC 3420](https://studyos.no/courses/econ-2522.html)**, **[EXC 3430](https://studyos.no/courses/acct-2527.html)**, **[EXC 3460](https://studyos.no/courses/ob-2537.html)**, **[EBA 3400](https://studyos.no/courses/prog-3021.html)**, **[EBA 1181](https://studyos.no/courses/math-2588.html)**) — **1,039 exercises**, **3-pane side-by-side workspace (`Task | Reference | Answer`)**, **WISEflow `FLOWmulti` (`±2%`) exam simulator**, **Rated BI Duels & Live Group Study Pods**, **Adaptive Timetable + Study Debt Rollover**, **AI Tutor (`Al`)**, and 1-click **BI Canvas / TimeEdit / Ed Discussion** browser sync.
 
-Choose a subject, open **Topics & practice**, or use **Notes** for the reference sheets and worked examples. The public edition includes original exercises and mocks for the five subjects. **Exams** links to BI's former papers and marking guides, and the curriculum pages link to BI Canvas for course handouts and assignments.
+<p align="center">
+  <img src="canvas-sync-extension/store-assets/study-os-sync-demo.gif" alt="Study-OS Sync 1-click BI Canvas, TimeEdit and Ed Discussion walkthrough" width="760">
+</p>
 
-To study offline, select **Save for offline** on the home page while connected. If your browser offers **Install app** or **Add to Home Screen**, use it to add Study-OS to your device. Progress stays in the browser profile you used to study. To move between browsers or devices, use **Export Backup** and then **Import Backup**. This carries your question progress, drafts, attempts, sessions and web schedule.
+## Highlights
+
+- **3-Pane Side-by-Side Workspace**: View **Task / Cropped Inline PDF**, **Course Reference Notes**, and **Answer / Worksheet** simultaneously on desktop with draggable dividers, or keep compact Focus/Split mode on smaller screens.
+- **Study Together & Rated BI Duels (Beta)**: Challenge BI classmates to 5-minute 1v1 rated Elo duels across **Accounting (`EXC 3430`)**, **Economics (`EXC 3420`)**, **Maths (`EBA 1181`)**, or **Mixed BI Blitz**, or join open **25m / 50m / 75m Group Study Pods** with live course badges, 1-click invite links (`?join_room=...`), Global Chat challenge cards, and instant rematches.
+- **Course Explorer & Provenance Badges**: Direct 1-click course pills, composable **`Real BI Tasks Only`** + **`Past Exams`** + **`High/Med/Low DLPFC`** filter chips, 3-state clickable table header sorting, and clear source/LLM provenance labels.
+- **Scheduled Queue with Early Completion & Study Debt Rollover**: Plan around TimeEdit lectures & part-time shifts, complete upcoming study blocks ahead of schedule (`Done early ✓`), and roll missed blocks into a visible **Study Debt** stack until cleared.
+- **1-Click BI Canvas, TimeEdit & Ed Sync (`Study-OS Sync v1.5.1`)**: Pair once with a 6-character code, auto-refresh open BI tabs, and auto-load BI Canvas PDFs privately inline inside Chrome (strictly local in browser IndexedDB — copyrighted university files & publisher textbooks are never uploaded).
+- **Offline & Mobile Support**: Select **Save for offline** or install as a PWA; use Google / Passkey cloud sync or **Export / Import Backup** to carry progress, attempts, drafts, and schedules across desktop and phone.
 
 ## Full member library
 

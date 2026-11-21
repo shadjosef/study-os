@@ -5564,7 +5564,9 @@ window.StudyApp = (() => {
       const saved = saveWebState(ws);
       if (saved) {
         window.StudyCommunity.queueStatsSync();
-        window.StudyRooms.recordAttempt();
+        const cMeta = (boot.catalog || []).find((c) => c.courseId === payload.courseId);
+        const actLabel = cMeta ? `${cMeta.code} · ${cMeta.shortTitle || cMeta.title}` : '';
+        window.StudyRooms.recordAttempt(actLabel);
         queueCloudSync();
       }
       recomputeWebAnalytics();
@@ -6084,14 +6086,23 @@ window.StudyApp = (() => {
       return;
     }
 
-    // Handle deep links (`?course=...&topic=...&autostart=1`, `?view=exams|references|schedule`, or `?autostart_event=...`)
+    // Handle deep links (`?course=...&topic=...&autostart=1`, `?view=exams|references|schedule`, `?join_room=CODE`, or `?autostart_event=...`)
     const params = new URLSearchParams(window.location.search);
+    const joinRoomCode = (params.get('join_room') || '').trim().toUpperCase();
     const autoEvent = params.get('autostart_event');
     const qCourse = params.get('course');
     const qTopic = params.get('topic') || '';
     const qView = params.get('view') || '';
     const qDlpfc = params.get('dlpfc') || '';
     const autoStart = params.get('autostart') === '1';
+
+    if (/^[A-F0-9]{8}$/.test(joinRoomCode) && isStaticWeb && window.StudyCommunity?.enabled) {
+      window.history.replaceState({}, '', window.location.pathname);
+      if (await window.StudyCommunity.requireProfile({ allowDemo: false, forcePrompt: true })) {
+        await window.StudyRooms.joinByCode(joinRoomCode);
+      }
+      return;
+    }
 
     if (qView === 'playbook') {
       window.history.replaceState({}, '', window.location.pathname);
@@ -6645,6 +6656,8 @@ window.StudyApp = (() => {
 
   return {
     isStaticMode,
+    getCatalog: () => boot.catalog || [],
+    launchCourseBlock: (courseId, mins = 50) => launchSmartCourseRun(courseId, mins, 'learning', '', getResolvedFocusMode()),
     communityStats,
     publicReferenceUrl,
     fetchReferenceSection,

@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS room_members (
   ready INTEGER NOT NULL DEFAULT 0,
   finished INTEGER NOT NULL DEFAULT 0,
   completed INTEGER NOT NULL DEFAULT 0,
+  activity TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (code, profile)
 );
 CREATE INDEX IF NOT EXISTS rooms_by_member ON room_members(profile);
@@ -98,6 +99,7 @@ CREATE TABLE IF NOT EXISTS room_answers (
   profile TEXT NOT NULL,
   question INTEGER NOT NULL,
   correct INTEGER NOT NULL,
+  submitted_value TEXT NOT NULL DEFAULT '',
   PRIMARY KEY (code, profile, question),
   FOREIGN KEY (code, profile) REFERENCES room_members(code, profile) ON DELETE CASCADE
 );

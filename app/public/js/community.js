@@ -2108,6 +2108,47 @@ window.StudyCommunity = (() => {
   function demoCardsHtml(interactive = false) {
     return `
       <div class="community-demo-stack">
+        <section class="panel room-hub-panel">
+          <div class="row-between" style="margin:0 0 10px;flex-wrap:wrap;gap:8px">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                <h2 style="margin:0">Study together &amp; BI Duels</h2>
+                <span class="badge gold">Live Beta · Elo Arena</span>
+              </div>
+              <p class="muted" style="margin:3px 0 0;font-size:13px">Sign in to challenge classmates to 5m BI Duels (Accounting, Economics, Maths, Mixed) or join open 25m/50m/75m Study Pods.</p>
+            </div>
+          </div>
+          <div class="room-open-list">
+            <div class="room-open-item is-duel">
+              <div class="room-open-info">
+                ${avatarHtml('Jonas', '', 28)}
+                <div>
+                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    <strong>Jonas</strong>
+                    <span class="lb-title-tag lb-title-fm">FM</span>
+                    <small class="muted">1384 Elo</small>
+                    <span class="badge">⚔️ Duel · 1/2</span>
+                  </div>
+                  <small class="muted">Accounting &amp; Finance (EXC 3430) · 5m · 6 Qs</small>
+                </div>
+              </div>
+              <span class="badge">Sign in to accept</span>
+            </div>
+            <div class="room-open-item is-group">
+              <div class="room-open-info">
+                ${avatarHtml('Mira', '', 28)}
+                <div>
+                  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    <strong>Mira</strong>
+                    <span class="badge">📚 Pod · 3/8</span>
+                  </div>
+                  <small class="muted">50m Study Pod · EXC 3420 Economics</small>
+                </div>
+              </div>
+              <span class="badge">Sign in to join</span>
+            </div>
+          </div>
+        </section>
         ${chessLeaderboardHtml({ rows: DEMO_LEADERBOARD_ROWS, offset: 0, now: Date.now(), isDemo: true, tab: activeBoardTab })}
         <section class="panel">
           <h2>Chat &amp; messages</h2>
@@ -2242,6 +2283,23 @@ window.StudyCommunity = (() => {
     return '—';
   }
 
+  function roomInviteChipHtml(text) {
+    const m = String(text || '').match(/(?:join_room=|\broom\s+)([A-F0-9]{8})\b/i);
+    if (!m) return '';
+    const roomCode = m[1].toUpperCase();
+    return `<div style="margin-top:6px"><button type="button" class="primary-btn" style="padding:4px 11px;font-size:12px" data-chat-join-room="${esc(roomCode)}">Join Room ${esc(roomCode)} →</button></div>`;
+  }
+
+  function bindChatJoinButtons(container) {
+    container?.querySelectorAll('[data-chat-join-room]').forEach((btn) => {
+      btn.onclick = async () => {
+        btn.disabled = true;
+        await window.StudyRooms?.joinByCode?.(btn.dataset.chatJoinRoom);
+        if (btn.isConnected) btn.disabled = false;
+      };
+    });
+  }
+
   async function refreshChat(root) {
     const list = root.querySelector('#community-chat-list');
     if (chatLoading || !list || !canUse()) return;
@@ -2249,10 +2307,13 @@ window.StudyCommunity = (() => {
     lastChatAt = Date.now();
     try {
       const { messages } = await request('/chat');
-      if (list.isConnected) list.innerHTML = messages.map((message) => `
-        <li><div class="row-between"><span class="community-member-inline">${avatarHtml(message.nickname, message.avatar, 24)}<strong>${esc(message.nickname)}</strong></span>
-          <small>${esc(new Date(message.createdAt).toLocaleString())}</small></div>
-          <p>${esc(message.message)}</p></li>`).join('') || '<li>No messages yet.</li>';
+      if (list.isConnected) {
+        list.innerHTML = messages.map((message) => `
+          <li><div class="row-between"><span class="community-member-inline">${avatarHtml(message.nickname, message.avatar, 24)}<strong>${esc(message.nickname)}</strong></span>
+            <small>${esc(new Date(message.createdAt).toLocaleString())}</small></div>
+            <p>${esc(message.message)}</p>${roomInviteChipHtml(message.message)}</li>`).join('') || '<li>No messages yet.</li>';
+        bindChatJoinButtons(list);
+      }
     } finally {
       chatLoading = false;
     }
@@ -2302,7 +2363,7 @@ window.StudyCommunity = (() => {
       <li>
         <div class="row-between"><span class="community-member-inline">${avatarHtml(peerName, peerAvatar, 24)}<strong>${row.sender === me.id ? 'To ' + esc(row.recipientName) : 'From ' + esc(row.senderName)}</strong></span>
         <small>${esc(new Date(row.createdAt).toLocaleString())}</small></div>
-        <p>${esc(row.message)}</p>
+        <p>${esc(row.message)}</p>${roomInviteChipHtml(row.message)}
         ${row.sender === me.id ? '' : `<button type="button" class="ghost-btn" data-block-profile="${esc(row.sender)}">Block sender</button>`}
       </li>`;
     }).join('');
@@ -2390,6 +2451,7 @@ window.StudyCommunity = (() => {
     bindFeedbackPanel(root);
     bindAdminPanel(root, me);
     window.StudyRooms.bindLobby(root);
+    bindChatJoinButtons(root);
     doAction(root.querySelector('#community-refresh'), () => render(offset));
     doAction(root.querySelector('#community-chat-refresh'), () => refreshChat(root));
     action(root.querySelector('#community-chat'), async (form) => {
@@ -2507,6 +2569,7 @@ window.StudyCommunity = (() => {
     uploadMaterial,
     deleteMaterial,
     openMaterial,
+    postChatMessage: (message) => request('/chat', { message: String(message || '').trim() }),
     saveAdminMemberKey: (memberKey) => request('/admin/settings', { memberKey: String(memberKey || '').trim() }),
   };
 })();
