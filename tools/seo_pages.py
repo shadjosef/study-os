@@ -513,6 +513,7 @@ def generate_growth_seo_pages(
     .uni-table th, .uni-table td {{ text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }}
     .uni-table th {{ font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }}
     .uni-acu {{ padding: 12px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line)); background: color-mix(in srgb, var(--accent) 6%, var(--panel)); margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; }}
+    .seo-stat strong {{ font-size: clamp(14px, 1.6vw, 18px); overflow-wrap: anywhere; line-height: 1.25; }}
   </style>
   <script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False)}</script>
 </head>
