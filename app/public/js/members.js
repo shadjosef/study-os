@@ -113,7 +113,8 @@ window.StudyMembers = (() => {
   async function forget() {
     await savedKey('delete');
     session = null;
-    window.StudyPdf?.clearText();
+    window.StudyPdf?.clearCache?.();
+    window.StudyPdf?.clearText?.();
     for (const pending of previews.values()) {
       pending.then((url) => URL.revokeObjectURL(url)).catch(() => {});
     }

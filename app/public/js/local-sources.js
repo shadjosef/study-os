@@ -290,6 +290,7 @@ window.StudyLocalSources = (() => {
       addedAt: record.addedAt,
     };
     metaMap.set(key, summary);
+    window.StudyPdf?.clearCache?.(`local:${key}`);
     try { window.dispatchEvent(new CustomEvent('study-local-sources-changed', { detail: summary })); } catch {}
     return summary;
   }
@@ -374,6 +375,7 @@ window.StudyLocalSources = (() => {
       db.close();
     }
     metaMap.delete(key);
+    window.StudyPdf?.clearCache?.(`local:${key}`);
     try { window.dispatchEvent(new CustomEvent('study-local-sources-changed', { detail: { removed: key } })); } catch {}
   }
 

@@ -518,6 +518,7 @@ window.StudyRunner = (() => {
 
     // Auto-start universal non-pausable 75m working interval when entering any run
     workClock?.ensureWorking?.();
+    window.StudyPdf?.warm?.();
 
     document.getElementById('global-header').hidden = true;
     document.getElementById('runner-header').hidden = false;
@@ -669,20 +670,59 @@ window.StudyRunner = (() => {
         mountItems.push({ key: inlineKey, source: entry, page: entry.page || 1 });
         return `<figure class="pdf-figure pdf-figure-inline-local" data-fig-idx="${idx}" data-inline-pdf-key="${esc(inlineKey)}">
           <figcaption>
-            <span>${esc(entry.label)}</span>
-            <span class="row-actions" style="gap:6px">
+            <span class="pdf-inline-title" title="${esc(entry.label)}">${esc(entry.label)}</span>
+            <span class="row-actions pdf-inline-controls" style="gap:5px;flex-wrap:wrap">
+              <span class="pdf-inline-pager" data-inline-pager hidden>
+                <button type="button" class="mini-tool-btn" data-inline-prev aria-label="Previous page" disabled>‹</button>
+                <span class="pdf-inline-page-lbl" data-inline-page-lbl>${esc(entry.page || 1)}</span>
+                <button type="button" class="mini-tool-btn" data-inline-next aria-label="Next page" disabled>›</button>
+              </span>
+              <button type="button" class="mini-tool-btn" data-inline-crop-toggle hidden>Full page</button>
               ${window.StudyPdf.toolbar(true)}
-              <button type="button" class="mini-tool-btn" data-open-inline-pdf="${esc(entry.key)}" title="Open full multi-page PDF reader">Full PDF (p.${esc(entry.page || 1)})</button>
+              <button type="button" class="mini-tool-btn" data-inline-invert title="Invert PDF colors (dark mode)">◐</button>
+              <button type="button" class="mini-tool-btn" data-open-inline-pdf="${esc(entry.key)}" data-open-inline-page="${esc(entry.page || 1)}" title="Open full multi-page PDF reader with search">Full PDF (p.${esc(entry.page || 1)})</button>
             </span>
           </figcaption>
-          <p class="muted pdf-status" data-pdf-status role="status" style="margin:6px 10px">Loading question excerpt…</p>
-          <div class="pdf-zoom-scroll pdf-figure-scroll" tabindex="0" aria-label="Scrollable question excerpt">
+          <p class="muted pdf-status pdf-inline-loading" data-pdf-status role="status" hidden></p>
+          <div class="pdf-zoom-scroll pdf-figure-scroll" tabindex="0" aria-label="Scrollable PDF preview">
             <div class="pdf-zoom-page"><canvas aria-hidden="true"></canvas><div class="textLayer"></div></div>
           </div>
         </figure>`;
       })
       .join('');
     return { html, mountItems };
+  }
+
+  function prefetchUpcomingRunPdfs(currentQ, isBlindUnfinished) {
+    if (!activeRun || !window.StudyPdf?.prefetch) return;
+    const sourcesMap = activeRun.bank.sources || {};
+    const toPrefetch = [];
+    const seenKeys = new Set();
+    const pushUnique = (entries) => {
+      for (const s of entries) {
+        if (!s || !s.isPdf || seenKeys.has(s.key)) continue;
+        seenKeys.add(s.key);
+        toPrefetch.push(s);
+        if (toPrefetch.length >= 3) break;
+      }
+    };
+    // 1. Pre-render next 2 questions' prompt PDFs so pressing Next is 0ms instant
+    for (let step = 1; step <= 2 && toPrefetch.length < 3; step++) {
+      const nextId = activeRun.questionIds[activeRun.index + step];
+      const nextQ = nextId ? activeRun.questionsById[nextId] : null;
+      if (!nextQ) continue;
+      const nextPdfs = getQuestionSourcePdfs(nextQ, sourcesMap, isBlindUnfinished, false);
+      pushUnique(nextPdfs.filter((p) => p.isPdf && !p.isSolution));
+    }
+    // 2. Also warm current question's solution PDF if unlocked (so Reveal Solution is 0ms instant)
+    if (!isBlindUnfinished && currentQ && toPrefetch.length < 3) {
+      const withSol = getQuestionSourcePdfs(currentQ, sourcesMap, false, true);
+      pushUnique(withSol.filter((p) => p.isPdf && p.isSolution));
+    }
+    if (toPrefetch.length) {
+      const leftPane = document.querySelector('.runner-pane-left');
+      window.StudyPdf.prefetch(toPrefetch, { inline: true, targetWidth: leftPane?.clientWidth || 720 });
+    }
   }
 
   function maybeAutoFetchCanvasSources(q, lockedRefs) {
@@ -1338,12 +1378,13 @@ window.StudyRunner = (() => {
       const inlineGateRefs = lockedSourceRefs.filter((r) => r.role !== 'solution');
       const taskGateHtml = inlineGateRefs.length ? renderSourceContextGate(q, inlineGateRefs, true) : '';
       const promptPdfs = sourcePdfs.filter(source => croppedArchivePdfs.includes(source) ||
-        (!promptAssetsHtml && source.role && !source.isSolution));
+        (!promptAssetsHtml && source.isPdf && !source.isSolution));
       // The H10 handout only lists the assigned exercises, which are already shown below.
       const hasTextbookPages = q.id === 'acct-2527:H10' && promptPdfs.some(source => source.sourceId === 'textbook-12e');
-      const inlineLocalPrompt = renderInlineLocalPdfFigures(hasTextbookPages
+      const filteredPromptPdfs = (hasTextbookPages
         ? promptPdfs.filter(source => source.sourceId !== '203552')
-        : promptPdfs);
+        : promptPdfs).slice(0, 3);
+      const inlineLocalPrompt = renderInlineLocalPdfFigures(filteredPromptPdfs);
       if (inlineLocalPrompt.mountItems.length) inlineLocalMountItems.push(...inlineLocalPrompt.mountItems);
       readerBodyHtml = `
         <div class="${isExamSheet ? 'exam-paper-sheet' : ''}">
@@ -1607,7 +1648,7 @@ window.StudyRunner = (() => {
       const solLockedRefs = lockedSourceRefs.filter((r) => r.role === 'solution' || r.isSolution);
       const solGateHtml = solLockedRefs.length ? renderSourceContextGate(q, solLockedRefs, true) : '';
       const localSolPdfs = !solAssets
-        ? sourcePdfs.filter((p) => p.role && p.isSolution)
+        ? sourcePdfs.filter((p) => p.isPdf && p.isSolution).slice(0, 3)
         : [];
       const inlineLocalSol = renderInlineLocalPdfFigures(localSolPdfs);
       if (inlineLocalSol.mountItems.length) inlineLocalMountItems.push(...inlineLocalSol.mountItems);
@@ -1905,6 +1946,7 @@ window.StudyRunner = (() => {
     } else {
       window.StudyPdf.disposeInline?.();
     }
+    prefetchUpcomingRunPdfs(q, isBlindUnfinished);
     if (!isBlindUnfinished && lockedSourceRefs.length) {
       maybeAutoFetchCanvasSources(q, lockedSourceRefs);
     }
@@ -1928,11 +1970,13 @@ window.StudyRunner = (() => {
       btn.addEventListener('click', (ev) => {
         ev.stopPropagation();
         const key = btn.dataset.openInlinePdf;
+        const inlinePage = Number(btn.dataset.openInlinePage || 0);
         const foundIdx = sourcePdfs.findIndex((p) => p.key === key);
         if (foundIdx >= 0) {
           st.selectedPdfIdx = foundIdx;
-          const view = st.pdfViews[key.replace(/#p\d+$/, '')];
-          if (view) view.page = sourcePdfs[foundIdx].page;
+          const docViewKey = key.replace(/#p\d+$/, '');
+          const view = (st.pdfViews[docViewKey] ||= { page: sourcePdfs[foundIdx].page, zoom: 100, trim: true });
+          view.page = inlinePage > 0 ? inlinePage : sourcePdfs[foundIdx].page;
         }
         st.readerTab = 'pdf';
         renderRunner();
