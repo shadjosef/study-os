@@ -150,7 +150,7 @@
         <span class="live-clock-pill" id="global-work-pill" title="Universal non-pausable working interval (capped at 75:00 · 1:5 recovery break)">0:00 / 75m</span>
         <button type="button" class="ghost-btn topbar-action-btn" id="global-work-action-btn" title="Start 75m working interval or take scaled 1:5 recovery break">Start 75m</button>
         <button type="button" class="ghost-btn topbar-action-btn" id="evening-break-tools-btn" hidden>Break tools</button>
-        <button type="button" class="primary-btn topbar-action-btn" id="hdr-signin-btn" hidden title="Sign in to sync progress, schedule, and BI Canvas across devices">Sign in</button>
+        <button type="button" class="primary-btn topbar-action-btn" id="hdr-signin-btn" hidden title="Sign in to sync progress, Canvas, AI study sets, and schedule across devices">Sign in</button>
         <button type="button" class="ghost-btn settings-trigger-btn" id="hdr-settings-btn" title="Settings (,)" aria-label="Open Settings">
           <svg class="settings-gear-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="3"></circle>
@@ -401,8 +401,6 @@
             <p class="muted" style="margin:6px 0 12px;max-width:68ch">Free active-recall study workspace for BI Oslo, UiA, NTNU, UiO, NHH, UiB, OsloMet, and any Instructure Canvas university: 1,000+ practice questions, timed WISEflow FLOWmulti mock exams, instant inline PDF reader, course notes, AI Tutor, and 1-click Canvas + TimeEdit/TP sync.</p>
             <div class="row-actions" style="flex-wrap:wrap">
               <a class="ghost-btn" href="./universities.html">Supported Universities</a>
-              <a class="ghost-btn" href="./bi-oslo.html">BI Oslo</a>
-              <a class="ghost-btn" href="./uni/uia.html">UiA</a>
               <a class="ghost-btn" href="./gpa-calculator.html">GPA Calculator</a>
               <a class="ghost-btn" href="./compare.html">Compare</a>
               <a class="ghost-btn" href="./norsk.html" lang="nb">Norsk</a>
@@ -449,10 +447,9 @@
         <h2>Community course directory</h2>
         <div class="courses-grid"></div>
       </section>
-      <details id="my-study-sets" class="panel">
-        <summary>My study sets</summary>
+      <section id="my-study-sets" class="panel study-sets-home-section" aria-label="My Study Sets">
         <div id="study-sets-root"></div>
-      </details>
+      </section>
     </section>
 
     <!-- VIEW 1B: MULTI-SEMESTER REFERENCE HUB (Browse Authored Obsidian Reference Sheets Online or Locally) -->

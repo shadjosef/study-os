@@ -118,6 +118,143 @@ window.StudyCommunity = (() => {
     }
   }
 
+  const SCHOOL_CATALOG = [
+    { name: 'BI Oslo', short: 'BI', canvasOrigin: 'https://canvas.bi.no', timetableUrl: 'https://cloud.timeedit.net/bi/web/public/ri1Q7.html', timetableLabel: 'BI TimeEdit' },
+    { name: 'NTNU', short: 'NTNU', canvasOrigin: 'https://ntnu.instructure.com', timetableUrl: 'https://tp.educloud.no/ntnu/', timetableLabel: 'NTNU TP' },
+    { name: 'UiO', short: 'UiO', canvasOrigin: 'https://uio.instructure.com', timetableUrl: 'https://tp.educloud.no/uio/', timetableLabel: 'UiO TP' },
+    { name: 'UiA', short: 'UiA', canvasOrigin: 'https://uia.instructure.com', timetableUrl: 'https://tp.educloud.no/uia/', timetableLabel: 'UiA TP' },
+    { name: 'NHH', short: 'NHH', canvasOrigin: 'https://nhh.instructure.com', timetableUrl: 'https://cloud.timeedit.net/nhh/web/', timetableLabel: 'NHH TimeEdit' },
+    { name: 'UiB', short: 'UiB', canvasOrigin: 'https://mitt.uib.no', timetableUrl: 'https://tp.educloud.no/uib/', timetableLabel: 'UiB TP' },
+    { name: 'OsloMet', short: 'OsloMet', canvasOrigin: 'https://oslomet.instructure.com', timetableUrl: 'https://tp.educloud.no/oslomet/', timetableLabel: 'OsloMet TP' },
+    { name: 'UiS', short: 'UiS', canvasOrigin: 'https://uis.instructure.com', timetableUrl: 'https://tp.educloud.no/uis/', timetableLabel: 'UiS TP' },
+    { name: 'UiT', short: 'UiT', canvasOrigin: 'https://uit.instructure.com', timetableUrl: 'https://tp.educloud.no/uit/', timetableLabel: 'UiT TP' },
+    { name: 'USN', short: 'USN', canvasOrigin: 'https://usn.instructure.com', timetableUrl: 'https://cloud.timeedit.net/usn/web/', timetableLabel: 'USN TimeEdit' },
+    { name: 'NMBU', short: 'NMBU', canvasOrigin: 'https://nmbu.instructure.com', timetableUrl: 'https://cloud.timeedit.net/nmbu/web/', timetableLabel: 'NMBU TimeEdit' },
+    { name: 'HVL', short: 'HVL', canvasOrigin: 'https://hvl.instructure.com', timetableUrl: 'https://tp.educloud.no/hvl/', timetableLabel: 'HVL TP' },
+    { name: 'Kristiania', short: 'Kristiania', canvasOrigin: 'https://kristiania.instructure.com', timetableUrl: 'https://cloud.timeedit.net/kristiania/web/', timetableLabel: 'Kristiania TimeEdit' },
+  ];
+  const LOCAL_SCHOOL_KEY = 'study-os-selected-school-v1';
+
+  function normalizeCanvasUrl(raw) {
+    const val = String(raw || '').trim();
+    if (!val) return '';
+    const candidate = /^https?:\/\//i.test(val) ? val : `https://${val}`;
+    try {
+      const u = new URL(candidate);
+      if (u.protocol !== 'https:') return '';
+      return `https://${u.hostname.toLowerCase()}`;
+    } catch {
+      return '';
+    }
+  }
+
+  function schoolConfigFor(name = '', origin = '') {
+    const normName = String(name || '').trim().toLowerCase();
+    const normOrigin = normalizeCanvasUrl(origin);
+    if (normName) {
+      const byName = SCHOOL_CATALOG.find((s) => s.name.toLowerCase() === normName || s.short.toLowerCase() === normName);
+      if (byName) return { ...byName, canvasOrigin: normOrigin || byName.canvasOrigin };
+    }
+    if (normOrigin) {
+      const host = new URL(normOrigin).hostname;
+      const byOrigin = SCHOOL_CATALOG.find((s) => {
+        try { return new URL(s.canvasOrigin).hostname === host; } catch { return false; }
+      });
+      if (byOrigin) return { ...byOrigin, name: String(name || '').trim() || byOrigin.name };
+    }
+    const cleanName = String(name || '').trim().slice(0, 48);
+    if (cleanName || normOrigin) {
+      const shortLabel = cleanName ? (cleanName.length <= 14 ? cleanName : cleanName.slice(0, 14)) : 'Canvas';
+      return {
+        name: cleanName || 'Custom Canvas',
+        short: shortLabel,
+        canvasOrigin: normOrigin,
+        timetableUrl: 'https://cloud.timeedit.net/',
+        timetableLabel: 'TimeEdit / TP',
+        isCustom: true,
+      };
+    }
+    return {
+      name: '',
+      short: '',
+      canvasOrigin: '',
+      timetableUrl: 'https://cloud.timeedit.net/',
+      timetableLabel: 'TimeEdit / TP',
+    };
+  }
+
+  function readLocalSchool() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LOCAL_SCHOOL_KEY) || 'null');
+      if (raw && typeof raw === 'object') {
+        return { school: String(raw.school || '').trim(), canvasOrigin: String(raw.canvasOrigin || '').trim() };
+      }
+    } catch {}
+    return { school: '', canvasOrigin: '' };
+  }
+
+  function saveLocalSchool(school = '', canvasOrigin = '') {
+    try {
+      const cleanSchool = String(school || '').trim().slice(0, 48);
+      const cleanOrigin = normalizeCanvasUrl(canvasOrigin);
+      if (!cleanSchool && !cleanOrigin) localStorage.removeItem(LOCAL_SCHOOL_KEY);
+      else localStorage.setItem(LOCAL_SCHOOL_KEY, JSON.stringify({ school: cleanSchool, canvasOrigin: cleanOrigin }));
+    } catch {}
+  }
+
+  function schoolFieldHtml(selectedSchool = '', selectedOrigin = '') {
+    const cleanSchool = String(selectedSchool || '').trim();
+    const cleanOrigin = normalizeCanvasUrl(selectedOrigin);
+    const preset = SCHOOL_CATALOG.find((s) => s.name.toLowerCase() === cleanSchool.toLowerCase());
+    const isCustom = Boolean(!preset && (cleanSchool || cleanOrigin));
+    const selectValue = preset ? preset.name : isCustom ? '__custom__' : '';
+    return `
+      <div class="school-picker-wrap" data-school-picker>
+        <label class="field-label">University / school <small class="muted">(tailors your Canvas &amp; timetable links)</small>
+          <select name="schoolPreset" data-school-select>
+            <option value="" ${!selectValue ? 'selected' : ''}>Select your university / school (optional)</option>
+            ${SCHOOL_CATALOG.map((s) => `<option value="${esc(s.name)}" ${selectValue === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
+            <option value="__custom__" ${selectValue === '__custom__' ? 'selected' : ''}>Other university / custom Canvas…</option>
+          </select>
+        </label>
+        <div class="school-picker-custom" data-school-custom ${isCustom ? '' : 'hidden'}>
+          <label class="field-label">School / university name
+            <input name="customSchool" type="text" maxlength="48" value="${esc(isCustom ? cleanSchool : '')}" placeholder="e.g. CBS, Stockholm University, MIT" ${isCustom ? '' : 'disabled'}>
+          </label>
+          <label class="field-label">Canvas URL <small class="muted">(optional)</small>
+            <input name="customCanvasOrigin" type="text" maxlength="120" value="${esc(isCustom ? cleanOrigin : '')}" placeholder="https://yourschool.instructure.com" autocomplete="off" autocapitalize="off" spellcheck="false" ${isCustom ? '' : 'disabled'}>
+          </label>
+        </div>
+      </div>`;
+  }
+
+  function bindSchoolPickers(root) {
+    root.querySelectorAll('[data-school-picker]').forEach((wrap) => {
+      const sel = wrap.querySelector('[data-school-select]');
+      const customBox = wrap.querySelector('[data-school-custom]');
+      if (!sel || !customBox) return;
+      const sync = () => {
+        const isCustom = sel.value === '__custom__';
+        customBox.hidden = !isCustom;
+        customBox.querySelectorAll('input').forEach((inp) => { inp.disabled = !isCustom; });
+      };
+      sel.addEventListener('change', sync);
+      sync();
+    });
+  }
+
+  function extractSchoolFields(formData) {
+    const presetVal = String(formData.get('schoolPreset') || '').trim();
+    if (!presetVal) return { school: '', canvasOrigin: '' };
+    if (presetVal === '__custom__') {
+      const school = String(formData.get('customSchool') || '').trim().slice(0, 48);
+      const canvasOrigin = normalizeCanvasUrl(formData.get('customCanvasOrigin') || '');
+      return { school, canvasOrigin };
+    }
+    const found = SCHOOL_CATALOG.find((s) => s.name === presetVal);
+    return found ? { school: found.name, canvasOrigin: found.canvasOrigin } : { school: presetVal.slice(0, 48), canvasOrigin: '' };
+  }
+
   const SECONDARY_LANGUAGES = [
     { code: '', label: 'None (English only)' },
     { code: 'nb', label: 'Norwegian (Bokmål)' },
@@ -432,13 +569,14 @@ window.StudyCommunity = (() => {
   const privacyNote = `
     <details class="auth-privacy-note">
       <summary>Community privacy &amp; rules</summary>
-      <p>Study-OS Community is run by the Study-OS project, independently of BI. Use a nickname and keep private info, restricted course files, and active assessment material out of messages.</p>
-      <p>Cloudflare (EU) stores your display name, optional avatar &amp; bio, study and break totals, synced progress and schedule, passkey public keys, recovery key hash, room results, duel rating, chat posts, direct messages, shared study sets, and block list.</p>
+      <p>Study-OS Community is run independently by the Study-OS project (not affiliated with any university). Use a nickname and keep private info, restricted course files, and active assessment material out of messages.</p>
+      <p>Cloudflare (EU) stores your display name, optional university/school, avatar &amp; bio, study and break totals, synced progress, custom study sets and schedule, passkey public keys, recovery key hash, room results, duel rating, chat posts, direct messages, shared study sets, and block list.</p>
       <p>Delete your profile anytime to erase your account, passkeys, synced backup, and message history from the active database. Cloudflare may retain rolling backups briefly.</p>
     </details>`;
 
   function renderEntry(root, error = '', onSignedIn = render, onDemo) {
     const passkeyReady = supportsPasskeys();
+    const localSchool = readLocalSchool();
     root.innerHTML = `
       <div class="auth-card">
         <div class="auth-head">
@@ -450,8 +588,8 @@ window.StudyCommunity = (() => {
           </div>
           <div>
             <h1 class="auth-title">Sign in to Study-OS</h1>
-            <p class="muted auth-sub">Sync progress and your study schedule across devices.</p>
-            <p class="mobile-auth-tip muted">On a computer, connect Canvas and TimeEdit in Schedule.</p>
+            <p class="muted auth-sub">Sync Canvas courses, AI study sets &amp; progress across devices.</p>
+            <p class="mobile-auth-tip muted">On a computer, connect Canvas and your timetable in Schedule.</p>
           </div>
         </div>
 
@@ -476,6 +614,7 @@ window.StudyCommunity = (() => {
           <form id="community-google-complete-form" class="auth-form">
             <input type="hidden" name="ticket">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
+            ${schoolFieldHtml(localSchool.school, localSchool.canvasOrigin)}
             <label class="field-label" data-join-invite="google" hidden>Community invite code <input name="invite" type="password" disabled autocomplete="off" placeholder="Enter your invite code"></label>
             ${secondaryLanguageFieldHtml('')}
             ${signupConsentHtml({ showEmailField: false })}
@@ -495,12 +634,13 @@ window.StudyCommunity = (() => {
 
           <form id="community-join" class="auth-form" data-auth-pane="join">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Alex" required></label>
+            ${schoolFieldHtml(localSchool.school, localSchool.canvasOrigin)}
             <label class="field-label" data-join-invite hidden>Community invite code <input name="invite" type="password" disabled autocomplete="off" placeholder="Enter your invite code"></label>
             ${secondaryLanguageFieldHtml('')}
             ${passkeyReady ? '<label class="check-row"><input name="withPasskey" type="checkbox" checked> Set up a passkey after signup</label>' : ''}
             ${signupConsentHtml({ showEmailField: true })}
             <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Create profile</button>
-            <small class="muted" id="community-stats-notice">Your nickname, study hours, breaks, and practice totals appear on the members leaderboard.</small>
+            <small class="muted" id="community-stats-notice">Your nickname, school, study hours, breaks, and practice totals appear on the members leaderboard.</small>
           </form>
 
           <form id="community-link-redeem" class="auth-form" data-auth-pane="code" hidden>
@@ -528,6 +668,7 @@ window.StudyCommunity = (() => {
       </div>`;
 
     const status = root.querySelector('#community-status');
+    bindSchoolPickers(root);
     if (onDemo) root.querySelector('#community-demo').onclick = onDemo;
 
     const googleSlot = root.querySelector('#community-google-slot');
@@ -601,15 +742,19 @@ window.StudyCommunity = (() => {
     });
 
     action(root.querySelector('#community-google-complete-form'), async (form, element) => {
+      const { school, canvasOrigin } = extractSchoolFields(form);
       const res = await request('/auth/google/complete', {
         ticket: form.get('ticket'),
         nickname: form.get('nickname'),
+        school,
+        canvasOrigin,
         secondaryLanguage: String(form.get('secondaryLanguage') || ''),
         tosAccepted: form.get('tosAccepted') === 'on',
         newsletterOptIn: form.get('newsletterOptIn') === 'on',
         ...await signupAccess(form, element, true),
         label: detectDeviceLabel(),
       }, '');
+      if (school || canvasOrigin) saveLocalSchool(school, canvasOrigin);
       useProfile(res.token);
       currentProfile = await request('/profile').catch(() => null);
       toast(`Welcome, ${res.nickname}! Google Sign-In is now linked.`);
@@ -668,14 +813,18 @@ window.StudyCommunity = (() => {
     }
 
     action(root.querySelector('#community-join'), async (form, element) => {
+      const { school, canvasOrigin } = extractSchoolFields(form);
       const result = await request('/join', {
         nickname: form.get('nickname'),
+        school,
+        canvasOrigin,
         secondaryLanguage: String(form.get('secondaryLanguage') || ''),
         tosAccepted: form.get('tosAccepted') === 'on',
         newsletterOptIn: form.get('newsletterOptIn') === 'on',
         contactEmail: String(form.get('contactEmail') || '').trim(),
         ...await signupAccess(form, element),
       }, '');
+      if (school || canvasOrigin) saveLocalSchool(school, canvasOrigin);
       useProfile(result.token);
       currentProfile = await request('/profile').catch(() => null);
       toast('Profile created. Save a recovery key in Settings → Sign-in & Devices.');
@@ -1129,8 +1278,9 @@ window.StudyCommunity = (() => {
           </label>
           <div style="margin:-4px 0 8px">${nickHint}</div>
           <label class="field-label">Short bio / study focus <small class="muted">(optional, up to 140 chars)</small>
-            <input name="bio" value="${esc(profile.bio || '')}" maxlength="140" placeholder="e.g. BSc Data Science · Grinding OB &amp; Maths">
+            <input name="bio" value="${esc(profile.bio || '')}" maxlength="140" placeholder="e.g. BSc Economics · Grinding Finance &amp; Maths">
           </label>
+          ${schoolFieldHtml(profile.school || '', profile.canvasOrigin || '')}
           ${secondaryLanguageFieldHtml(profile.secondaryLanguage || '')}
           <label class="check-row" style="font-size:13px;align-items:flex-start;margin:6px 0">
             <input name="newsletterOptIn" type="checkbox" ${profile.newsletterOptIn ? 'checked' : ''} style="margin-top:2px">
@@ -1196,6 +1346,7 @@ window.StudyCommunity = (() => {
 
     const profNewsletterCb = form.querySelector('input[name="newsletterOptIn"]');
     const profEmailWrap = form.querySelector('[data-profile-newsletter-email]');
+    bindSchoolPickers(form);
     profNewsletterCb?.addEventListener('change', () => {
       if (!profEmailWrap) return;
       const show = profNewsletterCb.checked && !profile.contactEmailHint;
@@ -1210,9 +1361,13 @@ window.StudyCommunity = (() => {
       submit.disabled = true;
       status.textContent = 'Saving profile…';
       try {
+        const fd = new FormData(form);
+        const { school, canvasOrigin } = extractSchoolFields(fd);
         const payload = {
           avatar: draftAvatar,
           bio: String(form.elements.bio.value || '').trim(),
+          school,
+          canvasOrigin,
           secondaryLanguage: String(form.elements.secondaryLanguage?.value || ''),
           newsletterOptIn: Boolean(form.elements.newsletterOptIn?.checked),
         };
@@ -1222,7 +1377,10 @@ window.StudyCommunity = (() => {
         if (candidateNick && candidateNick !== profile.nickname) {
           payload.nickname = candidateNick;
         }
-        await request('/profile', payload);
+        const updated = await request('/profile', payload);
+        if (updated && typeof updated === 'object') currentProfile = { ...currentProfile, ...updated };
+        saveLocalSchool(school, canvasOrigin);
+        window.StudyApp?.onSchoolChanged?.();
         toast('Profile updated.');
         await onSaved();
       } catch (error) {
@@ -1746,7 +1904,7 @@ window.StudyCommunity = (() => {
         <div>
           <span class="eyebrow">Study-OS</span>
           <h2 id="feedback-modal-title" style="margin:2px 0 4px">Send Feedback</h2>
-          <p class="muted" style="margin:0;font-size:13px">Report a bug, suggest a feature, or request a BI course.</p>
+          <p class="muted" style="margin:0;font-size:13px">Report a bug, suggest a feature, or request a course.</p>
         </div>
         <button type="button" class="ios-done-btn" id="feedback-modal-done">Done</button>
       </div>
@@ -1956,7 +2114,7 @@ window.StudyCommunity = (() => {
                 ${isOnline ? `<span class="lb-online-dot ${row.mode === 'break' ? 'is-break' : ''}" title="${row.mode === 'break' ? 'On break' : 'Studying now'}"></span>` : ''}
               </div>
               <div class="lb-podium-name">
-                <strong>${esc(row.nickname)}</strong>${row.id === meId ? ' <span class="badge good">You</span>' : ''}
+                <strong>${esc(row.nickname)}</strong>${row.id === meId ? ' <span class="badge good">You</span>' : ''}${row.school ? ` <span class="leaderboard-school-pill">${esc(row.school)}</span>` : ''}
               </div>
               <div class="lb-podium-primary">${primaryMetric}</div>
               <div class="lb-podium-sub">
@@ -2035,6 +2193,7 @@ window.StudyCommunity = (() => {
               <div class="lb-player-line">
                 <span class="lb-title-tag ${t.cls}" title="${esc(t.name)}">${esc(t.code)}</span>
                 <strong>${esc(row.nickname)}</strong>
+                ${row.school ? `<span class="leaderboard-school-pill">${esc(row.school)}</span>` : ''}
                 ${row.id === meId ? '<span class="badge good">You</span>' : ''}
               </div>
               ${row.bio ? `<small class="community-bio-sub">${esc(row.bio)}</small>` : ''}
@@ -2071,7 +2230,7 @@ window.StudyCommunity = (() => {
             </div>
             <p class="muted" style="margin:4px 0 0;font-size:13px">${isDemo
               ? 'Chess-style study rankings, live status & upcoming ELO arena (sample players).'
-              : 'BI Oslo study rankings with titles, accuracy bars, break habits, live timers & upcoming ELO.'}</p>
+              : 'University study rankings with titles, accuracy bars, break habits, live timers & upcoming ELO.'}</p>
           </div>
           <div class="lb-arena-controls">
             <div class="lb-tab-strip" role="tablist" aria-label="Leaderboard ranking category">
@@ -2112,10 +2271,10 @@ window.StudyCommunity = (() => {
           <div class="row-between" style="margin:0 0 10px;flex-wrap:wrap;gap:8px">
             <div>
               <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <h2 style="margin:0">Study together &amp; BI Duels</h2>
+                <h2 style="margin:0">Study together &amp; Live Duels</h2>
                 <span class="badge gold">Live Beta · Elo Arena</span>
               </div>
-              <p class="muted" style="margin:3px 0 0;font-size:13px">Sign in to challenge classmates to 5m BI Duels (Accounting, Economics, Maths, Mixed) or join open 25m/50m/75m Study Pods.</p>
+              <p class="muted" style="margin:3px 0 0;font-size:13px">Sign in to challenge classmates to 5m Study Duels (Accounting, Economics, Maths, Mixed) or join open 25m/50m/75m Study Pods.</p>
             </div>
           </div>
           <div class="room-open-list">
@@ -2247,7 +2406,7 @@ window.StudyCommunity = (() => {
         <div class="community-identity">
           ${avatarHtml(me.nickname, me.avatar, 48)}
           <div>
-            <strong>Signed in as ${esc(me.nickname)}</strong>${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}
+            <strong>Signed in as ${esc(me.nickname)}</strong>${me.school ? ` <span class="leaderboard-school-pill">${esc(me.school)}</span>` : ''}${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}
             ${me.bio ? `<p class="community-bio-sub">${esc(me.bio)}</p>` : ''}
           </div>
         </div>
@@ -2324,23 +2483,30 @@ window.StudyCommunity = (() => {
     const { sets } = await request('/sets');
     if (!panel.isConnected) return;
     panel.innerHTML = `
-      <p>Open a Study-OS link from your Al to share a new set. Practice here earns no leaderboard or Elo points.</p>
+      <p>Create a Study Set on Home with Gemini 4 Hydrogen or your own AI, then share it here or send a direct link to classmates. Practice on custom sets earns no leaderboard or Elo points.</p>
       <p id="community-set-status" role="status"></p>
       <ul class="community-messages">${sets.map((set) => `
-        <li><div class="community-member-inline">${avatarHtml(set.nickname, set.avatar, 22)}<strong>${esc(set.title)}</strong> <small>${set.card_count} cards · ${esc(set.nickname)}</small></div>
+        <li><div class="community-member-inline">${avatarHtml(set.nickname, set.avatar, 22)}<strong>${esc(set.title)}</strong> <small>${set.card_count} Qs · ${esc(set.nickname)}</small></div>
           <div class="row-actions">
+            <button type="button" class="primary-btn" style="padding:5px 11px;font-size:12.5px" data-practice-community-set="${esc(set.id)}">Practice →</button>
             <button type="button" class="ghost-btn" data-save-community-set="${esc(set.id)}">Save to my sets</button>
             ${set.owner === me.id ? `<button type="button" class="ghost-btn" data-remove-community-set="${esc(set.id)}">Remove from Community</button>` : ''}
           </div></li>`).join('') || '<li>No shared sets yet.</li>'}</ul>`;
     const status = panel.querySelector('#community-set-status');
-    for (const button of panel.querySelectorAll('[data-save-community-set], [data-remove-community-set]')) {
+    for (const button of panel.querySelectorAll('[data-practice-community-set], [data-save-community-set], [data-remove-community-set]')) {
       button.onclick = async () => {
         button.disabled = true;
         try {
-          if (button.dataset.saveCommunitySet) {
-            const set = await request('/sets?id=' + encodeURIComponent(button.dataset.saveCommunitySet));
-            window.StudySets.save(set);
-            toast('Saved under My study sets on Home.');
+          if (button.dataset.practiceCommunitySet) {
+            const raw = await request('/sets?id=' + encodeURIComponent(button.dataset.practiceCommunitySet));
+            const normalized = window.StudySets.normalizeSet ? window.StudySets.normalizeSet(raw) : raw;
+            window.StudySets.save(normalized);
+            window.StudySets.launchSet(normalized);
+          } else if (button.dataset.saveCommunitySet) {
+            const raw = await request('/sets?id=' + encodeURIComponent(button.dataset.saveCommunitySet));
+            const normalized = window.StudySets.normalizeSet ? window.StudySets.normalizeSet(raw) : raw;
+            window.StudySets.save(normalized);
+            toast('Saved under My Study Sets on Home.');
           } else {
             await request('/sets', { action: 'remove', id: button.dataset.removeCommunitySet });
             await renderStudySets(root, me);
@@ -2374,7 +2540,7 @@ window.StudyCommunity = (() => {
             ${avatarHtml(me.nickname, me.avatar, 48)}
             <div>
               <h1 style="margin-bottom:2px">Study community</h1>
-              <p class="muted" style="margin:0">Signed in as <strong id="community-signed-in">${esc(me.nickname)}</strong>${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}</p>
+              <p class="muted" style="margin:0">Signed in as <strong id="community-signed-in">${esc(me.nickname)}</strong>${me.school ? ` <span class="leaderboard-school-pill">${esc(me.school)}</span>` : ''}${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}</p>
               ${me.bio ? `<p class="community-bio-sub">${esc(me.bio)}</p>` : ''}
             </div>
           </div>
@@ -2525,10 +2691,37 @@ window.StudyCommunity = (() => {
   }
   const canShareSet = () => Boolean(api && token);
   async function shareSet(set) {
-    if (!canShareSet() || !canUse()) throw new Error('Sign in to Community and share during break access.');
+    if (!canShareSet() || !canUse()) throw new Error('Sign in to Community and share during break access (or 18:00–22:30 Oslo).');
     await syncPresence();
     if (!canUse()) throw new Error('Your break has ended.');
+    if (Array.isArray(set?.questions) && set.questions.length) {
+      return request('/sets', {
+        title: set.title,
+        courseCode: set.courseCode || '',
+        questions: set.questions,
+      });
+    }
     return request('/sets', { title: set.title, cards: set.cards });
+  }
+
+  async function updateProfileSchool(school, canvasOrigin = '') {
+    const cleanSchool = String(school || '').trim().slice(0, 48);
+    const cleanOrigin = normalizeCanvasUrl(canvasOrigin);
+    saveLocalSchool(cleanSchool, cleanOrigin);
+    if (api && token) {
+      try {
+        const updated = await request('/profile', { school: cleanSchool, canvasOrigin: cleanOrigin });
+        if (updated && typeof updated === 'object') {
+          currentProfile = { ...(currentProfile || {}), ...updated };
+        }
+      } catch {}
+    }
+    window.StudyApp?.onSchoolChanged?.();
+  }
+
+  async function generateAiSet(payload) {
+    if (!api || !token) throw new Error('Sign in to generate study sets with built-in Gemini 4 Hydrogen, or use the "Your Own AI" tab.');
+    return request('/ai/generate-set', payload);
   }
 
   async function roomRequest(path = '', data) {
@@ -2542,6 +2735,12 @@ window.StudyCommunity = (() => {
 
   return {
     enabled: Boolean(api),
+    SCHOOL_CATALOG,
+    schoolConfigFor,
+    readLocalSchool,
+    saveLocalSchool,
+    updateProfileSchool,
+    generateAiSet,
     hasProfile: () => !api || Boolean(token),
     isSignedIn: () => Boolean(api && token),
     isAdmin: () => Boolean(currentProfile?.isAdmin),

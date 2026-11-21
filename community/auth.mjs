@@ -2,6 +2,30 @@
 // Zero-dependency ES2020 module using standard Web Crypto API on Cloudflare Workers.
 
 import { turnstileSiteKey } from './human.mjs';
+import { cleanCanvasOrigin } from './courses.mjs';
+
+export function cleanSchoolName(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw.normalize('NFC').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 48);
+}
+
+export function cleanProfileCanvasOrigin(raw) {
+  if (typeof raw !== 'string' || !raw.trim()) return '';
+  let candidate = raw.trim();
+  if (!/^https?:\/\//i.test(candidate)) candidate = `https://${candidate}`;
+  try {
+    const u = new URL(candidate);
+    if (u.protocol !== 'https:' || u.username || u.password) return '';
+    const cleaned = cleanCanvasOrigin(u.origin);
+    // Avoid silently defaulting unrelated domains to BI Oslo unless user actually typed BI
+    if (cleaned === 'https://canvas.bi.no' && u.hostname.toLowerCase() !== 'canvas.bi.no' && u.hostname.toLowerCase() !== 'bi.instructure.com') {
+      return '';
+    }
+    return cleaned;
+  } catch {
+    return '';
+  }
+}
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -331,6 +355,8 @@ export async function handlePublicAuth({
       return reply({ error: 'Choose a nickname of 2–24 letters, numbers or spaces.' }, 400);
     }
     const secondaryLanguage = cleanSecondaryLanguage(data.secondaryLanguage);
+    const school = cleanSchoolName(data.school || '');
+    const canvasOrigin = cleanProfileCanvasOrigin(data.canvasOrigin || '');
     const newsletterOptIn = Boolean(data.newsletterOptIn) ? 1 : 0;
     const contactEmail = newsletterOptIn ? cleanContactEmail(data.contactEmail || pending.verified_email || '') : '';
     const newsletterOptInAt = newsletterOptIn ? now : 0;
@@ -344,9 +370,9 @@ export async function handlePublicAuth({
     const id = crypto.randomUUID();
     const primaryToken = 'soc1_' + hex(crypto.getRandomValues(new Uint8Array(32)));
     const inserted = await db.prepare(`
-      INSERT OR IGNORE INTO profiles(id, token_hash, nickname, secondary_language, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(id, await digest(primaryToken), nickname, secondaryLanguage, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
+      INSERT OR IGNORE INTO profiles(id, token_hash, nickname, secondary_language, school, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(id, await digest(primaryToken), nickname, secondaryLanguage, school, canvasOrigin, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
     if (!inserted.meta.changes) {
       // Put ticket back so user can pick another nickname without re-auth
       await db.prepare(`

@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   attempts INTEGER NOT NULL DEFAULT 0,
   accuracy INTEGER NOT NULL DEFAULT 0,
   secondary_language TEXT NOT NULL DEFAULT '',
+  school TEXT NOT NULL DEFAULT '',
+  canvas_origin TEXT NOT NULL DEFAULT '',
   newsletter_opt_in INTEGER NOT NULL DEFAULT 0,
   newsletter_opt_in_at INTEGER NOT NULL DEFAULT 0,
   contact_email TEXT NOT NULL DEFAULT '',

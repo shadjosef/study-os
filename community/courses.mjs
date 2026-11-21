@@ -366,6 +366,13 @@ export async function handleCourses({ path, request, db, data, me, isAdmin, now,
     let personal = { syncedCourses: 0, deadlineCount: 0 };
     if (source === 'canvas') {
       personal = await mergePersonalCanvasBackup(db, me.id, data.courses, syncedAtIso, now, canvasOrigin);
+      // Auto-populate profile school & Canvas origin if not chosen yet
+      if (!me.school && school) {
+        await db.prepare(`
+          UPDATE profiles SET school = ?, canvas_origin = CASE WHEN canvas_origin = '' THEN ? ELSE canvas_origin END
+          WHERE id = ? AND school = ''
+        `).bind(school, canvasOrigin, me.id).run().catch(() => {});
+      }
     }
 
     const deduped = new Map();

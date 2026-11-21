@@ -1179,6 +1179,37 @@ window.StudyPdf = (() => {
     }
   }
 
+  async function extractFileText(file, maxChars = 14500, maxPages = 24) {
+    if (!file) throw new Error('Choose a PDF file first.');
+    const pdf = await pdfEngine();
+    const data = new Uint8Array(await file.arrayBuffer());
+    const task = pdf.getDocument({ data, disableAutoFetch: true });
+    try {
+      const doc = await task.promise;
+      const totalPages = Math.max(1, Number(doc.numPages) || 1);
+      const pageCount = Math.min(totalPages, maxPages);
+      const chunks = [];
+      let total = 0;
+      for (let p = 1; p <= pageCount && total < maxChars; p++) {
+        const page = await doc.getPage(p);
+        const content = await page.getTextContent();
+        const text = (content.items || []).map((item) => item.str || '').join(' ').replace(/\s+/g, ' ').trim();
+        if (text) {
+          const piece = `[Page ${p}] ${text}`;
+          chunks.push(piece);
+          total += piece.length + 2;
+        }
+      }
+      return {
+        text: chunks.join('\n\n').slice(0, maxChars),
+        pagesRead: pageCount,
+        totalPages,
+      };
+    } finally {
+      task.destroy().catch(() => {});
+    }
+  }
+
   return {
     warm,
     prefetch,
@@ -1190,6 +1221,7 @@ window.StudyPdf = (() => {
     mountInlineFigures,
     dispose,
     disposeInline,
+    extractFileText,
     hasSavedExcerpt: source => Boolean(savedRange(source, source.page)),
     textForPage,
     clearText: () => pageText.clear(),

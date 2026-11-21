@@ -77,6 +77,55 @@ function cleanDismissedEvents(raw) {
   return out;
 }
 
+function cleanCustomSets(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const s of raw.slice(0, 25)) {
+    if (!isObj(s) || typeof s.id !== 'string' || !s.id || s.id.length > 64) continue;
+    const title = typeof s.title === 'string' ? s.title.trim().slice(0, 100) : '';
+    if (!title) continue;
+    if (Array.isArray(s.questions) && s.questions.length) {
+      const qs = s.questions.slice(0, 25).map((q) => {
+        if (!isObj(q)) return null;
+        const promptMarkdown = typeof q.promptMarkdown === 'string' ? q.promptMarkdown.trim().slice(0, 900) : '';
+        const solutionMarkdown = typeof q.solutionMarkdown === 'string' ? q.solutionMarkdown.trim().slice(0, 1200) : '';
+        if (!promptMarkdown || !solutionMarkdown) return null;
+        const opts = Array.isArray(q.options) ? q.options.slice(0, 5).map((o) => String(o || '').trim().slice(0, 260)).filter(Boolean) : [];
+        const isMcq = q.kind === 'mcq' && opts.length >= 2 && Number.isInteger(q.answerIndex) && q.answerIndex >= 0 && q.answerIndex < opts.length;
+        return {
+          title: typeof q.title === 'string' ? q.title.trim().slice(0, 100) : '',
+          kind: isMcq ? 'mcq' : 'written',
+          difficulty: [1, 2, 3].includes(Number(q.difficulty)) ? Number(q.difficulty) : 2,
+          topic: typeof q.topic === 'string' ? q.topic.trim().slice(0, 80) : '',
+          promptMarkdown,
+          ...(isMcq ? { options: opts, answerIndex: q.answerIndex } : {}),
+          hint: typeof q.hint === 'string' ? q.hint.trim().slice(0, 320) : '',
+          solutionMarkdown,
+        };
+      }).filter(Boolean);
+      if (!qs.length) continue;
+      out.push({
+        id: s.id,
+        title,
+        courseCode: typeof s.courseCode === 'string' ? s.courseCode.trim().slice(0, 32) : '',
+        courseTitle: typeof s.courseTitle === 'string' ? s.courseTitle.trim().slice(0, 140) : '',
+        school: typeof s.school === 'string' ? s.school.trim().slice(0, 48) : '',
+        modelLabel: typeof s.modelLabel === 'string' ? s.modelLabel.trim().slice(0, 48) : '',
+        createdAt: typeof s.createdAt === 'string' ? s.createdAt.slice(0, 40) : '',
+        questions: qs,
+      });
+    } else if (Array.isArray(s.cards) && s.cards.length) {
+      const cards = s.cards.slice(0, 30)
+        .filter((c) => Array.isArray(c) && c.length === 2 && typeof c[0] === 'string' && typeof c[1] === 'string')
+        .map(([q, a]) => [q.trim().slice(0, 300), a.trim().slice(0, 500)])
+        .filter(([q, a]) => q && a);
+      if (!cards.length) continue;
+      out.push({ id: s.id, title, cards });
+    }
+  }
+  return out;
+}
+
 export async function handleSync({ request, db, me, now, data, reply }) {
   if (request.method === 'GET') {
     const row = await db.prepare(
@@ -134,6 +183,7 @@ export async function handleSync({ request, db, me, now, data, reply }) {
       sessions,
       customSchedule,
       canvasSnapshot: canvasForSync(data.canvasSnapshot),
+      customSets: cleanCustomSets(data.customSets),
     };
 
     const serialized = JSON.stringify(cleanPayload);

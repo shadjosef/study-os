@@ -60,7 +60,7 @@ function defaultActionPrompt(action) {
   }[action] || 'Help me with this question.';
 }
 
-async function callGemini(apiKey, systemInstruction, contextBlock, history, userPrompt) {
+async function callGemini(apiKey, systemInstruction, contextBlock, history, userPrompt, opts = {}) {
   const contents = [];
   const prefix = contextBlock
     ? `CURRENT EXERCISE CONTEXT:\n${contextBlock}\n\n---\n\n`
@@ -77,6 +77,12 @@ async function callGemini(apiKey, systemInstruction, contextBlock, history, user
     parts: [{ text: attachedContext ? userPrompt : `${prefix}${userPrompt}` }],
   });
 
+  const generationConfig = {
+    temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.35,
+    maxOutputTokens: Number(opts.maxOutputTokens || 2048),
+  };
+  if (opts.jsonMode) generationConfig.responseMimeType = 'application/json';
+
   let lastError = 'Gemini request failed.';
   for (const model of geminiModels) {
     try {
@@ -91,10 +97,7 @@ async function callGemini(apiKey, systemInstruction, contextBlock, history, user
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemInstruction }] },
             contents,
-            generationConfig: {
-              temperature: 0.35,
-              maxOutputTokens: 2048,
-            },
+            generationConfig,
           }),
         }
       );
@@ -118,7 +121,7 @@ async function callGemini(apiKey, systemInstruction, contextBlock, history, user
   throw new Error(lastError);
 }
 
-async function callCloudflareAi(aiBinding, systemInstruction, contextBlock, history, userPrompt) {
+async function callCloudflareAi(aiBinding, systemInstruction, contextBlock, history, userPrompt, opts = {}) {
   const messages = [{ role: 'system', content: systemInstruction }];
   if (contextBlock) {
     messages.push({ role: 'system', content: `CURRENT EXERCISE CONTEXT:\n${contextBlock}` });
@@ -136,8 +139,8 @@ async function callCloudflareAi(aiBinding, systemInstruction, contextBlock, hist
     try {
       const res = await aiBinding.run(model.id, {
         messages,
-        max_tokens: 1024,
-        temperature: 0.35,
+        max_tokens: Number(opts.maxOutputTokens || 1024),
+        temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.35,
       });
       const text =
         (typeof res?.response === 'string' && res.response.trim())
@@ -153,6 +156,42 @@ async function callCloudflareAi(aiBinding, systemInstruction, contextBlock, hist
     }
   }
   throw new Error(lastError);
+}
+
+function parseGeneratedSetJson(rawText, fallbackTitle) {
+  let cleaned = String(rawText || '').trim();
+  const fenced = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) cleaned = fenced[1].trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start >= 0 && end > start) cleaned = cleaned.slice(start, end + 1);
+  const parsed = JSON.parse(cleaned);
+  const rawQuestions = Array.isArray(parsed?.questions) ? parsed.questions : [];
+  const questions = [];
+  for (const q of rawQuestions.slice(0, 20)) {
+    if (!q || typeof q !== 'object') continue;
+    const promptMarkdown = String(q.promptMarkdown || q.prompt || q.question || '').trim().slice(0, 900);
+    const solutionMarkdown = String(q.solutionMarkdown || q.solution || q.answer || '').trim().slice(0, 1200);
+    if (!promptMarkdown || !solutionMarkdown) continue;
+    const rawOptions = Array.isArray(q.options) ? q.options.map((o) => String(o || '').trim().slice(0, 260)).filter(Boolean) : [];
+    const ansIdx = Number(q.answerIndex);
+    const isMcq = (q.kind === 'mcq' || rawOptions.length >= 2) && rawOptions.length >= 2 && rawOptions.length <= 5
+      && Number.isInteger(ansIdx) && ansIdx >= 0 && ansIdx < rawOptions.length;
+    const diff = [1, 2, 3].includes(Number(q.difficulty)) ? Number(q.difficulty) : 2;
+    questions.push({
+      title: String(q.title || `Question ${questions.length + 1}`).trim().slice(0, 100),
+      kind: isMcq ? 'mcq' : 'written',
+      difficulty: diff,
+      topic: String(q.topic || '').trim().slice(0, 80),
+      promptMarkdown,
+      ...(isMcq ? { options: rawOptions, answerIndex: ansIdx } : {}),
+      hint: String(q.hint || '').trim().slice(0, 320),
+      solutionMarkdown,
+    });
+  }
+  if (!questions.length) throw new Error('AI returned no valid practice questions. Try again.');
+  const title = String(parsed?.title || fallbackTitle || 'AI Practice Set').trim().slice(0, 90);
+  return { title, questions };
 }
 
 async function getUsage(db, profileId, dayUtc) {
@@ -239,6 +278,134 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
     const used = usedBefore + 1;
     return reply({
       reply: result.reply,
+      provider: result.provider,
+      modelLabel: result.modelLabel,
+      used,
+      limit,
+      remaining: Math.max(0, limit - used),
+    });
+  }
+
+  if (path === '/ai/generate-set' && request.method === 'POST') {
+    if (!info.available) {
+      return reply({ error: 'Built-in AI generator is not configured yet — use the "Your Own AI" tab to paste a set.' }, 503);
+    }
+
+    const courseCode = typeof data.courseCode === 'string' ? data.courseCode.trim().slice(0, 32) : '';
+    const courseTitle = typeof data.courseTitle === 'string' ? data.courseTitle.trim().slice(0, 140) : '';
+    const school = typeof data.school === 'string' ? data.school.trim().slice(0, 48) : (me.school || '');
+    const topics = Array.isArray(data.topics)
+      ? data.topics.map((t) => String(t || '').trim().slice(0, 100)).filter(Boolean).slice(0, 20)
+      : [];
+    const sourceText = typeof data.sourceText === 'string' ? data.sourceText.trim().slice(0, 16_000) : '';
+    const style = ['mixed', 'mcq', 'written'].includes(data.style) ? data.style : 'mixed';
+    const language = ['auto', 'en', 'nb'].includes(data.language) ? data.language : 'auto';
+    const count = Math.max(4, Math.min(15, Number(data.count) || 8));
+
+    if (!courseTitle && !courseCode && !topics.length && !sourceText) {
+      return reply({ error: 'Enter a course name, topic, or paste some lecture notes first.' }, 400);
+    }
+
+    const usedBefore = await getUsage(db, me.id, dayUtc);
+    if (usedBefore >= limit) {
+      return reply({
+        error: `Daily AI limit reached (${limit}/day). Use the "Your Own AI" tab to paste a set from ChatGPT/Claude/Gemini anytime.`,
+        used: usedBefore,
+        limit,
+        remaining: 0,
+      }, 429);
+    }
+
+    const langRule = language === 'nb'
+      ? 'Write ALL questions, options, hints, and solutions in clear Norwegian Bokmål.'
+      : language === 'en'
+      ? 'Write ALL questions, options, hints, and solutions in crisp English.'
+      : 'Match the primary language of the course title / syllabus / notes (Norwegian Bokmål if Norwegian, otherwise crisp English).';
+
+    const styleRule = style === 'mcq'
+      ? 'Every question must be kind="mcq" with exactly 4 plausible options and integer answerIndex (0-3).'
+      : style === 'written'
+      ? 'Every question must be kind="written" requiring active recall, derivation, calculation, or structured case analysis.'
+      : 'Mix roughly 60% kind="mcq" (4 plausible options, answerIndex 0-3) and 40% kind="written" (active-recall / calculation / short case).';
+
+    const sys = [
+      'You are an expert university exam-prep author creating original, rigorous practice questions for Study-OS.',
+      'Return ONLY valid JSON with this exact shape:',
+      '{"title":"Short Set Title (max 70 chars)","questions":[{"title":"Short Question Title","kind":"mcq"|"written","difficulty":1|2|3,"topic":"Topic name","promptMarkdown":"Question text (use $...$ for math)","options":["A","B","C","D"],"answerIndex":0,"hint":"Focused Socratic hint without spoiling answer","solutionMarkdown":"Step-by-step worked solution & key takeaway"}]}',
+      '- Omit "options" and "answerIndex" for kind="written".',
+      '- difficulty: 1 = Low DLPFC (recall/concept), 2 = Med DLPFC (applied/procedural), 3 = High DLPFC (synthesis/case/multi-step).',
+      `- Create exactly ${count} original, non-trivial exam-grade questions.`,
+      `- ${styleRule}`,
+      `- ${langRule}`,
+      '- Never reproduce copyrighted exam text verbatim; write fresh exam-style questions testing the underlying concepts.',
+    ].join('\n');
+
+    const promptParts = [
+      courseCode || courseTitle ? `COURSE: ${[courseCode, courseTitle].filter(Boolean).join(' · ')}` : '',
+      school ? `UNIVERSITY / SCHOOL: ${school}` : '',
+      topics.length ? `SYLLABUS / CANVAS MODULES:\n- ${topics.join('\n- ')}` : '',
+      sourceText ? `STUDENT NOTES / EXCERPT:\n${sourceText}` : '',
+      `Generate ${count} high-quality exam practice questions as strict JSON.`,
+    ].filter(Boolean).join('\n\n');
+
+    const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.trim() : '';
+    const hasCf = Boolean(env.AI && typeof env.AI.run === 'function');
+    let result = null;
+    let firstError = null;
+    if (geminiKey.length > 10) {
+      try {
+        result = await callGemini(geminiKey, sys, '', [], promptParts, {
+          jsonMode: true,
+          maxOutputTokens: 4096,
+          temperature: 0.4,
+        });
+      } catch (err) {
+        firstError = err;
+      }
+    }
+    if (!result && hasCf) {
+      try {
+        result = await callCloudflareAi(env.AI, sys, '', [], promptParts, {
+          maxOutputTokens: 3072,
+          temperature: 0.35,
+        });
+      } catch (err) {
+        firstError = firstError || err;
+      }
+    }
+    if (!result) {
+      return reply({ error: firstError?.message || 'Could not generate set right now. Try again or use "Your Own AI".' }, 502);
+    }
+
+    let parsedSet;
+    try {
+      const fallbackTitle = [courseCode, courseTitle].filter(Boolean).join(' · ') || 'AI Study Set';
+      parsedSet = parseGeneratedSetJson(result.reply, fallbackTitle);
+    } catch (err) {
+      return reply({ error: err?.message || 'AI output could not be parsed. Please try again.' }, 502);
+    }
+
+    await db.prepare(`
+      INSERT INTO ai_usage(profile_id, day_utc, used_count, updated_at)
+      VALUES (?, ?, 1, ?)
+      ON CONFLICT(profile_id, day_utc) DO UPDATE SET
+        used_count = used_count + 1,
+        updated_at = excluded.updated_at
+    `).bind(me.id, dayUtc, now).run();
+
+    const used = usedBefore + 1;
+    return reply({
+      ok: true,
+      set: {
+        id: crypto.randomUUID(),
+        title: parsedSet.title,
+        courseCode,
+        courseTitle,
+        school,
+        modelLabel: result.modelLabel,
+        createdAt: new Date(now).toISOString(),
+        questions: parsedSet.questions,
+      },
       provider: result.provider,
       modelLabel: result.modelLabel,
       used,

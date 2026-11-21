@@ -1,6 +1,6 @@
 import { handleRooms, runningStudyRoom } from './rooms.mjs';
 import { verifyJoinProof, consumeInviteUse, handleAdmin, getAdminMemberKey } from './admin.mjs';
-import { handlePublicAuth, handleAuthedAuth, cleanSecondaryLanguage, cleanContactEmail, maskEmailHint } from './auth.mjs';
+import { handlePublicAuth, handleAuthedAuth, cleanSecondaryLanguage, cleanContactEmail, maskEmailHint, cleanSchoolName, cleanProfileCanvasOrigin } from './auth.mjs';
 import { handleSync } from './sync.mjs';
 import { checkHuman } from './human.mjs';
 import { readTimeEdit, pushTimeEditFeed, getTimeEditFeed } from './timeedit.mjs';
@@ -91,6 +91,8 @@ function profileSummary(me, isAdmin, now) {
     nicknameChangedAt: changedAt,
     nextNicknameChangeAt: nextAt,
     secondaryLanguage: me.secondary_language || '',
+    school: me.school || '',
+    canvasOrigin: me.canvas_origin || '',
     newsletterOptIn: Boolean(me.newsletter_opt_in),
     contactEmailHint: maskEmailHint(me.contact_email || ''),
     isAdmin,
@@ -192,6 +194,8 @@ export default {
         return reply({ error: 'Choose a nickname of 2–24 letters, numbers or spaces.' }, 400);
       }
       const secondaryLanguage = cleanSecondaryLanguage(data.secondaryLanguage);
+      const school = cleanSchoolName(data.school || '');
+      const canvasOrigin = cleanProfileCanvasOrigin(data.canvasOrigin || '');
       const newsletterOptIn = Boolean(data.newsletterOptIn) ? 1 : 0;
       const contactEmail = newsletterOptIn ? cleanContactEmail(data.contactEmail || '') : '';
       const newsletterOptInAt = newsletterOptIn ? nowJoin : 0;
@@ -199,9 +203,9 @@ export default {
       const id = crypto.randomUUID();
       const token = 'soc1_' + hex(crypto.getRandomValues(new Uint8Array(32)));
       const result = await db.prepare(`
-        INSERT OR IGNORE INTO profiles(id, token_hash, nickname, secondary_language, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(id, await digest(token), nickname, secondaryLanguage, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
+        INSERT OR IGNORE INTO profiles(id, token_hash, nickname, secondary_language, school, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(id, await digest(token), nickname, secondaryLanguage, school, canvasOrigin, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
       if (!result.meta.changes) return reply({ error: 'That nickname is taken.' }, 409);
       if (check.inviteId && !await consumeInviteUse(db, check.inviteId, nowJoin)) {
         await db.prepare('DELETE FROM profiles WHERE id = ?').bind(id).run();
@@ -216,7 +220,7 @@ export default {
     const now = Date.now();
     let me = await db.prepare(`
       SELECT profiles.id, profiles.token_hash AS primary_token_hash, nickname, avatar, bio, nickname_changed_at,
-        secondary_language, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
+        secondary_language, school, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
         study_minutes, break_minutes, break_count, last_break_at,
         completed, attempts, accuracy, break_ends_at, expires_at
       FROM profiles LEFT JOIN presence ON presence.profile = profiles.id WHERE token_hash = ?
@@ -224,7 +228,7 @@ export default {
     if (!me) {
       me = await db.prepare(`
         SELECT profiles.id, profiles.token_hash AS primary_token_hash, nickname, avatar, bio, nickname_changed_at,
-          secondary_language, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
+          secondary_language, school, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
           study_minutes, break_minutes, break_count, last_break_at,
           completed, attempts, accuracy, break_ends_at, expires_at,
           profile_sessions.last_used_at AS session_last_used_at
@@ -293,12 +297,20 @@ export default {
         let nextAvatar = me.avatar || '';
         let nextBio = me.bio || '';
         let nextSecLang = me.secondary_language || '';
+        let nextSchool = me.school || '';
+        let nextCanvasOrigin = me.canvas_origin || '';
         let nextNewsletter = Number(me.newsletter_opt_in || 0);
         let nextNewsletterAt = Number(me.newsletter_opt_in_at || 0);
         let nextEmail = me.contact_email || '';
 
         if (Object.prototype.hasOwnProperty.call(data, 'secondaryLanguage')) {
           nextSecLang = cleanSecondaryLanguage(data.secondaryLanguage);
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'school')) {
+          nextSchool = cleanSchoolName(data.school || '');
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'canvasOrigin')) {
+          nextCanvasOrigin = cleanProfileCanvasOrigin(data.canvasOrigin || '');
         }
         if (Object.prototype.hasOwnProperty.call(data, 'newsletterOptIn')) {
           const want = Boolean(data.newsletterOptIn) ? 1 : 0;
@@ -358,9 +370,9 @@ export default {
           await db.prepare(`
             UPDATE profiles
             SET nickname = ?, avatar = ?, bio = ?, nickname_changed_at = ?,
-                secondary_language = ?, newsletter_opt_in = ?, newsletter_opt_in_at = ?, contact_email = ?
+                secondary_language = ?, school = ?, canvas_origin = ?, newsletter_opt_in = ?, newsletter_opt_in_at = ?, contact_email = ?
             WHERE id = ?
-          `).bind(nextNickname, nextAvatar, nextBio, nextChangedAt, nextSecLang, nextNewsletter, nextNewsletterAt, nextEmail, me.id).run();
+          `).bind(nextNickname, nextAvatar, nextBio, nextChangedAt, nextSecLang, nextSchool, nextCanvasOrigin, nextNewsletter, nextNewsletterAt, nextEmail, me.id).run();
         } catch {
           return reply({ error: 'That nickname is taken.' }, 409);
         }
@@ -372,6 +384,8 @@ export default {
           bio: nextBio,
           nickname_changed_at: nextChangedAt,
           secondary_language: nextSecLang,
+          school: nextSchool,
+          canvas_origin: nextCanvasOrigin,
           newsletter_opt_in: nextNewsletter,
           newsletter_opt_in_at: nextNewsletterAt,
           contact_email: nextEmail,
@@ -399,7 +413,7 @@ export default {
       const offset = Number(url.searchParams.get('offset') || 0);
       if (!boundedInt(offset, 1_000_000)) return reply({ error: 'Invalid leaderboard page.' }, 400);
       const ranks = await db.prepare(`
-        SELECT profiles.id, nickname, avatar, bio, study_minutes, break_minutes, break_count, last_break_at,
+        SELECT profiles.id, nickname, avatar, bio, school, study_minutes, break_minutes, break_count, last_break_at,
           completed, attempts, accuracy, presence.mode,
           presence.elapsed_seconds, presence.updated_at, presence.break_ends_at
         FROM profiles LEFT JOIN presence ON presence.profile = profiles.id AND presence.expires_at > ?
@@ -485,15 +499,52 @@ export default {
           return reply({ ok: true });
         }
         const title = typeof data.title === 'string' ? data.title.trim() : '';
-        const cards = Array.isArray(data.cards) ? data.cards : [];
-        if (!title || title.length > 80 || cards.length < 1 || cards.length > 30 || cards.some((card) =>
+        const rawCards = Array.isArray(data.cards) ? data.cards : [];
+        const rawQuestions = Array.isArray(data.questions) ? data.questions : [];
+        let storedPayload = null;
+        let cardCount = 0;
+
+        if (rawQuestions.length >= 1 && rawQuestions.length <= 25 && title && title.length <= 100) {
+          const cleanQs = rawQuestions.map((q) => {
+            if (!q || typeof q !== 'object') return null;
+            const prompt = typeof q.promptMarkdown === 'string' ? q.promptMarkdown.trim().slice(0, 900) : '';
+            const solution = typeof q.solutionMarkdown === 'string' ? q.solutionMarkdown.trim().slice(0, 1200) : '';
+            if (!prompt || !solution) return null;
+            const isMcq = q.kind === 'mcq' && Array.isArray(q.options) && q.options.length >= 2 && q.options.length <= 5;
+            const options = isMcq ? q.options.map((o) => String(o || '').trim().slice(0, 260)).filter(Boolean) : [];
+            const validMcq = isMcq && options.length >= 2 && Number.isInteger(q.answerIndex) && q.answerIndex >= 0 && q.answerIndex < options.length;
+            return {
+              title: typeof q.title === 'string' ? q.title.trim().slice(0, 100) : '',
+              kind: validMcq ? 'mcq' : 'written',
+              difficulty: [1, 2, 3].includes(Number(q.difficulty)) ? Number(q.difficulty) : 2,
+              topic: typeof q.topic === 'string' ? q.topic.trim().slice(0, 80) : '',
+              promptMarkdown: prompt,
+              ...(validMcq ? { options, answerIndex: q.answerIndex } : {}),
+              hint: typeof q.hint === 'string' ? q.hint.trim().slice(0, 320) : '',
+              solutionMarkdown: solution,
+            };
+          }).filter(Boolean);
+          if (cleanQs.length >= 1) {
+            storedPayload = {
+              format: 'study-os-rich-set-v1',
+              courseCode: typeof data.courseCode === 'string' ? data.courseCode.trim().slice(0, 24) : '',
+              school: me.school || '',
+              questions: cleanQs,
+            };
+            cardCount = cleanQs.length;
+          }
+        } else if (title && title.length <= 80 && rawCards.length >= 1 && rawCards.length <= 30 && !rawCards.some((card) =>
           !Array.isArray(card) || card.length !== 2 || card.some((cell) => typeof cell !== 'string' || !cell.trim() || cell.length > 250))) {
-          return reply({ error: 'Use a title and 1–30 question-and-answer pairs, with up to 250 characters per field.' }, 400);
+          storedPayload = rawCards;
+          cardCount = rawCards.length;
+        }
+        if (!storedPayload || JSON.stringify(storedPayload).length > 52_000) {
+          return reply({ error: 'Use a title and 1–25 study questions (or 1–30 Q&A cards).' }, 400);
         }
         const result = await db.prepare(`
           INSERT INTO study_sets(id, owner, title, cards, card_count, created_at)
-          SELECT ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM study_sets WHERE owner = ?) < 10
-        `).bind(crypto.randomUUID(), me.id, title, JSON.stringify(cards), cards.length, now, me.id).run();
+          SELECT ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM study_sets WHERE owner = ?) < 15
+        `).bind(crypto.randomUUID(), me.id, title, JSON.stringify(storedPayload), cardCount, now, me.id).run();
         return result.meta.changes ? reply({ ok: true }, 201) : reply({ error: 'Remove an existing set before sharing another.' }, 409);
       }
     }
