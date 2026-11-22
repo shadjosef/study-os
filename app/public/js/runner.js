@@ -538,6 +538,14 @@ window.StudyRunner = (() => {
     resumeCurrentTimer();
     renderRunner();
     window.scrollTo({ top: 0, behavior: 'instant' });
+    if (window.StudyUI.isReferenceDrawerOpen?.()) {
+      const q = currentQuestion();
+      if (q && !(activeRun.examStyle === 'blind' && !activeRun.paperSubmitted)) {
+        window.StudyUI.syncReferenceDrawerForQuestion?.(activeRun.courseMeta, q, activeRun.bank);
+      } else {
+        window.StudyUI.closeReferenceDrawer?.();
+      }
+    }
   }
 
   function makeObsidianDeepLink(q) {
@@ -941,13 +949,21 @@ window.StudyRunner = (() => {
     st.inlineRefHeading = targetHeading;
     st.inlineRefLoading = true;
     try {
-      if (window.StudyApp?.fetchReferenceSection) {
-        st.inlineRefData = await window.StudyApp.fetchReferenceSection(targetFile, targetHeading);
-      } else {
-        const url = `/api/obsidian/section?file=${encodeURIComponent(targetFile)}&heading=${encodeURIComponent(targetHeading)}`;
-        const res = await fetch(url);
-        st.inlineRefData = await res.json();
+      const fetchSec = async (f, h) => window.StudyApp?.fetchReferenceSection
+        ? window.StudyApp.fetchReferenceSection(f, h)
+        : (await fetch(`/api/obsidian/section?file=${encodeURIComponent(f)}&heading=${encodeURIComponent(h)}`)).json();
+      let data = await fetchSec(targetFile, targetHeading);
+      if (!targetHeading && data?.available && Array.isArray(data.toc) && data.toc.length && window.StudyUI.findRelevantReferenceHeadings) {
+        const rel = window.StudyUI.findRelevantReferenceHeadings(q, activeRun.courseMeta, data.toc, activeRun.bank);
+        if (rel.primaryHeading) {
+          const targeted = await fetchSec(targetFile, rel.primaryHeading);
+          if (targeted?.available) {
+            data = targeted;
+            st.inlineRefHeading = rel.primaryHeading;
+          }
+        }
       }
+      st.inlineRefData = data;
     } catch {
       st.inlineRefData = { available: false, error: 'Could not load Obsidian section.' };
     } finally {
@@ -956,6 +972,7 @@ window.StudyRunner = (() => {
   }
 
   function buildInlineRefHtml(st) {
+    const q = currentQuestion();
     const refData = st.inlineRefData;
     const obs = activeRun.courseMeta?.obsidian || {};
     const noteChoices = [];
@@ -965,26 +982,56 @@ window.StudyRunner = (() => {
     if (st.inlineRefFile && !noteChoices.some((n) => n.file === st.inlineRefFile)) {
       noteChoices.unshift({ label: st.inlineRefFile.split('/').pop(), file: st.inlineRefFile });
     }
+    const cleanTitle = window.StudyUI.cleanOutlineTitle || ((s) => s);
     const noteSelHtml = noteChoices
       .map((n) => `<option value="${esc(n.file)}" ${n.file === st.inlineRefFile ? 'selected' : ''}>${esc(n.label)}</option>`)
       .join('');
+    const tocList = refData?.toc || [];
     const tocSelHtml =
-      `<option value="">— Top / Overview —</option>` +
-      (refData?.toc || [])
+      `<option value="">— Full Note / Overview —</option>` +
+      tocList
         .map((h) => {
           const pad = '· '.repeat(Math.max(0, h.level - 1));
-          return `<option value="${esc(h.title)}" ${refData?.selectedHeading === h.title ? 'selected' : ''}>${pad}${esc(h.title)}</option>`;
+          return `<option value="${esc(h.title)}" ${refData?.selectedHeading === h.title ? 'selected' : ''}>${pad}${esc(cleanTitle(h.title))}</option>`;
         })
         .join('');
+
+    const rel = window.StudyUI.findRelevantReferenceHeadings
+      ? window.StudyUI.findRelevantReferenceHeadings(q, activeRun.courseMeta, tocList, activeRun.bank)
+      : { primaryHeading: '', primaryChapterLine: null, relatedHeadings: new Set(), relatedChapterLines: new Set() };
+    const relTotal = (rel.primaryHeading ? 1 : 0) + rel.relatedHeadings.size;
+    const outlineTreeHtml = tocList.length && window.StudyUI.buildOutlineTreeHtml
+      ? window.StudyUI.buildOutlineTreeHtml(tocList, {
+          activeHeading: refData?.selectedHeading || '',
+          primaryHeading: rel.primaryHeading,
+          primaryChapterLine: rel.primaryChapterLine,
+          relatedHeadings: rel.relatedHeadings,
+          relatedChapterLines: rel.relatedChapterLines,
+          collapsedByDefault: true,
+        })
+      : '';
+    const outlineHtml = outlineTreeHtml
+      ? `<details class="ref-drawer-outline runner-inline-outline"${rel.relatedHeadings.size > 0 && st.inlineOutlineOpen !== false ? ' open' : st.inlineOutlineOpen ? ' open' : ''}>
+           <summary>
+             <span class="ref-drawer-outline-summary-label">Chapters &amp; subchapters</span>
+             ${relTotal > 0 ? `<span class="ref-rel-count-pill">${rel.relatedHeadings.size ? `${relTotal} needed` : 'Task section'}</span>` : ''}
+           </summary>
+           <div class="ref-drawer-outline-inner">
+             <div class="obs-outline-tree" id="inline-ref-outline-tree">${outlineTreeHtml}</div>
+           </div>
+         </details>`
+      : '';
+
     const toolbar = `
       <div class="inline-pdf-toolbar runner-ref-toolbar">
         ${noteChoices.length > 1 ? `<select id="sel-inline-ref-note" aria-label="Reference note" style="font-size:12px;padding:4px 7px;min-width:0;max-width:44%">${noteSelHtml}</select>` : ''}
         <select id="sel-inline-ref-toc" aria-label="Reference section" style="font-size:12px;padding:4px 7px;flex:1;min-width:0;max-width:100%">${tocSelHtml}</select>
         ${refData?.obsidianUri ? `<a class="mini-tool-btn" href="${esc(refData.obsidianUri)}" style="text-decoration:none;flex-shrink:0">Obsidian ↗</a>` : ''}
       </div>
+      ${outlineHtml}
     `;
     const body = `
-      <div class="markdown-body">
+      <div class="markdown-body obs-prose">
         ${
           !refData
             ? '<p class="muted">Loading course reference…</p>'
@@ -998,7 +1045,7 @@ window.StudyRunner = (() => {
       <div class="reader-tabbar runner-ref-header">
         <div class="runner-ref-title-wrap">
           <span class="runner-ref-dot" aria-hidden="true"></span>
-          <strong style="font-size:13px">Reference</strong>
+          <strong style="font-size:13px">${esc(activeRun.courseMeta?.shortTitle || 'Course')} · Notes</strong>
         </div>
         <div class="reader-tools">
           <button type="button" class="mini-tool-btn" data-toggle-ref-pane aria-label="Close Reference" title="Close Reference (O)">×</button>
@@ -1267,6 +1314,11 @@ window.StudyRunner = (() => {
     const alButton = document.getElementById('run-al-btn');
     alButton.hidden = isBlindUnfinished;
     alButton.setAttribute('aria-expanded', String(Boolean(window.StudyAiTutor?.isOpen?.())));
+    const railAlBtn = document.getElementById('rail-al-btn');
+    if (railAlBtn) {
+      railAlBtn.hidden = isBlindUnfinished;
+      railAlBtn.setAttribute('aria-expanded', String(Boolean(window.StudyAiTutor?.isOpen?.())));
+    }
 
     document.body.classList.toggle('runner-split-wide', isSplit);
     document.body.classList.toggle('runner-split-pdf', isSplit && st.readerTab === 'pdf');
@@ -2136,7 +2188,7 @@ window.StudyRunner = (() => {
       renderRunner();
     });
 
-    // Inline Obsidian Vault Reference note & TOC selectors inside Left Pane
+    // Inline Obsidian Vault Reference note, TOC & smart multi-chapter outline inside docked Reference Pane
     document.getElementById('sel-inline-ref-note')?.addEventListener('change', async (ev) => {
       st.inlineRefData = null;
       await ensureInlineRefLoaded(q, st, ev.target.value, '');
@@ -2145,6 +2197,29 @@ window.StudyRunner = (() => {
     document.getElementById('sel-inline-ref-toc')?.addEventListener('change', async (ev) => {
       st.inlineRefData = null;
       await ensureInlineRefLoaded(q, st, st.inlineRefFile, ev.target.value);
+      renderRunner();
+    });
+    card.querySelector('.runner-inline-outline')?.addEventListener('toggle', (ev) => {
+      st.inlineOutlineOpen = Boolean(ev.currentTarget.open);
+    });
+    card.querySelectorAll('#inline-ref-outline-tree [data-outline-heading]').forEach((btn) => {
+      btn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        st.inlineRefData = null;
+        await ensureInlineRefLoaded(q, st, st.inlineRefFile, btn.dataset.outlineHeading || '');
+        renderRunner();
+      });
+    });
+    card.querySelector('.runner-pane-ref-scroll')?.addEventListener('click', async (ev) => {
+      const a = ev.target?.closest?.('a[data-ref-jump-file], a[data-ref-jump-heading]');
+      if (!a || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      ev.preventDefault();
+      const jf = a.dataset.refJumpFile || '';
+      const jh = a.dataset.refJumpHeading || '';
+      const nextFile = jf ? (jf.endsWith('.md') ? jf : `${jf}.md`) : st.inlineRefFile;
+      st.inlineRefData = null;
+      await ensureInlineRefLoaded(q, st, nextFile, jh);
       renderRunner();
     });
 
@@ -2558,7 +2633,7 @@ window.StudyRunner = (() => {
       else openEndRunModal();
     });
     document.getElementById('btn-inline-ref')?.addEventListener('click', () => {
-      openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '');
+      openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '', { question: q, bank: activeRun.bank });
     });
 
     document.querySelectorAll('[data-jump-idx]').forEach((b) => {
@@ -2924,6 +2999,10 @@ window.StudyRunner = (() => {
   }
 
   function toggleRunnerReference() {
+    if (!document.body.classList.contains('in-runner')) {
+      window.StudyApp?.toggleSiteReferenceSidebar?.();
+      return;
+    }
     const q = currentQuestion();
     const refButton = document.getElementById('run-ref-btn');
     if (!q || refButton.hidden) return;
@@ -2933,7 +3012,7 @@ window.StudyRunner = (() => {
         window.StudyUI.closeReferenceDrawer();
         return;
       }
-      openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '');
+      openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '', { question: q, bank: activeRun.bank });
       refButton.setAttribute('aria-expanded', 'true');
       return;
     }

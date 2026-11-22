@@ -203,10 +203,21 @@
     </section>
   </header>
 
-  <nav class="runner-rail" aria-label="Exercise tools">
-    <button type="button" class="runner-icon-btn" id="run-ref-btn" title="Reference (O)" aria-label="Reference" aria-expanded="false" hidden>
+  <nav class="runner-rail app-rail" aria-label="Workspace tools">
+    <button type="button" class="runner-icon-btn" id="run-ref-btn" title="Course Notes & Reference (O)" aria-label="Course Notes and Reference" aria-expanded="false">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M12 5.5C8.6 3.5 5 3.6 2.8 4.5v14c3-.9 6.1-.8 9.2 1.3 3.1-2.1 6.2-2.2 9.2-1.3v-14c-2.2-.9-5.8-1-9.2 1ZM12 5.5v14"/>
+      </svg>
+    </button>
+    <button type="button" class="runner-icon-btn rail-desktop-only" id="rail-search-btn" title="Quick Search (⌘K)" aria-label="Quick Search">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m20 20-3.5-3.5"></path>
+      </svg>
+    </button>
+    <button type="button" class="runner-icon-btn rail-desktop-only" id="rail-al-btn" title="Al Tutor (T)" aria-label="Al tutor" aria-expanded="false" aria-controls="ai-tutor-pane">
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m5 7 3.5 3L5 13M10.5 13h4.5"/>
       </svg>
     </button>
     <div class="runner-rail-bottom">
@@ -604,10 +615,21 @@
       </div>
     </div>
     <div class="ref-drawer-controls">
+      <select id="ref-drawer-course-select" aria-label="Select subject" hidden></select>
       <select id="ref-drawer-note-select" aria-label="Select course note"></select>
       <select id="ref-drawer-toc-select" aria-label="Jump to section heading"></select>
+      <details id="ref-drawer-outline-wrap" class="ref-drawer-outline">
+        <summary>
+          <span class="ref-drawer-outline-summary-label">Chapters &amp; subchapters</span>
+          <span id="ref-drawer-relevant-pill" class="ref-rel-count-pill" hidden></span>
+        </summary>
+        <div class="ref-drawer-outline-inner">
+          <input type="search" id="ref-drawer-outline-filter" class="ref-outline-filter" placeholder="Filter chapters…" aria-label="Filter chapters and subchapters">
+          <div id="ref-drawer-outline-tree" class="obs-outline-tree"></div>
+        </div>
+      </details>
     </div>
-    <div id="ref-drawer-body" class="ref-drawer-body markdown-body"></div>
+    <div id="ref-drawer-body" class="ref-drawer-body markdown-body obs-prose"></div>
     <div id="ref-drawer-resizer" class="ref-drawer-resizer" aria-hidden="true" title="Drag to resize sidebar"></div>
   </aside>
   <div id="ref-backdrop" class="backdrop" hidden></div>

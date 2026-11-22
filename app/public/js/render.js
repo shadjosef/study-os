@@ -21,11 +21,53 @@ window.StudyUI = (() => {
     return Number.isInteger(v) ? `${v}m` : `${v.toFixed(1)}m`;
   }
 
+  const CALLOUT_META = {
+    info: { cls: 'info', icon: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>' },
+    note: { cls: 'info', icon: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>' },
+    tip: { cls: 'tip', icon: '<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/>' },
+    hint: { cls: 'tip', icon: '<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.3h6c0-1 .4-1.8 1-2.3A7 7 0 0 0 12 2Z"/>' },
+    important: { cls: 'important', icon: '<path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z"/>' },
+    warning: { cls: 'warning', icon: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>' },
+    caution: { cls: 'warning', icon: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>' },
+    danger: { cls: 'danger', icon: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>' },
+    example: { cls: 'example', icon: '<path d="M4 6h16M4 12h16M4 18h10"/>' },
+    abstract: { cls: 'abstract', icon: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/>' },
+    summary: { cls: 'abstract', icon: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/>' },
+    question: { cls: 'question', icon: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>' },
+    quote: { cls: 'quote', icon: '<path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1zM15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>' },
+  };
+
+  function headingSlug(title) {
+    return String(title || '')
+      .toLowerCase()
+      .replace(/\$[^$]+\$/g, (m) => m.replace(/[\$\\{}^_]/g, ''))
+      .replace(/[^a-z0-9æøå]+/gi, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 72) || 'section';
+  }
+
+  function cleanOutlineTitle(raw) {
+    return String(raw || '')
+      .replace(/\$\$([^$]+)\$\$/g, '$1')
+      .replace(/\$([^$\n]+)\$/g, (_, tex) => tex.replace(/\\text\{([^}]+)\}/g, '$1').replace(/\\[a-z]+/gi, '').replace(/[{}]/g, ''))
+      .replace(/[*_`]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   function renderMarkdownWithMath(rawMd) {
     const text = String(rawMd || '').trim();
     if (!text) return '';
 
-    // 1. Protect display $$...$$ and inline $...$ math tokens before Marked parses underscores/asterisks
+    // 1. Protect fenced code blocks first so callout/math/highlight regexes never touch code
+    const codeTokens = [];
+    let safe = text.replace(/```[\s\S]*?```/g, (block) => {
+      const idx = codeTokens.length;
+      codeTokens.push(block);
+      return `@@CODE_BLOCK_${idx}@@`;
+    });
+
+    // 2. Protect display $$...$$ and inline $...$ math tokens before Marked parses underscores/asterisks
     const mathTokens = [];
     const stash = (tex, displayMode) => {
       const idx = mathTokens.length;
@@ -33,7 +75,7 @@ window.StudyUI = (() => {
       return `@@MATH_TOKEN_${idx}@@`;
     };
 
-    let safe = text.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => stash(tex, true));
+    safe = safe.replace(/\$\$([\s\S]+?)\$\$/g, (_, tex) => stash(tex, true));
     safe = safe.replace(/\\\[([\s\S]+?)\\\]/g, (_, tex) => stash(tex, true));
     safe = safe.replace(/\\\(([\s\S]+?)\\\)/g, (_, tex) => stash(tex, false));
     safe = safe.replace(/(^|[^\\$])\$([^\n$]+?)\$/g, (m, pre, tex) => {
@@ -41,15 +83,65 @@ window.StudyUI = (() => {
       return `${pre}${stash(tex, false)}`;
     });
 
-    // 2. Transform Obsidian callouts `> [!info]- Title` into clean labelled blockquotes
-    safe = safe.replace(/^>\s*\[!([a-zA-Z]+)\][-+]?\s*(.*)$/gm, (_, kind, title) => {
-      const label = title.trim() || kind.toUpperCase();
-      return `> **${label}**\n>`;
+    // 3. Transform Obsidian callouts `> [!kind](+|-)? Title` + contiguous `>` lines into rich colored callouts
+    const calloutTokens = [];
+    const srcLines = safe.split('\n');
+    const outLines = [];
+    for (let i = 0; i < srcLines.length; i++) {
+      const m = srcLines[i].match(/^>\s*\[!([a-zA-Z]+)\]([-+])?\s*(.*)$/);
+      if (!m) {
+        outLines.push(srcLines[i]);
+        continue;
+      }
+      const rawKind = m[1].toLowerCase();
+      const fold = m[2] || '';
+      const rawTitle = (m[3] || '').trim();
+      const bodyLines = [];
+      while (i + 1 < srcLines.length && /^>/.test(srcLines[i + 1])) {
+        i++;
+        bodyLines.push(srcLines[i].replace(/^>\s?/, ''));
+      }
+      const meta = CALLOUT_META[rawKind] || CALLOUT_META.info;
+      const label = rawTitle || (rawKind.charAt(0).toUpperCase() + rawKind.slice(1));
+      const titleHtml = window.marked && typeof window.marked.parseInline === 'function'
+        ? window.marked.parseInline(label)
+        : esc(label);
+      const bodyRaw = bodyLines.join('\n').trim();
+      const bodyHtml = bodyRaw
+        ? (window.marked ? window.marked.parse(bodyRaw, { breaks: false, gfm: true }) : `<p>${esc(bodyRaw)}</p>`)
+        : '';
+      const svg = `<svg class="obs-callout-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${meta.icon}</svg>`;
+      let blockHtml;
+      if (fold === '-' || fold === '+') {
+        blockHtml = `<details class="obs-callout obs-callout-${meta.cls}"${fold === '+' ? ' open' : ''}><summary class="obs-callout-title">${svg}<span>${titleHtml}</span></summary>${bodyHtml ? `<div class="obs-callout-body">${bodyHtml}</div>` : ''}</details>`;
+      } else {
+        blockHtml = `<div class="obs-callout obs-callout-${meta.cls}"><div class="obs-callout-title">${svg}<span>${titleHtml}</span></div>${bodyHtml ? `<div class="obs-callout-body">${bodyHtml}</div>` : ''}</div>`;
+      }
+      const cIdx = calloutTokens.length;
+      calloutTokens.push(blockHtml);
+      outLines.push(`\n@@CALLOUT_BLOCK_${cIdx}@@\n`);
+    }
+    safe = outLines.join('\n');
+
+    // 4. Support Obsidian ==highlight== outside inline code spans
+    const inlineCodeTokens = [];
+    safe = safe.replace(/`[^`\n]+`/g, (span) => {
+      const idx = inlineCodeTokens.length;
+      inlineCodeTokens.push(span);
+      return `@@INL_CODE_${idx}@@`;
     });
+    safe = safe.replace(/==([^=\n]+?)==/g, '<mark class="md-highlight">$1</mark>');
+    safe = safe.replace(/@@INL_CODE_(\d+)@@/g, (_, idx) => inlineCodeTokens[Number(idx)] || '');
+    safe = safe.replace(/@@CODE_BLOCK_(\d+)@@/g, (_, idx) => codeTokens[Number(idx)] || '');
 
     let html = window.marked ? window.marked.parse(safe, { breaks: false, gfm: true }) : `<p>${esc(safe)}</p>`;
 
-    // 3. Render stashed math via KaTeX
+    // Restore callout blocks (strip wrapping <p> if marked wrapped placeholder)
+    html = html.replace(/<p>@@CALLOUT_BLOCK_(\d+)@@<\/p>|@@CALLOUT_BLOCK_(\d+)@@/g, (_, a, b) => {
+      return calloutTokens[Number(a ?? b)] || '';
+    });
+
+    // 5. Render stashed math via KaTeX
     html = html.replace(/@@MATH_TOKEN_(\d+)@@/g, (_, idxStr) => {
       const item = mathTokens[Number(idxStr)];
       if (!item) return '';
@@ -67,26 +159,297 @@ window.StudyUI = (() => {
       return item.displayMode ? `<pre>${esc(item.tex)}</pre>` : `<code>${esc(item.tex)}</code>`;
     });
 
-    if (!window.StudyApp?.isStaticMode() || !html.includes('obsidian://')) return html;
-    const content = document.createElement('template');
-    content.innerHTML = html;
-    for (const link of content.content.querySelectorAll('a[href^="obsidian://"]')) {
-      const url = new URL(link.getAttribute('href'));
-      const [file, ...heading] = (url.searchParams.get('file') || '').split('#');
-      const target = window.StudyApp.publicReferenceUrl(file, heading.join('#'));
-      if (target) {
-        link.href = target;
-        link.target = '_blank';
-        link.rel = 'noopener';
-      } else {
-        const label = document.createElement('span');
-        label.className = 'muted';
-        label.title = 'See the original course or local archive for this source.';
-        label.replaceChildren(...link.childNodes);
-        link.replaceWith(label);
+    // 6. Post-process DOM cleanly: heading anchors, scrollable table wrappers, and zero-reload internal links
+    if (html.includes('<table') || html.includes('<h') || html.includes('obsidian://')) {
+      const content = document.createElement('template');
+      content.innerHTML = html;
+
+      // Tag headings with clean IDs for Outline click-to-jump and Scroll-Spy
+      for (const h of content.content.querySelectorAll('h1, h2, h3, h4')) {
+        const plain = (h.textContent || '').trim();
+        if (plain) {
+          if (!h.id) h.id = `ref-h-${headingSlug(plain)}`;
+          h.dataset.headingTitle = plain;
+        }
+      }
+
+      // Wrap tables in horizontal scroll wrappers & prevent 1-char column crushes (like Ch. -> C/h.)
+      for (const tbl of content.content.querySelectorAll('table')) {
+        if (tbl.parentElement?.classList?.contains('md-table-wrap')) continue;
+        const wrap = document.createElement('div');
+        wrap.className = 'md-table-wrap';
+        tbl.replaceWith(wrap);
+        wrap.appendChild(tbl);
+        const firstTh = tbl.querySelector('thead th:first-child');
+        if (firstTh && firstTh.textContent.trim().length <= 6) {
+          tbl.classList.add('md-tbl-compact-first');
+        }
+        const lastTh = tbl.querySelector('thead th:last-child');
+        if (lastTh && /link|ref|ch\.?|go/i.test(lastTh.textContent.trim())) {
+          tbl.classList.add('md-tbl-compact-last');
+        }
+      }
+
+      // Rewrite obsidian:// internal links so clicking "Ch. 1" or "Worked Examples" jumps smoothly in-app
+      if (window.StudyApp?.isStaticMode() && html.includes('obsidian://')) {
+        for (const link of content.content.querySelectorAll('a[href^="obsidian://"]')) {
+          try {
+            const url = new URL(link.getAttribute('href'));
+            const [file, ...headingParts] = (url.searchParams.get('file') || '').split('#');
+            const headingStr = headingParts.join('#');
+            const target = window.StudyApp.publicReferenceUrl(file, headingStr);
+            if (target) {
+              link.href = target;
+              link.dataset.refJumpFile = file || '';
+              link.dataset.refJumpHeading = headingStr || '';
+              link.classList.add('obs-internal-link');
+            } else {
+              const label = document.createElement('span');
+              label.className = 'muted';
+              label.title = 'See the original course or local archive for this source.';
+              label.replaceChildren(...link.childNodes);
+              link.replaceWith(label);
+            }
+          } catch {}
+        }
+      }
+      return content.innerHTML;
+    }
+
+    return html;
+  }
+
+  const OUTLINE_STOP_WORDS = new Set([
+    'the', 'and', 'for', 'with', 'from', 'that', 'this', 'into', 'your', 'what', 'when', 'where', 'which',
+    'have', 'has', 'are', 'was', 'were', 'not', 'but', 'all', 'any', 'can', 'how', 'why', 'use', 'using',
+    'find', 'calculate', 'compute', 'determine', 'show', 'explain', 'part', 'question', 'exercise', 'problem',
+    'task', 'exam', 'autumn', 'spring', 'mock', 'session', 'tutoring', 'pts', 'points', 'total', 'above',
+    'below', 'given', 'following', 'data', 'table', 'figure', 'ltd', 'company', 'firm', 'year', 'years',
+    'topic', 'chapter', 'lecture', 'unit', 'core', 'micro', 'macro', 'slides', 'summary', 'overview',
+  ]);
+  const META_HEADING_RE = /^(course index|method & formula finder|source map|verification|setup|exam strategy|coverage and sources|quick index|table of contents)/i;
+
+  function tokenizeConceptText(str) {
+    const tokens = String(str || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9æøå]+/gi, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length >= 3 && !OUTLINE_STOP_WORDS.has(w) && !/^\d+$/.test(w));
+    return [...new Set(tokens)];
+  }
+
+  function findRelevantReferenceHeadings(question, courseMeta, toc = [], bank = null) {
+    const empty = { primaryHeading: '', primaryChapterLine: null, relatedHeadings: new Set(), relatedChapterLines: new Set() };
+    if (!question || !Array.isArray(toc) || !toc.length) return empty;
+
+    const qHeading = String(question.obsidianLink?.heading || '').trim();
+    const topicObj = (bank?.topics || []).find((t) => String(t.id) === String(question.topicId));
+    const topicNumMatch = String(question.topicId || '').match(/\d+/);
+    const topicNum = topicNumMatch ? topicNumMatch[0] : '';
+
+    // Map each TOC entry to its enclosing H2 chapter line
+    const chapterLineFor = new Map();
+    let curH2Line = null;
+    for (const h of toc) {
+      if (h.level <= 2) curH2Line = h.line;
+      chapterLineFor.set(h.line, curH2Line ?? h.line);
+    }
+
+    // 1. Resolve Primary heading
+    let primary = null;
+    if (qHeading) {
+      const qNorm = qHeading.toLowerCase();
+      primary = toc.find((h) => h.title.toLowerCase() === qNorm)
+        || toc.find((h) => h.title.toLowerCase().includes(qNorm) || (h.title.length >= 8 && qNorm.includes(h.title.toLowerCase())));
+    }
+    if (!primary && topicObj?.obsidianHeading) {
+      const tNorm = String(topicObj.obsidianHeading).toLowerCase();
+      primary = toc.find((h) => h.title.toLowerCase() === tNorm || h.title.toLowerCase().includes(tNorm));
+    }
+    if (!primary && topicNum) {
+      const topicRe = new RegExp(`(^|\\b)(topic|ch\\.?|chapter|lesson|module|section)\\s*0?${topicNum}\\b|^${topicNum}\\.\\s`, 'i');
+      primary = toc.find((h) => h.level === 2 && topicRe.test(h.title))
+        || toc.find((h) => h.level === 3 && topicRe.test(h.title));
+    }
+
+    const primaryHeading = primary?.title || '';
+    const primaryChapterLine = primary ? chapterLineFor.get(primary.line) : null;
+
+    // 2. Score secondary related chapters/subchapters needed by this task
+    const qParts = [
+      question.title || '',
+      (question.tags || []).join(' '),
+      (question.promptMarkdown || '').slice(0, 900),
+      (question.hints || []).join(' '),
+      (question.wiseflowFields || []).map((f) => `${f.label || ''} ${f.group || ''}`).join(' '),
+      topicObj?.title || '',
+    ].join(' ');
+
+    const qTokens = new Set(tokenizeConceptText(qParts));
+    const qLower = qParts.toLowerCase();
+
+    // Also catch explicit cross-references like "Ch. 8", "Topic 5", "§4.7"
+    const explicitNums = new Set();
+    for (const m of qParts.matchAll(/\b(?:topic|ch\.?|chapter|lesson|unit|module)\s*0?(\d{1,2})\b/gi)) {
+      explicitNums.add(m[1]);
+    }
+
+    const scored = [];
+    for (const h of toc) {
+      if (h.level < 2 || h.level > 3) continue;
+      if (META_HEADING_RE.test(h.title)) continue;
+      if (primary && h.line === primary.line) continue;
+      const hClean = cleanOutlineTitle(h.title);
+      const hTokens = tokenizeConceptText(hClean);
+      if (!hTokens.length) continue;
+
+      let score = 0;
+      let matchedCount = 0;
+      for (const tok of hTokens) {
+        if (qTokens.has(tok)) {
+          score += tok.length >= 6 ? 3 : 2;
+          matchedCount++;
+        } else if (tok.length >= 5 && qLower.includes(tok)) {
+          score += 1.5;
+          matchedCount++;
+        }
+      }
+      // Boost explicit chapter/topic number cross-references
+      const hNumMatch = hClean.match(/^(?:topic|ch\.?|chapter|lesson)?\s*0?(\d{1,2})(?:\.|\b)/i);
+      if (hNumMatch && explicitNums.has(hNumMatch[1]) && hNumMatch[1] !== topicNum) {
+        score += 5;
+        matchedCount++;
+      }
+      if (matchedCount >= 2 || score >= 4.5) {
+        // Prefer distinct chapters or distinct subchapters outside the primary line
+        const chLine = chapterLineFor.get(h.line);
+        const crossChapterBonus = chLine !== primaryChapterLine ? 1.2 : 0;
+        scored.push({ h, chLine, score: score + crossChapterBonus });
       }
     }
-    return content.innerHTML;
+
+    scored.sort((a, b) => b.score - a.score || a.h.line - b.h.line);
+    const relatedHeadings = new Set();
+    const relatedChapterLines = new Set();
+    const usedChapters = new Set();
+    for (const item of scored) {
+      if (relatedHeadings.size >= 4) break;
+      // Avoid flooding with 4 H3s from the same chapter
+      const sameChCount = [...relatedHeadings].filter((t) => {
+        const entry = toc.find((x) => x.title === t);
+        return entry && chapterLineFor.get(entry.line) === item.chLine;
+      }).length;
+      if (sameChCount >= 2) continue;
+      relatedHeadings.add(item.h.title);
+      relatedChapterLines.add(item.chLine);
+      usedChapters.add(item.chLine);
+    }
+
+    return { primaryHeading, primaryChapterLine, relatedHeadings, relatedChapterLines };
+  }
+
+  function buildOutlineTreeHtml(toc = [], {
+    activeHeading = '',
+    primaryHeading = '',
+    relatedHeadings = new Set(),
+    relatedChapterLines = new Set(),
+    primaryChapterLine = null,
+    filter = '',
+    collapsedByDefault = false,
+  } = {}) {
+    const items = (toc || []).filter((h) => h.level >= 2 && h.level <= 4);
+    if (!items.length) return '<p class="muted" style="font-size:12px;padding:6px">No headings in this note.</p>';
+
+    const q = String(filter || '').trim().toLowerCase();
+    const activeNorm = String(activeHeading || '').trim().toLowerCase();
+    const primaryNorm = String(primaryHeading || '').trim().toLowerCase();
+
+    // Build H2 -> H3 -> H4 nested tree
+    const chapters = [];
+    let curH2 = null;
+    let curH3 = null;
+    for (const h of items) {
+      const node = { ...h, label: cleanOutlineTitle(h.title), children: [] };
+      if (h.level === 2) {
+        curH2 = node;
+        curH3 = null;
+        chapters.push(node);
+      } else if (h.level === 3) {
+        if (!curH2) {
+          curH2 = { level: 2, title: 'Overview', label: 'Overview', line: 0, children: [] };
+          chapters.push(curH2);
+        }
+        curH3 = node;
+        curH2.children.push(node);
+      } else {
+        if (curH3) curH3.children.push(node);
+        else if (curH2) curH2.children.push(node);
+        else {
+          curH2 = { level: 2, title: 'Overview', label: 'Overview', line: 0, children: [node] };
+          chapters.push(curH2);
+        }
+      }
+    }
+
+    const matchesFilter = (node) => {
+      if (!q) return true;
+      if (node.label.toLowerCase().includes(q) || node.title.toLowerCase().includes(q)) return true;
+      return (node.children || []).some(matchesFilter);
+    };
+
+    const nodeHasHighlight = (node) => {
+      const t = node.title;
+      const tLow = t.toLowerCase();
+      if (tLow === activeNorm || tLow === primaryNorm || relatedHeadings.has(t)) return true;
+      return (node.children || []).some(nodeHasHighlight);
+    };
+
+    const renderNode = (node, depth) => {
+      if (!matchesFilter(node)) return '';
+      const tLow = node.title.toLowerCase();
+      const isActive = Boolean(activeNorm && tLow === activeNorm);
+      const isPrimary = Boolean(primaryNorm && tLow === primaryNorm);
+      const isRelated = !isPrimary && relatedHeadings.has(node.title);
+      const isChapterRel = depth === 0 && !isPrimary && !isRelated && relatedChapterLines.has(node.line);
+      const visibleChildren = (node.children || []).filter(matchesFilter);
+      const hasChildren = visibleChildren.length > 0;
+
+      const badge = isPrimary
+        ? '<span class="obs-outline-tag is-primary">Current</span>'
+        : isRelated
+        ? '<span class="obs-outline-tag is-related">Needed</span>'
+        : isChapterRel
+        ? '<span class="obs-outline-dot" title="Contains a related subchapter"></span>'
+        : '';
+
+      const btnCls = [
+        'obs-outline-link',
+        `depth-${depth}`,
+        isActive ? 'is-active' : '',
+        isPrimary ? 'is-primary' : '',
+        isRelated ? 'is-related' : '',
+      ].filter(Boolean).join(' ');
+
+      const linkBtn = `<button type="button" class="${btnCls}" data-outline-heading="${esc(node.title)}" data-outline-line="${node.line}" title="${esc(node.label)}"><span class="obs-outline-text">${esc(node.label)}</span>${badge}</button>`;
+
+      if (!hasChildren) {
+        return `<div class="obs-outline-leaf depth-${depth}">${linkBtn}</div>`;
+      }
+
+      const shouldOpen = Boolean(q || nodeHasHighlight(node) || (depth === 0 && primaryChapterLine === node.line) || !collapsedByDefault);
+      return `<details class="obs-outline-branch depth-${depth}"${shouldOpen ? ' open' : ''}>
+        <summary class="obs-outline-row">
+          <span class="obs-outline-chev" aria-hidden="true"></span>
+          ${linkBtn}
+        </summary>
+        <div class="obs-outline-children">
+          ${visibleChildren.map((child) => renderNode(child, depth + 1)).join('')}
+        </div>
+      </details>`;
+    };
+
+    const rendered = chapters.map((ch) => renderNode(ch, 0)).filter(Boolean).join('');
+    return rendered || '<p class="muted" style="font-size:12px;padding:6px">No matching headings.</p>';
   }
 
   let toastTimer = null;
@@ -214,9 +577,242 @@ window.StudyUI = (() => {
     setPdfDark(document.documentElement.dataset.pdfDark !== '1');
   }
 
-  // Slide-Over Course Reference Sidebar (ChatGPT-style smooth drawer)
+  // Progressive chapter-chunked renderer (eliminates mobile iOS/Safari lag on 100KB+ KaTeX notes)
+  function splitMarkdownIntoChapters(markdown) {
+    const lines = String(markdown || '').split('\n');
+    const chunks = [];
+    let curLines = [];
+    let curTitle = '';
+    let curStartLine = 0;
+    let inFence = false;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^\s*```/.test(line)) inFence = !inFence;
+      if (!inFence && /^##\s+/.test(line) && curLines.some((l) => l.trim().length > 0)) {
+        chunks.push({ title: curTitle, startLine: curStartLine, markdown: curLines.join('\n') });
+        curLines = [line];
+        curTitle = line.replace(/^##\s+/, '').trim();
+        curStartLine = i;
+      } else {
+        if (!inFence && /^##\s+/.test(line) && !curTitle) {
+          curTitle = line.replace(/^##\s+/, '').trim();
+          curStartLine = i;
+        }
+        curLines.push(line);
+      }
+    }
+    if (curLines.length) {
+      chunks.push({ title: curTitle, startLine: curStartLine, markdown: curLines.join('\n') });
+    }
+    return chunks;
+  }
+
+  function renderNoteProgressive(containerEl, markdown, {
+    scrollRoot = null,
+    initialHeading = '',
+    onLinkJump = null,
+    onActiveHeading = null,
+  } = {}) {
+    if (!containerEl) return { abort() {}, jumpToHeading() {} };
+    // Cancel any previous progressive job attached to this container
+    if (typeof containerEl._progressiveAbort === 'function') {
+      containerEl._progressiveAbort();
+    }
+
+    let aborted = false;
+    let idleTimer = null;
+    let io = null;
+    let scrollCleanup = null;
+
+    const abort = () => {
+      aborted = true;
+      clearTimeout(idleTimer);
+      if (io) { io.disconnect(); io = null; }
+      if (scrollCleanup) { scrollCleanup(); scrollCleanup = null; }
+    };
+    containerEl._progressiveAbort = abort;
+
+    const chunks = splitMarkdownIntoChapters(markdown);
+    if (!chunks.length) {
+      containerEl.innerHTML = '';
+      return { abort, jumpToHeading() {} };
+    }
+
+    // Small sections (< 18 KB or <= 2 chunks): render synchronously immediately
+    const isLarge = String(markdown || '').length > 18000 && chunks.length > 2;
+    const frag = document.createDocumentFragment();
+    const sections = chunks.map((ch, idx) => {
+      const sec = document.createElement('section');
+      sec.className = 'ref-chapter-block';
+      sec.dataset.chapterIdx = String(idx);
+      sec.dataset.chapterTitle = ch.title || '';
+      sec.dataset.rendered = '0';
+      if (isLarge && idx > 0) {
+        const cleanTitle = cleanOutlineTitle(ch.title || `Section ${idx + 1}`);
+        sec.innerHTML = `<div class="ref-chapter-placeholder"><span>${esc(cleanTitle)}</span></div>`;
+      }
+      frag.appendChild(sec);
+      return sec;
+    });
+
+    containerEl.innerHTML = '';
+    containerEl.appendChild(frag);
+
+    const hydrateIdx = (idx) => {
+      if (aborted || idx < 0 || idx >= chunks.length) return;
+      const sec = sections[idx];
+      if (!sec || sec.dataset.rendered === '1') return;
+      sec.dataset.rendered = '1';
+      sec.innerHTML = renderMarkdownWithMath(chunks[idx].markdown);
+    };
+
+    const findChunkIndexForHeading = (headingStr) => {
+      const qNorm = String(headingStr || '').trim().toLowerCase();
+      if (!qNorm) return -1;
+      const qClean = cleanOutlineTitle(qNorm).toLowerCase();
+      // 1. Check chapter H2 titles first
+      let idx = chunks.findIndex((c) => {
+        const t = c.title.toLowerCase();
+        const tc = cleanOutlineTitle(t).toLowerCase();
+        return t === qNorm || tc === qClean || t.includes(qNorm) || (qClean.length >= 6 && tc.includes(qClean));
+      });
+      if (idx >= 0) return idx;
+      // 2. Check subheadings inside each chunk's raw markdown
+      idx = chunks.findIndex((c) => {
+        const low = c.markdown.toLowerCase();
+        return low.includes(qNorm) || (qClean.length >= 6 && low.includes(qClean));
+      });
+      return idx;
+    };
+
+    const jumpToHeading = (headingStr, smooth = true) => {
+      if (aborted) return false;
+      const qStr = String(headingStr || '').trim();
+      if (!qStr) {
+        if (scrollRoot) scrollRoot.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'instant' });
+        else containerEl.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant', block: 'start' });
+        return true;
+      }
+      const cIdx = findChunkIndexForHeading(qStr);
+      if (cIdx >= 0) {
+        hydrateIdx(cIdx);
+        if (cIdx > 0) hydrateIdx(cIdx - 1);
+        if (cIdx + 1 < chunks.length) hydrateIdx(cIdx + 1);
+      } else {
+        // Hydrate all if heading wasn't matched directly
+        for (let i = 0; i < chunks.length; i++) hydrateIdx(i);
+      }
+      const qSlug = headingSlug(qStr);
+      const qNorm = qStr.toLowerCase();
+      const qClean = cleanOutlineTitle(qNorm).toLowerCase();
+      const scope = cIdx >= 0 ? sections[cIdx] : containerEl;
+      let target = scope.querySelector(`#ref-h-${CSS.escape(qSlug)}`);
+      if (!target) {
+        const hs = [...scope.querySelectorAll('h1, h2, h3, h4')];
+        target = hs.find((h) => {
+          const t = (h.dataset.headingTitle || h.textContent || '').trim().toLowerCase();
+          return t === qNorm || t === qClean || t.includes(qNorm) || (qClean.length >= 6 && t.includes(qClean));
+        }) || scope;
+      }
+      if (target) {
+        target.scrollIntoView({ behavior: smooth ? 'smooth' : 'instant', block: 'start' });
+        return true;
+      }
+      return false;
+    };
+
+    // Intercept internal Obsidian links inside the note body cleanly (no new tab reload!)
+    containerEl.onclick = (ev) => {
+      const a = ev.target?.closest?.('a[data-ref-jump-file], a[data-ref-jump-heading]');
+      if (!a || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      if (typeof onLinkJump === 'function') {
+        ev.preventDefault();
+        onLinkJump(a.dataset.refJumpFile || '', a.dataset.refJumpHeading || '');
+      }
+    };
+
+    if (!isLarge) {
+      for (let i = 0; i < chunks.length; i++) hydrateIdx(i);
+      if (initialHeading) jumpToHeading(initialHeading, false);
+    } else {
+      // Frame 0: render intro + chapter 1 (and target chapter if deep-linked)
+      hydrateIdx(0);
+      if (chunks.length > 1) hydrateIdx(1);
+      if (initialHeading) {
+        jumpToHeading(initialHeading, false);
+      }
+
+      // Lazy hydrate approaching chapters via IntersectionObserver
+      if ('IntersectionObserver' in window) {
+        io = new IntersectionObserver((entries) => {
+          for (const ent of entries) {
+            if (ent.isIntersecting) {
+              const i = Number(ent.target.dataset.chapterIdx);
+              hydrateIdx(i);
+              io?.unobserve(ent.target);
+            }
+          }
+        }, { root: scrollRoot || null, rootMargin: '850px 0px' });
+        sections.forEach((sec) => {
+          if (sec.dataset.rendered !== '1') io.observe(sec);
+        });
+      }
+
+      // Gentle idle hydration: 1 chapter per turn so scrolling on iPhone 13 Pro stays 60-120fps
+      let nextIdleIdx = 0;
+      const pumpIdle = () => {
+        if (aborted) return;
+        while (nextIdleIdx < chunks.length && sections[nextIdleIdx].dataset.rendered === '1') {
+          nextIdleIdx++;
+        }
+        if (nextIdleIdx >= chunks.length) return;
+        hydrateIdx(nextIdleIdx);
+        nextIdleIdx++;
+        idleTimer = setTimeout(pumpIdle, 45);
+      };
+      idleTimer = setTimeout(pumpIdle, 180);
+    }
+
+    // Throttled Scroll-Spy to highlight the active heading in the Outline tree
+    if (typeof onActiveHeading === 'function') {
+      let spyTick = 0;
+      const targetWin = scrollRoot || window;
+      const runSpy = () => {
+        spyTick = 0;
+        if (aborted) return;
+        const rootTop = scrollRoot ? scrollRoot.getBoundingClientRect().top : 78;
+        const headings = containerEl.querySelectorAll('h2[data-heading-title], h3[data-heading-title], h4[data-heading-title]');
+        let best = '';
+        for (const h of headings) {
+          const rect = h.getBoundingClientRect();
+          if (rect.top <= rootTop + 96) {
+            best = h.dataset.headingTitle || '';
+          } else {
+            break;
+          }
+        }
+        if (best) onActiveHeading(best);
+      };
+      const onScroll = () => {
+        if (!spyTick) spyTick = requestAnimationFrame(runSpy);
+      };
+      targetWin.addEventListener('scroll', onScroll, { passive: true });
+      scrollCleanup = () => {
+        targetWin.removeEventListener('scroll', onScroll);
+        if (spyTick) cancelAnimationFrame(spyTick);
+      };
+    }
+
+    return { abort, jumpToHeading };
+  }
+
+  // Slide-Over Course Reference Sidebar (ChatGPT + Obsidian smart multi-chapter drawer)
   let drawerNotes = [];
   let currentNoteFile = '';
+  let drawerCourseMeta = null;
+  let drawerContext = { question: null, bank: null };
+  let drawerToc = [];
+  let drawerSelectedHeading = '';
   let drawerCloseTimer = null;
   const REF_DRAWER_WIDTH_KEY = 'study-os-ref-sidebar-w';
 
@@ -236,13 +832,72 @@ window.StudyUI = (() => {
     } catch {}
   }
 
-  async function openReferenceDrawer(courseMeta, targetFile = '', targetHeading = '') {
+  function renderDrawerOutline() {
+    const wrap = document.getElementById('ref-drawer-outline-wrap');
+    const treeEl = document.getElementById('ref-drawer-outline-tree');
+    const relPill = document.getElementById('ref-drawer-relevant-pill');
+    const filterEl = document.getElementById('ref-drawer-outline-filter');
+    if (!wrap || !treeEl) return;
+
+    if (!drawerToc.length) {
+      wrap.hidden = true;
+      return;
+    }
+    wrap.hidden = false;
+
+    const rel = findRelevantReferenceHeadings(drawerContext.question, drawerCourseMeta, drawerToc, drawerContext.bank);
+    const relTotal = (rel.primaryHeading ? 1 : 0) + rel.relatedHeadings.size;
+    if (relPill) {
+      if (drawerContext.question && relTotal > 0) {
+        relPill.textContent = rel.relatedHeadings.size
+          ? `${relTotal} needed for task`
+          : 'Task section';
+        relPill.hidden = false;
+      } else {
+        relPill.hidden = true;
+      }
+    }
+
+    treeEl.innerHTML = buildOutlineTreeHtml(drawerToc, {
+      activeHeading: drawerSelectedHeading,
+      primaryHeading: rel.primaryHeading,
+      primaryChapterLine: rel.primaryChapterLine,
+      relatedHeadings: rel.relatedHeadings,
+      relatedChapterLines: rel.relatedChapterLines,
+      filter: filterEl?.value || '',
+      collapsedByDefault: true,
+    });
+
+    treeEl.querySelectorAll('[data-outline-heading]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const heading = btn.dataset.outlineHeading || '';
+        const tocSel = document.getElementById('ref-drawer-toc-select');
+        if (tocSel) tocSel.value = heading;
+        loadDrawerSection(currentNoteFile, heading);
+      });
+    });
+  }
+
+  async function openReferenceDrawer(courseMeta, targetFile = '', targetHeading = '', extraOpts = {}) {
     const drawer = document.getElementById('ref-drawer');
     const backdrop = document.getElementById('ref-backdrop');
+    const courseSel = document.getElementById('ref-drawer-course-select');
     const noteSel = document.getElementById('ref-drawer-note-select');
     const tocSel = document.getElementById('ref-drawer-toc-select');
     const bodyEl = document.getElementById('ref-drawer-body');
     const titleEl = document.getElementById('ref-drawer-title');
+    const filterEl = document.getElementById('ref-drawer-outline-filter');
+    const outlineWrap = document.getElementById('ref-drawer-outline-wrap');
+
+    const catalog = window.StudyApp?.getCatalog?.() || [];
+    if (!courseMeta && catalog.length) courseMeta = catalog[0];
+    drawerCourseMeta = courseMeta;
+    drawerContext = {
+      question: extraOpts?.question || null,
+      bank: extraOpts?.bank || null,
+    };
 
     const obs = courseMeta?.obsidian || {};
     drawerNotes = [];
@@ -258,11 +913,31 @@ window.StudyUI = (() => {
       return;
     }
 
+    // Course switcher: shown whenever opened outside an active exercise (so you can pull out notes for ANY subject!)
+    if (courseSel) {
+      const coursesWithNotes = catalog.filter((c) => c?.obsidian?.mainReference);
+      const showCoursePicker = !drawerContext.question && coursesWithNotes.length > 1;
+      courseSel.hidden = !showCoursePicker;
+      if (showCoursePicker) {
+        courseSel.innerHTML = coursesWithNotes
+          .map((c) => `<option value="${esc(c.courseId)}" ${c.courseId === courseMeta?.courseId ? 'selected' : ''}>${esc(c.code)} · ${esc(c.shortTitle || c.title)}</option>`)
+          .join('');
+        courseSel.onchange = () => {
+          const nextCourse = catalog.find((c) => c.courseId === courseSel.value);
+          if (nextCourse) openReferenceDrawer(nextCourse, '', '');
+        };
+      }
+    }
+
     currentNoteFile = targetFile || drawerNotes[0].file;
     noteSel.innerHTML = drawerNotes
       .map((n) => `<option value="${esc(n.file)}" ${n.file === currentNoteFile ? 'selected' : ''}>${esc(n.label)}</option>`)
       .join('');
     noteSel.hidden = drawerNotes.length <= 1;
+    if (filterEl) {
+      filterEl.value = '';
+      filterEl.oninput = () => renderDrawerOutline();
+    }
 
     clearTimeout(drawerCloseTimer);
     applySavedRefDrawerWidth();
@@ -273,11 +948,17 @@ window.StudyUI = (() => {
     void drawer.offsetWidth;
     drawer.classList.add('is-open');
     backdrop.classList.add('is-open');
+    document.getElementById('run-ref-btn')?.setAttribute('aria-expanded', 'true');
 
     titleEl.textContent = `${courseMeta?.shortTitle || 'Course'} · Notes`;
     bodyEl.innerHTML = '<p class="muted">Loading course note…</p>';
 
     await loadDrawerSection(currentNoteFile, targetHeading);
+    // Auto-expand the smart outline if this task spans multiple related chapters!
+    if (outlineWrap && drawerContext.question) {
+      const rel = findRelevantReferenceHeadings(drawerContext.question, drawerCourseMeta, drawerToc, drawerContext.bank);
+      outlineWrap.open = rel.relatedHeadings.size > 0;
+    }
 
     noteSel.onchange = () => {
       currentNoteFile = noteSel.value;
@@ -288,13 +969,23 @@ window.StudyUI = (() => {
     };
   }
 
+  async function syncReferenceDrawerForQuestion(courseMeta, question, bank) {
+    if (!isReferenceDrawerOpen() || !courseMeta || !question) return;
+    await openReferenceDrawer(
+      courseMeta,
+      question.obsidianLink?.file || '',
+      question.obsidianLink?.heading || '',
+      { question, bank }
+    );
+  }
+
   async function loadDrawerSection(relFile, heading) {
     const bodyEl = document.getElementById('ref-drawer-body');
     const tocSel = document.getElementById('ref-drawer-toc-select');
     const uriEl = document.getElementById('ref-drawer-obsidian-uri');
     uriEl.hidden = true;
     try {
-      const data = window.StudyApp?.fetchReferenceSection
+      let data = window.StudyApp?.fetchReferenceSection
         ? await window.StudyApp.fetchReferenceSection(relFile, heading || '')
         : await (await fetch(`/api/obsidian/section?file=${encodeURIComponent(relFile)}&heading=${encodeURIComponent(heading || '')}`)).json();
       if (data.obsidianUri) {
@@ -305,16 +996,45 @@ window.StudyUI = (() => {
         bodyEl.innerHTML = `<p class="muted">${esc(data.error || 'Could not read reference note.')}</p>`;
         return;
       }
+
+      // During an exercise, if no explicit heading was specified, auto-resolve the question's best matching chapter!
+      if (!heading && drawerContext.question && Array.isArray(data.toc) && data.toc.length) {
+        const rel = findRelevantReferenceHeadings(drawerContext.question, drawerCourseMeta, data.toc, drawerContext.bank);
+        if (rel.primaryHeading) {
+          const targeted = window.StudyApp?.fetchReferenceSection
+            ? await window.StudyApp.fetchReferenceSection(relFile, rel.primaryHeading)
+            : await (await fetch(`/api/obsidian/section?file=${encodeURIComponent(relFile)}&heading=${encodeURIComponent(rel.primaryHeading)}`)).json();
+          if (targeted?.available) data = targeted;
+        }
+      }
+
+      drawerToc = data.toc || [];
+      drawerSelectedHeading = data.selectedHeading || '';
+
       tocSel.innerHTML =
-        `<option value="">— Overview / Top of Note —</option>` +
-        (data.toc || [])
+        `<option value="">— Full Course Reference —</option>` +
+        drawerToc
           .map((h) => {
             const pad = '· '.repeat(Math.max(0, h.level - 1));
-            const sel = data.selectedHeading === h.title ? 'selected' : '';
-            return `<option value="${esc(h.title)}" ${sel}>${pad}${esc(h.title)}</option>`;
+            const sel = drawerSelectedHeading === h.title ? 'selected' : '';
+            return `<option value="${esc(h.title)}" ${sel}>${pad}${esc(cleanOutlineTitle(h.title))}</option>`;
           })
           .join('');
-      bodyEl.innerHTML = renderMarkdownWithMath(data.markdown);
+      renderDrawerOutline();
+
+      renderNoteProgressive(bodyEl, data.markdown || '', {
+        scrollRoot: bodyEl,
+        initialHeading: '',
+        onLinkJump: (jumpFile, jumpHeading) => {
+          const sameNote = !jumpFile || jumpFile.toLowerCase().includes(currentNoteFile.replace(/\.md$/i, '').toLowerCase());
+          if (sameNote && jumpHeading) {
+            loadDrawerSection(currentNoteFile, jumpHeading);
+          } else if (jumpFile) {
+            currentNoteFile = jumpFile.endsWith('.md') ? jumpFile : `${jumpFile}.md`;
+            loadDrawerSection(currentNoteFile, jumpHeading);
+          }
+        },
+      });
       bodyEl.scrollTop = 0;
     } catch (err) {
       bodyEl.innerHTML = `<p class="muted">Reference section unavailable: use "Open in Obsidian" above if running locally.</p>`;
@@ -1725,11 +2445,9 @@ window.StudyUI = (() => {
         ev.preventDefault();
         refResizer.setPointerCapture(ev.pointerId);
         drawer.classList.add('is-resizing');
-        const fromLeft = document.body.classList.contains('in-runner');
         const onMove = (mEv) => {
           const maxW = Math.min(580, Math.round(window.innerWidth * 0.88));
-          const rawW = fromLeft ? mEv.clientX : window.innerWidth - mEv.clientX;
-          const clamped = Math.max(260, Math.min(maxW, Math.round(rawW)));
+          const clamped = Math.max(260, Math.min(maxW, Math.round(mEv.clientX)));
           drawer.style.setProperty('--ref-drawer-w', `${clamped}px`);
         };
         const onUp = () => {
@@ -1944,7 +2662,12 @@ window.StudyUI = (() => {
     examLabel,
     clockSec,
     minLabel,
+    headingSlug,
+    cleanOutlineTitle,
     renderMarkdownWithMath,
+    renderNoteProgressive,
+    findRelevantReferenceHeadings,
+    buildOutlineTreeHtml,
     toast,
     applyTheme,
     setTheme,
@@ -1957,6 +2680,7 @@ window.StudyUI = (() => {
     openReferenceDrawer,
     closeReferenceDrawer,
     isReferenceDrawerOpen,
+    syncReferenceDrawerForQuestion,
     bindGlobalChrome,
     workClock,
     devMode,

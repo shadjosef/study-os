@@ -224,7 +224,8 @@ window.StudyAiTutor = (() => {
     document.body.classList.toggle('ai-pane-open', isOpen);
     document.body.classList.toggle('ai-pane-left', isOpen && side === 'left');
     document.body.classList.toggle('ai-pane-right', isOpen && side !== 'left');
-    document.getElementById('run-al-btn').setAttribute('aria-expanded', String(isOpen));
+    document.getElementById('run-al-btn')?.setAttribute('aria-expanded', String(isOpen));
+    document.getElementById('rail-al-btn')?.setAttribute('aria-expanded', String(isOpen));
   }
 
   function ensurePane() {

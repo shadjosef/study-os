@@ -1546,6 +1546,7 @@ window.StudyApp = (() => {
     const wasRunner = document.body.classList.contains('in-runner');
     const isRunner = name === 'runner';
     document.body.classList.toggle('in-runner', isRunner);
+    document.body.classList.toggle('in-references', name === 'references');
     if (!isRunner) {
       if (wasRunner) window.StudyRunner?.pauseIfRunning?.();
       document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-split-ref', 'runner-foveal-compact');
@@ -1555,6 +1556,10 @@ window.StudyApp = (() => {
       if (rh) rh.hidden = true;
       const obsLink = document.getElementById('run-obsidian-app-link');
       if (obsLink) obsLink.hidden = true;
+      const railRef = document.getElementById('run-ref-btn');
+      if (railRef) railRef.hidden = false;
+      const railAl = document.getElementById('rail-al-btn');
+      if (railAl) railAl.hidden = false;
     }
     if (window.StudyUI?.isReferenceDrawerOpen?.()) window.StudyUI.closeReferenceDrawer();
     if (resetScroll) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -5258,8 +5263,46 @@ window.StudyApp = (() => {
   }
 
   // ---------------------------------------------------------------------------
-  // VIEW 5: MULTI-SEMESTER REFERENCE HUB (Obsidian Reference Sheets + SVG + KaTeX)
+  // VIEW 5: OBSIDIAN-GRADE MULTI-SEMESTER NOTES WORKBENCH (Zero-Lag 3-Pane Reader)
   // ---------------------------------------------------------------------------
+  const REF_FILES_PREF_KEY = 'study-os-notes-files-open';
+  const REF_OUTLINE_PREF_KEY = 'study-os-notes-outline-open';
+
+  function getNotesPanePref(key, fallback = true) {
+    try {
+      const v = localStorage.getItem(key);
+      if (v === '0') return false;
+      if (v === '1') return true;
+    } catch {}
+    return fallback;
+  }
+  function setNotesPanePref(key, val) {
+    try { localStorage.setItem(key, val ? '1' : '0'); } catch {}
+  }
+
+  function toggleSiteReferenceSidebar() {
+    if (window.StudyUI.isReferenceDrawerOpen?.()) {
+      window.StudyUI.closeReferenceDrawer();
+      return;
+    }
+    const cat = boot.catalog || [];
+    let targetCourse = null;
+    if (currentView === 'course' && selectedCourseId) {
+      targetCourse = cat.find((c) => c.courseId === selectedCourseId);
+    } else if (currentView === 'references' && selectedRefFile) {
+      const refEntry = (boot.references || []).find((r) => r.file === selectedRefFile);
+      if (refEntry?.courseId) targetCourse = cat.find((c) => c.courseId === refEntry.courseId);
+    }
+    if (!targetCourse) {
+      targetCourse = cat.find((c) => c.courseId === selectedCourseId && !isCourseInMaintenanceForUser(c.courseId))
+        || cat.find((c) => !isCourseInMaintenanceForUser(c.courseId) && c.obsidian?.mainReference)
+        || cat.find((c) => c.obsidian?.mainReference)
+        || cat[0];
+    }
+    if (targetCourse) openReferenceDrawer(targetCourse);
+    else navigate('references');
+  }
+
   async function renderReferencesHub(initialFile = '', initialHeading = '') {
     const root = document.getElementById('references-hub-root');
     const refs = boot.references || [];
@@ -5274,135 +5317,323 @@ window.StudyApp = (() => {
       return;
     }
 
-    const semesters = [...new Set(refs.map((r) => r.semester || 'Reference Library'))];
+    const semesters = [...new Set(refs.map((r) => r.semester || 'Course Notes'))];
     const filteredRefs =
-      selectedRefSemester === 'all' ? refs : refs.filter((r) => (r.semester || 'Reference Library') === selectedRefSemester);
+      selectedRefSemester === 'all' ? refs : refs.filter((r) => (r.semester || 'Course Notes') === selectedRefSemester);
     const activeEntry = filteredRefs.find((r) => r.file === selectedRefFile) || filteredRefs[0];
     if (activeEntry) selectedRefFile = activeEntry.file;
 
+    // Group notes cleanly by semester like Obsidian's left file explorer
+    const groupedBySem = new Map();
+    for (const r of filteredRefs) {
+      const sem = r.semester || 'Course Notes';
+      if (!groupedBySem.has(sem)) groupedBySem.set(sem, []);
+      groupedBySem.get(sem).push(r);
+    }
+
+    const filesOpen = getNotesPanePref(REF_FILES_PREF_KEY, true);
+    const outlineOpen = getNotesPanePref(REF_OUTLINE_PREF_KEY, true);
+    const activeMaintLocked = activeEntry?.courseId ? isCourseInMaintenanceForUser(activeEntry.courseId) : false;
+
+    const fileTreeHtml = [...groupedBySem.entries()]
+      .map(([sem, items]) => `
+        <details class="obs-folder" open>
+          <summary class="obs-folder-head">
+            <span class="obs-outline-chev" aria-hidden="true"></span>
+            <span>${esc(sem)}</span>
+          </summary>
+          <div class="obs-folder-items">
+            ${items.map((r) => {
+              const isAct = r.file === selectedRefFile;
+              const isMaint = r.courseId ? isCourseInMaintenanceForUser(r.courseId) : false;
+              const label = r.code ? `${r.code} · ${r.title}` : r.title;
+              return `<button type="button" class="obs-file-item ${isAct ? 'is-active' : ''}" data-ref-pick="${esc(r.file)}" data-ref-card="${esc(r.file)}"${isAct ? ' aria-current="true"' : ''} title="${esc(label)}">
+                <svg class="obs-file-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                </svg>
+                <span class="obs-file-name">
+                  <span class="obs-file-code" style="--note-dot:${esc(r.color)}">${esc(r.code || '')}</span>
+                  <span class="obs-file-title">${esc(r.title)}</span>
+                </span>
+                ${isMaint ? '<span class="obs-file-tag">Maint.</span>' : ''}
+              </button>`;
+            }).join('')}
+          </div>
+        </details>
+      `)
+      .join('');
+
+    const mobileChipsHtml = filteredRefs.map((r) => {
+      const isAct = r.file === selectedRefFile;
+      return `<button type="button" class="ref-mobile-chip ${isAct ? 'is-active' : ''}" data-ref-pick="${esc(r.file)}" style="--chip-color:${esc(r.color)}">
+        <span class="exp-course-dot" aria-hidden="true"></span>
+        <strong>${esc(r.code || r.title)}</strong>
+      </button>`;
+    }).join('');
+
     root.innerHTML = `
-      <div class="hero-card" style="margin-bottom:16px">
-        <div class="row-between" style="margin:0;gap:14px;flex-wrap:wrap">
-          <div>
-            <span class="eyebrow">Canonical Semester Reference Sheets</span>
-            <h1 class="hero-title" style="margin:2px 0 4px">Multi-Semester Reference Hub</h1>
-            <p class="muted" style="margin:0;font-size:13.5px">Complete formula sheets, SVG diagrams, exam rules, and model derivations organized semester-by-semester.</p>
-          </div>
-          <div class="row-actions">
-            <select id="ref-hub-sem-sel" style="padding:8px 12px;font-weight:600">
-              <option value="all">All Semesters (${refs.length})</option>
-              ${semesters
-                .map((s) => `<option value="${esc(s)}" ${selectedRefSemester === s ? 'selected' : ''}>${esc(s)}</option>`)
-                .join('')}
-            </select>
-            <input type="search" id="ref-hub-search" placeholder="Search sections or formulas…" style="min-width:210px">
-          </div>
-        </div>
+      <div class="ref-mobile-strip" role="tablist" aria-label="Choose course note">
+        ${mobileChipsHtml}
       </div>
 
-      <div class="ref-hub-layout">
-        <aside class="ref-sidebar" id="ref-hub-sidebar">
-          ${filteredRefs
-            .map(
-              (r) => `
-            <div class="ref-note-card ${r.file === selectedRefFile ? 'active' : ''}" data-ref-card="${esc(r.file)}">
-              <div class="row-between" style="margin:0 0 3px">
-                <span class="eyebrow" style="color:${esc(r.color)};margin:0">${esc(r.code)} · ${esc(r.semester)}</span>
-                <small class="muted">${r.headingCount || 0} sec</small>
-              </div>
-              <button type="button" class="ref-note-title" data-ref-pick="${esc(r.file)}"${r.file === selectedRefFile ? ' aria-current="true"' : ''}>${esc(r.title)}</button>
-              <div class="row-actions" style="margin-top:8px;gap:6px">
-                ${
-                  r.courseId
-                    ? `<button type="button" class="primary-btn" style="padding:4px 10px;font-size:12px" data-ref-practice="${esc(r.courseId)}">Practice (${r.questionCount}) →</button>`
-                    : ''
-                }
-                ${
-                  !isStaticWeb && r.obsidianUri
-                    ? `<a class="ghost-btn" style="padding:4px 9px;font-size:12px" href="${esc(r.obsidianUri)}" onclick="event.stopPropagation()">Obsidian ↗</a>`
-                    : ''
-                }
-              </div>
-            </div>`
-            )
-            .join('')}
+      <div class="ref-workbench ${filesOpen ? '' : 'files-collapsed'} ${outlineOpen ? '' : 'outline-collapsed'}" id="ref-workbench">
+        <aside class="ref-file-pane" id="ref-hub-sidebar" aria-label="Course notes explorer">
+          <div class="ref-pane-head">
+            <span class="ref-pane-head-title">Notes</span>
+            <div class="ref-pane-head-tools">
+              ${semesters.length > 1 ? `<select id="ref-hub-sem-sel" class="ref-mini-select" aria-label="Filter semester">
+                <option value="all">All (${refs.length})</option>
+                ${semesters.map((s) => `<option value="${esc(s)}" ${selectedRefSemester === s ? 'selected' : ''}>${esc(s)}</option>`).join('')}
+              </select>` : ''}
+              <button type="button" class="runner-icon-btn ref-pane-close-btn" id="ref-toggle-files-inner" title="Collapse file sidebar" aria-label="Collapse file sidebar">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2.5"></rect><line x1="9" y1="4" x2="9" y2="20"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="ref-pane-search-wrap">
+            <input type="search" id="ref-hub-search" class="ref-outline-filter" placeholder="Filter notes…" aria-label="Filter notes">
+          </div>
+          <div class="ref-file-tree-scroll" id="ref-file-tree-scroll">
+            ${fileTreeHtml}
+          </div>
         </aside>
 
-        <div class="ref-reader-pane">
-          <div class="row-between" style="margin:0 0 14px;padding-bottom:12px;border-bottom:1px solid var(--line)">
-            <div>
-              <span class="eyebrow" id="ref-pane-eyebrow">${esc(activeEntry?.code || '')} · ${esc(activeEntry?.semester || '')}</span>
-              <h2 id="ref-pane-title" tabindex="-1" style="margin:2px 0 0">${esc(activeEntry?.title || 'Reference')}</h2>
+        <article class="ref-reader-pane">
+          <header class="ref-reader-bar">
+            <div class="ref-reader-bar-left">
+              <button type="button" class="runner-icon-btn ref-bar-toggle" id="ref-toggle-files-btn" title="Toggle files sidebar" aria-label="Toggle files sidebar" aria-expanded="${filesOpen}">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2.5"></rect><line x1="9" y1="4" x2="9" y2="20"></line>
+                </svg>
+              </button>
+              <div class="ref-breadcrumb" id="ref-pane-title" tabindex="-1">
+                <span class="ref-breadcrumb-code" style="--note-dot:${esc(activeEntry?.color || 'var(--accent)')}">${esc(activeEntry?.code || '')}</span>
+                <span class="ref-breadcrumb-sep" aria-hidden="true">/</span>
+                <strong class="ref-breadcrumb-name">${esc(activeEntry?.title || 'Reference')}</strong>
+              </div>
             </div>
-            <div class="row-actions">
-              <select id="ref-pane-doc-sel" aria-label="Reference document" style="max-width:210px;font-size:13px"></select>
-              <select id="ref-pane-toc-sel" aria-label="Reference section" style="max-width:260px;font-size:13px"></select>
+            <div class="ref-reader-bar-right">
+              <select id="ref-pane-doc-sel" class="ref-bar-select" aria-label="Reference document" hidden></select>
+              ${activeEntry?.courseId && !activeMaintLocked ? `<button type="button" class="ghost-btn ref-bar-btn" data-ref-practice="${esc(activeEntry.courseId)}">Practice →</button>` : ''}
+              ${!isStaticWeb && activeEntry?.obsidianUri ? `<a class="ghost-btn ref-bar-btn" href="${esc(activeEntry.obsidianUri)}">Obsidian ↗</a>` : ''}
+              <button type="button" class="runner-icon-btn ref-bar-toggle" id="ref-toggle-outline-btn" title="Toggle chapter outline" aria-label="Toggle chapter outline" aria-expanded="${outlineOpen}">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </header>
+          <div id="ref-pane-body" class="markdown-body obs-prose"><p class="muted">Loading reference sheet…</p></div>
+        </article>
+
+        <aside class="ref-outline-pane" id="ref-outline-pane" aria-label="Chapter and subchapter outline">
+          <div class="ref-pane-head">
+            <span class="ref-pane-head-title">Outline</span>
+            <div class="ref-pane-head-tools">
+              <button type="button" class="runner-icon-btn" id="ref-outline-collapse-all" title="Collapse / Expand all chapters" aria-label="Collapse or expand all chapters">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="7 8 12 3 17 8"></polyline><polyline points="7 16 12 21 17 16"></polyline>
+                </svg>
+              </button>
+              <button type="button" class="runner-icon-btn" id="ref-outline-close-btn" title="Close outline" aria-label="Close outline">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2.5"></rect><line x1="15" y1="4" x2="15" y2="20"></line>
+                </svg>
+              </button>
             </div>
           </div>
-          <div id="ref-pane-body" class="markdown-body"><p class="muted">Loading reference sheet…</p></div>
-        </div>
+          <div class="ref-pane-search-wrap">
+            <input type="search" id="ref-outline-search" class="ref-outline-filter" placeholder="Search chapters…" aria-label="Search chapters and subchapters">
+          </div>
+          <div class="ref-outline-scroll">
+            <div id="ref-outline-tree" class="obs-outline-tree"></div>
+          </div>
+        </aside>
       </div>
+      <div id="ref-outline-scrim" class="ref-outline-scrim" hidden></div>
     `;
+
+    const workbench = document.getElementById('ref-workbench');
+    const outlinePane = document.getElementById('ref-outline-pane');
+    const outlineScrim = document.getElementById('ref-outline-scrim');
+    const outlineSearchEl = document.getElementById('ref-outline-search');
+    const outlineTreeEl = document.getElementById('ref-outline-tree');
+    const isCompactOutlineBp = () => window.matchMedia('(max-width: 1120px)').matches;
+
+    let currentToc = [];
+    let activeOutlineHeading = '';
+    let allCollapsed = false;
+    let activeReaderCtrl = null;
+    let currentDocPath = '';
+
+    const setOutlineDrawerMobile = (open) => {
+      if (!outlinePane || !outlineScrim) return;
+      outlinePane.classList.toggle('is-mobile-open', open);
+      outlineScrim.hidden = !open;
+    };
+
+    const toggleFilesPane = () => {
+      const nextCollapsed = !workbench.classList.contains('files-collapsed');
+      workbench.classList.toggle('files-collapsed', nextCollapsed);
+      setNotesPanePref(REF_FILES_PREF_KEY, !nextCollapsed);
+      document.getElementById('ref-toggle-files-btn')?.setAttribute('aria-expanded', String(!nextCollapsed));
+    };
+
+    const toggleOutlinePane = () => {
+      if (isCompactOutlineBp()) {
+        setOutlineDrawerMobile(!outlinePane.classList.contains('is-mobile-open'));
+        return;
+      }
+      const nextCollapsed = !workbench.classList.contains('outline-collapsed');
+      workbench.classList.toggle('outline-collapsed', nextCollapsed);
+      setNotesPanePref(REF_OUTLINE_PREF_KEY, !nextCollapsed);
+      document.getElementById('ref-toggle-outline-btn')?.setAttribute('aria-expanded', String(!nextCollapsed));
+    };
+
+    document.getElementById('ref-toggle-files-btn')?.addEventListener('click', toggleFilesPane);
+    document.getElementById('ref-toggle-files-inner')?.addEventListener('click', toggleFilesPane);
+    document.getElementById('ref-toggle-outline-btn')?.addEventListener('click', toggleOutlinePane);
+    document.getElementById('ref-outline-close-btn')?.addEventListener('click', () => {
+      if (isCompactOutlineBp()) setOutlineDrawerMobile(false);
+      else toggleOutlinePane();
+    });
+    outlineScrim?.addEventListener('click', () => setOutlineDrawerMobile(false));
+
+    const paintOutline = () => {
+      if (!outlineTreeEl) return;
+      outlineTreeEl.innerHTML = window.StudyUI.buildOutlineTreeHtml(currentToc, {
+        activeHeading: activeOutlineHeading,
+        filter: outlineSearchEl?.value || '',
+        collapsedByDefault: allCollapsed,
+      });
+      outlineTreeEl.querySelectorAll('[data-outline-heading]').forEach((btn) => {
+        btn.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const targetH = btn.dataset.outlineHeading || '';
+          activeOutlineHeading = targetH;
+          highlightActiveOutline(targetH);
+          activeReaderCtrl?.jumpToHeading?.(targetH, true);
+          if (isCompactOutlineBp()) setOutlineDrawerMobile(false);
+        });
+      });
+    };
+
+    const highlightActiveOutline = (headingTitle) => {
+      if (!outlineTreeEl || !headingTitle) return;
+      const cleanT = window.StudyUI.cleanOutlineTitle(headingTitle).toLowerCase();
+      outlineTreeEl.querySelectorAll('.obs-outline-link').forEach((btn) => {
+        const match = (btn.dataset.outlineHeading || '').toLowerCase() === headingTitle.toLowerCase()
+          || window.StudyUI.cleanOutlineTitle(btn.dataset.outlineHeading || '').toLowerCase() === cleanT;
+        btn.classList.toggle('is-active', match);
+        if (match) {
+          let p = btn.parentElement?.closest('details.obs-outline-branch');
+          while (p) {
+            p.open = true;
+            p = p.parentElement?.closest('details.obs-outline-branch');
+          }
+        }
+      });
+    };
+
+    document.getElementById('ref-outline-collapse-all')?.addEventListener('click', () => {
+      allCollapsed = !allCollapsed;
+      outlineTreeEl.querySelectorAll('details.obs-outline-branch').forEach((d) => {
+        d.open = !allCollapsed;
+      });
+    });
+    outlineSearchEl?.addEventListener('input', paintOutline);
 
     const loadReader = async (entry, fileOverride = '', heading = '') => {
       if (!entry) return;
       const targetDoc = fileOverride || entry.file;
+      currentDocPath = targetDoc;
       const docSel = document.getElementById('ref-pane-doc-sel');
-      const tocSel = document.getElementById('ref-pane-toc-sel');
       const bodyEl = document.getElementById('ref-pane-body');
-      const docs = [{ label: 'Main Reference Sheet', file: entry.file }, ...(entry.companions || [])];
+      const docs = [{ label: 'Main Reference', file: entry.file }, ...(entry.companions || [])];
       docSel.hidden = docs.length <= 1;
       docSel.innerHTML = docs
         .map((d) => `<option value="${esc(d.file)}" ${d.file === targetDoc ? 'selected' : ''}>${esc(d.label)}</option>`)
         .join('');
 
-      bodyEl.innerHTML = '<p class="muted">Loading section…</p>';
+      bodyEl.innerHTML = '<p class="muted">Loading note…</p>';
       try {
-        const res = await fetchReferenceSection(targetDoc, heading);
+        // Always load the full note markdown for progressive chapter-chunked rendering + full outline scroll-spy
+        const res = await fetchReferenceSection(targetDoc, '');
         if (!res.available) {
           bodyEl.innerHTML = `<p class="muted">${esc(res.error || 'Reference unavailable.')}</p>`;
+          currentToc = [];
+          paintOutline();
           return;
         }
-        tocSel.innerHTML =
-          `<option value="">— Full Reference Sheet —</option>` +
-          (res.toc || [])
-            .map((h) => {
-              const pad = '· '.repeat(Math.max(0, h.level - 1));
-              return `<option value="${esc(h.title)}" ${res.selectedHeading === h.title ? 'selected' : ''}>${pad}${esc(h.title)}</option>`;
-            })
-            .join('');
-        bodyEl.innerHTML = window.StudyUI.renderMarkdownWithMath(res.markdown);
+        currentToc = res.toc || [];
+        activeOutlineHeading = heading || (currentToc.find((h) => h.level === 2)?.title || '');
+        paintOutline();
+
+        activeReaderCtrl = window.StudyUI.renderNoteProgressive(bodyEl, res.markdown || '', {
+          scrollRoot: null,
+          initialHeading: heading,
+          onLinkJump: async (jumpFile, jumpHeading) => {
+            const normCur = currentDocPath.replace(/\.md$/i, '').toLowerCase();
+            const normTarget = jumpFile.replace(/\.md$/i, '').toLowerCase();
+            if (!jumpFile || normTarget === normCur || normCur.endsWith(normTarget)) {
+              if (jumpHeading) {
+                activeOutlineHeading = jumpHeading;
+                highlightActiveOutline(jumpHeading);
+                activeReaderCtrl?.jumpToHeading?.(jumpHeading, true);
+              } else {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+              return;
+            }
+            // Jump to a companion document or another subject note
+            const found = findPublicReference(jumpFile);
+            if (found) {
+              selectedRefFile = found.entry.file;
+              await renderReferencesHub(found.file, jumpHeading);
+            }
+          },
+          onActiveHeading: (hTitle) => {
+            if (hTitle && hTitle !== activeOutlineHeading) {
+              activeOutlineHeading = hTitle;
+              highlightActiveOutline(hTitle);
+            }
+          },
+        });
       } catch {
         bodyEl.innerHTML = '<p class="muted">Could not load reference content.</p>';
       }
 
       docSel.onchange = () => loadReader(entry, docSel.value, '');
-      tocSel.onchange = () => loadReader(entry, docSel.value, tocSel.value);
     };
 
-    document.getElementById('ref-hub-sem-sel').onchange = (e) => {
-      selectedRefSemester = e.target.value;
-      renderReferencesHub();
-    };
+    const semSel = document.getElementById('ref-hub-sem-sel');
+    if (semSel) {
+      semSel.onchange = (e) => {
+        selectedRefSemester = e.target.value;
+        renderReferencesHub();
+      };
+    }
 
-    document.getElementById('ref-hub-search').oninput = (e) => {
+    document.getElementById('ref-hub-search')?.addEventListener('input', (e) => {
       const q = e.target.value.trim().toLowerCase();
       root.querySelectorAll('[data-ref-card]').forEach((card) => {
         const rf = refs.find((x) => x.file === card.dataset.refCard);
         const hay = `${rf?.code || ''} ${rf?.title || ''} ${(rf?.headings || []).join(' ')}`.toLowerCase();
         card.hidden = !!q && !hay.includes(q);
       });
-    };
+    });
 
     root.querySelectorAll('[data-ref-pick]').forEach((card) => {
       card.addEventListener('click', async () => {
         const file = card.dataset.refPick;
+        if (file === selectedRefFile) return;
         selectedRefFile = file;
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         await renderReferencesHub();
-        if (selectedRefFile === file && currentView === 'references' && matchMedia('(max-width: 980px)').matches) {
-          root.querySelector('#ref-pane-title')?.focus({ preventScroll: true });
-          root.querySelector('.ref-reader-pane')?.scrollIntoView({ block: 'start' });
-        }
       });
     });
 
@@ -5413,37 +5644,42 @@ window.StudyApp = (() => {
       });
     });
 
-    // Show user's personal synced curriculum PDFs & materials cleanly in the Notes sidebar
+    // Personal synced curriculum PDFs neatly inside a collapsible Obsidian folder
     if (isStaticWeb && window.StudyCommunity?.isSignedIn?.() && window.StudyCommunity?.listMaterials) {
-      const aside = root.querySelector('.ref-sidebar');
-      if (aside) {
-        const box = document.createElement('div');
-        box.className = 'ref-personal-materials';
+      const treeScroll = document.getElementById('ref-file-tree-scroll');
+      if (treeScroll) {
+        const box = document.createElement('details');
+        box.className = 'obs-folder ref-personal-folder';
         box.innerHTML = `
-          <div class="row-between" style="margin:0 0 8px;gap:8px">
-            <strong style="font-size:13px">My synced PDFs &amp; materials</strong>
-            <button type="button" class="ghost-btn" id="ref-add-materials-btn" style="padding:4px 10px;font-size:12px">+ Add PDFs</button>
-          </div>
-          <div id="ref-personal-materials-list"><small class="muted">Loading…</small></div>
+          <summary class="obs-folder-head">
+            <span class="obs-outline-chev" aria-hidden="true"></span>
+            <span>Personal PDFs</span>
+            <button type="button" class="obs-mini-add-btn" id="ref-add-materials-btn" title="Add personal PDFs">+ Add</button>
+          </summary>
+          <div class="obs-folder-items" id="ref-personal-materials-list"><small class="muted" style="padding:4px 8px;display:block">Loading…</small></div>
         `;
-        aside.appendChild(box);
-        box.querySelector('#ref-add-materials-btn').onclick = () => openBiSyncHub({ focusMaterials: true });
+        treeScroll.appendChild(box);
+        box.querySelector('#ref-add-materials-btn').onclick = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          openBiSyncHub({ focusMaterials: true });
+        };
         window.StudyCommunity.listMaterials().then((res) => {
           const listEl = box.querySelector('#ref-personal-materials-list');
           if (!listEl || !listEl.isConnected) return;
           const items = Array.isArray(res?.items) ? res.items : [];
           if (!items.length) {
-            listEl.innerHTML = '<small class="muted">No personal PDFs uploaded yet. Tap + Add PDFs to sync curriculum files to your profile.</small>';
+            listEl.innerHTML = '<small class="muted" style="padding:4px 8px;display:block">No personal PDFs yet.</small>';
             return;
           }
+          box.open = true;
           listEl.innerHTML = items.map((m) => `
-            <div class="bi-material-row">
-              <div class="bi-material-meta">
-                ${m.courseCode ? `<span class="badge">${esc(m.courseCode)}</span>` : ''}
-                <span class="bi-material-title" title="${esc(m.title)}">${esc(m.title)}</span>
-              </div>
-              <button type="button" class="ghost-btn bi-mat-mini-btn" data-open-mat="${esc(m.id)}" data-mat-title="${esc(m.title)}">Open ↗</button>
-            </div>
+            <button type="button" class="obs-file-item" data-open-mat="${esc(m.id)}" data-mat-title="${esc(m.title)}" title="${esc(m.title)}">
+              <span class="obs-file-name">
+                ${m.courseCode ? `<span class="obs-file-code">${esc(m.courseCode)}</span>` : ''}
+                <span class="obs-file-title">${esc(m.title)}</span>
+              </span>
+            </button>
           `).join('');
           listEl.querySelectorAll('[data-open-mat]').forEach((btn) => {
             btn.onclick = async () => {
@@ -5459,7 +5695,7 @@ window.StudyApp = (() => {
           });
         }).catch(() => {
           const listEl = box.querySelector('#ref-personal-materials-list');
-          if (listEl) listEl.innerHTML = '<small class="muted">Could not load personal materials.</small>';
+          if (listEl) listEl.innerHTML = '<small class="muted" style="padding:4px 8px;display:block">Could not load PDFs.</small>';
         });
       }
     }
@@ -6743,11 +6979,27 @@ window.StudyApp = (() => {
     dialog.addEventListener('click', (ev) => {
       if (ev.target === dialog) dialog.close();
     });
+    document.getElementById('rail-search-btn')?.addEventListener('click', () => openPalette());
+    document.getElementById('rail-al-btn')?.addEventListener('click', () => window.StudyAiTutor?.toggle?.());
     document.addEventListener('keydown', (ev) => {
       if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && ev.key.toLowerCase() === 'k') {
         ev.preventDefault();
         if (dialog.open) dialog.close();
         else openPalette();
+        return;
+      }
+      if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
+      if (document.body.classList.contains('in-runner')) return;
+      if (document.querySelector('dialog[open]')) return;
+      const tag = ev.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ev.target?.isContentEditable) return;
+      const k = ev.key.toLowerCase();
+      if (k === 'o') {
+        ev.preventDefault();
+        toggleSiteReferenceSidebar();
+      } else if (k === 't') {
+        ev.preventDefault();
+        window.StudyAiTutor?.toggle?.();
       }
     });
   }
@@ -7703,6 +7955,7 @@ window.StudyApp = (() => {
     fetchCanvasPdfViaExtension,
     onDevModeChange,
     navigate,
+    toggleSiteReferenceSidebar,
     renderHome,
     showRawView,
     setQuestionStatus,
