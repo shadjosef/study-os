@@ -256,7 +256,7 @@ window.StudyAiTutor = (() => {
         ev.stopPropagation();
         if (configOpen) {
           configOpen = false;
-          renderPane();
+          renderPane({ focusInput: true });
         } else {
           close();
         }
@@ -328,9 +328,28 @@ window.StudyAiTutor = (() => {
     el.style.height = `${Math.min(160, Math.max(24, el.scrollHeight))}px`;
   }
 
+  function shouldAutoFocusComposer() {
+    return window.innerWidth >= AI_DOCK_MIN_VP
+      || Boolean(window.matchMedia?.('(pointer: fine)')?.matches);
+  }
+
+  function focusComposerIfReady() {
+    if (!isOpen || configOpen || !shouldAutoFocusComposer()) return;
+    const inputEl = document.getElementById('ai-tutor-input');
+    if (!inputEl || inputEl.disabled) return;
+    if (document.activeElement !== inputEl) {
+      inputEl.focus({ preventScroll: true });
+      const end = inputEl.value.length;
+      try { inputEl.setSelectionRange(end, end); } catch {}
+    }
+  }
+
   function renderPane(opts = {}) {
     const pane = ensurePane();
     const prevInput = pane.querySelector('#ai-tutor-input');
+    const hadFocus = Boolean(prevInput && document.activeElement === prevInput);
+    const prevSelStart = hadFocus ? prevInput.selectionStart : null;
+    const prevSelEnd = hadFocus ? prevInput.selectionEnd : null;
     if (prevInput) draftByKey.set(activeKey, prevInput.value);
 
     const snap = currentExerciseSnapshot(false);
@@ -492,7 +511,7 @@ window.StudyAiTutor = (() => {
     pane.querySelector('#ai-tutor-close')?.addEventListener('click', () => close());
     pane.querySelector('#ai-dock-flip')?.addEventListener('click', () => {
       setDockSide(getDockSide() === 'left' ? 'right' : 'left');
-      renderPane();
+      renderPane({ focusInput: true });
     });
     pane.querySelector('#ai-tutor-clear')?.addEventListener('click', () => {
       threadsByQuestion.set(activeKey, []);
@@ -501,7 +520,7 @@ window.StudyAiTutor = (() => {
     });
     pane.querySelector('#ai-engine-toggle')?.addEventListener('click', () => {
       configOpen = !configOpen;
-      renderPane();
+      renderPane({ focusInput: !configOpen });
     });
     pane.querySelector('#ai-tutor-open-byok')?.addEventListener('click', () => {
       configOpen = true;
@@ -517,6 +536,7 @@ window.StudyAiTutor = (() => {
       if (window.StudyCommunity?.isSignedIn?.()) {
         refreshStatus();
         renderPane({ focusInput: true });
+        requestAnimationFrame(() => focusComposerIfReady());
       }
     });
 
@@ -570,10 +590,19 @@ window.StudyAiTutor = (() => {
           if (inputEl.value.trim()) formEl?.requestSubmit();
         }
       });
-      if (opts.focusInput && !inputEl.disabled && window.innerWidth >= 960) {
+      if (!inputEl.disabled && !configOpen && (hadFocus || (opts.focusInput && shouldAutoFocusComposer()))) {
         inputEl.focus({ preventScroll: true });
+        const end = inputEl.value.length;
+        const start = Number.isInteger(prevSelStart) ? Math.min(prevSelStart, end) : end;
+        const finish = Number.isInteger(prevSelEnd) ? Math.min(prevSelEnd, end) : end;
+        try { inputEl.setSelectionRange(start, finish); } catch {}
       }
     }
+    formEl?.addEventListener('click', (ev) => {
+      if (!inputEl || inputEl.disabled) return;
+      if (ev.target.closest('button, a, select, input, textarea')) return;
+      inputEl.focus({ preventScroll: true });
+    });
     formEl?.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const text = inputEl?.value.trim() || '';
@@ -655,7 +684,19 @@ window.StudyAiTutor = (() => {
     if (!window.StudyCommunity?.isSignedIn?.() || !window.StudyCommunity?.aiRequest) return;
     try {
       serverStatus = await window.StudyCommunity.aiRequest('/status');
-      if (isOpen) renderPane();
+      if (!isOpen) return;
+      const pane = document.getElementById('ai-tutor-pane');
+      const labelSpan = pane?.querySelector('#ai-engine-toggle span');
+      if (labelSpan) labelSpan.textContent = compactModelLabel();
+      if (configOpen) {
+        const quotaEl = pane?.querySelector('.ai-pop-quota');
+        const text = quotaSuffix();
+        if (quotaEl && text) {
+          quotaEl.textContent = text;
+        } else if (pane?.querySelector('#ai-byok-input') !== document.activeElement) {
+          renderPane();
+        }
+      }
     } catch {}
   }
 
@@ -667,6 +708,7 @@ window.StudyAiTutor = (() => {
     if (backdrop) backdrop.hidden = false;
     syncBodyClasses();
     renderPane({ focusInput: true });
+    requestAnimationFrame(() => focusComposerIfReady());
     refreshStatus();
   }
 
