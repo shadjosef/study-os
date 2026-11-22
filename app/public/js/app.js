@@ -1486,6 +1486,12 @@ window.StudyApp = (() => {
     currentView = viewName;
     if (opts.courseId) selectedCourseId = opts.courseId;
     if (opts.refFile) selectedRefFile = opts.refFile;
+    if (viewName !== 'course' && viewName !== 'references' && window.location.search) {
+      const curParams = new URLSearchParams(window.location.search);
+      if (curParams.has('course') || curParams.has('origin') || curParams.has('diff') || curParams.has('dlpfc') || curParams.has('sort')) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
     showRawView(viewName);
     const activeCourse = (boot?.catalog || []).find((c) => c.courseId === selectedCourseId);
     const titleMap = {
@@ -1504,7 +1510,7 @@ window.StudyApp = (() => {
     else if (viewName === 'schedule') renderScheduleStudio();
     else if (viewName === 'exams') {
       renderExamsHub(opts.focusCourseId || '');
-    } else if (viewName === 'course') await renderCourseExplorer(selectedCourseId, opts.preset || '');
+    } else if (viewName === 'course') await renderCourseExplorer(selectedCourseId, opts.preset || '', opts.filters || null);
     else if (viewName === 'analytics') renderAnalytics();
     else if (viewName === 'community') await window.StudyCommunity.render();
     else if (viewName === 'room') await window.StudyRooms.render();
@@ -3537,7 +3543,98 @@ window.StudyApp = (() => {
     return out;
   }
 
-  function buildEffortSortedQueue(questions, budgetMinutes = 75, profile = 'learning', filterTopics = [], effortMode = 'auto', quick = false, exactDifficulty = 0) {
+  // Exam Relevance Judge (0-100) across all 5 BI courses + universal fallback for synced courses.
+  // Prioritises real official exams, weekly tutoring sessions, lecture-slide exercises, and official assignments
+  // ahead of reading warmups, AI mocks, synthetic drills, and textbook index exercises.
+  function examRelevanceScore(q, bank = null) {
+    if (!q) return 50;
+    const cid = String(q.courseId || bank?.courseId || '');
+    const col = String(q.collectionId || '');
+    const tid = String(q.topicId || '');
+    const hasWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
+    const prov = window.StudyProvenance?.describe?.(q, bank);
+    const cat = prov?.category || '';
+
+    if (cid === 'acct-2527') {
+      const coreAcctTopic = ['2', '3', '5', '7', '8', '10'].includes(tid);
+      if (col === 'E23F' || cat === 'past_exam') return hasWf || q.kind !== 'mcq' ? 99 : 96;
+      if (col === 'tutoring' || cat === 'tutoring') return 94 + (hasWf ? 2 : coreAcctTopic ? 1 : 0);
+      if (col === 'lecture' || cat === 'lecture') return 91 + (hasWf ? 2 : coreAcctTopic ? 1 : 0);
+      if (col === 'home') return 88 + (coreAcctTopic ? 2 : 0);
+      if (col === 'diagnostics') return 84 + (coreAcctTopic ? 1 : 0);
+      if (col === 'reading' || cat === 'reading') return 75 + (coreAcctTopic ? 1 : 0);
+      if (col === 'WF-MOCK-D') return 67;
+      if (col.startsWith('WF-MOCK-') || cat === 'ai_mock') return 65;
+      if (col === 'book-ch1') return 46;
+      if (col.startsWith('book-') || cat === 'book') return 54 + (Number(q.difficulty || 1) >= 2 ? 1 : 0);
+    } else if (cid === 'prog-3021') {
+      if (col === 'exam-2025h-2') return 100;
+      if (col === 'exam-2024h-2') return 98;
+      if (col === 'official-mock-2') return 96;
+      if (col === 'pandas-viz-exam2') return cat === 'past_exam' || cat === 'lecture' ? 94 : 92;
+      if (col === 'official-mock') return 89;
+      if (col === 'debugging-practice') return 87;
+      if (col === 'mock-exam-a' || col === 'mock-exam-b' || cat === 'ai_mock') return 66;
+      if (col === 'concept-mcq') return 63;
+      if (col.startsWith('foundation-')) return 56;
+    } else if (cid === 'math-2588') {
+      const mathExamRanks = {
+        'exam-2025h': 100,
+        'exam-2024h': 98,
+        'exam-2024v': 97,
+        'exam-2023h': 96,
+        'exam-2023v': 94,
+        'exam-2022h': 93,
+      };
+      if (mathExamRanks[col]) return mathExamRanks[col];
+      if (col.startsWith('tut-') || cat === 'tutoring') {
+        const coreMathTopic = !['1', '2'].includes(tid);
+        return q.kind === 'mcq' ? 87 : (91 + (coreMathTopic ? 1 : 0));
+      }
+      if (col === 'paper-2022a') return 90;
+      if (col.startsWith('paper-')) return 87;
+      if (col === 'multchoice-2025') return 82;
+      if (col.startsWith('mc-')) return 78;
+      if (col === 'mock-exam-math-autumn-2026' || cat === 'ai_mock') return 65;
+      if (cat === 'ai_synthetic') return 58;
+    } else if (cid === 'econ-2522') {
+      const econExamRanks = { E26S: 100, E25F: 99, E25S: 97, E24F: 96, E24S: 94, E23F: 93 };
+      if (econExamRanks[col]) return Math.min(100, econExamRanks[col] + (q.kind !== 'mcq' ? 1 : 0));
+      if (['L16', 'L11', 'L7', 'L4'].includes(col)) return 91 + (q.kind !== 'mcq' ? 1 : 0);
+      if (/^T\d/.test(col)) return 89 + (q.kind !== 'mcq' ? 1 : 0);
+      if (col === 'OBSID-BANK') return 64;
+      if (col === 'SYN-CASE') return 62;
+      if (col === 'SYN-SHORT') return 60;
+      if (col === 'SYN-MCQ') return 55;
+    } else if (cid === 'ob-2537') {
+      if (col === 'sample-exam') return 99;
+      if (col === 'lesson-8' || col === 'tech-structure') return 92;
+      if (col === 'diagnostics') return 91;
+      if (col === 'nov19-mock-25') return 68;
+      if (col === 'wiseflow-mock-1') return 65;
+    }
+
+    // Universal fallback for any other synced / custom course
+    if (cat === 'past_exam') return 95;
+    if (cat === 'tutoring') return 91;
+    if (cat === 'lecture') return 89;
+    if (cat === 'exercise') return 85;
+    if (cat === 'reading') return 74;
+    if (cat === 'ai_mock') return 64;
+    if (cat === 'ai_synthetic') return 56;
+    if (cat === 'book') return 50;
+    return ['synthetic_drill', 'mock_exam'].includes(q.origin) ? 58 : 82;
+  }
+
+  function examRelevanceBand(q, bank = null) {
+    const score = examRelevanceScore(q, bank);
+    if (score >= 88) return 0; // Core Exam Priority (Official Exams, Tutoring, Lecture Exercises, Home Assignments)
+    if (score >= 70) return 1; // Official Supporting (Diagnostics, Readings, Extra MC Drills)
+    if (score >= 52) return 2; // Exam-Calibrated Mocks & Core Textbook
+    return 3;                  // Supplementary Drills / Intro
+  }
+
+  function buildEffortSortedQueue(questions, budgetMinutes = 75, profile = 'learning', filterTopics = [], effortMode = 'auto', quick = false, exactDifficulty = 0, bank = null) {
     const rawMode = effortMode === 'auto' ? getResolvedFocusMode() : effortMode;
     const mode =
       rawMode === 'deep'
@@ -3598,29 +3695,26 @@ window.StudyApp = (() => {
       return t - 1; // 1 -> 2 -> 3
     };
 
-    const authenticRank = (q) => {
-      const p = window.StudyProvenance?.describe?.(q);
-      if (!p) return ['synthetic_drill', 'mock_exam'].includes(q.origin) ? 2 : 0;
-      if (!p.synthetic && p.category !== 'book') return 0; // Official BI Past Exams, Exercises, Tutoring, Lectures, Readings FIRST
-      if (p.category === 'book') {
-        const hasBook = window.StudyLocalSources?.match?.(q.courseId, { kind: 'book', sourceId: 'textbook-12e' });
-        return hasBook ? 0 : 1;
-      }
-      return 2; // Al Mocks & Synthetic Drills AFTER authentic BI items
-    };
+    const relBand = (q) => examRelevanceBand(q, bank);
+    const relScore = (q) => examRelevanceScore(q, bank);
 
     pool.sort((a, b) => {
       const ba = bucketRank(a);
       const bb = bucketRank(b);
       if (ba !== bb) return ba - bb;
 
+      // Prioritise unfinished core exam-relevant BI tasks (Official Exams, Tutoring, Lecture Slides, Assignments) first!
+      const ra = relBand(a);
+      const rb = relBand(b);
+      if (ra !== rb) return ra - rb;
+
       const ta = tierRank(a);
       const tb = tierRank(b);
       if (ta !== tb) return ta - tb;
 
-      const aa = authenticRank(a);
-      const ab = authenticRank(b);
-      if (aa !== ab) return aa - ab;
+      const sa = relScore(a);
+      const sb = relScore(b);
+      if (sa !== sb) return sb - sa;
 
       if (mode === 'high_dlpfc') {
         const qa = qMin(a);
@@ -3633,8 +3727,8 @@ window.StudyApp = (() => {
       return effectiveDifficulty(b) - effectiveDifficulty(a);
     });
 
-    // Interleave distinct topics within each (statusBucket, dlpfcTier, authenticRank) band so official BI items ALWAYS precede AI synthetics
-    pool = interleaveByTopic(pool, (q) => `${bucketRank(q)}:${tierRank(q)}:${authenticRank(q)}`);
+    // Interleave distinct topics within each (statusBucket, relevanceBand, dlpfcTier) band so core exam tasks always lead
+    pool = interleaveByTopic(pool, (q) => `${bucketRank(q)}:${relBand(q)}:${tierRank(q)}`);
 
     const maxItems = Math.max(30, Math.min(80, Math.round(budgetMinutes * 1.1)));
     const chosen = [];
@@ -3682,7 +3776,10 @@ window.StudyApp = (() => {
         Number(block.attemptBudgetMinutes || block.focusMinutes || homeBlockMinutes || 50),
         prof,
         topicIds,
-        blockDlpfcMode
+        blockDlpfcMode,
+        false,
+        0,
+        bank
       );
     }
     if (!qids.length) {
@@ -3714,7 +3811,8 @@ window.StudyApp = (() => {
       filterTopic ? [filterTopic] : [],
       quick ? 'med_dlpfc' : effortMode,
       quick,
-      exactDifficulty
+      exactDifficulty,
+      bank
     );
     if (!chosen.length) {
       const diffLbl = exactDifficulty === 1 ? 'Easy' : exactDifficulty === 2 ? 'Medium' : exactDifficulty === 3 ? 'Hard' : '';
@@ -3736,7 +3834,7 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   // VIEW 3: COURSE EXPLORER & TASK STATUS MANAGER (Difficulty, Horizon & Interleaving)
   // ---------------------------------------------------------------------------
-  async function renderCourseExplorer(courseId, initialPreset = '') {
+  async function renderCourseExplorer(courseId, initialPreset = '', initialFilters = null) {
     const root = document.getElementById('course-explorer-root');
     if (!courseId && boot.catalog.length) courseId = boot.catalog[0].courseId;
     selectedCourseId = courseId;
@@ -3774,8 +3872,7 @@ window.StudyApp = (() => {
             : `<a href="${esc(url)}" download>${esc(file.name)}</a>`}</li>`;
         }).join('')}</ul>` : ''}
     </details>` : '';
-    const autoMode = getCircadianAutoTarget().mode;
-    const defaultSort = autoMode === 'high_dlpfc' ? 'deep_first' : 'smart_priority';
+    const defaultSort = 'exam_relevance';
     const documents = members.course(courseId)?.documents || [];
     const documentSections = new Map();
     for (const doc of documents) {
@@ -3901,6 +3998,7 @@ window.StudyApp = (() => {
             <button type="button" class="preset-chip" data-chip-horizon="10plus" aria-pressed="false">10m+ Horizon</button>
             ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-chip-kind="wiseflow" aria-pressed="false">Worksheets</button>' : ''}
             <button type="button" class="preset-chip" id="chip-reset-filters">Reset</button>
+            <button type="button" class="preset-chip exp-share-chip" id="chip-share-filters" title="Copy a direct link with all active filters applied">Share Link</button>
           </div>
         </div>
 
@@ -3970,6 +4068,7 @@ window.StudyApp = (() => {
             </label>
             <label class="field-label">Sort Tasks By
               <select id="flt-sort">
+                <option value="exam_relevance" ${defaultSort === 'exam_relevance' ? 'selected' : ''}>Exam Relevance (BI Exam · Tutoring · Slides)</option>
                 <option value="deep_first" ${defaultSort === 'deep_first' ? 'selected' : ''}>Hard First (Interleaved)</option>
                 <option value="horizon_desc">Longest Horizon First (Al Par ↓)</option>
                 <option value="diff_desc">Difficulty: hard first</option>
@@ -4269,6 +4368,38 @@ window.StudyApp = (() => {
           if (cmp !== 0) return cmp * mult;
           return provOrder(a) - provOrder(b) || String(a.title || '').localeCompare(String(b.title || ''), undefined, { numeric: true });
         });
+      } else if (sortVal === 'exam_relevance') {
+        filtered.sort((a, b) => {
+          const doneA = (getProgressRecord(a.id)?.status || 'not_started') === 'done' ? 1 : 0;
+          const doneB = (getProgressRecord(b.id)?.status || 'not_started') === 'done' ? 1 : 0;
+          if (doneA !== doneB) return doneA - doneB;
+
+          const ba = examRelevanceBand(a, bank);
+          const bb = examRelevanceBand(b, bank);
+          if (ba !== bb) return ba - bb;
+
+          // Keep revisited/missed exam tasks near the top of their relevance band
+          const revA = (getProgressRecord(a.id)?.status || '') === 'revisit' ? 0 : 1;
+          const revB = (getProgressRecord(b.id)?.status || '') === 'revisit' ? 0 : 1;
+          if (revA !== revB) return revA - revB;
+
+          const sa = examRelevanceScore(a, bank);
+          const sb = examRelevanceScore(b, bank);
+          if (sa !== sb) return sb - sa;
+
+          const da = effectiveDlpfc(a).tier;
+          const db = effectiveDlpfc(b).tier;
+          if (da !== db) return db - da;
+
+          return qActiveMin(b) - qActiveMin(a);
+        });
+        if (tVal === 'all' && cVal === 'all') {
+          filtered = interleaveByTopic(filtered, (q) => {
+            const done = (getProgressRecord(q.id)?.status || 'not_started') === 'done' ? 1 : 0;
+            const tier = Math.floor(examRelevanceScore(q, bank) / 4);
+            return `${done}:${examRelevanceBand(q, bank)}:${tier}`;
+          });
+        }
       } else if (sortVal === 'deep_first') {
         filtered.sort((a, b) => {
           const da = effectiveDlpfc(a).tier;
@@ -4338,10 +4469,48 @@ window.StudyApp = (() => {
       };
     };
 
+    const buildShareableCoursePath = ({ includeDefaultSort = false } = {}) => {
+      const sp = new URLSearchParams();
+      sp.set('view', 'course');
+      sp.set('course', courseId);
+      const oVal = document.getElementById('flt-origin')?.value || 'all';
+      const effectiveOrigin = realTasksOnly && oVal === 'all' ? 'official_only' : oVal;
+      if (effectiveOrigin !== 'all') sp.set('origin', effectiveOrigin);
+      const tVal = document.getElementById('flt-topic')?.value || 'all';
+      if (tVal !== 'all') sp.set('topic', tVal);
+      const cVal = document.getElementById('flt-coll')?.value || 'all';
+      if (cVal !== 'all') sp.set('coll', cVal);
+      const kVal = document.getElementById('flt-kind')?.value || 'all';
+      if (kVal !== 'all') sp.set('kind', kVal);
+      const dVal = document.getElementById('flt-diff')?.value || 'all';
+      if (dVal !== 'all') sp.set('diff', dVal);
+      const hVal = document.getElementById('flt-horizon')?.value || 'all';
+      if (hVal !== 'all') sp.set('horizon', hVal);
+      const sVal = document.getElementById('flt-status')?.value || 'unfinished';
+      if (sVal !== 'unfinished') sp.set('status', sVal);
+      const sortVal = document.getElementById('flt-sort')?.value || defaultSort;
+      if (includeDefaultSort || sortVal !== defaultSort) sp.set('sort', sortVal);
+      const bVal = document.getElementById('flt-budget')?.value || 'budget:50';
+      if (bVal !== 'budget:50') sp.set('budget', bVal);
+      const pVal = document.getElementById('flt-profile')?.value || 'learning';
+      if (pVal !== 'learning') sp.set('profile', pVal);
+      const qTerm = (document.getElementById('flt-search')?.value || '').trim();
+      if (qTerm) sp.set('q', qTerm);
+      return `${window.location.pathname}?${sp.toString()}`;
+    };
+
+    const syncCourseFilterUrl = () => {
+      if (currentView !== 'course' || selectedCourseId !== courseId) return;
+      try {
+        window.history.replaceState({}, '', buildShareableCoursePath({ includeDefaultSort: false }));
+      } catch {}
+    };
+
     const refreshTable = () => {
       const matches = getMatching();
       const { list, estMin } = buildRunIds(matches);
       document.getElementById('flt-summary-lbl').textContent = `${list.length} in run (of ${matches.length} matching) · ~${Math.round(estMin)}m Al Par`;
+      syncCourseFilterUrl();
 
       const tbody = document.getElementById('exp-table-body');
       tbody.innerHTML = matches
@@ -4362,8 +4531,12 @@ window.StudyApp = (() => {
           const provPill = window.StudyProvenance
             ? window.StudyProvenance.badgeHtml(q, bank, { showModel: true, short: true })
             : '';
+          const relScore = examRelevanceScore(q, bank);
+          const priorityPill = relScore >= 88
+            ? `<span class="exam-priority-pill" title="High exam relevance: official BI exam, tutoring, lecture slide, or assignment task">★ Exam Priority</span>`
+            : '';
           return `<tr>
-            <td><strong>${esc(q.title)}</strong><div class="exp-row-meta">${provPill}<small class="muted">${esc(q.localId || q.id)}</small></div></td>
+            <td><strong>${esc(q.title)}</strong><div class="exp-row-meta">${priorityPill}${provPill}<small class="muted">${esc(q.localId || q.id)}</small></div></td>
             <td><span class="badge">T${esc(q.topicId)}</span></td>
             <td>${diffBadge}</td>
             <td>${kindBadge}</td>
@@ -4468,6 +4641,16 @@ window.StudyApp = (() => {
       refreshTable();
     });
 
+    document.getElementById('chip-share-filters')?.addEventListener('click', async () => {
+      const shareUrl = `${window.location.origin}${buildShareableCoursePath({ includeDefaultSort: true })}`;
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast('Filter link copied — ready to share!');
+      } catch {
+        window.prompt('Copy this shareable filter link:', shareUrl);
+      }
+    });
+
     // 3-state clickable table header sorting (1st click -> 2nd click flip -> 3rd click default)
     root.querySelectorAll('.th-sort-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -4570,6 +4753,41 @@ window.StudyApp = (() => {
 
     if (initialPreset) {
       applyPreset(initialPreset);
+    }
+
+    if (initialFilters && typeof initialFilters === 'object') {
+      const setSelectIfValid = (id, val) => {
+        if (!val) return false;
+        const el = document.getElementById(id);
+        if (!el) return false;
+        const ok = Array.from(el.options || []).some((opt) => opt.value === val);
+        if (ok) {
+          el.value = val;
+          return true;
+        }
+        return false;
+      };
+      if (initialFilters.preset) applyPreset(initialFilters.preset);
+      if (setSelectIfValid('flt-origin', initialFilters.origin)) {
+        realTasksOnly = initialFilters.origin === 'official_only';
+      } else if (initialFilters.real) {
+        realTasksOnly = true;
+        setSelectIfValid('flt-origin', 'official_only');
+      }
+      setSelectIfValid('flt-topic', initialFilters.topic);
+      setSelectIfValid('flt-coll', initialFilters.coll);
+      setSelectIfValid('flt-kind', initialFilters.kind);
+      setSelectIfValid('flt-diff', initialFilters.diff);
+      setSelectIfValid('flt-horizon', initialFilters.horizon);
+      setSelectIfValid('flt-status', initialFilters.status);
+      setSelectIfValid('flt-sort', initialFilters.sort);
+      setSelectIfValid('flt-budget', initialFilters.budget);
+      setSelectIfValid('flt-profile', initialFilters.profile);
+      if (initialFilters.q) {
+        const sEl = document.getElementById('flt-search');
+        if (sEl) sEl.value = initialFilters.q;
+      }
+      syncFilterChipUi();
     }
 
     document.getElementById('btn-start-filtered').onclick = () => {
@@ -6470,15 +6688,39 @@ window.StudyApp = (() => {
       return;
     }
 
-    // Handle deep links (`?course=...&topic=...&autostart=1`, `?view=exams|references|schedule`, `?join_room=CODE`, or `?autostart_event=...`)
+    // Handle deep links (`?view=course&course=acct-2527&origin=official_only&diff=2&sort=exam_relevance`,
+    // `?view=exams|references|schedule|community`, `?join_room=CODE`, or `?autostart_event=...`)
     const params = new URLSearchParams(window.location.search);
     const joinRoomCode = (params.get('join_room') || '').trim().toUpperCase();
     const autoEvent = params.get('autostart_event');
-    const qCourse = params.get('course');
-    const qTopic = params.get('topic') || '';
-    const qView = params.get('view') || '';
-    const qDlpfc = params.get('dlpfc') || '';
+    const qCourseRaw = (params.get('course') || '').trim();
+    const qTopic = (params.get('topic') || '').trim();
+    const qView = (params.get('view') || '').trim().toLowerCase();
+    const qDlpfc = (params.get('dlpfc') || '').trim().toLowerCase();
+    const qDiffRaw = (params.get('diff') || '').trim().toLowerCase();
     const autoStart = params.get('autostart') === '1';
+
+    const resolveCourseIdParam = (raw) => {
+      if (!raw) return '';
+      const exact = (boot.catalog || []).find((c) => c.courseId === raw);
+      if (exact) return exact.courseId;
+      const norm = raw.toUpperCase().replace(/[\s_-]+/g, '');
+      const byCode = (boot.catalog || []).find((c) => {
+        const cNorm = String(c.code || '').toUpperCase().replace(/[\s_-]+/g, '');
+        return cNorm === norm || String(c.canvasId || '') === raw || String(c.courseId || '').toUpperCase().replace(/[\s_-]+/g, '') === norm;
+      });
+      return byCode?.courseId || raw;
+    };
+    const qCourse = resolveCourseIdParam(qCourseRaw);
+
+    const normalizeDiffParam = (dVal, dlpfcVal) => {
+      const v = dVal || dlpfcVal;
+      if (v === '3' || v === 'high' || v === 'high_dlpfc' || v === 'hard') return '3';
+      if (v === '2' || v === 'med' || v === 'medium' || v === 'med_dlpfc') return '2';
+      if (v === '1' || v === 'low' || v === 'low_dlpfc' || v === 'easy') return '1';
+      if (v === '2plus' || v === 'med_high') return '2plus';
+      return '';
+    };
 
     if (/^[A-F0-9]{8}$/.test(joinRoomCode) && isStaticWeb && window.StudyCommunity?.enabled) {
       window.history.replaceState({}, '', window.location.pathname);
@@ -6502,6 +6744,14 @@ window.StudyApp = (() => {
         return;
       }
     }
+    if (qView === 'community' && window.StudyCommunity?.enabled) {
+      const section = (params.get('section') || '').trim().toLowerCase();
+      await navigate('community');
+      if (section === 'ed' || section === 'ed-discussion') {
+        document.getElementById('community-ed-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
     if (['exams', 'references', 'schedule'].includes(qView)) {
       if (qView === 'references' && isStaticWeb) {
         const target = findPublicReference(params.get('note') || '');
@@ -6514,21 +6764,32 @@ window.StudyApp = (() => {
       await navigate(qView, { focusCourseId: qCourse || '' });
       return;
     }
-    if (qCourse) {
-      window.history.replaceState({}, '', window.location.pathname);
+    if (qCourse || qView === 'course' || qView === 'courses') {
+      const targetCourseId = qCourse || boot.catalog?.[0]?.courseId || '';
+      if (!targetCourseId) return;
       if (autoStart) {
-        const mode = ['high_dlpfc', 'med_dlpfc', 'low_dlpfc'].includes(qDlpfc) ? qDlpfc : 'auto';
-        const exact = mode === 'high_dlpfc' ? 3 : mode === 'med_dlpfc' ? 2 : mode === 'low_dlpfc' ? 1 : 0;
-        await launchSmartCourseRun(qCourse, homeBlockMinutes || 50, 'learning', qTopic, mode, false, exact);
+        window.history.replaceState({}, '', window.location.pathname);
+        const normDiff = normalizeDiffParam(qDiffRaw, qDlpfc);
+        const mode = normDiff === '3' ? 'high_dlpfc' : normDiff === '2' ? 'med_dlpfc' : normDiff === '1' ? 'low_dlpfc' : 'auto';
+        const exact = normDiff === '3' ? 3 : normDiff === '2' ? 2 : normDiff === '1' ? 1 : 0;
+        await launchSmartCourseRun(targetCourseId, homeBlockMinutes || 50, 'learning', qTopic, mode, false, exact);
       } else {
-        await navigate('course', { courseId: qCourse });
-        if (qTopic) {
-          const sel = document.getElementById('flt-topic');
-          if (sel) {
-            sel.value = qTopic;
-            sel.dispatchEvent(new Event('change'));
-          }
-        }
+        const filters = {
+          preset: (params.get('preset') || '').trim(),
+          origin: (params.get('origin') || '').trim(),
+          real: params.get('real') === '1' || params.get('real') === 'true',
+          topic: qTopic,
+          coll: (params.get('coll') || params.get('collection') || '').trim(),
+          kind: (params.get('kind') || params.get('format') || '').trim(),
+          diff: normalizeDiffParam(qDiffRaw, qDlpfc),
+          horizon: (params.get('horizon') || '').trim(),
+          status: (params.get('status') || '').trim(),
+          sort: (params.get('sort') || '').trim(),
+          budget: (params.get('budget') || '').trim(),
+          profile: (params.get('profile') || '').trim(),
+          q: (params.get('q') || params.get('search') || '').trim(),
+        };
+        await navigate('course', { courseId: targetCourseId, filters });
       }
     }
   }
