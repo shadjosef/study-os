@@ -27,12 +27,67 @@ window.StudyCommunity = (() => {
   function useProfile(key) {
     localStorage.setItem(keyName, key);
     token = key;
-    if (!key) currentProfile = null;
+    if (!key) {
+      currentProfile = null;
+      if (window.StudyMembers?.isTransient?.()) {
+        window.StudyMembers.forget().catch(() => {});
+      }
+    }
     lastSync = '';
     lastPresence = '';
     lastPresenceAt = 0;
     clearTimeout(syncTimer);
     window.StudyApp?.syncSettingsRows?.();
+  }
+
+  async function hashAccessCode(rawCode) {
+    const clean = String(rawCode || '').trim();
+    if (!/^\S{4,120}$/.test(clean)) return null;
+    const enc = new TextEncoder();
+    const shaHex = async (str) => {
+      const buf = new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(str)));
+      return [...buf].map((v) => v.toString(16).padStart(2, '0')).join('');
+    };
+    const proof = await shaHex(clean);
+    const upper = clean.toUpperCase();
+    const proofUpper = upper === clean ? proof : await shaHex(upper);
+    return { proof, proofUpper };
+  }
+
+  async function syncTransientArchiveFromProfile(profile) {
+    if (!window.StudyMembers?.enabled) return false;
+    const mk = profile?.archiveMemberKey || '';
+    if (mk) {
+      if (!window.StudyMembers.isUnlocked()) {
+        try {
+          await window.StudyMembers.unlockTransient(mk);
+          await window.StudyApp?.refreshArchiveViews?.();
+          return true;
+        } catch {}
+      }
+      return true;
+    }
+    if (window.StudyMembers.isTransient?.()) {
+      await window.StudyMembers.forget().catch(() => {});
+      await window.StudyApp?.refreshArchiveViews?.();
+    }
+    return false;
+  }
+
+  async function redeemAccessCode(rawCode) {
+    if (!api || !token) throw new Error('Sign in first to redeem an access code.');
+    const clean = String(rawCode || '').trim();
+    if (/^sos1_/i.test(clean)) {
+      throw new Error('Paste a sos1_… archive key directly in Settings → Private PDF Archive.');
+    }
+    const hashes = await hashAccessCode(clean);
+    if (!hashes) throw new Error('Enter a valid access code (at least 4 characters).');
+    const res = await request('/auth/redeem-code', hashes);
+    if (res?.archiveMemberKey && window.StudyMembers?.enabled) {
+      await window.StudyMembers.unlockTransient(res.archiveMemberKey);
+      await window.StudyApp?.refreshArchiveViews?.();
+    }
+    return res;
   }
 
   function toBase64Url(buf) {
@@ -593,6 +648,13 @@ window.StudyCommunity = (() => {
           </div>
         </div>
 
+        <div id="community-top-code-wrap" class="auth-access-code-box" hidden>
+          <label class="field-label" style="margin:0">
+            Access code <small class="muted" id="community-top-code-hint">(required for new accounts &amp; instant PDF access)</small>
+            <input id="community-top-code" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026" maxlength="120">
+          </label>
+        </div>
+
         <div id="community-google-slot" class="auth-google-slot" hidden></div>
 
         ${passkeyReady ? `
@@ -615,7 +677,7 @@ window.StudyCommunity = (() => {
             <input type="hidden" name="ticket">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
             ${schoolFieldHtml(localSchool.school, localSchool.canvasOrigin)}
-            <label class="field-label" data-join-invite="google" hidden>Community invite code <input name="invite" type="password" disabled autocomplete="off" placeholder="Enter your invite code"></label>
+            <label class="field-label" data-join-invite="google" hidden>Access code <input name="invite" type="text" disabled autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026"></label>
             ${secondaryLanguageFieldHtml('')}
             ${signupConsentHtml({ showEmailField: false })}
             <div class="row-actions">
@@ -635,7 +697,7 @@ window.StudyCommunity = (() => {
           <form id="community-join" class="auth-form" data-auth-pane="join">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Alex" required></label>
             ${schoolFieldHtml(localSchool.school, localSchool.canvasOrigin)}
-            <label class="field-label" data-join-invite hidden>Community invite code <input name="invite" type="password" disabled autocomplete="off" placeholder="Enter your invite code"></label>
+            <label class="field-label" data-join-invite hidden>Access code <input name="invite" type="text" disabled autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026"></label>
             ${secondaryLanguageFieldHtml('')}
             ${passkeyReady ? '<label class="check-row"><input name="withPasskey" type="checkbox" checked> Set up a passkey after signup</label>' : ''}
             ${signupConsentHtml({ showEmailField: true })}
@@ -661,7 +723,7 @@ window.StudyCommunity = (() => {
 
         ${onDemo ? `
           <div class="auth-demo-bar">
-            <button type="button" class="ghost-btn" id="community-demo">Try demo (no code needed)</button>
+            <button type="button" class="ghost-btn" id="community-demo">Continue without signing in</button>
           </div>
         ` : ''}
         ${privacyNote}
@@ -675,9 +737,35 @@ window.StudyCommunity = (() => {
     const googleCompleteWrap = root.querySelector('#community-google-complete-wrap');
     const classicWrap = root.querySelector('#community-classic-wrap');
     const authOr = root.querySelector('#community-auth-or');
-    getAuthConfig().then(({ openSignup, googleOpenSignup }) => {
+    const topCodeWrap = root.querySelector('#community-top-code-wrap');
+    const topCodeInput = root.querySelector('#community-top-code');
+    const topCodeHint = root.querySelector('#community-top-code-hint');
+
+    const syncCodeInputs = (val) => {
+      root.querySelectorAll('input[name="invite"]').forEach((inp) => {
+        if (inp.value !== val) inp.value = val;
+      });
+    };
+    topCodeInput?.addEventListener('input', () => syncCodeInputs(topCodeInput.value));
+    root.querySelectorAll('input[name="invite"]').forEach((inp) => {
+      inp.addEventListener('input', () => {
+        if (topCodeInput && topCodeInput.value !== inp.value) topCodeInput.value = inp.value;
+      });
+    });
+
+    getAuthConfig().then(({ openSignup, googleOpenSignup, requireCodeOnLogin, archivePassEnabled }) => {
+      const showTopCode = Boolean(requireCodeOnLogin || !openSignup || archivePassEnabled);
+      if (topCodeWrap) topCodeWrap.hidden = !showTopCode;
+      if (topCodeHint) {
+        topCodeHint.textContent = requireCodeOnLogin
+          ? '(enter your short class code to sign up & unlock PDFs)'
+          : archivePassEnabled
+          ? '(optional with Google — enter a class code to skip Canvas Sync)'
+          : '(required for Create profile)';
+      }
       root.querySelectorAll('[data-join-invite]').forEach(label => {
-        const open = Boolean(openSignup || (label.dataset.joinInvite === 'google' && googleOpenSignup));
+        const isGoogleField = label.dataset.joinInvite === 'google';
+        const open = Boolean(openSignup || (isGoogleField && googleOpenSignup && !requireCodeOnLogin));
         label.hidden = open;
         label.firstElementChild.disabled = open;
         label.firstElementChild.required = !open;
@@ -685,16 +773,20 @@ window.StudyCommunity = (() => {
     });
 
     async function signupAccess(form, element, google = false) {
-      const { openSignup, googleOpenSignup } = await getAuthConfig();
-      if (openSignup) return { humanToken: await humanToken(element, 'signup', status) };
-      if (google && googleOpenSignup) return {};
-      const invite = String(form.get('invite') || '').trim();
-      if (/^sos1_/i.test(invite)) {
-        throw new Error('Use this PDF archive key in Settings → Private PDF Archive. Enter a Community invite here.');
+      const { openSignup, googleOpenSignup, requireCodeOnLogin } = await getAuthConfig();
+      const rawInvite = String(form.get('invite') || topCodeInput?.value || '').trim();
+      if (/^sos1_/i.test(rawInvite)) {
+        throw new Error('That is a 48-char sos1_… archive key — use your short class code here (or paste sos1_… in Settings → Private PDF Archive).');
       }
-      if (!/^\S{6,120}$/.test(invite)) throw new Error('Enter a valid Community invite code.');
-      const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(invite)));
-      return { proof: [...hash].map(value => value.toString(16).padStart(2, '0')).join('') };
+      const optionalHashes = rawInvite ? await hashAccessCode(rawInvite) : null;
+      if (openSignup) {
+        return { humanToken: await humanToken(element, 'signup', status), ...(optionalHashes || {}) };
+      }
+      if (google && googleOpenSignup && !requireCodeOnLogin) {
+        return optionalHashes || {};
+      }
+      if (!optionalHashes) throw new Error('Enter your access code (e.g. BI2026).');
+      return optionalHashes;
     }
 
     mountGoogleButton(googleSlot, async (idToken) => {
@@ -706,10 +798,14 @@ window.StudyCommunity = (() => {
           const form = root.querySelector('#community-google-complete-form');
           form.elements.ticket.value = res.ticket;
           form.elements.nickname.value = res.suggestedName || '';
-          root.querySelector('#community-google-complete-note').textContent = 'Pick a nickname to finish setting up your Google sign-in.';
+          if (form.elements.invite && topCodeInput?.value) {
+            form.elements.invite.value = topCodeInput.value.trim();
+          }
+          root.querySelector('#community-google-complete-note').textContent = 'Pick a nickname & school to finish setting up your Google sign-in.';
           googleCompleteWrap.hidden = false;
           classicWrap.hidden = true;
           googleSlot.hidden = true;
+          if (topCodeWrap) topCodeWrap.hidden = true;
           const pkBtn = root.querySelector('#community-passkey-login');
           if (pkBtn) pkBtn.hidden = true;
           const createBtn = root.querySelector('#community-passkey-create');
@@ -719,7 +815,12 @@ window.StudyCommunity = (() => {
           return;
         }
         useProfile(res.token);
+        const typedCode = (topCodeInput?.value || '').trim();
+        if (typedCode && !/^sos1_/i.test(typedCode)) {
+          await redeemAccessCode(typedCode).catch(() => {});
+        }
         currentProfile = await request('/profile').catch(() => null);
+        await syncTransientArchiveFromProfile(currentProfile);
         toast(`Welcome back, ${res.nickname}!`);
         await onSignedIn();
       } catch (err) {
@@ -733,6 +834,7 @@ window.StudyCommunity = (() => {
       googleCompleteWrap.hidden = true;
       classicWrap.hidden = false;
       googleSlot.hidden = false;
+      if (topCodeWrap) topCodeWrap.hidden = false;
       const pkBtn = root.querySelector('#community-passkey-login');
       if (pkBtn) pkBtn.hidden = false;
       const createBtn = root.querySelector('#community-passkey-create');
@@ -757,7 +859,8 @@ window.StudyCommunity = (() => {
       if (school || canvasOrigin) saveLocalSchool(school, canvasOrigin);
       useProfile(res.token);
       currentProfile = await request('/profile').catch(() => null);
-      toast(`Welcome, ${res.nickname}! Google Sign-In is now linked.`);
+      const unlocked = await syncTransientArchiveFromProfile(currentProfile);
+      toast(unlocked ? `Welcome, ${res.nickname}! Course PDFs unlocked.` : `Welcome, ${res.nickname}! Google Sign-In is now linked.`);
       await onSignedIn();
     }, status);
 
@@ -827,7 +930,8 @@ window.StudyCommunity = (() => {
       if (school || canvasOrigin) saveLocalSchool(school, canvasOrigin);
       useProfile(result.token);
       currentProfile = await request('/profile').catch(() => null);
-      toast('Profile created. Save a recovery key in Settings → Sign-in & Devices.');
+      const unlocked = await syncTransientArchiveFromProfile(currentProfile);
+      toast(unlocked ? 'Profile created & course PDFs unlocked!' : 'Profile created. Save a recovery key in Settings → Sign-in & Devices.');
       await onSignedIn();
       if (form.get('withPasskey') === 'on') {
         await openSecuritySheet();
@@ -869,6 +973,7 @@ window.StudyCommunity = (() => {
     if (token) {
       try {
         currentProfile = await request('/profile');
+        await syncTransientArchiveFromProfile(currentProfile);
         window.StudyApp?.syncSettingsRows?.();
         return true;
       } catch (error) {
@@ -1624,6 +1729,14 @@ window.StudyCommunity = (() => {
               <input type="checkbox" id="admin-toggle-signups" ${settings.signupsOpen ? 'checked' : ''}>
               <span><strong>Allow new signups</strong> <small class="muted">(uncheck to pause all new Community joins immediately)</small></span>
             </label>
+            <label class="check-row">
+              <input type="checkbox" id="admin-toggle-google-code" ${settings.requireInviteForGoogle ? 'checked' : ''}>
+              <span><strong>Require access code on Google sign-in too</strong> <small class="muted">(asks everyone for a short code when joining — uncheck for open Google signup)</small></span>
+            </label>
+            <label class="check-row">
+              <input type="checkbox" id="admin-toggle-archive-pass" ${settings.archivePassEnabled ? 'checked' : ''}>
+              <span><strong>Temporary PDF Archive Pass (skip Canvas Sync)</strong> <small class="muted">(auto-unlocks PDFs in-memory for active code holders; uncheck or revoke a code to cut off access instantly)</small></span>
+            </label>
             ${settings.hasEnvJoinProof ? `
               <label class="check-row">
                 <input type="checkbox" id="admin-toggle-env-join" ${settings.envJoinEnabled ? 'checked' : ''}>
@@ -1651,8 +1764,8 @@ window.StudyCommunity = (() => {
             <label class="field-label">Label <input name="label" maxlength="60" placeholder="e.g. OB Class Nov 2026"></label>
             <label class="field-label">Max uses <small class="muted">(0 = unlimited)</small> <input name="maxUses" type="number" min="0" max="10000" value="0"></label>
             <label class="field-label">Expires in days <small class="muted">(0 = never)</small> <input name="expiresInDays" type="number" min="0" max="365" value="0"></label>
-            <label class="field-label">Custom join string <small class="muted">(optional, 6–120 chars, no spaces — leave blank to auto-generate secure <code>soci1_…</code>)</small>
-              <input name="customCode" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Leave blank for random soci1_... code">
+            <label class="field-label">Custom access code <small class="muted">(optional, 4–120 chars, no spaces — e.g. <code>BI2026</code>, or leave blank for random <code>soci1_…</code>)</small>
+              <input name="customCode" maxlength="120" autocomplete="off" spellcheck="false" placeholder="e.g. BI2026 (easy to type)">
             </label>
             <div class="row-actions">
               <button type="submit" class="primary-btn">Create Community invite</button>
@@ -1723,6 +1836,10 @@ window.StudyCommunity = (() => {
 
       body.querySelector('#admin-toggle-signups').onchange = (ev) =>
         updateSetting({ signupsOpen: ev.currentTarget.checked }, ev.currentTarget.checked ? 'Signups opened.' : 'Signups paused.');
+      body.querySelector('#admin-toggle-google-code')?.addEventListener('change', (ev) =>
+        updateSetting({ requireInviteForGoogle: ev.currentTarget.checked }, ev.currentTarget.checked ? 'Google sign-in now requires an access code.' : 'Google sign-in is now open without a code.'));
+      body.querySelector('#admin-toggle-archive-pass')?.addEventListener('change', (ev) =>
+        updateSetting({ archivePassEnabled: ev.currentTarget.checked }, ev.currentTarget.checked ? 'Temporary PDF Archive Pass enabled.' : 'Temporary PDF Archive Pass disabled — users will sync their own Canvas.'));
       body.querySelector('#admin-toggle-env-join')?.addEventListener('change', (ev) =>
         updateSetting({ envJoinEnabled: ev.currentTarget.checked }, ev.currentTarget.checked ? 'Legacy env invite enabled.' : 'Legacy env invite disabled.'));
 
@@ -3093,5 +3210,6 @@ window.StudyCommunity = (() => {
     openMaterial,
     postChatMessage: (message) => request('/chat', { message: String(message || '').trim() }),
     saveAdminMemberKey: (memberKey) => request('/admin/settings', { memberKey: String(memberKey || '').trim() }),
+    redeemAccessCode,
   };
 })();

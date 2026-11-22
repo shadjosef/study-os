@@ -3188,7 +3188,22 @@ window.StudyApp = (() => {
       submit.textContent = 'Unlocking…';
       setFeedback('Decrypting private PDF archive…', 'loading');
       try {
-        const rawKey = String(key.value || '').trim().replace(/^["'`]+|["'`]+$/g, '').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const rawInput = String(key.value || '').trim().replace(/^["'`]+|["'`]+$/g, '');
+        if (/^[A-Za-z0-9_-]{4,24}$/.test(rawInput) && !/^sos1_/i.test(rawInput) && window.StudyCommunity?.isSignedIn?.()) {
+          const res = await window.StudyCommunity.redeemAccessCode(rawInput);
+          if (!res?.archiveUnlocked) {
+            throw new Error('Access code saved, but temporary PDF archive access is currently disabled by the admin. Use Sync BI Canvas instead.');
+          }
+          key.value = '';
+          key.type = 'password';
+          if (toggleBtn) toggleBtn.textContent = 'Show';
+          const totalQ = (boot.catalog || []).reduce((s, c) => s + Number(c.questionCount || 0), 0);
+          setFeedback(`Temporary PDF pass activated (${totalQ} questions + original PDFs).`, 'success');
+          dialog.close();
+          toast(`Access code accepted — course PDFs unlocked!`);
+          return;
+        }
+        const rawKey = rawInput.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
         const remember = document.getElementById('member-remember').checked;
         const remembered = await members.unlock(rawKey, remember);
         if (window.StudyCommunity?.isAdmin?.()) {
@@ -6715,7 +6730,7 @@ window.StudyApp = (() => {
       if (isStaticWeb) renderCourseDirectory();
       if (signedIn && isStaticWeb) {
         syncCloudProgress().catch(() => {});
-        maybePromptFirstLoginBiSync();
+        if (!members.isUnlocked()) maybePromptFirstLoginBiSync();
       }
       await window.StudySets.activateDraft();
       bindMemberAccess();
@@ -6829,6 +6844,11 @@ window.StudyApp = (() => {
         };
         await navigate('course', { courseId: targetCourseId, filters });
       }
+    }
+
+    // Prompt unsigned-in visitors to sign in & enter their access code right on opening the site
+    if (isStaticWeb && window.StudyCommunity?.enabled && !window.StudyCommunity.isSignedIn() && !/bot|crawler|spider|lighthouse/i.test(navigator.userAgent || '')) {
+      window.StudyCommunity.requireProfile({ allowDemo: true }).catch(() => {});
     }
   }
 
@@ -7411,6 +7431,7 @@ window.StudyApp = (() => {
     calibratedParSec,
     computeWeightedUpi,
     refreshBootstrap,
+    refreshArchiveViews,
     syncSettingsRows,
     syncCloudProgress,
     queueCloudSync,

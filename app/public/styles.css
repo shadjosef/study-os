@@ -7483,6 +7483,19 @@ dialog.ai-set-modal {
 .preset-chip.exp-share-chip:hover {
   background: color-mix(in srgb, var(--accent) 12%, var(--panel-alt));
 }
+.auth-access-code-box {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel-alt));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+.auth-access-code-box input {
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 
 
 

@@ -1,5 +1,8 @@
 import { handleRooms, runningStudyRoom } from './rooms.mjs';
-import { verifyJoinProof, consumeInviteUse, handleAdmin, getAdminMemberKey } from './admin.mjs';
+import {
+  verifyJoinProof, consumeInviteUse, handleAdmin, getAdminMemberKey,
+  getJoinSettings, verifyInviteCodeOnly, grantArchivePass, getActiveArchiveMemberKey,
+} from './admin.mjs';
 import { handlePublicAuth, handleAuthedAuth, cleanSecondaryLanguage, cleanContactEmail, maskEmailHint, cleanSchoolName, cleanProfileCanvasOrigin } from './auth.mjs';
 import { handleSync } from './sync.mjs';
 import { checkHuman } from './human.mjs';
@@ -181,13 +184,13 @@ export default {
     if (publicAuthPaths.has(path)) {
       return handlePublicAuth({
         request, path, db, env, now: Date.now(), data, reply, digest, hex,
-        verifyJoinProof, consumeInviteUse, equalProof, nicknamePattern,
+        verifyJoinProof, consumeInviteUse, grantArchivePass, getJoinSettings, equalProof, nicknamePattern,
       });
     }
 
     if (path === '/join' && request.method === 'POST') {
       const nowJoin = Date.now();
-      const check = await verifyJoinProof(db, env, data.proof, nowJoin, equalProof);
+      const check = await verifyJoinProof(db, env, data.proof, nowJoin, equalProof, false, data.proofUpper || '');
       if (!check.ok) return reply({ error: check.error }, 403);
       const nickname = typeof data.nickname === 'string' ? data.nickname.trim().normalize('NFC') : '';
       if (!nicknamePattern.test(nickname)) {
@@ -209,7 +212,10 @@ export default {
       if (!result.meta.changes) return reply({ error: 'That nickname is taken.' }, 409);
       if (check.inviteId && !await consumeInviteUse(db, check.inviteId, nowJoin)) {
         await db.prepare('DELETE FROM profiles WHERE id = ?').bind(id).run();
-        return reply({ error: 'That invite code is no longer available.' }, 403);
+        return reply({ error: 'That access code is no longer available.' }, 403);
+      }
+      if (check.inviteId) {
+        await grantArchivePass(db, id, check.inviteId, nowJoin);
       }
       return reply({ token }, 201);
     }
@@ -250,6 +256,24 @@ export default {
     if (path === '/courses/sync' || path === '/courses/propose' || path === '/admin/courses') {
       return handleCourses({ path, request, db, data, me, isAdmin, now, reply });
     }
+    if (path === '/auth/redeem-code' && request.method === 'POST') {
+      const check = await verifyInviteCodeOnly(db, data.proof, data.proofUpper || '', now);
+      if (!check.ok) return reply({ error: check.error }, 403);
+      const prevPass = await db.prepare('SELECT invite_id FROM archive_passes WHERE profile_id = ?')
+        .bind(me.id).first().catch(() => null);
+      if (!prevPass || prevPass.invite_id !== check.inviteId) {
+        if (!await consumeInviteUse(db, check.inviteId, now)) {
+          return reply({ error: 'That access code has reached its usage limit.' }, 403);
+        }
+      }
+      await grantArchivePass(db, me.id, check.inviteId, now);
+      const archiveMemberKey = await getActiveArchiveMemberKey(db, env, me.id, isAdmin, now);
+      return reply({
+        ok: true,
+        archiveUnlocked: Boolean(archiveMemberKey),
+        archiveMemberKey,
+      });
+    }
     if (path.startsWith('/auth/')) {
       return handleAuthedAuth({ request, path, db, env, me, tokenHash, now, data, reply, digest });
     }
@@ -288,6 +312,13 @@ export default {
         if (isAdmin) {
           const mk = await getAdminMemberKey(db, env);
           if (mk) summary.memberKey = mk;
+        }
+        const archiveMk = await getActiveArchiveMemberKey(db, env, me.id, isAdmin, now);
+        if (archiveMk) {
+          summary.archiveMemberKey = archiveMk;
+          summary.hasArchivePass = true;
+        } else {
+          summary.hasArchivePass = false;
         }
         return reply(summary);
       }
@@ -441,6 +472,13 @@ export default {
       if (isAdmin) {
         const mk = await getAdminMemberKey(db, env);
         if (mk) mePayload.memberKey = mk;
+      }
+      const archiveMk = await getActiveArchiveMemberKey(db, env, me.id, isAdmin, now);
+      if (archiveMk) {
+        mePayload.archiveMemberKey = archiveMk;
+        mePayload.hasArchivePass = true;
+      } else {
+        mePayload.hasArchivePass = false;
       }
       return reply({ me: mePayload, ranks: ranks.results.slice(0, 50), hasMoreRanks: ranks.results.length > 50,
         contacts: contacts.results, messages: messages.results, blocked: blocked.results, now });

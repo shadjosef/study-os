@@ -266,13 +266,23 @@ function parseClientData(b64) {
 }
 
 export async function handlePublicAuth({
-  request, path, db, env, now, data, reply, digest, hex, verifyJoinProof, consumeInviteUse, equalProof, nicknamePattern,
+  request, path, db, env, now, data, reply, digest, hex,
+  verifyJoinProof, consumeInviteUse, grantArchivePass, getJoinSettings, equalProof, nicknamePattern,
 }) {
   if (path === '/auth/config' && request.method === 'GET') {
     const googleClientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
     const siteKey = turnstileSiteKey(env);
-    return reply({ googleClientId, turnstileSiteKey: siteKey, openSignup: Boolean(siteKey),
-      googleOpenSignup: Boolean(googleClientId), recoveryEnabled: true });
+    const settings = getJoinSettings ? await getJoinSettings(db, env) : { signupsOpen: true, archivePassEnabled: true, requireInviteForGoogle: false };
+    return reply({
+      googleClientId,
+      turnstileSiteKey: siteKey,
+      openSignup: Boolean(siteKey),
+      googleOpenSignup: Boolean(googleClientId) && !settings.requireInviteForGoogle,
+      requireCodeOnLogin: Boolean(settings.requireInviteForGoogle),
+      archivePassEnabled: Boolean(settings.archivePassEnabled),
+      signupsOpen: Boolean(settings.signupsOpen),
+      recoveryEnabled: true,
+    });
   }
   if (request.method !== 'POST') return reply({ error: 'Method not allowed.' }, 405);
   const webOrigin = request.headers.get('Origin');
@@ -347,7 +357,7 @@ export async function handlePublicAuth({
       return reply({ error: 'Google sign-up session expired. Click Continue with Google again.' }, 401);
     }
 
-    const check = await verifyJoinProof(db, env, data.proof, now, equalProof, true);
+    const check = await verifyJoinProof(db, env, data.proof, now, equalProof, true, data.proofUpper || '');
     if (!check.ok) return reply({ error: check.error }, 403);
 
     const nickname = typeof data.nickname === 'string' ? data.nickname.trim().normalize('NFC') : '';
@@ -384,7 +394,10 @@ export async function handlePublicAuth({
 
     if (check.inviteId && !await consumeInviteUse(db, check.inviteId, now)) {
       await db.prepare('DELETE FROM profiles WHERE id = ?').bind(id).run();
-      return reply({ error: 'That invite code is no longer available.' }, 403);
+      return reply({ error: 'That access code is no longer available.' }, 403);
+    }
+    if (check.inviteId && grantArchivePass) {
+      await grantArchivePass(db, id, check.inviteId, now);
     }
 
     const linked = await db.prepare(`

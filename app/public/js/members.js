@@ -94,8 +94,15 @@ window.StudyMembers = (() => {
     return manifest;
   }
 
-  async function unlockWithKey(key) {
-    session = { key, courses: (await readManifest(key)).courses };
+  async function unlockWithKey(key, transient = false) {
+    session = { key, courses: (await readManifest(key)).courses, transient: Boolean(transient) };
+  }
+
+  async function unlockTransient(accessString) {
+    if (!enabled) return false;
+    const key = await importAccessKey(accessString);
+    await unlockWithKey(key, true);
+    return true;
   }
 
   async function verifyAccessString(accessString) {
@@ -215,5 +222,5 @@ window.StudyMembers = (() => {
     }
   }
 
-  return { enabled, unlock, verifyAccessString, restore, forget, isUnlocked: () => Boolean(session), course, sourceDocument, loadBank, pdfBytes, fillPreviews, bindDownloads };
+  return { enabled, unlock, unlockTransient, verifyAccessString, restore, forget, isUnlocked: () => Boolean(session), isTransient: () => Boolean(session?.transient), course, sourceDocument, loadBank, pdfBytes, fillPreviews, bindDownloads };
 })();

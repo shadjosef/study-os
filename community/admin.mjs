@@ -36,7 +36,7 @@ function maskHint(code) {
 
 export async function getJoinSettings(db, env) {
   const { results } = await db.prepare(
-    "SELECT key, value FROM community_settings WHERE key IN ('signups_open', 'env_join_enabled', 'admin_member_key')"
+    "SELECT key, value FROM community_settings WHERE key IN ('signups_open', 'env_join_enabled', 'admin_member_key', 'archive_pass_enabled', 'require_invite_for_google')"
   ).all();
   const map = Object.fromEntries(results.map((r) => [r.key, r.value]));
   const envKey = typeof env?.MEMBER_LIBRARY_KEY === 'string' && memberKeyPattern.test(env.MEMBER_LIBRARY_KEY.trim());
@@ -44,34 +44,88 @@ export async function getJoinSettings(db, env) {
   return {
     signupsOpen: map.signups_open !== '0',
     envJoinEnabled: map.env_join_enabled !== '0',
+    archivePassEnabled: map.archive_pass_enabled !== '0',
+    requireInviteForGoogle: map.require_invite_for_google === '1',
     hasEnvJoinProof: proofPattern.test(env.JOIN_PROOF || ''),
     hasAdminMemberKey: envKey || dbKey,
   };
 }
 
-export async function verifyJoinProof(db, env, proof, now, equalProof, verifiedGoogle = false) {
+export async function lookupInviteRow(db, proof, proofUpper = '') {
+  const hashes = [proof, proofUpper].filter((h) => proofPattern.test(h || ''));
+  if (!hashes.length) return null;
+  if (hashes.length === 1 || hashes[0] === hashes[1]) {
+    return db.prepare(
+      'SELECT id, max_uses, uses, expires_at, revoked FROM invite_codes WHERE code_hash = ?'
+    ).bind(hashes[0]).first();
+  }
+  return db.prepare(
+    'SELECT id, max_uses, uses, expires_at, revoked FROM invite_codes WHERE code_hash = ? OR code_hash = ? LIMIT 1'
+  ).bind(hashes[0], hashes[1]).first();
+}
+
+export async function verifyInviteCodeOnly(db, proof, proofUpper, now) {
+  const row = await lookupInviteRow(db, proof, proofUpper);
+  if (!row) return { ok: false, error: 'Enter a valid access code.' };
+  if (row.revoked) return { ok: false, error: 'That access code has been revoked.' };
+  if (row.expires_at > 0 && row.expires_at <= now) return { ok: false, error: 'That access code has expired.' };
+  if (row.max_uses > 0 && row.uses >= row.max_uses) return { ok: false, error: 'That access code has reached its usage limit.' };
+  return { ok: true, inviteId: row.id };
+}
+
+export async function grantArchivePass(db, profileId, inviteId, now) {
+  if (!profileId || !inviteId) return;
+  await db.prepare(`
+    INSERT INTO archive_passes(profile_id, invite_id, granted_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(profile_id) DO UPDATE SET invite_id = excluded.invite_id, granted_at = excluded.granted_at
+  `).bind(profileId, inviteId, now).run().catch(() => {});
+}
+
+export async function getActiveArchiveMemberKey(db, env, profileId, isAdmin, now) {
+  const mk = await getAdminMemberKey(db, env);
+  if (!mk) return '';
+  if (isAdmin) return mk;
+  const settings = await getJoinSettings(db, env);
+  if (!settings.archivePassEnabled) return '';
+  const row = await db.prepare(`
+    SELECT i.id FROM archive_passes ap
+    JOIN invite_codes i ON i.id = ap.invite_id
+    WHERE ap.profile_id = ? AND i.revoked = 0 AND (i.expires_at = 0 OR i.expires_at > ?)
+    LIMIT 1
+  `).bind(profileId, now).first().catch(() => null);
+  return row ? mk : '';
+}
+
+export async function verifyJoinProof(db, env, proof, now, equalProof, verifiedGoogle = false, proofUpper = '') {
   const settings = await getJoinSettings(db, env);
   if (!settings.signupsOpen) {
     return { ok: false, error: 'Community signups are currently paused by the admin.' };
   }
-  // The Worker verifies the Turnstile token before either signup handler runs.
-  if (verifiedGoogle || turnstileSiteKey(env)) return { ok: true, inviteId: null };
-  if (!proofPattern.test(proof || '')) {
-    return { ok: false, error: 'Enter a valid Community invite code.' };
-  }
-  const row = await db.prepare(
-    'SELECT id, max_uses, uses, expires_at, revoked FROM invite_codes WHERE code_hash = ?'
-  ).bind(proof).first();
-  if (row) {
-    if (row.revoked) return { ok: false, error: 'That invite code has been revoked.' };
-    if (row.expires_at > 0 && row.expires_at <= now) return { ok: false, error: 'That invite code has expired.' };
-    if (row.max_uses > 0 && row.uses >= row.max_uses) return { ok: false, error: 'That invite code has reached its usage limit.' };
-    return { ok: true, inviteId: row.id };
-  }
-  if (settings.envJoinEnabled && equalProof(env.JOIN_PROOF, proof)) {
+  const hasSuppliedProof = proofPattern.test(proof || '') || proofPattern.test(proofUpper || '');
+  const googleFree = verifiedGoogle && !settings.requireInviteForGoogle;
+  // If an optional code was supplied alongside open Google/Turnstile signup, attach its inviteId if valid.
+  if (googleFree || turnstileSiteKey(env)) {
+    if (hasSuppliedProof) {
+      const checked = await verifyInviteCodeOnly(db, proof, proofUpper, now);
+      if (checked.ok) return checked;
+    }
     return { ok: true, inviteId: null };
   }
-  return { ok: false, error: 'Enter a valid Community invite code.' };
+  if (!hasSuppliedProof) {
+    return { ok: false, error: 'Enter a valid access code.' };
+  }
+  const row = await lookupInviteRow(db, proof, proofUpper);
+  if (row) {
+    if (row.revoked) return { ok: false, error: 'That access code has been revoked.' };
+    if (row.expires_at > 0 && row.expires_at <= now) return { ok: false, error: 'That access code has expired.' };
+    if (row.max_uses > 0 && row.uses >= row.max_uses) return { ok: false, error: 'That access code has reached its usage limit.' };
+    return { ok: true, inviteId: row.id };
+  }
+  if (settings.envJoinEnabled && (equalProof(env.JOIN_PROOF, proof) || (proofUpper && equalProof(env.JOIN_PROOF, proofUpper)))) {
+    return { ok: true, inviteId: null };
+  }
+  return { ok: false, error: 'Enter a valid access code.' };
 }
 
 export async function consumeInviteUse(db, inviteId, now) {
@@ -121,6 +175,16 @@ export async function handleAdmin({ request, url, db, env, me, isAdmin, now, dat
         "INSERT INTO community_settings(key, value) VALUES ('env_join_enabled', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
       ).bind(data.envJoinEnabled ? '1' : '0').run();
     }
+    if (typeof data.archivePassEnabled === 'boolean') {
+      await db.prepare(
+        "INSERT INTO community_settings(key, value) VALUES ('archive_pass_enabled', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+      ).bind(data.archivePassEnabled ? '1' : '0').run();
+    }
+    if (typeof data.requireInviteForGoogle === 'boolean') {
+      await db.prepare(
+        "INSERT INTO community_settings(key, value) VALUES ('require_invite_for_google', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+      ).bind(data.requireInviteForGoogle ? '1' : '0').run();
+    }
     if (typeof data.memberKey === 'string') {
       const cleaned = data.memberKey.trim();
       if (!cleaned) {
@@ -153,8 +217,12 @@ export async function handleAdmin({ request, url, db, env, me, isAdmin, now, dat
       let code = '';
       if (typeof data.customCode === 'string' && data.customCode.trim()) {
         code = data.customCode.trim();
-        if (!/^\S{6,120}$/.test(code)) {
-          return reply({ error: 'Custom join string must be 6–120 characters with no spaces.' }, 400);
+        if (!/^\S{4,120}$/.test(code)) {
+          return reply({ error: 'Custom access code must be 4–120 characters with no spaces.' }, 400);
+        }
+        // Normalize short human-typeable codes (e.g. BI2026) to uppercase so typing is case-insensitive
+        if (/^[A-Za-z0-9_-]{4,24}$/.test(code) && !code.startsWith('soci1_')) {
+          code = code.toUpperCase();
         }
       } else {
         code = 'soci1_' + base64Url(crypto.getRandomValues(new Uint8Array(32)));

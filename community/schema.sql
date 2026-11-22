@@ -130,6 +130,13 @@ CREATE TABLE IF NOT EXISTS community_settings (
   value TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS archive_passes (
+  profile_id TEXT PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+  invite_id TEXT NOT NULL,
+  granted_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS archive_passes_invite ON archive_passes(invite_id);
+
 CREATE TABLE IF NOT EXISTS invite_codes (
   id TEXT PRIMARY KEY,
   code_hash TEXT UNIQUE NOT NULL,
