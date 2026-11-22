@@ -214,9 +214,27 @@ window.StudyUI = (() => {
     setPdfDark(document.documentElement.dataset.pdfDark !== '1');
   }
 
-  // Slide-Over Obsidian Reference Drawer
+  // Slide-Over Course Reference Sidebar (ChatGPT-style smooth drawer)
   let drawerNotes = [];
   let currentNoteFile = '';
+  let drawerCloseTimer = null;
+  const REF_DRAWER_WIDTH_KEY = 'study-os-ref-sidebar-w';
+
+  function isReferenceDrawerOpen() {
+    const drawer = document.getElementById('ref-drawer');
+    return Boolean(drawer && !drawer.hidden && drawer.classList.contains('is-open'));
+  }
+
+  function applySavedRefDrawerWidth() {
+    const drawer = document.getElementById('ref-drawer');
+    if (!drawer) return;
+    try {
+      const saved = Number(localStorage.getItem(REF_DRAWER_WIDTH_KEY) || 0);
+      if (saved >= 260 && saved <= 580) {
+        drawer.style.setProperty('--ref-drawer-w', `${Math.round(saved)}px`);
+      }
+    } catch {}
+  }
 
   async function openReferenceDrawer(courseMeta, targetFile = '', targetHeading = '') {
     const drawer = document.getElementById('ref-drawer');
@@ -225,7 +243,6 @@ window.StudyUI = (() => {
     const tocSel = document.getElementById('ref-drawer-toc-select');
     const bodyEl = document.getElementById('ref-drawer-body');
     const titleEl = document.getElementById('ref-drawer-title');
-    const uriEl = document.getElementById('ref-drawer-obsidian-uri');
 
     const obs = courseMeta?.obsidian || {};
     drawerNotes = [];
@@ -237,7 +254,7 @@ window.StudyUI = (() => {
     }
 
     if (!drawerNotes.length) {
-      toast('No Obsidian reference note configured for this course.');
+      toast('No reference note configured for this course.');
       return;
     }
 
@@ -245,10 +262,19 @@ window.StudyUI = (() => {
     noteSel.innerHTML = drawerNotes
       .map((n) => `<option value="${esc(n.file)}" ${n.file === currentNoteFile ? 'selected' : ''}>${esc(n.label)}</option>`)
       .join('');
+    noteSel.hidden = drawerNotes.length <= 1;
 
+    clearTimeout(drawerCloseTimer);
+    applySavedRefDrawerWidth();
     drawer.hidden = false;
+    drawer.setAttribute('aria-hidden', 'false');
     backdrop.hidden = false;
-    titleEl.textContent = `${courseMeta?.shortTitle || 'Course'} · Reference`;
+    // Trigger CSS transition on next frame for smooth ChatGPT-style slide
+    void drawer.offsetWidth;
+    drawer.classList.add('is-open');
+    backdrop.classList.add('is-open');
+
+    titleEl.textContent = `${courseMeta?.shortTitle || 'Course'} · Notes`;
     bodyEl.innerHTML = '<p class="muted">Loading course note…</p>';
 
     await loadDrawerSection(currentNoteFile, targetHeading);
@@ -296,11 +322,22 @@ window.StudyUI = (() => {
   }
 
   function closeReferenceDrawer() {
-    document.getElementById('ref-drawer').hidden = true;
+    const drawer = document.getElementById('ref-drawer');
+    const backdrop = document.getElementById('ref-backdrop');
+    if (!drawer) return;
+    drawer.classList.remove('is-open');
+    drawer.setAttribute('aria-hidden', 'true');
+    backdrop?.classList.remove('is-open');
     if (!document.body.classList.contains('runner-split-ref')) {
-      document.getElementById('run-ref-btn').setAttribute('aria-expanded', 'false');
+      document.getElementById('run-ref-btn')?.setAttribute('aria-expanded', 'false');
     }
-    document.getElementById('ref-backdrop').hidden = true;
+    clearTimeout(drawerCloseTimer);
+    drawerCloseTimer = setTimeout(() => {
+      if (!drawer.classList.contains('is-open')) {
+        drawer.hidden = true;
+        if (backdrop) backdrop.hidden = true;
+      }
+    }, 210);
   }
 
   function openLightbox(src, alt = '') {
@@ -1680,6 +1717,36 @@ window.StudyUI = (() => {
     });
     document.getElementById('ref-drawer-close')?.addEventListener('click', closeReferenceDrawer);
     document.getElementById('ref-backdrop')?.addEventListener('click', closeReferenceDrawer);
+    const refResizer = document.getElementById('ref-drawer-resizer');
+    if (refResizer) {
+      refResizer.addEventListener('pointerdown', (ev) => {
+        const drawer = document.getElementById('ref-drawer');
+        if (!drawer) return;
+        ev.preventDefault();
+        refResizer.setPointerCapture(ev.pointerId);
+        drawer.classList.add('is-resizing');
+        const fromLeft = document.body.classList.contains('in-runner');
+        const onMove = (mEv) => {
+          const maxW = Math.min(580, Math.round(window.innerWidth * 0.88));
+          const rawW = fromLeft ? mEv.clientX : window.innerWidth - mEv.clientX;
+          const clamped = Math.max(260, Math.min(maxW, Math.round(rawW)));
+          drawer.style.setProperty('--ref-drawer-w', `${clamped}px`);
+        };
+        const onUp = () => {
+          drawer.classList.remove('is-resizing');
+          refResizer.removeEventListener('pointermove', onMove);
+          refResizer.removeEventListener('pointerup', onUp);
+          refResizer.removeEventListener('pointercancel', onUp);
+          const cur = parseInt(drawer.style.getPropertyValue('--ref-drawer-w'), 10);
+          if (cur >= 260) {
+            try { localStorage.setItem(REF_DRAWER_WIDTH_KEY, String(cur)); } catch {}
+          }
+        };
+        refResizer.addEventListener('pointermove', onMove);
+        refResizer.addEventListener('pointerup', onUp);
+        refResizer.addEventListener('pointercancel', onUp);
+      });
+    }
     document.getElementById('img-lightbox')?.addEventListener('click', closeLightbox);
     document.getElementById('img-lightbox-close')?.addEventListener('click', closeLightbox);
 
@@ -1852,7 +1919,7 @@ window.StudyUI = (() => {
         if (!document.getElementById('img-lightbox')?.hidden) {
           closeLightbox();
           e.preventDefault();
-        } else if (!document.getElementById('ref-drawer')?.hidden) {
+        } else if (isReferenceDrawerOpen()) {
           closeReferenceDrawer();
           e.preventDefault();
         }
@@ -1889,6 +1956,7 @@ window.StudyUI = (() => {
     updateSettingsIndicators,
     openReferenceDrawer,
     closeReferenceDrawer,
+    isReferenceDrawerOpen,
     bindGlobalChrome,
     workClock,
     devMode,

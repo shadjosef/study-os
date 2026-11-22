@@ -978,9 +978,9 @@ window.StudyRunner = (() => {
         .join('');
     const toolbar = `
       <div class="inline-pdf-toolbar runner-ref-toolbar">
-        <select id="sel-inline-ref-note" aria-label="Reference note" style="font-size:12px;padding:4px 7px;min-width:110px;max-width:155px">${noteSelHtml}</select>
-        <select id="sel-inline-ref-toc" aria-label="Reference section" style="font-size:12px;padding:4px 7px;flex:1;min-width:120px">${tocSelHtml}</select>
-        ${refData?.obsidianUri ? `<a class="mini-tool-btn" href="${esc(refData.obsidianUri)}" style="text-decoration:none">Obsidian ↗</a>` : ''}
+        ${noteChoices.length > 1 ? `<select id="sel-inline-ref-note" aria-label="Reference note" style="font-size:12px;padding:4px 7px;min-width:0;max-width:44%">${noteSelHtml}</select>` : ''}
+        <select id="sel-inline-ref-toc" aria-label="Reference section" style="font-size:12px;padding:4px 7px;flex:1;min-width:0;max-width:100%">${tocSelHtml}</select>
+        ${refData?.obsidianUri ? `<a class="mini-tool-btn" href="${esc(refData.obsidianUri)}" style="text-decoration:none;flex-shrink:0">Obsidian ↗</a>` : ''}
       </div>
     `;
     const body = `
@@ -1914,28 +1914,30 @@ window.StudyRunner = (() => {
       });
     }
 
-    // Render Jump Grid (WISEflow section navigator)
+    // Render compact numbered question jump strip directly (hidden for single-question runs)
     const jumpPanel = document.getElementById('runner-jump-panel');
-    if (jumpPanel && activeRun.mode === 'exam') jumpPanel.open = true;
     const jumpGrid = document.getElementById('runner-jump-grid');
-    jumpGrid.innerHTML = activeRun.questionIds
-      .map((qid, i) => {
-        const it = activeRun.items[qid];
-        const qi = activeRun.questionsById[qid];
-        let stateCls = '';
-        if (isBlindUnfinished) {
-          if (it && hasAnyAnswerEntered(qi, it)) stateCls = 'answered';
-          if (it?.flagged) stateCls += ' flagged';
-        } else {
-          const r = window.StudyApp.getProgressRecord(qid) || {};
-          const rs = r.status || 'not_started';
-          if (rs === 'done') stateCls = 'done';
-          else if (rs === 'revisit') stateCls = 'revisit';
-        }
-        const cls = ['jump-btn', i === activeRun.index ? 'current' : '', stateCls].filter(Boolean).join(' ');
-        return `<button type="button" class="${cls}" data-jump-idx="${i}">${i + 1}${it?.flagged && isBlindUnfinished ? '⚑' : ''}</button>`;
-      })
-      .join('');
+    if (jumpPanel) jumpPanel.hidden = activeRun.questionIds.length <= 1;
+    jumpGrid.innerHTML = activeRun.questionIds.length <= 1
+      ? ''
+      : activeRun.questionIds
+        .map((qid, i) => {
+          const it = activeRun.items[qid];
+          const qi = activeRun.questionsById[qid];
+          let stateCls = '';
+          if (isBlindUnfinished) {
+            if (it && hasAnyAnswerEntered(qi, it)) stateCls = 'answered';
+            if (it?.flagged) stateCls += ' flagged';
+          } else {
+            const r = window.StudyApp.getProgressRecord(qid) || {};
+            const rs = r.status || 'not_started';
+            if (rs === 'done') stateCls = 'done';
+            else if (rs === 'revisit') stateCls = 'revisit';
+          }
+          const cls = ['jump-btn', i === activeRun.index ? 'current' : '', stateCls].filter(Boolean).join(' ');
+          return `<button type="button" class="${cls}" data-jump-idx="${i}" aria-label="Question ${i + 1}"${i === activeRun.index ? ' aria-current="step"' : ''}>${i + 1}${it?.flagged && isBlindUnfinished ? '⚑' : ''}</button>`;
+        })
+        .join('');
 
     bindQuestionCardEvents(q, st, sourcePdfs);
     const promptSourceKeys = new Set([...(q.contextAssets || []), ...(q.promptAssets || [])]
@@ -2927,7 +2929,7 @@ window.StudyRunner = (() => {
     if (!q || refButton.hidden) return;
     const docked = refButton.getAttribute('aria-expanded') === 'true';
     if (!dockReferenceLayout.matches) {
-      if (!document.getElementById('ref-drawer').hidden) {
+      if (window.StudyUI.isReferenceDrawerOpen?.()) {
         window.StudyUI.closeReferenceDrawer();
         return;
       }

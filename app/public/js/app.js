@@ -1538,6 +1538,7 @@ window.StudyApp = (() => {
       const obsLink = document.getElementById('run-obsidian-app-link');
       if (obsLink) obsLink.hidden = true;
     }
+    if (window.StudyUI?.isReferenceDrawerOpen?.()) window.StudyUI.closeReferenceDrawer();
     if (resetScroll) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     for (const v of ['home', 'references', 'schedule', 'exams', 'course', 'runner', 'analytics', 'community', 'room']) {
       const sec = document.getElementById(`view-${v}`);
