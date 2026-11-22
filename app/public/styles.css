@@ -10200,14 +10200,13 @@ body.ai-pane-left .ai-codex-resize {
 }
 
 /* ==========================================================================
-   ANTIGRAVITY / CODEX FLOATING POPOVERS (Model + Cascading Thinking Effort & Settings)
+   ANTIGRAVITY / CODEX FLOATING POPOVERS (Inside-Sidebar Model + Effort & Settings)
    ========================================================================== */
 .ai-codex-popover.ai-menu-pop {
   position: absolute;
-  right: 10px;
-  left: auto;
-  width: max(calc(100% - 20px), min(296px, calc(100vw - 24px)));
-  max-width: calc(100vw - 24px);
+  left: 8px;
+  right: 8px;
+  width: auto;
   bottom: calc(100% + 6px);
   z-index: 30;
   background: var(--panel);
@@ -10219,9 +10218,8 @@ body.ai-pane-left .ai-codex-resize {
   flex-direction: column;
   gap: 2px;
 }
-body.ai-pane-left .ai-codex-popover.ai-menu-pop {
-  left: 10px;
-  right: auto;
+#ai-speed-popover.ai-menu-pop {
+  min-height: 308px;
 }
 :root[data-theme="dark"] .ai-codex-popover.ai-menu-pop {
   background: #1a1f24;
@@ -10239,6 +10237,7 @@ body.ai-pane-left .ai-codex-popover.ai-menu-pop {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  flex: 1 0 auto;
 }
 .ai-menu-row {
   width: 100%;
@@ -10326,31 +10325,31 @@ body.ai-pane-left .ai-codex-popover.ai-menu-pop {
   flex-shrink: 0;
 }
 
-/* Cascading Thinking Effort Flyout (Left when docked right; Right when docked left) */
+/* Inside-Sidebar Overlapping Thinking Effort Card (1:1 Antigravity sidebar style) */
 .ai-effort-flyout {
   position: absolute;
-  top: 28px;
-  width: 162px;
+  top: 66px;
+  right: 8px;
+  width: min(176px, calc(100% - 56px));
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 13px;
+  border-radius: 12px;
   padding: 6px;
-  box-shadow: 0 10px 30px -6px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 28px -4px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  z-index: 32;
+  gap: 1px;
+  z-index: 34;
+  transition: top 110ms ease, opacity 100ms ease;
+}
+.ai-effort-flyout.is-hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 :root[data-theme="dark"] .ai-effort-flyout {
-  background: #1a1f24;
-  border-color: rgba(255, 255, 255, 0.11);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.56);
-}
-.ai-effort-flyout.is-fly-left {
-  right: calc(100% + 6px);
-}
-.ai-effort-flyout.is-fly-right {
-  left: calc(100% + 6px);
+  background: #20262c;
+  border-color: rgba(255, 255, 255, 0.13);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65);
 }
 .ai-effort-head {
   display: flex;
@@ -10398,23 +10397,6 @@ body.ai-pane-left .ai-codex-popover.ai-menu-pop {
 .ai-opt-check {
   color: var(--ink);
   flex-shrink: 0;
-}
-
-/* Mobile / narrow viewport: stack Thinking effort cleanly inside menu so zero off-screen clipping */
-@media (max-width: 580px) {
-  .ai-effort-flyout,
-  .ai-effort-flyout.is-fly-left,
-  .ai-effort-flyout.is-fly-right {
-    position: static;
-    width: auto;
-    border: 0;
-    border-top: 1px solid var(--line);
-    border-radius: 0;
-    box-shadow: none;
-    padding: 6px 0 0;
-    margin-top: 4px;
-    background: transparent;
-  }
 }
 
 /* Matching Codex / Antigravity Settings Popover */

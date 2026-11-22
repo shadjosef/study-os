@@ -814,12 +814,10 @@ window.StudyAiTutor = (() => {
       : '';
 
     if (popoverMode === 'speed') {
-      const side = getDockSide();
-      const flySideClass = side === 'left' ? 'is-fly-right' : 'is-fly-left';
       return `
         <div class="ai-codex-popover ai-menu-pop" id="ai-speed-popover" role="menu" aria-label="Model and thinking effort">
           <div class="ai-menu-head">Model</div>
-          <div class="ai-menu-list">
+          <div class="ai-menu-list" id="ai-model-list">
             ${MODELS.map((m) => {
               const isSelected = model === m.id;
               const isFocused = focusModelId === m.id;
@@ -830,9 +828,6 @@ window.StudyAiTutor = (() => {
                     <span class="ai-menu-row-effort">${esc(speedLbl)}</span>
                     ${m.tag ? `<span class="ai-menu-pill">${esc(m.tag)}</span>` : ''}
                   </span>
-                  <svg class="ai-menu-chev" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M6 3.5 10.5 8 6 12.5"/>
-                  </svg>
                 </button>`;
             }).join('')}
           </div>
@@ -846,13 +841,10 @@ window.StudyAiTutor = (() => {
             </span>
             <span class="ai-menu-foot-right">
               ${quotaCompact ? `<span class="ai-menu-row-effort">${esc(quotaCompact)}</span>` : ''}
-              <svg class="ai-menu-chev" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M6 3.5 10.5 8 6 12.5"/>
-              </svg>
             </span>
           </button>
 
-          <div class="ai-effort-flyout ${flySideClass}" id="ai-effort-flyout" role="menu" aria-label="Thinking effort">
+          <div class="ai-effort-flyout" id="ai-effort-flyout" role="menu" aria-label="Thinking effort">
             <div class="ai-effort-head">
               <span>Thinking effort</span>
               <span class="ai-effort-info" title="Minimal = fastest instant replies · High = deepest step-by-step proofs">
@@ -1177,7 +1169,25 @@ window.StudyAiTutor = (() => {
       renderPane();
     });
 
-    // Thinking speed & model selectors (Antigravity / Codex cascading menu)
+    // Thinking speed & model selectors (Antigravity inside-sidebar cascading card)
+    const speedPop = pane.querySelector('#ai-speed-popover');
+    const effortFly = pane.querySelector('#ai-effort-flyout');
+    const usageRow = pane.querySelector('#ai-menu-open-usage');
+    const positionEffortUnderRow = (rowEl) => {
+      if (!speedPop || !effortFly || !rowEl) return;
+      effortFly.classList.remove('is-hidden');
+      const desiredTop = rowEl.offsetTop + rowEl.offsetHeight + 4;
+      const maxTop = Math.max(32, speedPop.offsetHeight - effortFly.offsetHeight - 10);
+      effortFly.style.top = `${Math.min(desiredTop, maxTop)}px`;
+    };
+    if (speedPop && effortFly) {
+      const initialRow = speedPop.querySelector('.ai-menu-row.is-focused') || speedPop.querySelector('[data-pick-model]');
+      if (initialRow) requestAnimationFrame(() => positionEffortUnderRow(initialRow));
+      usageRow?.addEventListener('mouseenter', () => {
+        effortFly.classList.add('is-hidden');
+      });
+    }
+
     pane.querySelectorAll('[data-pick-speed]').forEach((btn) => {
       btn.addEventListener('click', () => {
         if (hoveredModelId && MODELS.some((m) => m.id === hoveredModelId)) {
@@ -1195,6 +1205,7 @@ window.StudyAiTutor = (() => {
         pane.querySelectorAll('[data-pick-model]').forEach((row) => {
           row.classList.toggle('is-focused', row === btn);
         });
+        positionEffortUnderRow(btn);
       });
       btn.addEventListener('click', () => {
         setPreferredModel(btn.dataset.pickModel);
