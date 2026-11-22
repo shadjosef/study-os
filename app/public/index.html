@@ -727,6 +727,7 @@
     <h2 id="break-modal-title">Study break</h2>
     <div class="break-timer-display" id="break-countdown-lbl" role="timer" aria-label="Break time remaining">05:00</div>
     <p class="muted" id="break-ratio-note"></p>
+    <div id="break-duel-slot" class="break-duel-slot" hidden></div>
     <div class="break-session-actions">
       <button type="button" class="primary-btn" id="break-resume-btn">Start next 75 min</button>
       <button type="button" class="ghost-btn" id="break-add-1m">+1 minute</button>
@@ -1445,6 +1446,10 @@
     <div class="cmd-results" id="cmd-palette-results" role="listbox" aria-label="Quick jump results"></div>
   </dialog>
 
+  <!-- BREAK-AWARE LIVE DUEL INVITE FLOATING POP-UP & CHALLENGE MODAL -->
+  <div id="duel-floating-host" class="duel-floating-host" hidden></div>
+  <dialog id="duel-challenge-dialog" class="member-dialog duel-challenge-dialog" tabindex="-1" aria-labelledby="duel-challenge-title"></dialog>
+
   <!-- RETINA FIGURE ZOOM LIGHTBOX -->
   <div id="img-lightbox" class="img-lightbox" hidden role="dialog" aria-modal="true" aria-label="Zoomed figure preview">
     <button type="button" class="ghost-btn img-lightbox-close" id="img-lightbox-close">✕ Close (Esc)</button>
@@ -1468,6 +1473,7 @@
   <script defer src="./js/ai-tutor.js"></script>
   <script defer src="./js/playbook.js"></script>
   <script defer src="./js/rooms.js"></script>
+  <script defer src="./js/duels.js"></script>
   <script defer src="./js/schedule-tools.js"></script>
   <script defer src="./js/app.js"></script>
 </body>

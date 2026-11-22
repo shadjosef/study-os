@@ -96,6 +96,26 @@ window.StudyRooms = (() => {
     }
   }
 
+  async function enterDuelRoom(rawCode) {
+    const clean = String(rawCode || '').trim().toUpperCase();
+    if (!/^[A-F0-9]{8}$/.test(clean)) return false;
+    try {
+      const breakDlg = document.getElementById('break-modal');
+      if (breakDlg?.open) breakDlg.close();
+      if (!document.getElementById('view-runner')?.hidden) {
+        window.StudyRunner?.pauseIfRunning?.();
+      }
+      selectRoom(clean);
+      workClock?.ensureWorking?.();
+      await window.StudyApp.navigate('room');
+      await refresh(true);
+      return true;
+    } catch (error) {
+      toast(error?.message || 'Could not enter duel room.');
+      return false;
+    }
+  }
+
   function catalogCourseOptions() {
     const courses = window.StudyApp?.getCatalog?.() || [];
     const defaults = courses.length
@@ -144,7 +164,10 @@ window.StudyRooms = (() => {
               <div class="room-pill-row" role="group" aria-label="Duel deck">${duelSubjectPills}</div>
               <div class="row-between" style="margin-top:10px;gap:8px;flex-wrap:wrap">
                 <label class="room-vis-toggle"><input type="checkbox" id="duel-open-toggle" checked> Open in lobby</label>
-                <button class="primary-btn" type="button" data-new-room="duel">Create Duel →</button>
+                <div class="row-actions" style="gap:6px">
+                  <button class="ghost-btn" type="button" id="btn-challenge-classmate" style="padding:7px 11px;font-size:12.5px">⚔️ Challenge…</button>
+                  <button class="primary-btn" type="button" data-new-room="duel">Create Duel →</button>
+                </div>
               </div>
             </div>
 
@@ -246,6 +269,7 @@ window.StudyRooms = (() => {
       }
     }
     panel.querySelector('#open-study-room')?.addEventListener('click', () => window.StudyApp.navigate('room'));
+    panel.querySelector('#btn-challenge-classmate')?.addEventListener('click', () => window.StudyDuels?.openChallengeModal?.());
 
     panel.querySelectorAll('[data-duel-subj]').forEach((btn) => {
       btn.onclick = () => {
@@ -684,5 +708,5 @@ window.StudyRooms = (() => {
     else root.innerHTML = '<section class="panel"><h1>Study room</h1><p class="muted">Create or join a Rated BI Duel or Group Study Pod from the Community tab during breaks or 18:00–22:30 Oslo time.</p></section>';
   }
 
-  return { bindLobby, lobbyHtml, render, restore, reset, clockTick, recordAttempt, running, joinByCode };
+  return { bindLobby, lobbyHtml, render, restore, reset, clockTick, recordAttempt, running, joinByCode, enterDuelRoom };
 })();

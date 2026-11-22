@@ -1,4 +1,5 @@
 import { handleRooms, runningStudyRoom } from './rooms.mjs';
+import { handleDuels } from './duels.mjs';
 import {
   verifyJoinProof, consumeInviteUse, handleAdmin, getAdminMemberKey,
   getJoinSettings, verifyInviteCodeOnly, grantArchivePass, getActiveArchiveMemberKey,
@@ -296,6 +297,9 @@ export default {
     }
     if (path.startsWith('/admin/')) {
       return handleAdmin({ request, url, db, env, me, isAdmin, now, data, reply, digest, nicknamePattern });
+    }
+    if (path === '/duels' || path.startsWith('/duels/')) {
+      return handleDuels({ request, url, db, me, now, data, reply });
     }
     if (breakRequired.has(path) || path === '/rooms' || path.startsWith('/rooms/')) {
       const breakAccess = isEveningOsloWindow(now) || (me.break_ends_at > now && me.expires_at > now);

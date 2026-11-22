@@ -1,11 +1,11 @@
 const roomCode = /^[A-F0-9]{8}$/;
 const lobbyDuration = 60 * 60_000;
-const duelDuration = 5 * 60_000;
+export const duelDuration = 5 * 60_000;
 const rematchWindow = 15 * 60_000;
-const ALLOWED_SUBJECTS = new Set(['mixed', 'math', 'accounting', 'economics']);
+export const ALLOWED_SUBJECTS = new Set(['mixed', 'math', 'accounting', 'economics']);
 const ALLOWED_GROUP_MINS = new Set([25, 50, 75]);
 
-const SUBJECT_LABELS = {
+export const SUBJECT_LABELS = {
   mixed: 'BI Mixed Blitz',
   math: 'BI Maths (EBA 1181)',
   accounting: 'Accounting & Finance (EXC 3430)',
@@ -126,7 +126,7 @@ function makeEconomicsDeck() {
   ];
 }
 
-function makeDuel(subject = 'mixed') {
+export function makeDuel(subject = 'mixed') {
   const s = ALLOWED_SUBJECTS.has(subject) ? subject : 'mixed';
   if (s === 'math') return makeMathDeck();
   if (s === 'accounting') return makeAccountingDeck();

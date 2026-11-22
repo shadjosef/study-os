@@ -38,6 +38,7 @@ window.StudyCommunity = (() => {
     lastPresenceAt = 0;
     clearTimeout(syncTimer);
     window.StudyApp?.syncSettingsRows?.();
+    window.StudyDuels?.onAuthChanged?.();
   }
 
   async function hashAccessCode(rawCode) {
@@ -2520,7 +2521,7 @@ window.StudyCommunity = (() => {
                 <strong>${esc(row.nickname)}</strong>
                 ${isPublicBadgeVal(row.school) ? `<span class="leaderboard-school-pill">${esc(row.school)}</span>` : ''}
                 ${isPublicBadgeVal(row.major) ? `<span class="leaderboard-major-pill">${esc(row.major)}</span>` : ''}
-                ${row.id === meId ? '<span class="badge good">You</span>' : ''}
+                ${row.id === meId ? '<span class="badge good">You</span>' : (!isDemo && row.id ? `<button type="button" class="lb-duel-btn" data-challenge-member-id="${esc(row.id)}" data-challenge-member-name="${esc(row.nickname)}" title="Send break-aware 1v1 duel request to ${esc(row.nickname)}">⚔️ Duel</button>` : '')}
               </div>
               ${row.bio ? `<small class="community-bio-sub">${esc(row.bio)}</small>` : ''}
             </div>
@@ -3430,6 +3431,10 @@ window.StudyCommunity = (() => {
     return request('/rooms' + path, data);
   }
 
+  async function duelRequest(path = '', data) {
+    return request('/duels' + path, data);
+  }
+
   async function aiRequest(path = '', data) {
     return request('/ai' + path, data);
   }
@@ -3459,6 +3464,7 @@ window.StudyCommunity = (() => {
     shareSet,
     requireProfile,
     roomRequest,
+    duelRequest,
     aiRequest,
     openSecuritySheet,
     createLinkCode: () => request('/auth/link-code', {}),

@@ -6948,6 +6948,13 @@ window.StudyApp = (() => {
           keywords: 'adamlite al ai tutor chat assistant history',
           run: () => window.StudyAiTutor?.toggle?.(),
         },
+        ...(window.StudyCommunity?.enabled ? [{
+          group: 'Actions',
+          title: '⚔️ Challenge Classmate to Duel',
+          sub: 'Send a break-aware 1v1 BI duel invite (pops up with 1 min left on their break)',
+          keywords: 'duel challenge invite battle 1v1 classmate elo break',
+          run: () => window.StudyDuels?.openChallengeModal?.(),
+        }] : []),
         {
           group: 'Actions',
           title: 'Desktop MCP Bridge',
@@ -7154,7 +7161,10 @@ window.StudyApp = (() => {
         { label: 'All Mock Exams', meta: '', active: currentView === 'exams', hay: 'exams wiseflow mocks', run: () => { leaveRunnerForExplorer(); navigate('exams'); } },
         { label: 'Schedule & TimeEdit', meta: '', active: currentView === 'schedule', hay: 'schedule calendar timeedit', run: () => { leaveRunnerForExplorer(); navigate('schedule'); } },
         { label: 'Metrics & UPI', meta: '', active: currentView === 'analytics', hay: 'metrics analytics upi', run: () => { leaveRunnerForExplorer(); navigate('analytics'); } },
-        ...(window.StudyCommunity?.enabled ? [{ label: 'Community & Leaderboard', meta: '', active: currentView === 'community', hay: 'community leaderboard chat rooms ed', run: () => { leaveRunnerForExplorer(); navigate('community'); } }] : []),
+        ...(window.StudyCommunity?.enabled ? [
+          { label: 'Community & Leaderboard', meta: '', active: currentView === 'community', hay: 'community leaderboard chat rooms ed', run: () => { leaveRunnerForExplorer(); navigate('community'); } },
+          { label: '⚔️ Challenge to Duel', meta: '1v1', active: false, hay: 'duel challenge invite battle 1v1 break', run: () => window.StudyDuels?.openChallengeModal?.() },
+        ] : []),
         ...(window.StudyPdfCraft?.isAvailable?.() ? [{ label: 'PdfCraft PDF Editor', meta: 'WASM', active: false, hay: 'pdf pdfcraft edit highlight sign merge ocr', run: () => window.StudyPdfCraft.openBlank() }] : []),
         { label: 'Adamlite AI Chat', meta: 'T', active: Boolean(window.StudyAiTutor?.isOpen?.()), hay: 'adamlite ai chat tutor history', run: () => window.StudyAiTutor?.toggle?.() },
         { label: 'Settings', meta: ',', active: false, hay: 'settings theme sound school major', run: () => window.StudyUI.openSettings?.() },
@@ -7281,6 +7291,7 @@ window.StudyApp = (() => {
       navigate('room');
     };
     window.StudyCommunity.queueStatsSync();
+    window.StudyDuels?.init?.();
     if (isStaticWeb) window.addEventListener('pagehide', flushPendingDrafts);
     if (isStaticWeb) document.addEventListener('visibilitychange', () => {
       if (!document.hidden && Date.now() - cloudSyncMeta.updatedAt >= 60_000) {
