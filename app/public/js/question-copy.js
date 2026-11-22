@@ -8,19 +8,24 @@ window.StudyQuestionCopy = (() => {
     return String(options?.[Number(value)] ?? value);
   }
 
-  function compose({ question, course, topic, state, revealed, sources, transcript }) {
+  function compose({ question, course, topic, state, revealed, sources, transcript, lean = false }) {
+    const promptTxt = question.promptMarkdown?.trim() || '';
     const blocks = [
       `# ${question.title}`,
       [course, topic, question.points ? `${question.points} points` : ''].filter(Boolean).join(' · '),
       '## Question',
       question.contextMarkdown?.trim(),
-      question.promptMarkdown?.trim(),
+      promptTxt,
     ];
-    for (const [index, source] of sources.entries()) {
-      if (transcript[index]) {
-        blocks.push(`### ${source.label}\n${transcript[index]}`);
-      } else {
-        blocks.push(`Source: ${source.label} (no readable text could be extracted).`);
+    // In fast/lean mode, skip redundant raw PDF text extraction when promptMarkdown already has the full task
+    const includePdfTranscript = !lean || promptTxt.length < 120;
+    if (includePdfTranscript) {
+      for (const [index, source] of sources.entries()) {
+        if (transcript[index]) {
+          blocks.push(`### ${source.label}\n${lean ? transcript[index].slice(0, 2200) : transcript[index]}`);
+        } else if (!lean) {
+          blocks.push(`Source: ${source.label} (no readable text could be extracted).`);
+        }
       }
     }
 
@@ -66,7 +71,7 @@ window.StudyQuestionCopy = (() => {
   }
 
   function copied() {
-    window.StudyUI.toast('Question and answers copied for Al.');
+    window.StudyUI.toast('Question and answers copied for Adamlite.');
   }
 
   function showPreview(text) {
@@ -126,14 +131,17 @@ window.StudyQuestionCopy = (() => {
     const state = { ...model.state, wiseflow: { ...model.state.wiseflow } };
     return {
       mode: 'practice', courseId: model.courseId, questionId: model.question.id,
-      course: model.course, title: model.question.title,
+      course: model.course, topic: model.topic || '', title: model.question.title,
+      noteFile: model.noteFile || '',
+      noteHeading: model.question.obsidianLink?.heading || model.topic || '',
       revealed: Boolean(model.revealed),
       context: compose({
         ...model,
         state,
         revealed: Boolean(includeSolution || model.revealed),
         transcript: transcript || [],
-      }).slice(0, 14_000),
+        lean: true,
+      }).slice(0, 6_000),
     };
   }
 

@@ -3439,6 +3439,55 @@ window.StudyCommunity = (() => {
     return request('/ai' + path, data);
   }
 
+  async function aiStream(path = '', data, onDelta) {
+    if (!api) throw new Error('Adamlite API is not configured.');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${api}/ai${path}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ...(data || {}), stream: true }),
+    });
+    const ct = res.headers.get('content-type') || '';
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      const err = new Error(errBody?.error || `HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    if (!ct.includes('text/event-stream') || !res.body) {
+      const json = await res.json();
+      if (json?.reply && typeof onDelta === 'function') onDelta(json.reply);
+      return json;
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    let full = '';
+    let meta = {};
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const raw = line.slice(5).trim();
+        if (!raw) continue;
+        let parsed;
+        try { parsed = JSON.parse(raw); } catch { continue; }
+        if (parsed.error) throw new Error(parsed.error);
+        if (parsed.delta) {
+          full += parsed.delta;
+          if (typeof onDelta === 'function') onDelta(parsed.delta, full);
+        }
+        if (parsed.done) meta = parsed;
+      }
+    }
+    return { ...meta, reply: full };
+  }
+
   return {
     enabled: Boolean(api),
     SCHOOL_CATALOG,
@@ -3466,6 +3515,7 @@ window.StudyCommunity = (() => {
     roomRequest,
     duelRequest,
     aiRequest,
+    aiStream,
     openSecuritySheet,
     createLinkCode: () => request('/auth/link-code', {}),
     signOut,

@@ -1,8 +1,9 @@
-// Built-in Socratic AI Tutor for Study-OS.
-// Primary engine: Google Gemini Developer API (when GEMINI_API_KEY is configured).
+// Built-in Fast Socratic AI Tutor ("Adamlite") for Study-OS.
+// Primary engine: Google Gemini Developer API (streaming SSE + configurable thinking speed, default MINIMAL).
 // Zero-config built-in fallback: Cloudflare Workers AI (env.AI binding).
 
 const validActions = new Set(['hint', 'check', 'concept', 'solution', 'chat']);
+const validThinking = new Set(['minimal', 'low', 'medium', 'high']);
 const defaultDailyLimit = 40;
 const adminDailyLimit = 200;
 
@@ -10,12 +11,18 @@ const geminiModels = [
   { id: 'gemini-4-hydrogen', label: 'Gemini 4 Hydrogen' },
   { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
   { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
+  { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
 ];
 
 const cfModels = [
   { id: '@cf/meta/llama-3.3-70b-instruct-fp8-fast', label: 'Cloudflare AI · Llama 3.3 70B' },
   { id: '@cf/meta/llama-3.1-8b-instruct-fast', label: 'Cloudflare AI · Llama 3.1 8B' },
 ];
+
+// Per-isolate fast caches so dead/404 model IDs or unsupported thinking schemas never waste round-trips
+const deadModelUntil = new Map();
+const modelThinkingStyle = new Map(); // modelId -> 'budget' | 'level' | 'none'
 
 function dailyLimitFor(env, isAdmin) {
   if (isAdmin) return adminDailyLimit;
@@ -26,25 +33,32 @@ function dailyLimitFor(env, isAdmin) {
 function activeProviderInfo(env) {
   const hasGemini = typeof env.GEMINI_API_KEY === 'string' && env.GEMINI_API_KEY.trim().length > 10;
   const hasCf = Boolean(env.AI && typeof env.AI.run === 'function');
-  if (hasGemini) return { available: true, provider: 'gemini', modelLabel: geminiModels[0].label };
-  if (hasCf) return { available: true, provider: 'cloudflare', modelLabel: cfModels[0].label };
-  return { available: false, provider: 'none', modelLabel: '' };
+  if (hasGemini) {
+    const firstAlive = geminiModels.find((m) => (deadModelUntil.get(m.id) || 0) <= Date.now()) || geminiModels[0];
+    return { available: true, provider: 'gemini', modelLabel: firstAlive.label, modelId: firstAlive.id };
+  }
+  if (hasCf) return { available: true, provider: 'cloudflare', modelLabel: cfModels[0].label, modelId: cfModels[0].id };
+  return { available: false, provider: 'none', modelLabel: '', modelId: '' };
 }
 
-function buildSystemInstruction(action) {
+function buildSystemInstruction(action, thinking = 'minimal') {
   const formatting = [
-    'You are Adamlite, Study-OS\'s Socratic study tutor for university students (Finance, Economics, Mathematics, Data Science).',
-    'Formatting rules:',
-    '- Write clear, concise Markdown. Use $...$ for inline math and $$...$$ for display equations.',
-    '- Never output raw HTML or scripts. Keep answers scannable with short paragraphs or numbered steps.',
-    '- Match the language of the student if they write in Norwegian or another language; otherwise reply in crisp English.',
+    'You are Adamlite, Study-OS\'s fast, concise university study tutor (Economics, Accounting & Finance, Mathematics, OB, Data Science).',
+    'Rules:',
+    '- Be direct, clear, and concise. Use $...$ for inline math and $$...$$ for display equations.',
+    '- Never output raw HTML or scripts. Prefer tight bullet points or numbered steps over long walls of text.',
+    '- Match the student\'s language (Norwegian if they write Norwegian, otherwise crisp English).',
+    '- Ground formulas and definitions in the provided Reference Note snippet when relevant.',
   ];
+  if (thinking === 'minimal') {
+    formatting.push('- Speed mode is MINIMAL: get straight to the answer/step cleanly without filler.');
+  }
   const modeRule = {
-    hint: 'MODE: SMALL HINT. Give ONE focused next-step hint to unstick the student. Do NOT reveal the final numerical or multiple-choice answer. Keep it to 3-6 lines.',
-    check: 'MODE: CHECK WORKING. Carefully check the student\'s current answers/working against the question. If blank, suggest the exact first step to set up. If incorrect, pinpoint the specific step or sign/formula error without immediately spoiling the final answer. If correct, confirm cleanly and note why it holds.',
-    concept: 'MODE: KEY CONCEPT & FORMULA. Explain the core intuition, formula(s), and variable meanings needed for this problem type in exam-ready form without giving away the specific final answer.',
-    solution: 'MODE: WORKED SOLUTION. Walk through the complete solution step-by-step with clear math, explain WHY each step follows, and call out any common exam pitfall at the end.',
-    chat: 'MODE: FOLLOW-UP TUTORING. Answer the student\'s question directly and clearly. Stay Socratic (guide step-by-step) unless they explicitly ask for the full worked solution.',
+    hint: 'MODE: SMALL HINT. Give ONE focused next-step hint without spoiling the final answer (3–5 lines).',
+    check: 'MODE: CHECK WORKING. Compare the student\'s working against the question. Pinpoint the first mistake or confirm if correct.',
+    concept: 'MODE: KEY CONCEPT. Give the core intuition and formula(s) needed without spoiling the exact final number.',
+    solution: 'MODE: WORKED SOLUTION. Walk through the full step-by-step solution cleanly with math and a 1-line exam pitfall.',
+    chat: 'MODE: TUTORING. Answer the student\'s question directly and clearly.',
   }[action] || '';
 
   return [...formatting, modeRule].join('\n');
@@ -52,19 +66,38 @@ function buildSystemInstruction(action) {
 
 function defaultActionPrompt(action) {
   return {
-    hint: 'Give me one focused next-step hint for this question without spoiling the final answer.',
-    check: 'Check my current answer and working on this question. Point out where I went right or where my mistake is.',
-    concept: 'Explain the key concept and formula I should use to solve this type of question.',
-    solution: 'Walk me through the complete step-by-step solution to this question.',
-    chat: 'Help me understand this question.',
+    hint: 'Give me one focused next-step hint without spoiling the final answer.',
+    check: 'Check my current working and point out where I went right or wrong.',
+    concept: 'Explain the key concept and formula for this problem.',
+    solution: 'Walk me through the complete step-by-step solution.',
+    chat: 'Help me with this question.',
   }[action] || 'Help me with this question.';
 }
 
-async function callGemini(apiKey, systemInstruction, contextBlock, history, userPrompt, opts = {}) {
+function sanitizeAttachments(rawList) {
+  if (!Array.isArray(rawList)) return [];
+  const out = [];
+  for (const item of rawList.slice(0, 3)) {
+    if (!item || typeof item !== 'object') continue;
+    const name = String(item.name || 'attachment').trim().slice(0, 80);
+    if (item.kind === 'image') {
+      const mime = String(item.mimeType || '').toLowerCase();
+      const b64 = typeof item.base64 === 'string' ? item.base64.trim() : '';
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) continue;
+      if (!b64 || b64.length > 1_400_000 || !/^[A-Za-z0-9+/=]+$/.test(b64)) continue;
+      out.push({ kind: 'image', name, mimeType: mime, base64: b64 });
+    } else if (item.kind === 'text') {
+      const text = String(item.text || '').trim().slice(0, 6000);
+      if (!text) continue;
+      out.push({ kind: 'text', name, text });
+    }
+  }
+  return out;
+}
+
+function buildGeminiContents(contextBlock, history, userPrompt, attachments = []) {
   const contents = [];
-  const prefix = contextBlock
-    ? `CURRENT EXERCISE CONTEXT:\n${contextBlock}\n\n---\n\n`
-    : '';
+  const prefix = contextBlock ? `STUDY CONTEXT:\n${contextBlock}\n\n---\n\n` : '';
   let attachedContext = false;
 
   for (const turn of history) {
@@ -72,35 +105,123 @@ async function callGemini(apiKey, systemInstruction, contextBlock, history, user
     const text = !attachedContext && role === 'user' ? (attachedContext = true, `${prefix}${turn.text}`) : turn.text;
     contents.push({ role, parts: [{ text }] });
   }
-  contents.push({
-    role: 'user',
-    parts: [{ text: attachedContext ? userPrompt : `${prefix}${userPrompt}` }],
-  });
 
+  const textAttachments = attachments
+    .filter((a) => a.kind === 'text')
+    .map((a) => `ATTACHED FILE (${a.name}):\n${a.text}`)
+    .join('\n\n');
+  const finalText = [
+    attachedContext ? '' : prefix,
+    textAttachments ? `${textAttachments}\n\n` : '',
+    userPrompt,
+  ].join('');
+
+  const userParts = [{ text: finalText }];
+  for (const att of attachments) {
+    if (att.kind === 'image') {
+      userParts.push({ inlineData: { mimeType: att.mimeType, data: att.base64 } });
+    }
+  }
+  contents.push({ role: 'user', parts: userParts });
+  return contents;
+}
+
+function thinkingConfigFor(thinking, style) {
+  if (style === 'none') return null;
+  if (style === 'level') {
+    const map = { minimal: 'minimal', low: 'low', medium: 'medium', high: 'high' };
+    return { thinkingLevel: map[thinking] || 'minimal' };
+  }
+  // Default: thinkingBudget (Gemini 2.5 / 3+ compatible; 0 = instant minimal thinking!)
+  const budgets = { minimal: 0, low: 512, medium: 2048, high: 8192 };
+  return { thinkingBudget: budgets[thinking] ?? 0 };
+}
+
+function orderedGeminiModels(preferredModelId, thinking) {
+  const now = Date.now();
+  const alive = geminiModels.filter((m) => (deadModelUntil.get(m.id) || 0) <= now);
+  const pool = alive.length ? alive : geminiModels;
+  if (preferredModelId && preferredModelId !== 'auto') {
+    const exact = pool.find((m) => m.id === preferredModelId);
+    if (exact) return [exact, ...pool.filter((m) => m.id !== exact.id)];
+  }
+  // In minimal speed mode, still honor primary fast Flash/Hydrogen chain
+  return pool;
+}
+
+function extractVisibleText(parts) {
+  if (!Array.isArray(parts)) return '';
+  return parts
+    .filter((p) => p && typeof p.text === 'string' && !p.thought)
+    .map((p) => p.text)
+    .join('');
+}
+
+async function fetchGeminiWithThinkingFallback(apiKey, modelId, endpoint, bodyBase, thinking) {
+  const preferredStyle = modelThinkingStyle.get(modelId) || 'budget';
+  const stylesToTry = preferredStyle === 'budget'
+    ? ['budget', 'level', 'none']
+    : preferredStyle === 'level'
+    ? ['level', 'budget', 'none']
+    : ['none'];
+
+  let lastRes = null;
+  for (const style of stylesToTry) {
+    const tc = thinkingConfigFor(thinking, style);
+    const generationConfig = { ...bodyBase.generationConfig };
+    if (tc) generationConfig.thinkingConfig = tc;
+    else delete generationConfig.thinkingConfig;
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:${endpoint}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
+        body: JSON.stringify({ ...bodyBase, generationConfig }),
+      }
+    );
+    lastRes = res;
+    if (res.ok) {
+      modelThinkingStyle.set(modelId, style);
+      return res;
+    }
+    if (res.status === 404) {
+      deadModelUntil.set(modelId, Date.now() + 10 * 60_000);
+      return res;
+    }
+    if (res.status === 400 && style !== 'none') {
+      // Likely unsupported thinkingBudget/thinkingLevel field for this model — try next style immediately
+      continue;
+    }
+    return res;
+  }
+  return lastRes;
+}
+
+async function callGemini(apiKey, systemInstruction, contextBlock, history, userPrompt, opts = {}) {
+  const thinking = validThinking.has(opts.thinking) ? opts.thinking : 'minimal';
+  const contents = buildGeminiContents(contextBlock, history, userPrompt, opts.attachments || []);
+  const defaultTokens = thinking === 'minimal' ? 1024 : thinking === 'low' ? 1400 : thinking === 'medium' ? 2048 : 3072;
   const generationConfig = {
-    temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.35,
-    maxOutputTokens: Number(opts.maxOutputTokens || 2048),
+    temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.3,
+    maxOutputTokens: Number(opts.maxOutputTokens || defaultTokens),
   };
   if (opts.jsonMode) generationConfig.responseMimeType = 'application/json';
 
+  const bodyBase = {
+    systemInstruction: { parts: [{ text: systemInstruction }] },
+    contents,
+    generationConfig,
+  };
+
   let lastError = 'Gemini request failed.';
-  for (const model of geminiModels) {
+  const models = orderedGeminiModels(opts.modelId, thinking);
+  for (const model of models) {
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey,
-          },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            contents,
-            generationConfig,
-          }),
-        }
-      );
+      const res = await fetchGeminiWithThinkingFallback(apiKey, model.id, 'generateContent', bodyBase, thinking);
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         lastError = errBody?.error?.message || `Gemini HTTP ${res.status}`;
@@ -108,10 +229,9 @@ async function callGemini(apiKey, systemInstruction, contextBlock, history, user
         break;
       }
       const payload = await res.json();
-      const parts = payload?.candidates?.[0]?.content?.parts || [];
-      const replyText = parts.map((p) => (typeof p.text === 'string' ? p.text : '')).join('').trim();
+      const replyText = extractVisibleText(payload?.candidates?.[0]?.content?.parts).trim();
       if (replyText) {
-        return { reply: replyText, provider: 'gemini', modelLabel: model.label };
+        return { reply: replyText, provider: 'gemini', modelLabel: model.label, modelId: model.id };
       }
       lastError = 'Empty Gemini response.';
     } catch (err) {
@@ -121,10 +241,48 @@ async function callGemini(apiKey, systemInstruction, contextBlock, history, user
   throw new Error(lastError);
 }
 
+async function openGeminiStream(apiKey, systemInstruction, contextBlock, history, userPrompt, opts = {}) {
+  const thinking = validThinking.has(opts.thinking) ? opts.thinking : 'minimal';
+  const contents = buildGeminiContents(contextBlock, history, userPrompt, opts.attachments || []);
+  const defaultTokens = thinking === 'minimal' ? 1024 : thinking === 'low' ? 1400 : thinking === 'medium' ? 2048 : 3072;
+  const bodyBase = {
+    systemInstruction: { parts: [{ text: systemInstruction }] },
+    contents,
+    generationConfig: {
+      temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.3,
+      maxOutputTokens: Number(opts.maxOutputTokens || defaultTokens),
+    },
+  };
+
+  let lastError = 'Gemini stream failed.';
+  const models = orderedGeminiModels(opts.modelId, thinking);
+  for (const model of models) {
+    try {
+      const res = await fetchGeminiWithThinkingFallback(
+        apiKey,
+        model.id,
+        'streamGenerateContent?alt=sse',
+        bodyBase,
+        thinking
+      );
+      if (res.ok && res.body) {
+        return { upstream: res.body, provider: 'gemini', modelLabel: model.label, modelId: model.id };
+      }
+      const errBody = await res.json().catch(() => ({}));
+      lastError = errBody?.error?.message || `Gemini HTTP ${res.status}`;
+      if (res.status === 429 || res.status === 503 || res.status === 404) continue;
+      break;
+    } catch (err) {
+      lastError = err?.message || 'Network error streaming Gemini.';
+    }
+  }
+  throw new Error(lastError);
+}
+
 async function callCloudflareAi(aiBinding, systemInstruction, contextBlock, history, userPrompt, opts = {}) {
   const messages = [{ role: 'system', content: systemInstruction }];
   if (contextBlock) {
-    messages.push({ role: 'system', content: `CURRENT EXERCISE CONTEXT:\n${contextBlock}` });
+    messages.push({ role: 'system', content: `STUDY CONTEXT:\n${contextBlock}` });
   }
   for (const turn of history) {
     messages.push({
@@ -132,7 +290,11 @@ async function callCloudflareAi(aiBinding, systemInstruction, contextBlock, hist
       content: turn.text,
     });
   }
-  messages.push({ role: 'user', content: userPrompt });
+  const textAtts = (opts.attachments || [])
+    .filter((a) => a.kind === 'text')
+    .map((a) => `ATTACHED FILE (${a.name}):\n${a.text}`)
+    .join('\n\n');
+  messages.push({ role: 'user', content: textAtts ? `${textAtts}\n\n${userPrompt}` : userPrompt });
 
   let lastError = 'Cloudflare Workers AI request failed.';
   for (const model of cfModels) {
@@ -140,7 +302,7 @@ async function callCloudflareAi(aiBinding, systemInstruction, contextBlock, hist
       const res = await aiBinding.run(model.id, {
         messages,
         max_tokens: Number(opts.maxOutputTokens || 1024),
-        temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.35,
+        temperature: typeof opts.temperature === 'number' ? opts.temperature : 0.3,
       });
       const text =
         (typeof res?.response === 'string' && res.response.trim())
@@ -148,7 +310,7 @@ async function callCloudflareAi(aiBinding, systemInstruction, contextBlock, hist
         || (typeof res === 'string' && res.trim())
         || '';
       if (text) {
-        return { reply: text, provider: 'cloudflare', modelLabel: model.label };
+        return { reply: text, provider: 'cloudflare', modelLabel: model.label, modelId: model.id };
       }
       lastError = 'Empty response from Cloudflare AI.';
     } catch (err) {
@@ -200,7 +362,17 @@ async function getUsage(db, profileId, dayUtc) {
   return Number(row?.used_count || 0);
 }
 
-export async function handleAi({ request, path, db, env, me, isAdmin, now, data, reply }) {
+async function bumpUsage(db, profileId, dayUtc, now) {
+  await db.prepare(`
+    INSERT INTO ai_usage(profile_id, day_utc, used_count, updated_at)
+    VALUES (?, ?, 1, ?)
+    ON CONFLICT(profile_id, day_utc) DO UPDATE SET
+      used_count = used_count + 1,
+      updated_at = excluded.updated_at
+  `).bind(profileId, dayUtc, now).run();
+}
+
+export async function handleAi({ request, path, db, env, me, isAdmin, now, data, reply, corsHeaders = {} }) {
   const dayUtc = new Date(now).toISOString().slice(0, 10);
   const limit = dailyLimitFor(env, isAdmin);
   const info = activeProviderInfo(env);
@@ -217,64 +389,135 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
 
   if (path === '/ai/tutor' && request.method === 'POST') {
     if (!info.available) {
-      return reply({ error: 'AI Tutor is not configured on this server yet.' }, 503);
+      return reply({ error: 'Adamlite is not configured on this server yet.' }, 503);
     }
 
     const action = validActions.has(data.action) ? data.action : 'chat';
+    const thinking = validThinking.has(data.thinking) ? data.thinking : 'minimal';
+    const modelId = typeof data.model === 'string' ? data.model.trim() : 'auto';
+    const wantStream = Boolean(data.stream);
     const rawMsg = typeof data.message === 'string' ? data.message.trim() : '';
-    const userPrompt = (rawMsg || defaultActionPrompt(action)).slice(0, 1500);
-    const contextBlock = (typeof data.context === 'string' ? data.context.trim() : '').slice(0, 14_000);
-    if (!contextBlock && !rawMsg) {
-      return reply({ error: 'Ask a question or open a practice problem first.' }, 400);
+    const attachments = sanitizeAttachments(data.attachments);
+    const userPrompt = (rawMsg || (attachments.length ? 'Help me with the attached file(s).' : defaultActionPrompt(action))).slice(0, 2000);
+    const contextBlock = (typeof data.context === 'string' ? data.context.trim() : '').slice(0, 9_500);
+    if (!contextBlock && !rawMsg && !attachments.length) {
+      return reply({ error: 'Ask a question, attach a file, or open a practice problem first.' }, 400);
     }
 
     const rawHistory = Array.isArray(data.history) ? data.history.slice(-8) : [];
     const history = rawHistory
       .filter((t) => t && (t.role === 'user' || t.role === 'assistant') && typeof t.text === 'string' && t.text.trim())
-      .map((t) => ({ role: t.role, text: t.text.trim().slice(0, 2000) }));
+      .map((t) => ({ role: t.role, text: t.text.trim().slice(0, 1800) }));
 
     const usedBefore = await getUsage(db, me.id, dayUtc);
     if (usedBefore >= limit) {
       return reply({
-        error: `Daily AI Tutor limit reached (${limit}/day). Resets at 00:00 UTC — you can still use Copy for AI anytime.`,
+        error: `Daily Adamlite limit reached (${limit}/day). Resets at 00:00 UTC.`,
         used: usedBefore,
         limit,
         remaining: 0,
       }, 429);
     }
 
-    const systemInstruction = buildSystemInstruction(action);
+    const systemInstruction = buildSystemInstruction(action, thinking);
     const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.trim() : '';
     const hasCf = Boolean(env.AI && typeof env.AI.run === 'function');
+
+    // Fast Real-Time SSE Streaming path
+    if (wantStream && geminiKey.length > 10) {
+      try {
+        const streamInfo = await openGeminiStream(geminiKey, systemInstruction, contextBlock, history, userPrompt, {
+          thinking,
+          modelId,
+          attachments,
+        });
+        const enc = new TextEncoder();
+        const dec = new TextDecoder();
+        const usedAfter = usedBefore + 1;
+
+        const sseStream = new ReadableStream({
+          async start(controller) {
+            const reader = streamInfo.upstream.getReader();
+            let buf = '';
+            let gotAny = false;
+            try {
+              for (;;) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buf += dec.decode(value, { stream: true });
+                const lines = buf.split('\n');
+                buf = lines.pop() || '';
+                for (const line of lines) {
+                  if (!line.startsWith('data:')) continue;
+                  const raw = line.slice(5).trim();
+                  if (!raw || raw === '[DONE]') continue;
+                  try {
+                    const parsed = JSON.parse(raw);
+                    const delta = extractVisibleText(parsed?.candidates?.[0]?.content?.parts);
+                    if (delta) {
+                      gotAny = true;
+                      controller.enqueue(enc.encode(`data: ${JSON.stringify({ delta })}\n\n`));
+                    }
+                  } catch {}
+                }
+              }
+              if (gotAny) {
+                await bumpUsage(db, me.id, dayUtc, now);
+              }
+              controller.enqueue(enc.encode(`data: ${JSON.stringify({
+                done: true,
+                provider: streamInfo.provider,
+                modelLabel: streamInfo.modelLabel,
+                used: gotAny ? usedAfter : usedBefore,
+                limit,
+                remaining: Math.max(0, limit - (gotAny ? usedAfter : usedBefore)),
+              })}\n\n`));
+            } catch (err) {
+              controller.enqueue(enc.encode(`data: ${JSON.stringify({ error: err?.message || 'Stream interrupted.' })}\n\n`));
+            } finally {
+              controller.close();
+            }
+          },
+        });
+
+        return new Response(sseStream, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/event-stream; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store',
+            ...corsHeaders,
+          },
+        });
+      } catch {
+        // Fall through cleanly to non-streaming / Cloudflare fallback
+      }
+    }
 
     let result = null;
     let firstError = null;
     if (geminiKey.length > 10) {
       try {
-        result = await callGemini(geminiKey, systemInstruction, contextBlock, history, userPrompt);
+        result = await callGemini(geminiKey, systemInstruction, contextBlock, history, userPrompt, {
+          thinking,
+          modelId,
+          attachments,
+        });
       } catch (err) {
         firstError = err;
       }
     }
     if (!result && hasCf) {
       try {
-        result = await callCloudflareAi(env.AI, systemInstruction, contextBlock, history, userPrompt);
+        result = await callCloudflareAi(env.AI, systemInstruction, contextBlock, history, userPrompt, { attachments });
       } catch (err) {
         firstError = firstError || err;
       }
     }
     if (!result) {
-      return reply({ error: firstError?.message || 'AI Tutor is temporarily busy. Please try again.' }, 502);
+      return reply({ error: firstError?.message || 'Adamlite is temporarily busy. Please try again.' }, 502);
     }
 
-    await db.prepare(`
-      INSERT INTO ai_usage(profile_id, day_utc, used_count, updated_at)
-      VALUES (?, ?, 1, ?)
-      ON CONFLICT(profile_id, day_utc) DO UPDATE SET
-        used_count = used_count + 1,
-        updated_at = excluded.updated_at
-    `).bind(me.id, dayUtc, now).run();
-
+    await bumpUsage(db, me.id, dayUtc, now);
     const used = usedBefore + 1;
     return reply({
       reply: result.reply,
@@ -356,6 +599,7 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
       try {
         result = await callGemini(geminiKey, sys, '', [], promptParts, {
           jsonMode: true,
+          thinking: 'low',
           maxOutputTokens: 4096,
           temperature: 0.4,
         });
@@ -385,14 +629,7 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
       return reply({ error: err?.message || 'AI output could not be parsed. Please try again.' }, 502);
     }
 
-    await db.prepare(`
-      INSERT INTO ai_usage(profile_id, day_utc, used_count, updated_at)
-      VALUES (?, ?, 1, ?)
-      ON CONFLICT(profile_id, day_utc) DO UPDATE SET
-        used_count = used_count + 1,
-        updated_at = excluded.updated_at
-    `).bind(me.id, dayUtc, now).run();
-
+    await bumpUsage(db, me.id, dayUtc, now);
     const used = usedBefore + 1;
     return reply({
       ok: true,

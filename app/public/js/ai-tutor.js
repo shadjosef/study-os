@@ -1,12 +1,10 @@
-/* Adamlite — Built-in Socratic AI Tutor for Study-OS
- * Docked side-pane chat interface with persistent local conversation history
- * (switch back into any previous chat anytime) & live exercise context.
- *
- * Dual-mode engine:
- *  1) Default (zero setup): calls Study-OS Cloudflare Worker (/ai/tutor) powered by
- *     Gemini (Hydrogen / 3.8 Flash / 3.5 Flash-Lite) or Cloudflare Workers AI.
- *  2) Personal Free Gemini Key (BYOK): optional key saved ONLY in this browser's
- *     localStorage, calling Google Gemini Developer API directly from the browser.
+/* Adamlite — Fast, VS Code Codex-Style AI Study Sidebar for Study-OS
+ * - 1:1 clean Codex-style docked sidebar with blue drag-resize border & responsive narrow collapsing
+ * - Top tab with cropped Adam Warlock emblem + "Adamlite" (zero empty-state clutter)
+ * - Persistent local chat history (up to 40 chats) shown inline under "Chats" + "View all (N)"
+ * - Blazing-fast streaming SSE + user-selectable Thinking Speed (default: Minimal / fastest)
+ * - Lean study context: Question + Your Working + Relevant Markdown Reference Section only
+ * - Multimodal file/image attachments (+ button & Cmd+V screenshot paste) + Speech-to-Text mic
  */
 'use strict';
 
@@ -14,41 +12,59 @@ window.StudyAiTutor = (() => {
   const { esc, toast, renderMarkdownWithMath } = window.StudyUI;
   const BYOK_KEY = 'study-os-ai-byok-key-v1';
   const BYOK_MODEL_KEY = 'study-os-ai-byok-model-v1';
+  const THINKING_KEY = 'study-os-ai-thinking-v1';
   const SIDE_KEY = 'study-os-ai-side-v1';
   const WIDTH_KEY = 'study-os-ai-width-v1';
   const CHATS_KEY = 'study-os-adamlite-chats-v1';
   const MAX_STORED_CHATS = 40;
   const MAX_MSGS_PER_CHAT = 60;
-  const AVATAR_SRC = './pwa/adamlite-avatar.svg';
+  const AVATAR_SRC = './pwa/adamlite-avatar.jpg';
 
-  const BYOK_MODELS = [
-    { id: 'auto', label: 'Auto (Hydrogen → Flash → Lite)' },
-    { id: 'gemini-4-hydrogen', label: 'Gemini 4 Hydrogen' },
-    { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
-    { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
+  const MODELS = [
+    { id: 'auto', label: 'Auto (Fastest)', short: 'Hydrogen' },
+    { id: 'gemini-4-hydrogen', label: 'Gemini 4 Hydrogen', short: 'Hydrogen' },
+    { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', short: '3.8 Flash' },
+    { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', short: 'Flash-Lite' },
   ];
 
   const BYOK_AUTO_CHAIN = [
     { id: 'gemini-4-hydrogen', label: 'Gemini 4 Hydrogen' },
     { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
     { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
+    { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   ];
 
-  const AI_PANE_MIN_W = 200;
-  const AI_PANE_MAX_W = 580;
+  const THINKING_MODES = [
+    { id: 'minimal', label: 'Minimal', hint: 'Fastest · instant replies' },
+    { id: 'low', label: 'Low', hint: 'Quick reasoning' },
+    { id: 'medium', label: 'Medium', hint: 'Balanced depth' },
+    { id: 'high', label: 'High', hint: 'Deep proofs & derivations' },
+  ];
+
+  const AI_PANE_MIN_W = 210;
+  const AI_PANE_MAX_W = 640;
   const AI_DOCK_MIN_VP = 760;
 
-  let conversations = loadStoredChats(); // [{ id, key, title, course, ctxLabel, updatedAt, messages }]
+  let conversations = loadStoredChats();
   let activeConvoId = '';
   let activeKey = 'general';
   let customCourseContext = null;
   let isOpen = false;
   let busy = false;
   let serverStatus = null;
-  let configOpen = false;
-  let historyOpen = false;
+  let popoverMode = ''; // '' | 'speed' | 'settings'
+  let showAllChats = false;
+  let contextEnabled = true;
+  let pendingAttachments = []; // [{ id, kind: 'image'|'text', name, mimeType, base64, previewUrl, text }]
   let draftByKey = new Map();
+  let paneResizeObs = null;
+  let speechRec = null;
+  let speechActive = false;
 
+  // ---------------------------------------------------------------------------
+  // STORAGE & PREFERENCES
+  // ---------------------------------------------------------------------------
   function loadStoredChats() {
     try {
       const raw = JSON.parse(localStorage.getItem(CHATS_KEY) || '[]');
@@ -66,7 +82,12 @@ window.StudyAiTutor = (() => {
           messages: c.messages
             .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string')
             .slice(-MAX_MSGS_PER_CHAT)
-            .map((m) => ({ role: m.role, text: m.text, meta: String(m.meta || '') })),
+            .map((m) => ({
+              role: m.role,
+              text: m.text,
+              meta: String(m.meta || ''),
+              attachments: Array.isArray(m.attachments) ? m.attachments.slice(0, 3) : [],
+            })),
         }));
     } catch {
       return [];
@@ -79,7 +100,15 @@ window.StudyAiTutor = (() => {
         .filter((c) => c.messages && c.messages.length > 0)
         .sort((a, b) => b.updatedAt - a.updatedAt)
         .slice(0, MAX_STORED_CHATS)
-        .map((c) => ({ ...c, messages: c.messages.slice(-MAX_MSGS_PER_CHAT) }));
+        .map((c) => ({
+          ...c,
+          messages: c.messages.slice(-MAX_MSGS_PER_CHAT).map((m) => ({
+            role: m.role,
+            text: m.text,
+            meta: m.meta || '',
+            attachments: (m.attachments || []).map((a) => ({ kind: a.kind, name: a.name })),
+          })),
+        }));
       localStorage.setItem(CHATS_KEY, JSON.stringify(nonEmpty));
     } catch {}
   }
@@ -92,17 +121,15 @@ window.StudyAiTutor = (() => {
     return conversations.find((c) => c.id === id) || null;
   }
 
+  function getSavedChats() {
+    return conversations
+      .filter((c) => c.messages && c.messages.length > 0)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
   function ensureActiveConvo(key, snap) {
-    let cur = findConvoById(activeConvoId);
+    const cur = findConvoById(activeConvoId);
     if (cur) return cur;
-    // Try resuming latest saved chat for this exact exercise key
-    const matching = conversations
-      .filter((c) => c.key === key && c.messages.length > 0)
-      .sort((a, b) => b.updatedAt - a.updatedAt)[0];
-    if (matching) {
-      activeConvoId = matching.id;
-      return matching;
-    }
     const fresh = {
       id: makeConvoId(),
       key,
@@ -121,22 +148,12 @@ window.StudyAiTutor = (() => {
     const hasQuestion = snap?.mode === 'practice';
     const key = hasQuestion ? `${snap.courseId}:${snap.questionId}` : 'general';
     activeKey = key;
-    const fresh = {
-      id: makeConvoId(),
-      key,
-      title: hasQuestion && snap.title ? String(snap.title).slice(0, 80) : 'New chat',
-      course: hasQuestion ? String(snap.course || '') : '',
-      ctxLabel: shortContextTag(snap || { mode: 'waiting' }),
-      updatedAt: Date.now(),
-      messages: [],
-    };
-    // Remove any unused empty scratch chats before adding fresh one
     conversations = conversations.filter((c) => c.messages.length > 0);
-    conversations.unshift(fresh);
-    activeConvoId = fresh.id;
+    activeConvoId = '';
     draftByKey.set(key, '');
-    historyOpen = false;
-    return fresh;
+    pendingAttachments = [];
+    popoverMode = '';
+    showAllChats = false;
   }
 
   function deleteChat(id) {
@@ -145,17 +162,13 @@ window.StudyAiTutor = (() => {
     persistChats();
   }
 
-  function relativeTime(ts) {
+  function shortAge(ts) {
     const diffSec = Math.max(0, Math.round((Date.now() - Number(ts || 0)) / 1000));
-    if (diffSec < 45) return 'Just now';
-    if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
-    if (diffSec < 86400) return `${Math.round(diffSec / 3600)}h ago`;
-    if (diffSec < 86400 * 7) return `${Math.round(diffSec / 86400)}d ago`;
-    try {
-      return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    } catch {
-      return '';
-    }
+    if (diffSec < 60) return 'now';
+    if (diffSec < 3600) return `${Math.round(diffSec / 60)}m`;
+    if (diffSec < 86400) return `${Math.round(diffSec / 3600)}h`;
+    if (diffSec < 86400 * 7) return `${Math.round(diffSec / 86400)}d`;
+    return `${Math.max(1, Math.round(diffSec / (86400 * 7)))}w`;
   }
 
   function getByokKey() {
@@ -168,14 +181,24 @@ window.StudyAiTutor = (() => {
       else localStorage.removeItem(BYOK_KEY);
     } catch {}
   }
-  function getByokModel() {
+  function getPreferredModel() {
     try {
       const v = localStorage.getItem(BYOK_MODEL_KEY) || 'auto';
-      return BYOK_MODELS.some((m) => m.id === v) ? v : 'auto';
+      return MODELS.some((m) => m.id === v) ? v : 'auto';
     } catch { return 'auto'; }
   }
-  function setByokModel(val) {
+  function setPreferredModel(val) {
     try { localStorage.setItem(BYOK_MODEL_KEY, val); } catch {}
+  }
+  function getThinkingSpeed() {
+    try {
+      const v = localStorage.getItem(THINKING_KEY) || 'minimal';
+      return THINKING_MODES.some((t) => t.id === v) ? v : 'minimal';
+    } catch { return 'minimal'; }
+  }
+  function setThinkingSpeed(val) {
+    const clean = THINKING_MODES.some((t) => t.id === val) ? val : 'minimal';
+    try { localStorage.setItem(THINKING_KEY, clean); } catch {}
   }
   function getDockSide() {
     try { return localStorage.getItem(SIDE_KEY) === 'left' ? 'left' : 'right'; } catch { return 'right'; }
@@ -185,7 +208,6 @@ window.StudyAiTutor = (() => {
     try { localStorage.setItem(SIDE_KEY, clean); } catch {}
     syncBodyClasses();
   }
-
   function getSavedWidth() {
     try {
       const n = Number(localStorage.getItem(WIDTH_KEY));
@@ -200,23 +222,20 @@ window.StudyAiTutor = (() => {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // SAFE MARKDOWN + CONTEXT BUILDER (Question + Working + Markdown Note Section)
+  // ---------------------------------------------------------------------------
   function sanitizeRenderedHtml(html) {
     const tpl = document.createElement('template');
     tpl.innerHTML = html;
-    const forbidden = tpl.content.querySelectorAll('script, iframe, object, embed, style, link, meta, form, input, button, textarea');
-    forbidden.forEach((node) => node.remove());
-    tpl.content.querySelectorAll('svg').forEach((svg) => {
-      if (!svg.closest('.katex')) svg.remove();
-    });
+    tpl.content.querySelectorAll('script, iframe, object, embed, style, link, meta, form, input, button, textarea').forEach((n) => n.remove());
+    tpl.content.querySelectorAll('svg').forEach((svg) => { if (!svg.closest('.katex')) svg.remove(); });
     tpl.content.querySelectorAll('*').forEach((el) => {
       for (const attr of [...el.attributes]) {
         const name = attr.name.toLowerCase();
         const val = String(attr.value || '').trim().toLowerCase();
-        if (name.startsWith('on') || name === 'srcdoc') {
-          el.removeAttribute(attr.name);
-        } else if ((name === 'href' || name === 'src') && (val.startsWith('javascript:') || val.startsWith('data:'))) {
-          el.removeAttribute(attr.name);
-        }
+        if (name.startsWith('on') || name === 'srcdoc') el.removeAttribute(attr.name);
+        else if ((name === 'href' || name === 'src') && (val.startsWith('javascript:') || val.startsWith('data:'))) el.removeAttribute(attr.name);
       }
       if (el.tagName === 'A') {
         el.setAttribute('target', '_blank');
@@ -230,92 +249,11 @@ window.StudyAiTutor = (() => {
     return sanitizeRenderedHtml(renderMarkdownWithMath(text || ''));
   }
 
-  function buildSystemInstruction(action) {
-    const formatting = [
-      'You are Adamlite, Study-OS\'s Socratic study tutor for university students (Finance, Economics, Mathematics, Data Science).',
-      'Formatting rules:',
-      '- Write clear, concise Markdown. Use $...$ for inline math and $$...$$ for display equations.',
-      '- Never output raw HTML or scripts. Keep answers scannable with short paragraphs or numbered steps.',
-      '- Match the student\'s language if they write in Norwegian or another language; otherwise reply in crisp English.',
-    ];
-    const modeRule = {
-      hint: 'MODE: SMALL HINT. Give ONE focused next-step hint to unstick the student. Do NOT reveal the final numerical or multiple-choice answer. Keep it to 3-6 lines.',
-      check: 'MODE: CHECK WORKING. Inspect the student\'s current answers/working. If blank, suggest the exact first setup step. If incorrect, pinpoint the specific mistake without spoiling the final answer. If right, confirm cleanly.',
-      concept: 'MODE: KEY CONCEPT & FORMULA. Explain the core intuition, formula(s), and variable meanings in exam-ready form without giving away the specific final answer.',
-      solution: 'MODE: WORKED SOLUTION. Walk through the complete solution clearly step-by-step with LaTeX math, explain why each step follows, and note any common exam pitfall.',
-      chat: 'MODE: FOLLOW-UP TUTORING. Answer directly and clearly. Stay Socratic unless the student explicitly asks for the full worked solution.',
-    }[action] || '';
-    return [...formatting, modeRule].join('\n');
-  }
-
-  function defaultActionPrompt(action) {
-    return {
-      hint: 'Give me one focused next-step hint for this question without spoiling the final answer.',
-      check: 'Check my current answer and working on this question. Point out where I went right or where my mistake is.',
-      concept: 'Explain the key concept and formula I should use to solve this type of question.',
-      solution: 'Walk me through the complete step-by-step solution to this question.',
-      chat: 'Help me understand this question.',
-    }[action] || 'Help me with this question.';
-  }
-
-  async function callDirectGemini(apiKey, preferredModel, action, contextBlock, history, userPrompt) {
-    const models = preferredModel === 'auto'
-      ? BYOK_AUTO_CHAIN
-      : [
-          BYOK_MODELS.find((m) => m.id === preferredModel) || BYOK_AUTO_CHAIN[0],
-          ...BYOK_AUTO_CHAIN.filter((m) => m.id !== preferredModel),
-        ];
-
-    const systemInstruction = buildSystemInstruction(action);
-    const prefix = contextBlock ? `CURRENT EXERCISE CONTEXT:\n${contextBlock}\n\n---\n\n` : '';
-    const contents = [];
-    let attached = false;
-    for (const turn of history.slice(-10)) {
-      const role = turn.role === 'assistant' ? 'model' : 'user';
-      const text = !attached && role === 'user' ? (attached = true, `${prefix}${turn.text}`) : turn.text;
-      contents.push({ role, parts: [{ text }] });
-    }
-    contents.push({
-      role: 'user',
-      parts: [{ text: attached ? userPrompt : `${prefix}${userPrompt}` }],
-    });
-
-    let lastErr = 'Gemini API request failed.';
-    for (const model of models) {
-      try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.id)}:generateContent`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': apiKey,
-            },
-            body: JSON.stringify({
-              systemInstruction: { parts: [{ text: systemInstruction }] },
-              contents,
-              generationConfig: { temperature: 0.35, maxOutputTokens: 2048 },
-            }),
-          }
-        );
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          lastErr = body?.error?.message || `Gemini HTTP ${res.status}`;
-          if (res.status === 404 || res.status === 429 || res.status === 503 || res.status === 400) continue;
-          break;
-        }
-        const payload = await res.json();
-        const parts = payload?.candidates?.[0]?.content?.parts || [];
-        const replyText = parts.map((p) => (typeof p.text === 'string' ? p.text : '')).join('').trim();
-        if (replyText) {
-          return { reply: replyText, provider: 'byok', modelLabel: `${model.label} · Your Key` };
-        }
-        lastErr = 'Empty response from Gemini.';
-      } catch (err) {
-        lastErr = err?.message || 'Could not reach Google Gemini API.';
-      }
-    }
-    throw new Error(lastErr);
+  function shortContextTag(snap) {
+    if (snap?.mode !== 'practice') return '';
+    const raw = String(snap.title || snap.questionId || '').trim();
+    if (!raw) return String(snap.course || '').trim();
+    return raw.length > 34 ? `${raw.slice(0, 33)}…` : raw;
   }
 
   function currentExerciseSnapshot(includeSolution = false) {
@@ -330,6 +268,313 @@ window.StudyAiTutor = (() => {
     return { mode: 'waiting' };
   }
 
+  async function buildLeanStudyContext(snap) {
+    if (!contextEnabled || snap?.mode !== 'practice') return '';
+    const parts = [];
+    if (snap.context) parts.push(String(snap.context).trim().slice(0, 5800));
+
+    // Attach ONLY the matching Markdown reference section for this topic (fast, focused, never whole book)
+    if (snap.noteFile && snap.noteHeading && window.StudyApp?.fetchReferenceSection) {
+      try {
+        const sec = await window.StudyApp.fetchReferenceSection(snap.noteFile, snap.noteHeading);
+        if (sec?.available && sec.selectedHeading && sec.markdown) {
+          const cleanSec = String(sec.markdown).trim().slice(0, 2600);
+          if (cleanSec) {
+            parts.push(`## Course Reference Note (${sec.selectedHeading})\n${cleanSec}`);
+          }
+        }
+      } catch {}
+    }
+    return parts.join('\n\n').slice(0, 8800);
+  }
+
+  // ---------------------------------------------------------------------------
+  // FILE / IMAGE ATTACHMENTS + SPEECH-TO-TEXT
+  // ---------------------------------------------------------------------------
+  function resizeImageFileToBase64(file, maxDim = 1024) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.84);
+          const base64 = dataUrl.split(',')[1] || '';
+          resolve({ mimeType: 'image/jpeg', base64, previewUrl: dataUrl });
+        } catch (err) {
+          reject(err);
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Could not read image.'));
+      };
+      img.src = url;
+    });
+  }
+
+  async function addFiles(fileList) {
+    const files = [...(fileList || [])];
+    if (!files.length) return;
+    for (const file of files) {
+      if (pendingAttachments.length >= 3) {
+        toast('Up to 3 attachments per message.');
+        break;
+      }
+      const name = String(file.name || 'file').slice(0, 72);
+      if (file.type?.startsWith('image/')) {
+        try {
+          const { mimeType, base64, previewUrl } = await resizeImageFileToBase64(file);
+          pendingAttachments.push({
+            id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            kind: 'image',
+            name,
+            mimeType,
+            base64,
+            previewUrl,
+          });
+        } catch {
+          toast(`Could not read ${name}.`);
+        }
+      } else if (/\.pdf$/i.test(name) || file.type === 'application/pdf') {
+        try {
+          let extracted = '';
+          if (window.StudyPdf?.extractTextFromFile) {
+            extracted = await window.StudyPdf.extractTextFromFile(file);
+          }
+          if (!extracted) {
+            const txt = await file.text().catch(() => '');
+            extracted = txt.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+          }
+          if (!extracted) {
+            toast(`Attached ${name} — tip: screenshot complex PDF pages for best accuracy.`);
+            continue;
+          }
+          pendingAttachments.push({
+            id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            kind: 'text',
+            name,
+            text: extracted.slice(0, 5500),
+          });
+        } catch {
+          toast(`Could not extract text from ${name}.`);
+        }
+      } else {
+        try {
+          const text = (await file.text()).trim();
+          if (!text) continue;
+          pendingAttachments.push({
+            id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            kind: 'text',
+            name,
+            text: text.slice(0, 5500),
+          });
+        } catch {
+          toast(`Could not read ${name}.`);
+        }
+      }
+    }
+    renderPane({ focusInput: true });
+  }
+
+  function supportsSpeech() {
+    return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  }
+
+  function stopSpeech(silent = true) {
+    speechActive = false;
+    if (speechRec) {
+      try { speechRec.onend = null; speechRec.stop(); } catch {}
+      speechRec = null;
+    }
+    const micBtn = document.getElementById('ai-mic-btn');
+    if (micBtn) {
+      micBtn.classList.remove('is-recording');
+      micBtn.setAttribute('aria-pressed', 'false');
+    }
+    if (!silent) toast('Dictation stopped.');
+  }
+
+  function toggleSpeech() {
+    if (!supportsSpeech()) {
+      toast('Speech-to-text is not supported in this browser (try Chrome, Edge, or Safari).');
+      return;
+    }
+    if (speechActive) {
+      stopSpeech(true);
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SR();
+    const profLang = window.StudyCommunity?.getCurrentProfile?.()?.secondaryLanguage || '';
+    rec.lang = profLang === 'nb' || profLang === 'nn' ? 'nb-NO' : (navigator.language || 'en-US');
+    rec.interimResults = true;
+    rec.continuous = true;
+
+    const inputEl = document.getElementById('ai-tutor-input');
+    const baseText = inputEl ? inputEl.value : (draftByKey.get(activeKey) || '');
+    let finalTranscript = '';
+
+    rec.onresult = (ev) => {
+      let interim = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const res = ev.results[i];
+        if (res.isFinal) finalTranscript += res[0].transcript;
+        else interim += res[0].transcript;
+      }
+      const sep = baseText && !/\s$/.test(baseText) ? ' ' : '';
+      const combined = `${baseText}${sep}${finalTranscript}${interim}`.trimStart();
+      draftByKey.set(activeKey, combined);
+      const inp = document.getElementById('ai-tutor-input');
+      if (inp) {
+        inp.value = combined;
+        autoSizeTextarea(inp);
+        const sendBtn = document.getElementById('ai-send-btn');
+        if (sendBtn) sendBtn.disabled = busy || (!combined.trim() && !pendingAttachments.length);
+      }
+    };
+    rec.onerror = (ev) => {
+      if (ev.error === 'not-allowed') toast('Microphone permission denied.');
+      stopSpeech(true);
+    };
+    rec.onend = () => {
+      stopSpeech(true);
+    };
+
+    try {
+      rec.start();
+      speechRec = rec;
+      speechActive = true;
+      const micBtn = document.getElementById('ai-mic-btn');
+      if (micBtn) {
+        micBtn.classList.add('is-recording');
+        micBtn.setAttribute('aria-pressed', 'true');
+      }
+    } catch {
+      stopSpeech(true);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // DIRECT BYOK STREAMING GEMINI CLIENT (Thinking Speed + Multimodal)
+  // ---------------------------------------------------------------------------
+  function buildSystemInstruction(action, thinking) {
+    const lines = [
+      'You are Adamlite, Study-OS\'s fast, concise university study tutor (Economics, Accounting & Finance, Mathematics, OB, Data Science).',
+      '- Be direct, clear, and concise. Use $...$ for inline math and $$...$$ for display equations.',
+      '- Never output raw HTML or scripts. Match the student\'s language (Norwegian or English).',
+      '- Ground formulas and definitions in the provided Reference Note snippet when relevant.',
+    ];
+    if (thinking === 'minimal') lines.push('- Speed mode is MINIMAL: get straight to the answer/step cleanly without filler.');
+    if (action === 'hint') lines.push('Give ONE focused next-step hint without spoiling the final answer.');
+    if (action === 'solution') lines.push('Walk through the complete step-by-step solution cleanly.');
+    return lines.join('\n');
+  }
+
+  async function streamDirectGemini(apiKey, preferredModel, thinking, action, contextBlock, history, userPrompt, attachments, onDelta) {
+    const models = preferredModel === 'auto'
+      ? BYOK_AUTO_CHAIN
+      : [
+          BYOK_AUTO_CHAIN.find((m) => m.id === preferredModel) || BYOK_AUTO_CHAIN[0],
+          ...BYOK_AUTO_CHAIN.filter((m) => m.id !== preferredModel),
+        ];
+
+    const systemInstruction = buildSystemInstruction(action, thinking);
+    const prefix = contextBlock ? `STUDY CONTEXT:\n${contextBlock}\n\n---\n\n` : '';
+    const contents = [];
+    let attached = false;
+    for (const turn of history.slice(-8)) {
+      const role = turn.role === 'assistant' ? 'model' : 'user';
+      const text = !attached && role === 'user' ? (attached = true, `${prefix}${turn.text}`) : turn.text;
+      contents.push({ role, parts: [{ text }] });
+    }
+    const textAtts = attachments.filter((a) => a.kind === 'text').map((a) => `ATTACHED FILE (${a.name}):\n${a.text}`).join('\n\n');
+    const finalText = [attached ? '' : prefix, textAtts ? `${textAtts}\n\n` : '', userPrompt].join('');
+    const userParts = [{ text: finalText }];
+    for (const att of attachments) {
+      if (att.kind === 'image') userParts.push({ inlineData: { mimeType: att.mimeType, data: att.base64 } });
+    }
+    contents.push({ role: 'user', parts: userParts });
+
+    const budgets = { minimal: 0, low: 512, medium: 2048, high: 8192 };
+    const maxTok = thinking === 'minimal' ? 1024 : thinking === 'low' ? 1400 : thinking === 'medium' ? 2048 : 3072;
+
+    let lastErr = 'Gemini API request failed.';
+    for (const model of models) {
+      for (const tc of [{ thinkingBudget: budgets[thinking] ?? 0 }, { thinkingLevel: thinking }, null]) {
+        try {
+          const generationConfig = { temperature: 0.3, maxOutputTokens: maxTok };
+          if (tc) generationConfig.thinkingConfig = tc;
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model.id)}:streamGenerateContent?alt=sse`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+              body: JSON.stringify({
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+                contents,
+                generationConfig,
+              }),
+            }
+          );
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            lastErr = errBody?.error?.message || `Gemini HTTP ${res.status}`;
+            if (res.status === 400 && tc !== null) continue; // try next thinkingConfig shape
+            if (res.status === 404 || res.status === 429 || res.status === 503) break; // next model
+            throw new Error(lastErr);
+          }
+          const reader = res.body.getReader();
+          const dec = new TextDecoder();
+          let buf = '';
+          let full = '';
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += dec.decode(value, { stream: true });
+            const lines = buf.split('\n');
+            buf = lines.pop() || '';
+            for (const line of lines) {
+              if (!line.startsWith('data:')) continue;
+              const raw = line.slice(5).trim();
+              if (!raw || raw === '[DONE]') continue;
+              try {
+                const payload = JSON.parse(raw);
+                const parts = payload?.candidates?.[0]?.content?.parts || [];
+                const delta = parts.filter((p) => p && typeof p.text === 'string' && !p.thought).map((p) => p.text).join('');
+                if (delta) {
+                  full += delta;
+                  if (typeof onDelta === 'function') onDelta(delta, full);
+                }
+              } catch {}
+            }
+          }
+          if (full.trim()) {
+            return { reply: full.trim(), provider: 'byok', modelLabel: `${model.label} · Key` };
+          }
+          lastErr = 'Empty response from Gemini.';
+          break;
+        } catch (err) {
+          lastErr = err?.message || 'Could not reach Google Gemini API.';
+          break;
+        }
+      }
+    }
+    throw new Error(lastErr);
+  }
+
+  // ---------------------------------------------------------------------------
+  // PANE CHROME & RESIZE (Blue VS Code Resize Bar + Narrow Collapse)
+  // ---------------------------------------------------------------------------
   function syncBodyClasses() {
     const side = getDockSide();
     document.body.classList.toggle('ai-pane-open', isOpen);
@@ -337,6 +582,13 @@ window.StudyAiTutor = (() => {
     document.body.classList.toggle('ai-pane-right', isOpen && side !== 'left');
     document.getElementById('run-al-btn')?.setAttribute('aria-expanded', String(isOpen));
     document.getElementById('hdr-al-btn')?.setAttribute('aria-expanded', String(isOpen));
+  }
+
+  function updatePaneNarrowClass(pane) {
+    if (!pane) return;
+    const w = pane.getBoundingClientRect().width || getSavedWidth() || 340;
+    pane.classList.toggle('is-narrow', w < 318);
+    pane.classList.toggle('is-ultra-narrow', w < 248);
   }
 
   function ensurePane() {
@@ -358,18 +610,15 @@ window.StudyAiTutor = (() => {
 
     pane = document.createElement('aside');
     pane.id = 'ai-tutor-pane';
-    pane.className = 'ai-tutor-pane';
+    pane.className = 'ai-tutor-pane ai-codex-pane';
     pane.hidden = true;
     pane.setAttribute('role', 'complementary');
     pane.setAttribute('aria-label', 'Adamlite');
     pane.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') {
         ev.stopPropagation();
-        if (configOpen) {
-          configOpen = false;
-          renderPane({ focusInput: true });
-        } else if (historyOpen) {
-          historyOpen = false;
+        if (popoverMode) {
+          popoverMode = '';
           renderPane({ focusInput: true });
         } else {
           close();
@@ -377,35 +626,12 @@ window.StudyAiTutor = (() => {
       }
     });
     document.body.appendChild(pane);
+
+    if ('ResizeObserver' in window) {
+      paneResizeObs = new ResizeObserver(() => updatePaneNarrowClass(pane));
+      paneResizeObs.observe(pane);
+    }
     return pane;
-  }
-
-  function compactModelLabel() {
-    const byok = getByokKey();
-    if (byok) {
-      const m = BYOK_MODELS.find((x) => x.id === getByokModel());
-      return m && m.id !== 'auto' ? `${m.label} (Key)` : 'Gemini Auto (Key)';
-    }
-    if (serverStatus?.available) {
-      return serverStatus.modelLabel || 'Adamlite';
-    }
-    if (window.StudyCommunity?.isSignedIn?.()) return 'Gemini 4 Hydrogen';
-    return 'Connect Adamlite';
-  }
-
-  function quotaSuffix() {
-    if (getByokKey()) return 'Your free key';
-    if (serverStatus?.available && Number.isFinite(serverStatus.remaining)) {
-      return `${serverStatus.remaining}/${serverStatus.limit} left today`;
-    }
-    return '';
-  }
-
-  function shortContextTag(snap) {
-    if (snap?.mode !== 'practice') return '';
-    const raw = String(snap.title || snap.questionId || '').trim();
-    if (!raw) return String(snap.course || '').trim();
-    return raw.length > 34 ? `${raw.slice(0, 33)}…` : raw;
   }
 
   function bindResizeHandle(pane) {
@@ -416,16 +642,19 @@ window.StudyAiTutor = (() => {
       startEv.preventDefault();
       handle.setPointerCapture?.(startEv.pointerId);
       document.body.classList.add('ai-pane-resizing');
+      pane.classList.add('is-resizing');
       const side = getDockSide();
-      const railW = window.innerWidth >= 900 ? 42 : 0;
+      const railW = window.innerWidth >= 900 ? 48 : 0;
       const onMove = (ev) => {
         const rawW = side === 'left' ? ev.clientX - railW : window.innerWidth - ev.clientX;
         const maxW = Math.min(AI_PANE_MAX_W, Math.round(window.innerWidth * 0.65));
         const clamped = Math.max(AI_PANE_MIN_W, Math.min(maxW, rawW));
         applyPaneWidth(clamped);
+        updatePaneNarrowClass(pane);
       };
       const onUp = () => {
         document.body.classList.remove('ai-pane-resizing');
+        pane.classList.remove('is-resizing');
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
@@ -439,64 +668,87 @@ window.StudyAiTutor = (() => {
   function autoSizeTextarea(el) {
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(160, Math.max(24, el.scrollHeight))}px`;
+    el.style.height = `${Math.min(150, Math.max(24, el.scrollHeight))}px`;
   }
 
   function shouldAutoFocusComposer() {
-    return window.innerWidth >= AI_DOCK_MIN_VP
-      || Boolean(window.matchMedia?.('(pointer: fine)')?.matches);
+    return window.matchMedia?.('(pointer: fine)').matches !== false && window.innerWidth >= 760;
   }
 
-  function focusComposerIfReady() {
-    if (!isOpen || configOpen || historyOpen || !shouldAutoFocusComposer()) return;
-    const inputEl = document.getElementById('ai-tutor-input');
-    if (!inputEl || inputEl.disabled) return;
-    if (document.activeElement !== inputEl) {
-      inputEl.focus({ preventScroll: true });
-      const end = inputEl.value.length;
-      try { inputEl.setSelectionRange(end, end); } catch {}
+  function modelShortLabel() {
+    const pref = getPreferredModel();
+    const m = MODELS.find((x) => x.id === pref);
+    if (pref !== 'auto' && m) return m.short;
+    if (serverStatus?.modelLabel) {
+      return serverStatus.modelLabel.replace(/^Gemini\s+/i, '').replace(/^Cloudflare AI\s*·\s*/i, '');
     }
+    return '4 Hydrogen';
   }
 
-  function renderHistoryPanelHtml() {
-    const saved = conversations
-      .filter((c) => c.messages && c.messages.length > 0)
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+  function thinkingShortLabel() {
+    const t = THINKING_MODES.find((x) => x.id === getThinkingSpeed());
+    return t ? t.label : 'Minimal';
+  }
 
-    if (!saved.length) {
+  // ---------------------------------------------------------------------------
+  // RENDER — 1:1 VS CODE CODEX CHAT SIDEBAR
+  // ---------------------------------------------------------------------------
+  function popoverHtml(byok) {
+    if (!popoverMode) return '';
+    const speed = getThinkingSpeed();
+    const model = getPreferredModel();
+
+    if (popoverMode === 'speed') {
       return `
-        <div class="ai-history-panel">
-          <div class="ai-history-head">
-            <strong>Previous chats</strong>
-            <button type="button" class="mini-tool-btn" id="ai-history-close">Back</button>
+        <div class="ai-codex-popover" id="ai-speed-popover">
+          <div class="ai-pop-section">
+            <div class="ai-pop-label">Thinking Speed</div>
+            <div class="ai-speed-grid">
+              ${THINKING_MODES.map((t) => `
+                <button type="button" class="ai-speed-opt ${speed === t.id ? 'is-active' : ''}" data-pick-speed="${esc(t.id)}">
+                  <strong>${esc(t.label)}</strong>
+                  <small>${esc(t.hint)}</small>
+                </button>`).join('')}
+            </div>
           </div>
-          <p class="muted ai-history-empty">No saved conversations yet. Your chats with Adamlite are saved automatically in this browser.</p>
+          <div class="ai-pop-section">
+            <div class="ai-pop-label">Model</div>
+            <div class="ai-model-list">
+              ${MODELS.map((m) => `
+                <button type="button" class="ai-model-opt ${model === m.id ? 'is-active' : ''}" data-pick-model="${esc(m.id)}">
+                  <span>${esc(m.label)}</span>
+                  ${model === m.id ? '<span class="ai-opt-check">✓</span>' : ''}
+                </button>`).join('')}
+            </div>
+          </div>
         </div>`;
     }
 
+    // popoverMode === 'settings'
+    const quota = byok
+      ? 'Personal Gemini key active'
+      : serverStatus?.available && Number.isFinite(serverStatus.remaining)
+      ? `${serverStatus.remaining}/${serverStatus.limit} left today`
+      : '';
     return `
-      <div class="ai-history-panel">
-        <div class="ai-history-head">
-          <strong>Previous chats (${saved.length})</strong>
-          <div class="row-actions" style="gap:6px">
-            <button type="button" class="mini-tool-btn" id="ai-history-new">+ New</button>
-            <button type="button" class="mini-tool-btn" id="ai-history-close">Back</button>
-          </div>
+      <div class="ai-codex-popover ai-codex-settings-pop" id="ai-settings-popover">
+        <div class="ai-pop-head">
+          <strong>Adamlite Settings</strong>
+          ${quota ? `<span class="ai-pop-quota">${esc(quota)}</span>` : ''}
         </div>
-        <div class="ai-history-list" role="list">
-          ${saved.map((c) => {
-            const isCur = c.id === activeConvoId;
-            const turns = Math.ceil(c.messages.length / 2);
-            const subtitle = [c.course || c.ctxLabel, `${turns} turn${turns === 1 ? '' : 's'}`, relativeTime(c.updatedAt)].filter(Boolean).join(' · ');
-            return `
-              <div class="ai-history-item ${isCur ? 'is-active' : ''}" role="listitem">
-                <button type="button" class="ai-history-open" data-open-chat-id="${esc(c.id)}">
-                  <span class="ai-history-title">${esc(c.title || 'Untitled chat')}</span>
-                  <small class="muted">${esc(subtitle)}</small>
-                </button>
-                <button type="button" class="ai-history-del" data-del-chat-id="${esc(c.id)}" title="Delete chat" aria-label="Delete chat">×</button>
-              </div>`;
-          }).join('')}
+        <label class="ai-pop-check">
+          <input type="checkbox" id="ai-ctx-checkbox" ${contextEnabled ? 'checked' : ''}>
+          <span>Include current question, working &amp; Markdown note section</span>
+        </label>
+        <div class="ai-byok-fields">
+          <input type="password" id="ai-byok-input" value="${esc(byok)}" placeholder="Optional free Gemini API key (AIza…)" autocomplete="off" spellcheck="false" aria-label="Google Gemini API key">
+          <div class="ai-pop-actions">
+            <div class="ai-pop-actions-left">
+              <button type="button" class="primary-btn ai-pop-btn" id="ai-byok-save">Save</button>
+              ${byok ? '<button type="button" class="ghost-btn ai-pop-btn" id="ai-byok-clear">Remove</button>' : ''}
+            </div>
+            <button type="button" class="ai-text-link" id="ai-open-mcp-btn">Desktop MCP</button>
+          </div>
         </div>
       </div>`;
   }
@@ -507,203 +759,284 @@ window.StudyAiTutor = (() => {
     const hadFocus = Boolean(prevInput && document.activeElement === prevInput);
     const prevSelStart = hadFocus ? prevInput.selectionStart : null;
     const prevSelEnd = hadFocus ? prevInput.selectionEnd : null;
-    if (prevInput) draftByKey.set(activeKey, prevInput.value);
 
     const snap = currentExerciseSnapshot(false);
     const hasQuestion = snap.mode === 'practice';
     const nextKey = hasQuestion ? `${snap.courseId}:${snap.questionId}` : 'general';
-    if (opts.followContext && nextKey !== activeKey) {
-      activeKey = nextKey;
-      // Only auto-switch convo when navigating questions if current chat is empty or tied to another question
-      const cur = findConvoById(activeConvoId);
-      if (!cur || cur.key !== nextKey) {
-        activeConvoId = '';
-      }
-    } else if (!activeKey) {
-      activeKey = nextKey;
-    }
+    if (nextKey !== activeKey && !activeConvoId) activeKey = nextKey;
 
-    const convo = ensureActiveConvo(activeKey, snap);
-    const messages = convo.messages;
-    const savedCount = conversations.filter((c) => c.messages.length > 0).length;
+    const activeConvo = findConvoById(activeConvoId);
+    const messages = activeConvo ? activeConvo.messages : [];
+    const inChat = messages.length > 0;
+    const savedChats = getSavedChats();
+
     const byok = getByokKey();
     const signedIn = Boolean(window.StudyCommunity?.isSignedIn?.());
     const canAsk = Boolean(byok || signedIn);
-    const side = getDockSide();
-    const ctxTag = shortContextTag(snap) || convo.ctxLabel || '';
-    const ctxFull = hasQuestion
-      ? `${snap.course || 'Practice'} · ${snap.title || 'Current question'}`
-      : convo.title || 'General study chat';
     const draft = draftByKey.get(activeKey) || '';
+    const side = getDockSide();
 
-    const messagesHtml = messages.length
-      ? messages.map((m, idx) => {
-          if (m.role === 'user') {
+    // Recent chats list (Codex-style: top 3 + "View all (N)" on empty/home view)
+    const visibleChats = showAllChats ? savedChats : savedChats.slice(0, 3);
+    const chatsListHtml = !inChat && savedChats.length
+      ? `
+        <div class="ai-codex-chats">
+          ${visibleChats.map((c) => `
+            <div class="ai-codex-chat-row">
+              <button type="button" class="ai-codex-chat-btn" data-open-chat-id="${esc(c.id)}" title="${esc(c.title)}">
+                <span class="ai-codex-chat-title">${esc(c.title || 'Untitled chat')}</span>
+                <span class="ai-codex-chat-age">${esc(shortAge(c.updatedAt))}</span>
+              </button>
+              <button type="button" class="ai-codex-chat-del" data-del-chat-id="${esc(c.id)}" title="Delete chat" aria-label="Delete chat">×</button>
+            </div>`).join('')}
+          ${savedChats.length > 3 ? `
+            <button type="button" class="ai-codex-view-all" id="ai-toggle-all-chats">
+              ${showAllChats ? 'Show less' : `View all (${savedChats.length})`}
+            </button>` : ''}
+        </div>`
+      : '';
+
+    const threadHtml = inChat
+      ? `<div class="ai-thread" id="ai-tutor-thread">
+          ${messages.map((m, idx) => {
+            if (m.role === 'user') {
+              const attTags = (m.attachments || []).length
+                ? `<div class="ai-msg-atts">${m.attachments.map((a) => `<span class="ai-msg-att-pill">${a.kind === 'image' ? '🖼' : '📄'} ${esc(a.name)}</span>`).join('')}</div>`
+                : '';
+              return `<div class="ai-turn ai-turn-user"><div class="ai-user-bubble">${attTags}${esc(m.text)}</div></div>`;
+            }
             return `
-              <div class="ai-turn ai-turn-user">
-                <div class="ai-user-bubble">${esc(m.text).replace(/\n/g, '<br>')}</div>
+              <div class="ai-turn ai-turn-assistant" data-msg-idx="${idx}">
+                <div class="ai-assistant-prose markdown-body">${m.text ? renderSafeMd(m.text) : '<span class="ai-typing"><span></span><span></span><span></span></span>'}</div>
+                ${m.text ? `
+                  <div class="ai-turn-actions">
+                    <button type="button" class="ai-icon-micro" data-copy-msg="${idx}" title="Copy response" aria-label="Copy response">
+                      <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="5" y="5" width="8.5" height="8.5" rx="1.8"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/>
+                      </svg>
+                      <span>Copy</span>
+                    </button>
+                    ${m.meta ? `<span class="ai-turn-model">${esc(m.meta)}</span>` : ''}
+                  </div>` : ''}
               </div>`;
-          }
-          return `
-            <div class="ai-turn ai-turn-assistant">
-              <div class="ai-assistant-byline">
-                <img class="adamlite-avatar-xs" src="${AVATAR_SRC}" alt="" aria-hidden="true">
-                <span>Adamlite</span>
-              </div>
-              <div class="ai-assistant-prose">${renderSafeMd(m.text)}</div>
-              <div class="ai-turn-actions">
-                <button type="button" class="ai-icon-micro" data-copy-msg="${idx}" title="Copy response" aria-label="Copy response">
-                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                  <span>Copy</span>
-                </button>
-                ${m.meta ? `<span class="ai-turn-model">${esc(m.meta)}</span>` : ''}
-              </div>
-            </div>`;
-        }).join('')
-      : `<div class="ai-empty-canvas">
-           <div class="ai-empty-mark adamlite-hero-mark" aria-hidden="true">
-             <img src="${AVATAR_SRC}" alt="Adamlite" class="adamlite-avatar-lg">
-           </div>
-           <h3>${snap.mode === 'blind' ? 'Adamlite paused for blind exam' : 'How can Adamlite help?'}</h3>
-           <p class="muted">${
-             snap.mode === 'blind'
-               ? 'Adamlite turns off automatically during blind timed exams.'
-               : hasQuestion
-                 ? 'Ask about any step, formula, or mistake — I can see this question and your current working.'
-                 : 'Ask any study question, or open a practice problem for live context.'
-           }</p>
-         </div>`;
-
-    const configPopoverHtml = configOpen ? `
-      <div class="ai-settings-popover" role="dialog" aria-label="Adamlite model and key settings">
-        <div class="ai-pop-head">
-          <strong>Adamlite Engine &amp; Gemini Key</strong>
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get free key ↗</a>
-        </div>
-        ${quotaSuffix() ? `<p class="ai-pop-quota">${esc(quotaSuffix())}</p>` : ''}
-        <p class="ai-pop-desc">
-          Optionally use your own Gemini API key from Google (<b>Gemini 4 Hydrogen</b>, <b>3.8 Flash</b>, <b>3.5 Flash-Lite</b>). Stored only in this browser.
-        </p>
-        <div class="ai-byok-fields">
-          <input type="password" id="ai-byok-input" value="${esc(byok)}" placeholder="AIzaSy…" autocomplete="off" spellcheck="false" aria-label="Personal Gemini API key">
-          <select id="ai-byok-model" aria-label="Preferred Gemini model">
-            ${BYOK_MODELS.map((m) => `<option value="${esc(m.id)}" ${getByokModel() === m.id ? 'selected' : ''}>${esc(m.label)}</option>`).join('')}
-          </select>
-        </div>
-        <div class="ai-pop-actions">
-          <div class="ai-pop-actions-left">
-            <button type="button" class="primary-btn ai-pop-btn" id="ai-byok-save">Save</button>
-            ${byok ? '<button type="button" class="ghost-btn ai-pop-btn" id="ai-byok-clear">Remove</button>' : ''}
+          }).join('')}
+        </div>`
+      : `
+        <div class="ai-codex-home">
+          ${chatsListHtml}
+          <div class="ai-codex-watermark" aria-hidden="true">
+            <svg viewBox="0 0 32 32" width="38" height="38" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.5 24.5h11a5.5 5.5 0 0 0 .8-10.94A7 7 0 0 0 9.1 11.4 4.8 4.8 0 0 0 10.5 24.5Z"/>
+              <path d="m12.5 16.2 2.4 2.1-2.4 2.1M16.8 20.4h3"/>
+            </svg>
           </div>
-          <button type="button" class="ai-text-link" id="ai-open-mcp">Desktop MCP ↗</button>
-        </div>
-      </div>
-    ` : '';
+        </div>`;
 
-    const dockIconSvg = side === 'left'
-      ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="15" y1="4" x2="15" y2="20"></line></svg>'
-      : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="9" y1="4" x2="9" y2="20"></line></svg>';
+    const attachChipsHtml = pendingAttachments.length
+      ? `<div class="ai-attach-strip">
+          ${pendingAttachments.map((a) => `
+            <span class="ai-attach-chip">
+              ${a.kind === 'image' && a.previewUrl ? `<img class="ai-attach-thumb" src="${a.previewUrl}" alt="">` : '<span class="ai-attach-ico">📄</span>'}
+              <span class="ai-attach-name">${esc(a.name)}</span>
+              <button type="button" class="ai-attach-rm" data-rm-att="${esc(a.id)}" aria-label="Remove attachment">×</button>
+            </span>`).join('')}
+        </div>`
+      : '';
+
+    const signInHint = !canAsk
+      ? `<div class="ai-signin-bar">
+          <span>Sign in to use Adamlite</span>
+          <div class="ai-signin-bar-btns">
+            <button type="button" class="ai-text-link" id="ai-tutor-signin">Sign in</button>
+            <button type="button" class="ai-text-link" id="ai-tutor-open-key">API key</button>
+          </div>
+        </div>`
+      : '';
 
     pane.innerHTML = `
-      <div class="ai-pane-resize-handle" id="ai-pane-resize" title="Drag to resize"></div>
-      <div class="ai-mobile-grabber" aria-hidden="true"><span></span></div>
+      <div class="ai-pane-resize-handle ai-codex-resize" id="ai-pane-resize" title="Drag to resize Adamlite" aria-hidden="true"></div>
+      <div class="ai-mobile-grabber" aria-hidden="true"></div>
 
-      <header class="ai-pane-head">
-        <div class="ai-pane-head-left">
-          <img class="adamlite-avatar-sm" src="${AVATAR_SRC}" alt="" aria-hidden="true">
-          <span class="ai-pane-title">Adamlite</span>
-          ${ctxTag ? `<span class="ai-pane-ctx-chip" title="${esc(ctxFull)}">${esc(ctxTag)}</span>` : ''}
+      <!-- Top Tab Bar (Codex 1:1) -->
+      <header class="ai-codex-tabbar">
+        <div class="ai-codex-tab">
+          <img class="adamlite-tab-img" src="${AVATAR_SRC}" alt="" width="16" height="16">
+          <span>Adamlite</span>
         </div>
-        <div class="ai-pane-head-actions">
-          <button type="button" class="ai-head-icon-btn ${historyOpen ? 'active' : ''}" id="ai-tutor-history" title="Previous chats (${savedCount})" aria-label="Previous chats" aria-pressed="${historyOpen}">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15.5 14"></polyline></svg>
+        <div class="ai-codex-tab-actions">
+          <button type="button" class="ai-codex-icon-btn ai-dock-flip-btn" id="ai-dock-flip" title="Dock to ${side === 'right' ? 'left' : 'right'} side" aria-label="Dock side">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2.5 6V3.5a1 1 0 0 1 1-1H6M10 2.5h2.5a1 1 0 0 1 1 1V6M13.5 10v2.5a1 1 0 0 1-1 1H10M6 13.5H3.5a1 1 0 0 1-1-1V10"/>
+            </svg>
           </button>
-          <button type="button" class="ai-head-icon-btn" id="ai-tutor-clear" title="New chat" aria-label="New chat">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
-          </button>
-          <button type="button" class="ai-head-icon-btn ai-dock-flip-btn" id="ai-dock-flip" title="${side === 'left' ? 'Dock to right side' : 'Dock to left side'}" aria-label="${side === 'left' ? 'Dock to right side' : 'Dock to left side'}">
-            ${dockIconSvg}
-          </button>
-          <button type="button" class="ai-head-icon-btn" id="ai-tutor-close" title="Close (Esc)" aria-label="Close Adamlite">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <button type="button" class="ai-codex-icon-btn" id="ai-tutor-close" title="Close Adamlite (Esc)" aria-label="Close Adamlite">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+              <path d="M4 4l8 8M12 4l-8 8"/>
+            </svg>
           </button>
         </div>
       </header>
 
-      <div class="ai-thread" id="ai-tutor-thread">
-        ${historyOpen ? renderHistoryPanelHtml() : `${messagesHtml}${busy ? '<div class="ai-turn ai-turn-assistant"><div class="ai-typing" aria-label="Thinking"><span></span><span></span><span></span></div></div>' : ''}`}
+      <!-- Sub-header Strip (Chats + 3 outline icons: History, Settings, New Chat) -->
+      <div class="ai-codex-subbar">
+        ${inChat
+          ? `<button type="button" class="ai-codex-back-btn" id="ai-back-chats" title="Back to Chats">← Chats</button>`
+          : `<span class="ai-codex-sub-title">Chats</span>`}
+        <div class="ai-codex-sub-actions">
+          <button type="button" class="ai-codex-icon-btn ${showAllChats && !inChat ? 'is-active' : ''}" id="ai-tutor-history" title="Previous chats (${savedChats.length})" aria-label="Previous chats">
+            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2.4 8a5.6 5.6 0 1 0 1.4-3.7L2.3 5.8"/><path d="M2.2 2.8v3.1h3.1"/><path d="M8 5v3.2l2.1 1.3"/>
+            </svg>
+          </button>
+          <button type="button" class="ai-codex-icon-btn ${popoverMode === 'settings' ? 'is-active' : ''}" id="ai-tutor-settings" title="Adamlite settings" aria-label="Adamlite settings">
+            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="8" cy="8" r="2.2"/><path d="M13 9.9a1.1 1.1 0 0 0 .2 1.2l.04.04a1.33 1.33 0 1 1-1.88 1.88l-.04-.04a1.1 1.1 0 0 0-1.2-.2 1.1 1.1 0 0 0-.67 1v.12a1.33 1.33 0 1 1-2.66 0v-.06a1.1 1.1 0 0 0-.72-1 1.1 1.1 0 0 0-1.2.2l-.04.04a1.33 1.33 0 1 1-1.88-1.88l.04-.04a1.1 1.1 0 0 0 .2-1.2 1.1 1.1 0 0 0-1-.67h-.06a1.33 1.33 0 1 1 0-2.66h.06a1.1 1.1 0 0 0 1-.72 1.1 1.1 0 0 0-.2-1.2l-.04-.04a1.33 1.33 0 1 1 1.88-1.88l.04.04a1.1 1.1 0 0 0 1.2.2h.05a1.1 1.1 0 0 0 .67-1v-.06a1.33 1.33 0 1 1 2.66 0v.06a1.1 1.1 0 0 0 .67 1 1.1 1.1 0 0 0 1.2-.2l.04-.04a1.33 1.33 0 1 1 1.88 1.88l-.04.04a1.1 1.1 0 0 0-.2 1.2v.05a1.1 1.1 0 0 0 1 .67h.06a1.33 1.33 0 1 1 0 2.66h-.06a1.1 1.1 0 0 0-1 .67Z"/>
+            </svg>
+          </button>
+          <button type="button" class="ai-codex-icon-btn" id="ai-tutor-new" title="New chat" aria-label="New chat">
+            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12.5 9.2v3.3a1.2 1.2 0 0 1-1.2 1.2H3.5a1.2 1.2 0 0 1-1.2-1.2V4.7a1.2 1.2 0 0 1 1.2-1.2h3.3"/>
+              <path d="M11.6 2.4a1.3 1.3 0 0 1 1.85 1.85L7.6 10.1l-2.4.6.6-2.4 5.8-5.9Z"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
-      <div class="ai-composer-zone">
-        ${configPopoverHtml}
+      ${threadHtml}
 
-        ${!canAsk && snap.mode !== 'blind' ? `
-          <div class="ai-signin-bar">
-            <span>Sign in for free Adamlite tutoring or add your own Gemini key.</span>
-            <div class="ai-signin-bar-btns">
-              ${window.StudyCommunity?.enabled ? '<button type="button" class="primary-btn ai-pop-btn" id="ai-tutor-signin">Sign in</button>' : ''}
-              <button type="button" class="ghost-btn ai-pop-btn" id="ai-tutor-open-byok">Gemini key</button>
-            </div>
-          </div>
-        ` : ''}
-
-        <form class="ai-composer-card" id="ai-tutor-form">
+      <!-- Codex-Style Floating Composer Card -->
+      <div class="ai-composer-zone ai-codex-composer-zone">
+        ${popoverHtml(byok)}
+        ${signInHint}
+        <form class="ai-composer-card ai-codex-composer" id="ai-tutor-form">
+          ${attachChipsHtml}
+          <input type="file" id="ai-file-input" multiple accept="image/*,.txt,.md,.csv,.py,.json,.pdf" hidden>
           <textarea
             id="ai-tutor-input"
             rows="1"
-            placeholder="${snap.mode === 'blind' ? 'Unavailable during blind exam…' : 'Ask Adamlite…'}"
+            maxlength="2000"
+            placeholder="${snap.mode === 'blind' ? 'Disabled during blind exam' : 'Ask Adamlite…'}"
             ${busy || !canAsk || snap.mode === 'blind' ? 'disabled' : ''}
           >${esc(draft)}</textarea>
-          <div class="ai-composer-bar">
-            <button type="button" class="ai-model-trigger ${configOpen ? 'active' : ''}" id="ai-engine-toggle" title="Choose model or personal Gemini API key">
-              <span>${esc(compactModelLabel())}</span>
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </button>
-            <button
-              type="submit"
-              class="ai-send-circle"
-              id="ai-send-btn"
-              ${busy || !canAsk || snap.mode === 'blind' || !draft.trim() ? 'disabled' : ''}
-              aria-label="Send message"
-              title="Send (Enter)"
-            >
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-            </button>
+          <div class="ai-composer-bar ai-codex-bar">
+            <div class="ai-codex-bar-left">
+              <button type="button" class="ai-codex-tool-btn" id="ai-attach-btn" title="Attach image, PDF or text file (or paste screenshot)" aria-label="Attach files" ${busy || !canAsk || snap.mode === 'blind' ? 'disabled' : ''}>
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 3.2v9.6M3.2 8h9.6"/></svg>
+              </button>
+              <button type="button" class="ai-codex-tool-btn ai-ctx-shield ${contextEnabled && hasQuestion ? 'is-ctx-on' : ''}" id="ai-ctx-toggle" title="${hasQuestion ? (contextEnabled ? `Exercise + Markdown notes attached (${esc(shortContextTag(snap))}) — click to toggle` : 'Context off — click to attach exercise + notes') : 'No active question — general study chat'}" aria-label="Toggle exercise context" aria-pressed="${contextEnabled ? 'true' : 'false'}">
+                <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M8 2.1 13 4v3.8c0 3.1-2.1 5.3-5 6.2-2.9-.9-5-3.1-5-6.2V4l5-1.9Z"/>
+                  <path d="M8 5.8v2.6M8 10.6h.01"/>
+                </svg>
+              </button>
+            </div>
+            <div class="ai-codex-bar-right">
+              <button type="button" class="ai-codex-speed-btn ${popoverMode === 'speed' ? 'is-active' : ''}" id="ai-speed-trigger" title="${esc(modelShortLabel())} · ${esc(thinkingShortLabel())} thinking (click to change speed or model)" aria-expanded="${popoverMode === 'speed' ? 'true' : 'false'}">
+                <svg class="ai-brain-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.98-3A2.5 2.5 0 0 1 9.5 2Z"/>
+                  <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.98-3A2.5 2.5 0 0 0 14.5 2Z"/>
+                </svg>
+                <span class="ai-speed-text">
+                  <strong class="ai-model-name">${esc(modelShortLabel())}</strong>
+                  <span class="ai-speed-tag">${esc(thinkingShortLabel())}</span>
+                </span>
+              </button>
+              <button type="button" class="ai-codex-tool-btn ai-mic-btn ${speechActive ? 'is-recording' : ''}" id="ai-mic-btn" title="${supportsSpeech() ? 'Dictate with speech-to-text' : 'Speech-to-text unavailable in this browser'}" aria-label="Speech to text" aria-pressed="${speechActive ? 'true' : 'false'}" ${!canAsk || snap.mode === 'blind' ? 'disabled' : ''}>
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/>
+                </svg>
+              </button>
+              <button type="submit" class="ai-send-circle ai-codex-send" id="ai-send-btn" title="Send (Enter)" aria-label="Send message" ${busy || !canAsk || snap.mode === 'blind' || (!draft.trim() && !pendingAttachments.length) ? 'disabled' : ''}>
+                <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M8 12.5V3.5M4 7.5 8 3.5l4 4"/>
+                </svg>
+              </button>
+            </div>
           </div>
         </form>
       </div>
     `;
 
+    updatePaneNarrowClass(pane);
     bindResizeHandle(pane);
+    bindPaneEvents(pane, snap, messages, canAsk, hadFocus, prevSelStart, prevSelEnd, opts);
 
     const threadEl = pane.querySelector('#ai-tutor-thread');
-    if (threadEl && !historyOpen) threadEl.scrollTop = threadEl.scrollHeight;
+    if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+  }
 
+  function bindPaneEvents(pane, snap, messages, canAsk, hadFocus, prevSelStart, prevSelEnd, opts) {
     pane.querySelector('#ai-tutor-close')?.addEventListener('click', () => close());
     pane.querySelector('#ai-dock-flip')?.addEventListener('click', () => {
-      setDockSide(getDockSide() === 'left' ? 'right' : 'left');
+      setDockSide(getDockSide() === 'right' ? 'left' : 'right');
       renderPane({ focusInput: true });
     });
-    pane.querySelector('#ai-tutor-history')?.addEventListener('click', () => {
-      historyOpen = !historyOpen;
-      configOpen = false;
-      renderPane({ focusInput: !historyOpen });
-    });
-    pane.querySelector('#ai-history-close')?.addEventListener('click', () => {
-      historyOpen = false;
+    pane.querySelector('#ai-back-chats')?.addEventListener('click', () => {
+      activeConvoId = '';
+      popoverMode = '';
       renderPane({ focusInput: true });
     });
-    pane.querySelector('#ai-history-new')?.addEventListener('click', () => {
+    pane.querySelector('#ai-tutor-new')?.addEventListener('click', () => {
       startNewChat(snap);
       renderPane({ focusInput: true });
     });
+    pane.querySelector('#ai-tutor-history')?.addEventListener('click', () => {
+      if (activeConvoId) {
+        activeConvoId = '';
+        showAllChats = true;
+      } else {
+        showAllChats = !showAllChats;
+      }
+      popoverMode = '';
+      renderPane();
+    });
+    pane.querySelector('#ai-toggle-all-chats')?.addEventListener('click', () => {
+      showAllChats = !showAllChats;
+      renderPane();
+    });
+    pane.querySelector('#ai-tutor-settings')?.addEventListener('click', () => {
+      popoverMode = popoverMode === 'settings' ? '' : 'settings';
+      renderPane({ focusInput: !popoverMode });
+    });
+    pane.querySelector('#ai-speed-trigger')?.addEventListener('click', () => {
+      popoverMode = popoverMode === 'speed' ? '' : 'speed';
+      renderPane({ focusInput: !popoverMode });
+    });
+    pane.querySelector('#ai-ctx-toggle')?.addEventListener('click', () => {
+      contextEnabled = !contextEnabled;
+      toast(contextEnabled ? 'Exercise + Markdown notes context ON' : 'Context OFF (general chat)');
+      renderPane({ focusInput: true });
+    });
+    pane.querySelector('#ai-ctx-checkbox')?.addEventListener('change', (ev) => {
+      contextEnabled = Boolean(ev.target.checked);
+      renderPane();
+    });
+
+    // Thinking speed & model selectors
+    pane.querySelectorAll('[data-pick-speed]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setThinkingSpeed(btn.dataset.pickSpeed);
+        popoverMode = '';
+        toast(`Adamlite speed: ${thinkingShortLabel()}`);
+        renderPane({ focusInput: true });
+      });
+    });
+    pane.querySelectorAll('[data-pick-model]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setPreferredModel(btn.dataset.pickModel);
+        popoverMode = '';
+        renderPane({ focusInput: true });
+      });
+    });
+
+    // Chat history row open / delete
     pane.querySelectorAll('[data-open-chat-id]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const picked = findConvoById(btn.dataset.openChatId);
         if (!picked) return;
         activeConvoId = picked.id;
         activeKey = picked.key || 'general';
-        historyOpen = false;
+        popoverMode = '';
         renderPane({ focusInput: true });
       });
     });
@@ -714,20 +1047,30 @@ window.StudyAiTutor = (() => {
         renderPane();
       });
     });
-    pane.querySelector('#ai-tutor-clear')?.addEventListener('click', () => {
-      startNewChat(snap);
-      renderPane({ focusInput: true });
+
+    // File attachments + mic
+    const fileInput = pane.querySelector('#ai-file-input');
+    pane.querySelector('#ai-attach-btn')?.addEventListener('click', () => fileInput?.click());
+    fileInput?.addEventListener('change', () => {
+      if (fileInput.files?.length) addFiles(fileInput.files);
+      fileInput.value = '';
     });
-    pane.querySelector('#ai-engine-toggle')?.addEventListener('click', () => {
-      configOpen = !configOpen;
-      renderPane({ focusInput: !configOpen });
+    pane.querySelectorAll('[data-rm-att]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        pendingAttachments = pendingAttachments.filter((a) => a.id !== btn.dataset.rmAtt);
+        renderPane({ focusInput: true });
+      });
     });
-    pane.querySelector('#ai-tutor-open-byok')?.addEventListener('click', () => {
-      configOpen = true;
+    pane.querySelector('#ai-mic-btn')?.addEventListener('click', toggleSpeech);
+
+    // Sign in & BYOK settings
+    pane.querySelector('#ai-tutor-open-key')?.addEventListener('click', () => {
+      popoverMode = 'settings';
       renderPane();
+      pane.querySelector('#ai-byok-input')?.focus();
     });
-    pane.querySelector('#ai-open-mcp')?.addEventListener('click', () => {
-      configOpen = false;
+    pane.querySelector('#ai-open-mcp-btn')?.addEventListener('click', () => {
+      popoverMode = '';
       renderPane();
       window.StudyTutor?.open?.();
     });
@@ -739,41 +1082,34 @@ window.StudyAiTutor = (() => {
         requestAnimationFrame(() => focusComposerIfReady());
       }
     });
-
     pane.querySelector('#ai-byok-save')?.addEventListener('click', () => {
       const val = pane.querySelector('#ai-byok-input')?.value.trim() || '';
-      const mod = pane.querySelector('#ai-byok-model')?.value || 'auto';
       setByokKey(val);
-      setByokModel(mod);
-      configOpen = false;
-      toast(val ? 'Personal Gemini key saved on this device.' : 'Switched back to Adamlite.');
+      popoverMode = '';
+      toast(val ? 'Personal Gemini key saved.' : 'Using built-in Adamlite.');
       renderPane({ focusInput: true });
     });
     pane.querySelector('#ai-byok-clear')?.addEventListener('click', () => {
       setByokKey('');
-      configOpen = false;
+      popoverMode = '';
       toast('Removed personal Gemini key.');
       renderPane({ focusInput: true });
     });
 
+    // Copy assistant response
     pane.querySelectorAll('[data-copy-msg]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        const idx = Number(btn.dataset.copyMsg);
-        const msg = messages[idx];
+        const msg = messages[Number(btn.dataset.copyMsg)];
         if (!msg?.text) return;
         try {
           await navigator.clipboard.writeText(msg.text);
-          const span = btn.querySelector('span');
-          if (span) {
-            span.textContent = 'Copied';
-            setTimeout(() => { span.textContent = 'Copy'; }, 1400);
-          }
-        } catch {
-          toast('Could not copy response.');
-        }
+          const sp = btn.querySelector('span');
+          if (sp) { sp.textContent = 'Copied'; setTimeout(() => { sp.textContent = 'Copy'; }, 1400); }
+        } catch { toast('Could not copy response.'); }
       });
     });
 
+    // Composer textarea + paste image + submit
     const inputEl = pane.querySelector('#ai-tutor-input');
     const sendBtn = pane.querySelector('#ai-send-btn');
     const formEl = pane.querySelector('#ai-tutor-form');
@@ -782,15 +1118,23 @@ window.StudyAiTutor = (() => {
       inputEl.addEventListener('input', () => {
         draftByKey.set(activeKey, inputEl.value);
         autoSizeTextarea(inputEl);
-        if (sendBtn) sendBtn.disabled = busy || !canAsk || snap.mode === 'blind' || !inputEl.value.trim();
+        if (sendBtn) sendBtn.disabled = busy || !canAsk || snap.mode === 'blind' || (!inputEl.value.trim() && !pendingAttachments.length);
+      });
+      inputEl.addEventListener('paste', (ev) => {
+        const items = [...(ev.clipboardData?.items || [])];
+        const imgFiles = items.filter((it) => it.kind === 'file' && it.type.startsWith('image/')).map((it) => it.getAsFile()).filter(Boolean);
+        if (imgFiles.length) {
+          ev.preventDefault();
+          addFiles(imgFiles);
+        }
       });
       inputEl.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter' && !ev.shiftKey) {
           ev.preventDefault();
-          if (inputEl.value.trim()) formEl?.requestSubmit();
+          if (inputEl.value.trim() || pendingAttachments.length) formEl?.requestSubmit();
         }
       });
-      if (!inputEl.disabled && !configOpen && !historyOpen && (hadFocus || (opts.focusInput && shouldAutoFocusComposer()))) {
+      if (!inputEl.disabled && !popoverMode && (hadFocus || (opts.focusInput && shouldAutoFocusComposer()))) {
         inputEl.focus({ preventScroll: true });
         const end = inputEl.value.length;
         const start = Number.isInteger(prevSelStart) ? Math.min(prevSelStart, end) : end;
@@ -806,7 +1150,8 @@ window.StudyAiTutor = (() => {
     formEl?.addEventListener('submit', (ev) => {
       ev.preventDefault();
       const text = inputEl?.value.trim() || '';
-      if (!text || busy) return;
+      if ((!text && !pendingAttachments.length) || busy) return;
+      stopSpeech(true);
       draftByKey.set(activeKey, '');
       inputEl.value = '';
       autoSizeTextarea(inputEl);
@@ -814,6 +1159,9 @@ window.StudyAiTutor = (() => {
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // FAST STREAMING SEND TURN
+  // ---------------------------------------------------------------------------
   async function sendTurn(action, userMessage, displayBubble) {
     if (busy) return;
     const includeSolution = action === 'solution';
@@ -830,67 +1178,107 @@ window.StudyAiTutor = (() => {
       return;
     }
 
-    historyOpen = false;
+    const attachmentsToSend = [...pendingAttachments];
+    pendingAttachments = [];
+    popoverMode = '';
+
     const convo = ensureActiveConvo(activeKey, snap);
     const thread = convo.messages;
-    const priorHistory = thread.slice(-10).map((m) => ({ role: m.role, text: m.text }));
-    const visibleUser = displayBubble || userMessage || defaultActionPrompt(action);
+    const priorHistory = thread.slice(-8).map((m) => ({ role: m.role, text: m.text }));
+    const visibleUser = displayBubble || userMessage || (attachmentsToSend.length ? `Attached ${attachmentsToSend.map((a) => a.name).join(', ')}` : 'Help me with this question.');
+
     if (thread.length === 0) {
-      convo.title = (snap.mode === 'practice' && snap.title)
-        ? `${snap.title}: ${visibleUser}`.slice(0, 84)
-        : visibleUser.slice(0, 84);
+      convo.title = visibleUser.slice(0, 84);
       convo.course = snap.mode === 'practice' ? String(snap.course || '') : convo.course;
       convo.ctxLabel = shortContextTag(snap) || convo.ctxLabel;
     }
-    thread.push({ role: 'user', text: visibleUser });
+
+    thread.push({
+      role: 'user',
+      text: visibleUser,
+      attachments: attachmentsToSend.map((a) => ({ kind: a.kind, name: a.name })),
+    });
+    const assistantMsg = { role: 'assistant', text: '', meta: '' };
+    thread.push(assistantMsg);
+    const assistantIdx = thread.length - 1;
     convo.updatedAt = Date.now();
     persistChats();
 
-    configOpen = false;
     busy = true;
     renderPane();
 
+    // Live incremental DOM painter for streaming chunks (zero full pane rebuild!)
+    let paintQueued = false;
+    const paintStreamingBubble = () => {
+      paintQueued = false;
+      const pane = document.getElementById('ai-tutor-pane');
+      const prose = pane?.querySelector(`[data-msg-idx="${assistantIdx}"] .ai-assistant-prose`);
+      const threadEl = pane?.querySelector('#ai-tutor-thread');
+      if (prose) prose.innerHTML = renderSafeMd(assistantMsg.text);
+      if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+    };
+    const onDelta = (delta) => {
+      assistantMsg.text += delta;
+      if (!paintQueued) {
+        paintQueued = true;
+        requestAnimationFrame(paintStreamingBubble);
+      }
+    };
+
     try {
-      const prompt = userMessage || defaultActionPrompt(action);
-      const contextText = snap.mode === 'practice' ? (snap.context || '') : '';
+      const thinking = getThinkingSpeed();
+      const model = getPreferredModel();
+      const contextText = await buildLeanStudyContext(snap);
+      const wireAttachments = attachmentsToSend.map((a) =>
+        a.kind === 'image'
+          ? { kind: 'image', name: a.name, mimeType: a.mimeType, base64: a.base64 }
+          : { kind: 'text', name: a.name, text: a.text }
+      );
+
       let res;
       if (byok) {
-        res = await callDirectGemini(byok, getByokModel(), action, contextText, priorHistory, prompt);
+        res = await streamDirectGemini(byok, model, thinking, action, contextText, priorHistory, userMessage || visibleUser, wireAttachments, onDelta);
+      } else if (typeof window.StudyCommunity?.aiStream === 'function') {
+        res = await window.StudyCommunity.aiStream('/tutor', {
+          action,
+          message: userMessage || visibleUser,
+          context: contextText,
+          history: priorHistory,
+          thinking,
+          model,
+          attachments: wireAttachments,
+        }, onDelta);
       } else {
         res = await window.StudyCommunity.aiRequest('/tutor', {
           action,
-          message: userMessage,
+          message: userMessage || visibleUser,
           context: contextText,
           history: priorHistory,
-          course: snap.course || '',
-          title: snap.title || '',
+          thinking,
+          model,
+          attachments: wireAttachments,
         });
-        if (Number.isFinite(res?.remaining)) {
-          serverStatus = {
-            available: true,
-            provider: res.provider,
-            modelLabel: res.modelLabel,
-            used: res.used,
-            limit: res.limit,
-            remaining: res.remaining,
-          };
-        }
+        if (res?.reply) assistantMsg.text = res.reply;
       }
-      thread.push({ role: 'assistant', text: res.reply, meta: res.modelLabel || '' });
+
+      if (res?.reply && !assistantMsg.text) assistantMsg.text = res.reply;
+      if (Number.isFinite(res?.remaining)) {
+        serverStatus = {
+          available: true,
+          provider: res.provider,
+          modelLabel: res.modelLabel,
+          used: res.used,
+          limit: res.limit,
+          remaining: res.remaining,
+        };
+      }
+      const speedTag = thinking !== 'minimal' ? ` · ${thinkingShortLabel()}` : '';
+      assistantMsg.meta = `${res?.modelLabel || 'Adamlite'}${speedTag}`;
       convo.updatedAt = Date.now();
       persistChats();
     } catch (err) {
-      const message = err?.message
-        ?.replaceAll('AI Tutor', 'Adamlite')
-        .replaceAll('Al Tutor', 'Adamlite')
-        .replaceAll('Copy for AI', 'Copy for Adamlite');
-      thread.push({
-        role: 'assistant',
-        text: `Could not get a reply: ${message || 'Try again in a moment.'}`,
-        meta: 'Error',
-      });
-      convo.updatedAt = Date.now();
-      persistChats();
+      assistantMsg.text = `**Error:** ${err?.message || 'Could not reach Adamlite right now.'}`;
+      assistantMsg.meta = 'Error';
     } finally {
       busy = false;
       renderPane({ focusInput: true });
@@ -898,54 +1286,54 @@ window.StudyAiTutor = (() => {
   }
 
   async function refreshStatus() {
-    if (!window.StudyCommunity?.isSignedIn?.() || !window.StudyCommunity?.aiRequest) return;
+    if (!window.StudyCommunity?.enabled || !window.StudyCommunity?.isSignedIn?.()) return;
     try {
       serverStatus = await window.StudyCommunity.aiRequest('/status');
-      if (!isOpen) return;
-      const pane = document.getElementById('ai-tutor-pane');
-      const labelSpan = pane?.querySelector('#ai-engine-toggle span');
-      if (labelSpan) labelSpan.textContent = compactModelLabel();
-      if (configOpen) {
-        const quotaEl = pane?.querySelector('.ai-pop-quota');
-        const text = quotaSuffix();
-        if (quotaEl && text) {
-          quotaEl.textContent = text;
-        } else if (pane?.querySelector('#ai-byok-input') !== document.activeElement) {
-          renderPane();
-        }
-      }
+      if (isOpen && !busy) renderPane();
     } catch {}
   }
 
-  function showPane() {
+  function focusComposerIfReady() {
+    const pane = document.getElementById('ai-tutor-pane');
+    const input = pane?.querySelector('#ai-tutor-input');
+    if (pane && !pane.hidden && input && !input.disabled && !popoverMode && shouldAutoFocusComposer()) {
+      input.focus({ preventScroll: true });
+      const end = input.value.length;
+      try { input.setSelectionRange(end, end); } catch {}
+    }
+  }
+
+  function open(opts = {}) {
+    if (opts && opts.courseContext) {
+      customCourseContext = opts.courseContext;
+    } else if (opts && opts.courseContext === null) {
+      customCourseContext = null;
+    }
+    const snap = currentExerciseSnapshot(false);
+    if (snap.mode === 'blind') {
+      toast('Adamlite is disabled during blind exams.');
+      return;
+    }
     const pane = ensurePane();
     const backdrop = document.getElementById('ai-tutor-backdrop');
     isOpen = true;
     pane.hidden = false;
     if (backdrop) backdrop.hidden = false;
     syncBodyClasses();
-    renderPane({ focusInput: true, followContext: true });
+    renderPane({ focusInput: true });
     requestAnimationFrame(() => focusComposerIfReady());
-    refreshStatus();
+    if (!serverStatus) refreshStatus();
   }
 
   function close() {
+    stopSpeech(true);
     const pane = document.getElementById('ai-tutor-pane');
     const backdrop = document.getElementById('ai-tutor-backdrop');
     isOpen = false;
-    configOpen = false;
-    historyOpen = false;
+    popoverMode = '';
     if (pane) pane.hidden = true;
     if (backdrop) backdrop.hidden = true;
     syncBodyClasses();
-  }
-
-  function open(initialAction = '') {
-    customCourseContext = null;
-    showPane();
-    if (initialAction && !busy) {
-      sendTurn(initialAction, '', defaultActionPrompt(initialAction));
-    }
   }
 
   function toggle() {
@@ -953,38 +1341,26 @@ window.StudyAiTutor = (() => {
     else open();
   }
 
-  function openForCourse(course) {
-    if (!course) return open();
-    const topics = Array.isArray(course.topics) && course.topics.length
-      ? `\n\nCourse modules / syllabus topics:\n${course.topics.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
-      : '';
-    customCourseContext = {
-      mode: 'practice',
-      courseId: course.id || course.code || 'community',
-      questionId: 'course-overview',
-      course: course.code || 'Community Course',
-      title: course.title || 'Course study',
-      context: `Course: ${course.code ? course.code + ' · ' : ''}${course.title || ''}${topics}\n\nThe student wants to study concepts, build practice drills, or review topics from this course.`,
-    };
-    showPane();
+  function syncContext() {
+    const snap = currentExerciseSnapshot(false);
+    if (snap.mode === 'blind' && isOpen) {
+      close();
+      return;
+    }
+    if (isOpen && !busy) renderPane();
   }
 
-  function syncContext() {
-    if (!isOpen) return;
-    const snap = currentExerciseSnapshot(false);
-    if (snap.mode === 'practice') customCourseContext = null;
-    syncBodyClasses();
-    renderPane({ followContext: true });
+  function setCourseContext(ctx) {
+    customCourseContext = ctx || null;
+    if (isOpen && !busy) renderPane();
   }
 
   return {
     open,
     close,
     toggle,
-    openForCourse,
-    syncContext,
-    refreshStatus,
-    listChats: () => conversations.filter((c) => c.messages.length > 0),
     isOpen: () => isOpen,
+    syncContext,
+    setCourseContext,
   };
 })();

@@ -173,7 +173,7 @@ export default {
     const db = env.DB;
     let data = {};
     if (request.method === 'POST') {
-      const limit = path === '/schedule/timeedit-push'
+      const limit = (path === '/schedule/timeedit-push' || path === '/ai/tutor')
         ? maxIcsBytes
         : (path === '/sync' || path === '/courses/sync' || path === '/materials/chunk') ? maxSyncBytes : maxInputBytes;
       try { data = await readJson(request, limit); }
@@ -284,7 +284,10 @@ export default {
       return handleSync({ request, db, me, now, data, reply });
     }
     if (path.startsWith('/ai/')) {
-      return handleAi({ request, path, db, env, me, isAdmin, now, data, reply });
+      const corsHeaders = headers['Access-Control-Allow-Origin']
+        ? { 'Access-Control-Allow-Origin': headers['Access-Control-Allow-Origin'], Vary: 'Origin' }
+        : { Vary: 'Origin' };
+      return handleAi({ request, path, db, env, me, isAdmin, now, data, reply, corsHeaders });
     }
     if (path === '/feedback' || path === '/admin/feedback') {
       return handleFeedback({ request, path, db, me, isAdmin, now, data, reply });
