@@ -1451,14 +1451,24 @@ window.StudyRunner = (() => {
         : promptPdfs).slice(0, 3);
       const inlineLocalPrompt = renderInlineLocalPdfFigures(filteredPromptPdfs);
       if (inlineLocalPrompt.mountItems.length) inlineLocalMountItems.push(...inlineLocalPrompt.mountItems);
+      const rawPromptStr = String(q.promptMarkdown || '').trim();
+      const hasFullTranscribedPrompt = rawPromptStr.length >= 220
+        && !/\b(sheet above|pages? above|shown above|figure\s*\d|in the figure|in the graph|graph below|diagram below)\b/i.test(rawPromptStr);
+      const rawScanHtml = `${promptAssetsHtml}${inlineLocalPrompt.html}`;
+      const scanPageCount = (promptAssets?.length || 0) + (filteredPromptPdfs?.length || 0);
+      const collapsedScanHtml = rawScanHtml
+        ? `<details class="orig-sheet-details">
+             <summary>Original BI sheet ${scanPageCount > 1 ? `(${scanPageCount} pages)` : '(PDF / scan)'}</summary>
+             <div class="orig-sheet-body">${rawScanHtml}</div>
+           </details>`
+        : '';
       readerBodyHtml = `
         <div class="${isExamSheet ? 'exam-paper-sheet' : ''}">
           ${headerHtml}
           ${contextHtml}
-          ${promptAssetsHtml}
-          ${inlineLocalPrompt.html}
-          ${svgHtml}
-          ${promptMdHtml}
+          ${hasFullTranscribedPrompt
+            ? `${svgHtml}${promptMdHtml}${collapsedScanHtml}`
+            : `${rawScanHtml}${svgHtml}${promptMdHtml}`}
           ${taskGateHtml}
         </div>
       `;
@@ -1523,6 +1533,9 @@ window.StudyRunner = (() => {
           .join('') +
         `</div>`;
     } else if (hasWf) {
+      const autoSaveLabel = document.documentElement.dataset.studyMode === 'web'
+        ? 'Auto-saved in browser'
+        : 'Auto-saved to OneDrive';
       const wfSheetHtml = renderWiseflowWorksheet(q, st);
       workspaceHtml = `
         ${wfSheetHtml}
@@ -1535,13 +1548,16 @@ window.StudyRunner = (() => {
               st.draft
             )}</textarea>
             <div class="row-between" style="margin:4px 0 0;font-size:12px">
-              <span class="muted">Auto-saved to OneDrive</span>
+              <span class="muted">${autoSaveLabel}</span>
               <span id="lbl-word-count" class="muted">0 words</span>
             </div>
           </div>
         </details>
       `;
     } else {
+      const autoSaveLabel = document.documentElement.dataset.studyMode === 'web'
+        ? 'Auto-saved in browser'
+        : 'Auto-saved to OneDrive';
       const placeholder =
         q.kind === 'coding'
           ? '# Write your Python solution or key logic here before revealing the model solution...'
@@ -1561,7 +1577,7 @@ window.StudyRunner = (() => {
           ${numCheckHtml}
           <textarea id="inp-written-draft" style="${monoStyle};min-height:${isSplit ? '210px' : '135px'}" placeholder="${esc(placeholder)}">${esc(st.draft)}</textarea>
           <div class="row-between" style="margin:4px 0 0;font-size:12px">
-            <span class="muted">Auto-saved to OneDrive</span>
+            <span class="muted">${autoSaveLabel}</span>
             <span id="lbl-word-count" class="muted">0 words</span>
           </div>
         </div>

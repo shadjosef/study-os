@@ -1117,11 +1117,30 @@ window.StudyApp = (() => {
             seenCols.get(pc.id).title = pc.title;
           }
         }
-        const seenQids = new Set((bank.questions || []).map((q) => q.id));
+        const existingById = new Map((bank.questions || []).map((q) => [q.id, q]));
         for (const pq of pubBank.questions || []) {
-          if (pq?.id && !seenQids.has(pq.id)) {
+          if (!pq?.id) continue;
+          const cur = existingById.get(pq.id);
+          if (!cur) {
             (bank.questions ||= []).push(pq);
-            seenQids.add(pq.id);
+            existingById.set(pq.id, pq);
+          } else if (pq.provenance?.category !== 'book') {
+            const revBump = Number(pq.contentRevision || 0) > Number(cur.contentRevision || 0);
+            const richerPrompt = Boolean(pq.promptMarkdown)
+              && pq.promptMarkdown.length > (cur.promptMarkdown || '').length + 120;
+            const addedSlots = Array.isArray(pq.wiseflowFields) && pq.wiseflowFields.length > 0
+              && (!Array.isArray(cur.wiseflowFields) || cur.wiseflowFields.length === 0);
+            if (revBump || richerPrompt || addedSlots) {
+              if (pq.promptMarkdown) cur.promptMarkdown = pq.promptMarkdown;
+              if (Array.isArray(pq.wiseflowFields) && pq.wiseflowFields.length) cur.wiseflowFields = pq.wiseflowFields;
+              if (pq.solutionMarkdown && (revBump || pq.solutionMarkdown.length > (cur.solutionMarkdown || '').length)) {
+                cur.solutionMarkdown = pq.solutionMarkdown;
+              }
+              if (revBump && Array.isArray(pq.hints) && pq.hints.length) cur.hints = pq.hints;
+              if (revBump && Array.isArray(pq.rubricChecks) && pq.rubricChecks.length) cur.rubricChecks = pq.rubricChecks;
+              if (revBump && pq.pitfall) cur.pitfall = pq.pitfall;
+              if (pq.contentRevision) cur.contentRevision = pq.contentRevision;
+            }
           }
         }
         bank.sources ||= {};

@@ -8700,6 +8700,31 @@ details.obs-callout[open] > summary.obs-callout-title::after {
   }
 }
 
+.orig-sheet-details {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 2%, transparent);
+  overflow: hidden;
+}
+.orig-sheet-details > summary {
+  cursor: pointer;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  user-select: none;
+}
+.orig-sheet-details > summary:hover {
+  color: var(--ink);
+}
+.orig-sheet-details[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+.orig-sheet-body {
+  padding: 10px 12px;
+}
+
 /* ============================================================================
  * LAZY-LOADED PDFCRAFT (PURE RUST WASM) MODAL WORKBENCH
  * ========================================================================== */
