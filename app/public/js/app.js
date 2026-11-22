@@ -25,6 +25,24 @@ window.StudyApp = (() => {
   const isStaticWeb = document.documentElement.dataset.studyMode === 'web';
   const members = window.StudyMembers;
   const WEB_STATE_KEY = 'study-os-web-state-v1';
+
+  const MAINTENANCE_COURSES = {
+    'prog-3021': {
+      badge: 'Under maintenance',
+      eta: 'Reworking in December',
+      shortNote: 'Reworking in December — upgraded Python exercises & past exam drills coming soon.',
+      detail: 'EBA 3400 Programming is currently under maintenance while we rework the exercises and mock exams for the December exam. Check back soon — Economics, Accounting, Mathematics, and OB & Leadership are all live.',
+    },
+  };
+  function getCourseMaintenance(courseId) {
+    return MAINTENANCE_COURSES[String(courseId || '')] || null;
+  }
+  function canBypassCourseMaintenance() {
+    return !isStaticWeb || Boolean(window.StudyCommunity?.isAdmin?.());
+  }
+  function isCourseInMaintenanceForUser(courseId) {
+    return Boolean(getCourseMaintenance(courseId) && !canBypassCourseMaintenance());
+  }
   let offlineStatus = navigator.serviceWorker?.controller ? 'Saved for offline' : '';
 
   let currentView = 'home';
@@ -2159,8 +2177,9 @@ window.StudyApp = (() => {
       // Lazily hydrate exact task counts + topics from course banks so cards never show "0 queued"
       hydrateVisibleScheduledBlocks([primary, ...nextStrip]).catch(() => {});
     } else if (isStaticWeb) {
-      const questionCount = boot.catalog.reduce((count, c) => count + c.questionCount, 0);
-      const nextExam = [...boot.catalog]
+      const activeCatalog = boot.catalog.filter((c) => !isCourseInMaintenanceForUser(c.courseId));
+      const questionCount = activeCatalog.reduce((count, c) => count + c.questionCount, 0);
+      const nextExam = [...activeCatalog]
         .map((c) => ({ c, targetMs: examTargetMs(c.examInfo), days: daysUntilDateStr(c.examInfo?.date) }))
         .filter((x) => Number.isFinite(x.targetMs) && x.targetMs > Date.now() - 14400_000)
         .sort((x, y) => x.targetMs - y.targetMs)[0];
@@ -2177,7 +2196,7 @@ window.StudyApp = (() => {
           <div style="flex:1;min-width:240px">
             ${nextExamChip}
             <h1 class="hero-title">Study by subject</h1>
-            <p class="muted" style="margin:0">${boot.catalog.length} subjects · ${questionCount} questions · ${(boot.references || []).length} course notes</p>
+            <p class="muted" style="margin:0">${activeCatalog.length} active subjects · ${questionCount} questions · ${(boot.references || []).length} course notes</p>
           </div>
           <div class="row-actions">
             <button type="button" class="primary-btn" id="btn-web-refs">Course notes</button>
@@ -2342,11 +2361,33 @@ window.StudyApp = (() => {
           ? `<div class="course-prov-mix" title="Authentic BI past exams, exercises &amp; tutoring are prioritized before Al synthetics">${provMixParts.join(' · ')}</div>`
           : '';
 
+        const maint = getCourseMaintenance(c.courseId);
+        const maintLocked = Boolean(maint && !canBypassCourseMaintenance());
+        const maintBadgeHtml = maint
+          ? `<span class="badge maintenance" title="${esc(maint.eta)}">${maintLocked ? esc(maint.badge) : 'Maintenance · Admin'}</span>`
+          : '';
+        if (maintLocked) {
+          return `<article class="course-card course-card-maintenance" style="--course-accent:${esc(c.color)}">
+            <div>
+              <div class="row-between" style="margin:0 0 8px">
+                <span class="course-code-pill" style="--pill-color:${esc(c.color)}">${esc(c.code)}${semesters.length > 1 && c.semester ? ` · ${esc(c.semester)}` : ''}</span>
+                <div class="row-actions">${maintBadgeHtml}${examBadge}</div>
+              </div>
+              <h3 class="course-card-title" data-open-course="${esc(c.courseId)}" role="button" tabindex="0">${esc(c.title)}</h3>
+              <p class="muted course-maintenance-note">${esc(maint.shortNote)}</p>
+            </div>
+            <div class="course-actions">
+              <button type="button" class="ghost-btn" disabled aria-disabled="true">${esc(maint.badge)}</button>
+              <button type="button" class="ghost-btn" data-ref-course="${esc(c.courseId)}">Notes</button>
+            </div>
+          </article>`;
+        }
+
         return `<article class="course-card" style="--course-accent:${esc(c.color)}">
           <div>
             <div class="row-between" style="margin:0 0 8px">
               <span class="course-code-pill" style="--pill-color:${esc(c.color)}">${esc(c.code)}${semesters.length > 1 && c.semester ? ` · ${esc(c.semester)}` : ''}</span>
-              <div class="row-actions">${examBadge}</div>
+              <div class="row-actions">${maintBadgeHtml}${examBadge}</div>
             </div>
             <h3 class="course-card-title" data-open-course="${esc(c.courseId)}" role="button" tabindex="0">${esc(c.title)}</h3>
             <div class="course-progress-wrap">
@@ -3371,6 +3412,30 @@ window.StudyApp = (() => {
             ? 'Full 50-question randomized WISEflow MCQ paper balanced across Lessons 1–14.'
             : '4-task Home Exam 2 blueprint: (1) Loop/Simulation, (2) Function/Dict/DateTime, (3) Pandas/Seaborn Table, (4) Time Series/Resample/Plot + 2 rule checks (180m).';
 
+        const maint = getCourseMaintenance(c.courseId);
+        const maintLocked = Boolean(maint && !canBypassCourseMaintenance());
+        const maintBadgeHtml = maint
+          ? `<span class="badge maintenance" title="${esc(maint.eta)}">${maintLocked ? esc(maint.badge) : 'Maintenance · Admin'}</span>`
+          : '';
+        if (maintLocked) {
+          return `
+            <section class="panel exam-course-card course-card-maintenance" id="exam-card-${esc(c.courseId)}" style="border-left-color:${esc(c.color)}">
+              <div class="row-between" style="margin-top:0">
+                <div style="flex:1;min-width:260px">
+                  <span class="eyebrow" style="color:${esc(c.color)}">${esc(c.code)} · ${esc(maint.eta)}</span>
+                  <h2>${esc(c.title)}</h2>
+                  <p class="muted" style="font-size:13.5px;margin:6px 0 0">${esc(maint.detail)}</p>
+                </div>
+                <div class="row-actions">
+                  ${maintBadgeHtml}
+                  ${daysPill}
+                  <button type="button" class="ghost-btn" data-exam-ref="${esc(c.courseId)}">Reference</button>
+                </div>
+              </div>
+            </section>
+          `;
+        }
+
         return `
           <section class="panel exam-course-card" id="exam-card-${esc(c.courseId)}" style="border-left-color:${esc(c.color)}">
             <div class="row-between" style="margin-top:0">
@@ -3382,6 +3447,7 @@ window.StudyApp = (() => {
                 ${c.courseId === 'math-2588' ? '<p><a href="https://www.dr-eriksen.no/teaching/EBA1180/exams.php" target="_blank" rel="noopener">Mathematics past papers and solutions ↗</a></p>' : ''}
               </div>
               <div class="row-actions">
+                ${maintBadgeHtml}
                 ${daysPill}
                 <button type="button" class="ghost-btn" data-exam-ref="${esc(c.courseId)}">Reference</button>
               </div>
@@ -3491,6 +3557,11 @@ window.StudyApp = (() => {
   }
 
   async function launchCollectionExam(courseId, collectionId, title, examStyle = 'blind', customDurationMin = 0) {
+    if (isCourseInMaintenanceForUser(courseId)) {
+      const m = getCourseMaintenance(courseId);
+      toast(`${m?.badge || 'Under maintenance'} — ${m?.eta || 'reworking soon'}.`);
+      return;
+    }
     const bank = await ensureCourseBank(courseId);
     const cMeta = boot.catalog.find((c) => c.courseId === courseId);
     const colObj = (bank.collections || []).find((c) => String(c.id) === String(collectionId));
@@ -3519,6 +3590,11 @@ window.StudyApp = (() => {
   }
 
   async function launchRandomizedFullExam(courseId, examStyle = 'blind') {
+    if (isCourseInMaintenanceForUser(courseId)) {
+      const m = getCourseMaintenance(courseId);
+      toast(`${m?.badge || 'Under maintenance'} — ${m?.eta || 'reworking soon'}.`);
+      return;
+    }
     const bank = await ensureCourseBank(courseId);
     const cMeta = boot.catalog.find((c) => c.courseId === courseId);
     const memberCourse = members.course(courseId);
@@ -3907,6 +3983,11 @@ window.StudyApp = (() => {
   }
 
   async function launchSmartCourseRun(courseId, budgetMinutes = 75, profile = 'learning', filterTopic = '', effortMode = 'auto', quick = false, exactDifficulty = 0) {
+    if (isCourseInMaintenanceForUser(courseId)) {
+      const m = getCourseMaintenance(courseId);
+      toast(`${m?.badge || 'Under maintenance'} — ${m?.eta || 'reworking soon'}.`);
+      return;
+    }
     const bank = await ensureCourseBank(courseId);
     const cMeta = boot.catalog.find((c) => c.courseId === courseId);
     const chosen = buildEffortSortedQueue(
@@ -3945,6 +4026,60 @@ window.StudyApp = (() => {
     selectedCourseId = courseId;
     if (!courseId) {
       root.innerHTML = '<div class="panel"><p>No course banks loaded yet.</p></div>';
+      return;
+    }
+
+    const maint = getCourseMaintenance(courseId);
+    if (maint && !canBypassCourseMaintenance()) {
+      const cMeta = boot.catalog.find((c) => c.courseId === courseId) || { courseId, code: 'EBA 3400', title: 'Programming, Data Extraction and Visualisation', color: '#2563eb' };
+      document.title = `${cMeta.code ? `${cMeta.code} ` : ''}${cMeta.title} (Under Maintenance) · Study-OS`;
+      const coursePillsHtml = boot.catalog
+        .map((c) => {
+          const active = c.courseId === courseId;
+          const m = isCourseInMaintenanceForUser(c.courseId);
+          return `<button type="button" class="exp-course-pill ${active ? 'active' : ''} ${m ? 'exp-course-pill-maintenance' : ''}" data-pick-course="${esc(c.courseId)}" role="tab" aria-selected="${active}" style="--pill-accent:${esc(c.color)}">
+            <span class="exp-course-dot" aria-hidden="true"></span>
+            <strong>${esc(c.code)}</strong>
+            <span class="exp-course-pill-name">${esc(c.shortTitle || c.title)}</span>
+            <small>${m ? 'Maint.' : Number(c.questionCount || 0)}</small>
+          </button>`;
+        })
+        .join('');
+      const otherCourses = boot.catalog.filter((c) => !isCourseInMaintenanceForUser(c.courseId));
+      root.innerHTML = `
+        <div class="panel">
+          <div class="row-between" style="margin-top:0;align-items:flex-start;gap:10px">
+            <div>
+              <span class="eyebrow">Courses · Click a subject to switch</span>
+              <h2 style="margin:2px 0 0;font-size:19px">${esc(cMeta.code || '')} · ${esc(cMeta.title || '')}</h2>
+            </div>
+            <div class="row-actions" style="flex-shrink:0">
+              <span class="badge maintenance">${esc(maint.badge)}</span>
+              <button type="button" class="ghost-btn" id="exp-open-ref">Course Notes</button>
+            </div>
+          </div>
+          <div class="exp-course-pills" role="tablist" aria-label="Choose course">${coursePillsHtml}</div>
+
+          <div class="maintenance-notice-box">
+            <span class="badge maintenance">${esc(maint.badge)} · ${esc(maint.eta)}</span>
+            <h3 style="margin:10px 0 6px">${esc(cMeta.code || '')} is being reworked for December</h3>
+            <p class="muted" style="max-width:56ch;margin:0 auto 14px">${esc(maint.detail)}</p>
+            <div class="row-actions" style="justify-content:center;flex-wrap:wrap;gap:8px">
+              ${otherCourses.map((oc) => `<button type="button" class="ghost-btn" data-pick-course="${esc(oc.courseId)}">${esc(oc.code)} ${esc(oc.shortTitle || oc.title)} →</button>`).join('')}
+            </div>
+          </div>
+        </div>
+      `;
+      root.querySelectorAll('[data-pick-course]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const nextId = btn.dataset.pickCourse;
+          if (nextId && nextId !== courseId) {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+            renderCourseExplorer(nextId, '');
+          }
+        });
+      });
+      root.querySelector('#exp-open-ref')?.addEventListener('click', () => openReferenceDrawer(cMeta));
       return;
     }
 
@@ -4029,14 +4164,23 @@ window.StudyApp = (() => {
     const coursePillsHtml = boot.catalog
       .map((c) => {
         const active = c.courseId === courseId;
-        return `<button type="button" class="exp-course-pill ${active ? 'active' : ''}" data-pick-course="${esc(c.courseId)}" role="tab" aria-selected="${active}" style="--pill-accent:${esc(c.color)}">
+        const mLocked = isCourseInMaintenanceForUser(c.courseId);
+        const mMeta = getCourseMaintenance(c.courseId);
+        return `<button type="button" class="exp-course-pill ${active ? 'active' : ''} ${mLocked ? 'exp-course-pill-maintenance' : ''}" data-pick-course="${esc(c.courseId)}" role="tab" aria-selected="${active}" style="--pill-accent:${esc(c.color)}"${mMeta ? ` title="${esc(mMeta.badge)} · ${esc(mMeta.eta)}"` : ''}>
           <span class="exp-course-dot" aria-hidden="true"></span>
           <strong>${esc(c.code)}</strong>
           <span class="exp-course-pill-name">${esc(c.shortTitle || c.title)}</span>
-          <small>${Number(c.questionCount || 0)}</small>
+          <small>${mLocked ? 'Maint.' : Number(c.questionCount || 0)}</small>
         </button>`;
       })
       .join('');
+
+    const adminMaintBanner = maint && canBypassCourseMaintenance()
+      ? `<div class="admin-maintenance-banner">
+           <span class="badge maintenance">Under maintenance for students</span>
+           <span>Marked as <strong>${esc(maint.eta)}</strong> for classmates — unlocked with full access for your Admin account.</span>
+         </div>`
+      : '';
 
     const hasBookItems = (bank.questions || []).some((q) => (q.provenance?.category || q.origin) === 'book' || q.origin === 'textbook');
 
@@ -4054,6 +4198,7 @@ window.StudyApp = (() => {
           </div>
         </div>
         <div class="exp-course-pills" role="tablist" aria-label="Choose course">${coursePillsHtml}</div>
+        ${adminMaintBanner}
 
         ${isStaticWeb && curriculum ? `<details class="curriculum">
           <summary>Curriculum and study materials</summary>
@@ -6388,17 +6533,19 @@ window.StudyApp = (() => {
         }
       };
       for (const c of boot.catalog || []) {
+        const mLocked = isCourseInMaintenanceForUser(c.courseId);
+        const mInfo = getCourseMaintenance(c.courseId);
         out.push({
           group: 'Courses',
           title: `${c.code} · ${c.title}`,
-          sub: `${c.questionCount} questions · Topics & practice`,
+          sub: mLocked ? `${mInfo.badge} · ${mInfo.eta}` : `${c.questionCount} questions · Topics & practice`,
           keywords: `${c.code} ${c.title} ${c.shortTitle} course topics practice`,
           run: () => { leaveRunner(); navigate('course', { courseId: c.courseId }); },
         });
         out.push({
           group: 'Exams',
           title: `${c.code} Mock Exams`,
-          sub: c.examInfo?.date ? `Exam ${c.examInfo.date}` : c.shortTitle,
+          sub: mLocked ? `${mInfo.badge} · ${mInfo.eta}` : (c.examInfo?.date ? `Exam ${c.examInfo.date}` : c.shortTitle),
           keywords: `${c.code} ${c.title} exam mock paper`,
           run: () => { leaveRunner(); navigate('exams', { focusCourseId: c.courseId }); },
         });
@@ -6711,6 +6858,7 @@ window.StudyApp = (() => {
       syncSettingsRows();
       toast('Signed out on this browser.');
       if (currentView === 'community') navigate('home');
+      else await refreshBootstrap(false);
     });
     document.getElementById('settings-bi-sync-btn')?.addEventListener('click', () => {
       window.StudyUI.closeSettings?.();
