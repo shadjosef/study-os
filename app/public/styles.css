@@ -60,6 +60,7 @@ html[data-theme="dark"] {
 body {
   margin: 0;
   min-height: 100dvh;
+  overflow-anchor: none;
   background-color: var(--bg);
   background-image:
     radial-gradient(ellipse 85% 42% at 50% -14%, rgba(20, 125, 100, 0.09), transparent 68%),
@@ -223,7 +224,7 @@ html[data-hide-study-help] [data-study-help] { display: none !important; }
 html:not([data-theme="dark"]) .pdf-theme-toggle { display: none; }
 
 /* Buttons & Inputs */
-button, .ghost-btn, .primary-btn, select, input[type="text"], input[type="email"], input[type="search"], input[type="number"], textarea {
+button, .ghost-btn, .primary-btn, select, input:not([type]), input[type="text"], input[type="email"], input[type="search"], input[type="number"], textarea {
   font: inherit;
 }
 
@@ -257,7 +258,7 @@ button:disabled { opacity: 0.48; cursor: default; }
 
 .btn-lg { padding: 12px 22px; font-size: 15px; border-radius: 11px; }
 
-select, input[type="text"], input[type="email"], input[type="search"], input[type="number"], input[type="password"], input[type="url"], textarea {
+select, input:not([type]), input[type="text"], input[type="email"], input[type="search"], input[type="number"], input[type="password"], input[type="url"], textarea {
   background: var(--panel);
   color: var(--ink);
   border: 1px solid var(--line);
@@ -453,6 +454,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  min-width: 0;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--muted);
@@ -475,6 +477,19 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
+  white-space: nowrap;
+}
+.task-table td:last-child,
+.task-table .ghost-btn,
+.task-table .primary-btn,
+.task-table .diff-badge,
+.task-table .badge {
+  white-space: nowrap;
+}
+@media (max-width: 1220px) {
+  .task-table th, .task-table td {
+    padding: 8px 6px;
+  }
 }
 .task-table tr:hover td { background: color-mix(in srgb, var(--panel-alt) 55%, transparent); }
 
@@ -2154,6 +2169,10 @@ dialog.ios-settings-dialog::backdrop {
   gap: 8px;
   flex-wrap: wrap;
 }
+.explorer-primary-bar > * {
+  min-width: 0;
+  max-width: 100%;
+}
 
 .explorer-advanced-filters {
   margin-top: 10px;
@@ -2554,6 +2573,7 @@ html:not([data-show-screen]) [data-layout-screen] { display: none; }
 .mobile-auth-tip { display: none; }
 
 .site-footer {
+  overflow-anchor: none;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -2832,9 +2852,17 @@ html:not([data-theme="dark"]) .badge.admin-badge {
 
 .admin-invite-form {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(185px, 100%), 1fr));
   gap: 10px;
   align-items: end;
+}
+.admin-invite-form > * {
+  min-width: 0;
+}
+.admin-invite-form input,
+.admin-invite-form select {
+  width: 100%;
+  min-width: 0;
 }
 
 .admin-created-code {
@@ -2931,6 +2959,37 @@ html:not([data-theme="dark"]) .badge.admin-badge {
   }
 }
 
+@media (min-width: 721px) and (max-width: 1240px) {
+  .topbar-inner {
+    padding: 7px 12px 7px 14px;
+    gap: 8px;
+  }
+  .brand strong { font-size: 16px; }
+  .tab-btn {
+    padding: 6px 9.5px;
+    font-size: 13px;
+  }
+  .topbar-stats { gap: 6px; }
+  .topbar-stats .live-clock-pill {
+    padding: 4px 9px;
+    font-size: 12px;
+  }
+  .topbar-action-btn {
+    padding: 5px 10px;
+    font-size: 12.5px;
+  }
+  .settings-trigger-label { display: none; }
+  .settings-trigger-btn { padding: 6px 9px; }
+}
+
+@media (min-width: 721px) and (max-width: 1020px) {
+  .topbar-inner {
+    border-radius: 22px;
+    justify-content: center;
+    row-gap: 6px;
+  }
+}
+
 @media (max-width: 720px) {
   .topbar,
   .runner-topbar {
@@ -3017,6 +3076,7 @@ html[data-theme="dark"] .ghost-btn:hover:not(:disabled) {
 }
 
 select,
+input:not([type]),
 input[type="text"],
 input[type="email"],
 input[type="search"],
@@ -3030,6 +3090,7 @@ textarea {
 }
 
 select:focus,
+input:not([type]):focus,
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="search"]:focus,

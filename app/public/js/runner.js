@@ -2834,6 +2834,12 @@ window.StudyRunner = (() => {
     window.StudyApp.navigate(wasExam ? 'exams' : 'home');
   }
 
+  function pauseIfRunning() {
+    if (!activeRun) return;
+    pauseCurrentTimer();
+    window.StudyPdf.dispose();
+  }
+
   function exitRunnerKeepPaused() {
     pauseCurrentTimer();
     window.StudyPdf.dispose();
@@ -3113,6 +3119,7 @@ window.StudyRunner = (() => {
   return {
     getRun,
     startRun,
+    pauseIfRunning,
     resumePausedRun,
     bindRunnerGlobals,
     onBreakStateChange,

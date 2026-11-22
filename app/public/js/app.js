@@ -1524,8 +1524,21 @@ window.StudyApp = (() => {
     window.StudyUI.updateSettingsIndicators?.();
   }
 
-  function showRawView(name) {
-    document.body.classList.toggle('in-runner', name === 'runner');
+  function showRawView(name, { resetScroll = true } = {}) {
+    const wasRunner = document.body.classList.contains('in-runner');
+    const isRunner = name === 'runner';
+    document.body.classList.toggle('in-runner', isRunner);
+    if (!isRunner) {
+      if (wasRunner) window.StudyRunner?.pauseIfRunning?.();
+      document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-split-ref', 'runner-foveal-compact');
+      const gh = document.getElementById('global-header');
+      const rh = document.getElementById('runner-header');
+      if (gh) gh.hidden = false;
+      if (rh) rh.hidden = true;
+      const obsLink = document.getElementById('run-obsidian-app-link');
+      if (obsLink) obsLink.hidden = true;
+    }
+    if (resetScroll) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     for (const v of ['home', 'references', 'schedule', 'exams', 'course', 'runner', 'analytics', 'community', 'room']) {
       const sec = document.getElementById(`view-${v}`);
       if (sec) sec.hidden = v !== name;
@@ -1535,6 +1548,7 @@ window.StudyApp = (() => {
       if (b.dataset.nav === name) b.setAttribute('aria-current', 'page');
       else b.removeAttribute('aria-current');
     });
+    if (resetScroll) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     window.StudyTutor.changed();
     window.StudyAiTutor?.syncContext?.();
   }
@@ -1543,13 +1557,15 @@ window.StudyApp = (() => {
     currentView = viewName;
     if (opts.courseId) selectedCourseId = opts.courseId;
     if (opts.refFile) selectedRefFile = opts.refFile;
-    if (viewName !== 'course' && viewName !== 'references' && window.location.search) {
+    if (viewName !== 'course' && window.location.search) {
       const curParams = new URLSearchParams(window.location.search);
-      if (curParams.has('course') || curParams.has('origin') || curParams.has('diff') || curParams.has('dlpfc') || curParams.has('sort')) {
+      const keepRefQuery = viewName === 'references' && curParams.get('view') === 'references';
+      if (!keepRefQuery && (curParams.has('course') || curParams.has('origin') || curParams.has('diff') || curParams.has('dlpfc') || curParams.has('sort'))) {
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
-    showRawView(viewName);
+    const hasScrollTarget = Boolean(opts.focusCourseId || opts.heading || opts.preserveScroll);
+    showRawView(viewName, { resetScroll: !opts.preserveScroll });
     const activeCourse = (boot?.catalog || []).find((c) => c.courseId === selectedCourseId);
     const titleMap = {
       home: 'Study-OS · Free Canvas LMS Sync, Exam Prep & WISEflow Workspace',
@@ -1571,6 +1587,9 @@ window.StudyApp = (() => {
     else if (viewName === 'analytics') renderAnalytics();
     else if (viewName === 'community') await window.StudyCommunity.render();
     else if (viewName === 'room') await window.StudyRooms.render();
+    if (!hasScrollTarget) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
   }
 
   function daysUntilDateStr(isoDate) {
@@ -3938,6 +3957,9 @@ window.StudyApp = (() => {
     }
     if (selectedCourseId !== courseId || currentView !== 'course') return;
     const cMeta = boot.catalog.find((c) => c.courseId === courseId) || { courseId, title: bank.title, shortTitle: bank.shortTitle };
+    if (cMeta?.code || cMeta?.title) {
+      document.title = `${cMeta.code ? `${cMeta.code} ` : ''}${cMeta.title || bank.title || 'Courses'} · Study-OS`;
+    }
     const localCanvasId = String(cMeta.canvasId || bank.canvasId || '');
     const localCourse = !isStaticWeb && boot.canvasArchive?.courses?.some((item) => String(item.canvasId) === localCanvasId);
     const localFiles = localCourse
@@ -4606,7 +4628,7 @@ window.StudyApp = (() => {
 
       const tbody = document.getElementById('exp-table-body');
       tbody.innerHTML = matches
-        .slice(0, 350)
+        .slice(0, 500)
         .map((q) => {
           const rec = getProgressRecord(q.id);
           const st = rec?.status || 'not_started';
@@ -4671,7 +4693,10 @@ window.StudyApp = (() => {
     root.querySelectorAll('[data-pick-course]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const nextId = btn.dataset.pickCourse;
-        if (nextId && nextId !== courseId) renderCourseExplorer(nextId, '');
+        if (nextId && nextId !== courseId) {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+          renderCourseExplorer(nextId, '');
+        }
       });
     });
 
@@ -6661,7 +6686,7 @@ window.StudyApp = (() => {
         await window.StudyRooms.restore();
         await members.restore();
         await refreshBootstrap();
-        maybePromptFirstLoginBiSync();
+        if (!members.isUnlocked()) maybePromptFirstLoginBiSync();
       }
     };
     document.getElementById('settings-signin-btn')?.addEventListener('click', openHeaderSignIn);
@@ -6802,8 +6827,11 @@ window.StudyApp = (() => {
       const nextUrl = cleanParams.toString() ? `${window.location.pathname}?${cleanParams.toString()}` : window.location.pathname;
       window.history.replaceState({}, '', nextUrl);
       if (isStaticWeb && window.StudyCommunity?.isSignedIn?.() && !/^sos1_/i.test(qAccessCode)) {
-        window.StudyCommunity.redeemAccessCode(qAccessCode).then((res) => {
-          if (res?.archiveUnlocked) toast('Access pass activated — BI course PDFs unlocked!');
+        window.StudyCommunity.redeemAccessCode(qAccessCode).then(async (res) => {
+          if (res?.archiveUnlocked) {
+            await refreshBootstrap(false);
+            toast('Access pass activated — BI course PDFs unlocked!');
+          }
         }).catch(() => {});
       }
     }
@@ -6876,46 +6904,46 @@ window.StudyApp = (() => {
       if (section === 'ed' || section === 'ed-discussion') {
         document.getElementById('community-ed-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      return;
-    }
-    if (['exams', 'references', 'schedule'].includes(qView)) {
+    } else if (['exams', 'references', 'schedule'].includes(qView)) {
       if (qView === 'references' && isStaticWeb) {
         const target = findPublicReference(params.get('note') || '');
         if (target) {
           await navigate('references', { refFile: target.entry.file, refDoc: target.file, heading: params.get('section') || '' });
-          return;
+        } else {
+          window.history.replaceState({}, '', window.location.pathname);
+          await navigate(qView, { focusCourseId: qCourse || '' });
         }
-      }
-      window.history.replaceState({}, '', window.location.pathname);
-      await navigate(qView, { focusCourseId: qCourse || '' });
-      return;
-    }
-    if (qCourse || qView === 'course' || qView === 'courses') {
-      const targetCourseId = qCourse || boot.catalog?.[0]?.courseId || '';
-      if (!targetCourseId) return;
-      if (autoStart) {
-        window.history.replaceState({}, '', window.location.pathname);
-        const normDiff = normalizeDiffParam(qDiffRaw, qDlpfc);
-        const mode = normDiff === '3' ? 'high_dlpfc' : normDiff === '2' ? 'med_dlpfc' : normDiff === '1' ? 'low_dlpfc' : 'auto';
-        const exact = normDiff === '3' ? 3 : normDiff === '2' ? 2 : normDiff === '1' ? 1 : 0;
-        await launchSmartCourseRun(targetCourseId, homeBlockMinutes || 50, 'learning', qTopic, mode, false, exact);
       } else {
-        const filters = {
-          preset: (params.get('preset') || '').trim(),
-          origin: (params.get('origin') || '').trim(),
-          real: params.get('real') === '1' || params.get('real') === 'true',
-          topic: qTopic,
-          coll: (params.get('coll') || params.get('collection') || '').trim(),
-          kind: (params.get('kind') || params.get('format') || '').trim(),
-          diff: normalizeDiffParam(qDiffRaw, qDlpfc),
-          horizon: (params.get('horizon') || '').trim(),
-          status: (params.get('status') || '').trim(),
-          sort: (params.get('sort') || '').trim(),
-          budget: (params.get('budget') || '').trim(),
-          profile: (params.get('profile') || '').trim(),
-          q: (params.get('q') || params.get('search') || '').trim(),
-        };
-        await navigate('course', { courseId: targetCourseId, filters });
+        window.history.replaceState({}, '', window.location.pathname);
+        await navigate(qView, { focusCourseId: qCourse || '' });
+      }
+    } else if (qCourse || qView === 'course' || qView === 'courses') {
+      const targetCourseId = qCourse || boot.catalog?.[0]?.courseId || '';
+      if (targetCourseId) {
+        if (autoStart) {
+          window.history.replaceState({}, '', window.location.pathname);
+          const normDiff = normalizeDiffParam(qDiffRaw, qDlpfc);
+          const mode = normDiff === '3' ? 'high_dlpfc' : normDiff === '2' ? 'med_dlpfc' : normDiff === '1' ? 'low_dlpfc' : 'auto';
+          const exact = normDiff === '3' ? 3 : normDiff === '2' ? 2 : normDiff === '1' ? 1 : 0;
+          await launchSmartCourseRun(targetCourseId, homeBlockMinutes || 50, 'learning', qTopic, mode, false, exact);
+        } else {
+          const filters = {
+            preset: (params.get('preset') || '').trim(),
+            origin: (params.get('origin') || '').trim(),
+            real: params.get('real') === '1' || params.get('real') === 'true',
+            topic: qTopic,
+            coll: (params.get('coll') || params.get('collection') || '').trim(),
+            kind: (params.get('kind') || params.get('format') || '').trim(),
+            diff: normalizeDiffParam(qDiffRaw, qDlpfc),
+            horizon: (params.get('horizon') || '').trim(),
+            status: (params.get('status') || '').trim(),
+            sort: (params.get('sort') || '').trim(),
+            budget: (params.get('budget') || '').trim(),
+            profile: (params.get('profile') || '').trim(),
+            q: (params.get('q') || params.get('search') || '').trim(),
+          };
+          await navigate('course', { courseId: targetCourseId, filters });
+        }
       }
     }
 
@@ -6925,6 +6953,13 @@ window.StudyApp = (() => {
         allowDemo: true,
         forcePrompt: Boolean(qAccessCode),
         prefillCode: qAccessCode,
+      }).then(async (ok) => {
+        if (!ok) return;
+        await window.StudyRooms.restore().catch(() => {});
+        await members.restore().catch(() => {});
+        await syncCloudProgress().catch(() => {});
+        await refreshBootstrap(false);
+        syncSettingsRows();
       }).catch(() => {});
     }
   }

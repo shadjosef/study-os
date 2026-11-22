@@ -128,7 +128,7 @@ window.StudyMembers = (() => {
     previews.clear();
   }
 
-  const BOOK_TITLE_RE = /atrill|mclaney|textbook|pearson|syds[æa]ter|robbins|non-specialists|essential\s+math|12th\s*ed|6th\s*ed|^\s*books?\s*$/i;
+  const BOOK_TITLE_RE = /atrill|mclaney|textbook(?!\s*problems)|pearson|syds[æa]ter|robbins|non-specialists|essential\s+math|12th\s*ed|6th\s*ed|^\s*books?\s*$/i;
   function isRestrictedBook(courseId, item) {
     if (!session?.transient) return false;
     if (String(courseId || '') === 'econ-2522') return false; // CORE Econ is open-access
