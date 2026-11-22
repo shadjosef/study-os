@@ -629,7 +629,7 @@ window.StudyAiTutor = (() => {
     });
     document.addEventListener('pointerdown', (ev) => {
       if (!isOpen || !popoverMode) return;
-      if (ev.target.closest('#ai-speed-popover, #ai-settings-popover, #ai-speed-trigger, #ai-tutor-settings')) return;
+      if (ev.target.closest('#ai-speed-popover, #ai-settings-popover, #ai-speed-trigger, #ai-tutor-settings, #ai-pane-resize')) return;
       popoverMode = '';
       renderPane();
     });
@@ -648,6 +648,12 @@ window.StudyAiTutor = (() => {
     handle.addEventListener('pointerdown', (startEv) => {
       if (window.innerWidth < AI_DOCK_MIN_VP) return;
       startEv.preventDefault();
+      if (popoverMode) {
+        popoverMode = '';
+        pane.querySelector('#ai-speed-popover, #ai-settings-popover')?.remove();
+        pane.querySelector('#ai-speed-trigger')?.classList.remove('is-active');
+        pane.querySelector('#ai-tutor-settings')?.classList.remove('is-active');
+      }
       handle.setPointerCapture?.(startEv.pointerId);
       const restoreW = Math.max(260, Math.round(pane.getBoundingClientRect().width || getSavedWidth() || 360));
       let willCollapse = false;
