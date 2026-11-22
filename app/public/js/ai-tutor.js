@@ -21,10 +21,10 @@ window.StudyAiTutor = (() => {
   const AVATAR_SRC = './pwa/adamlite-avatar.jpg';
 
   const MODELS = [
-    { id: 'auto', label: 'Auto (Fastest)', short: 'Hydrogen' },
-    { id: 'gemini-4-hydrogen', label: 'Gemini 4 Hydrogen', short: 'Hydrogen' },
-    { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', short: '3.8 Flash' },
-    { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', short: 'Flash-Lite' },
+    { id: 'auto', label: 'Auto', short: 'Hydrogen', tag: 'Fast' },
+    { id: 'gemini-4-hydrogen', label: 'Gemini 4 Hydrogen', short: 'Hydrogen', tag: 'New' },
+    { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', short: '3.8 Flash', tag: '' },
+    { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite', short: 'Flash-Lite', tag: '' },
   ];
 
   const BYOK_AUTO_CHAIN = [
@@ -44,6 +44,7 @@ window.StudyAiTutor = (() => {
 
   const AI_PANE_MIN_W = 210;
   const AI_PANE_MAX_W = 640;
+  const AI_COLLAPSE_THRESHOLD = 148;
   const AI_DOCK_MIN_VP = 760;
 
   let conversations = loadStoredChats();
@@ -54,6 +55,7 @@ window.StudyAiTutor = (() => {
   let busy = false;
   let serverStatus = null;
   let popoverMode = ''; // '' | 'speed' | 'settings'
+  let hoveredModelId = '';
   let showAllChats = false;
   let contextEnabled = true;
   let pendingAttachments = []; // [{ id, kind: 'image'|'text', name, mimeType, base64, previewUrl, text }]
@@ -625,6 +627,12 @@ window.StudyAiTutor = (() => {
         }
       }
     });
+    document.addEventListener('pointerdown', (ev) => {
+      if (!isOpen || !popoverMode) return;
+      if (ev.target.closest('#ai-speed-popover, #ai-settings-popover, #ai-speed-trigger, #ai-tutor-settings')) return;
+      popoverMode = '';
+      renderPane();
+    });
     document.body.appendChild(pane);
 
     if ('ResizeObserver' in window) {
@@ -641,6 +649,8 @@ window.StudyAiTutor = (() => {
       if (window.innerWidth < AI_DOCK_MIN_VP) return;
       startEv.preventDefault();
       handle.setPointerCapture?.(startEv.pointerId);
+      const restoreW = Math.max(260, Math.round(pane.getBoundingClientRect().width || getSavedWidth() || 360));
+      let willCollapse = false;
       document.body.classList.add('ai-pane-resizing');
       pane.classList.add('is-resizing');
       const side = getDockSide();
@@ -648,17 +658,35 @@ window.StudyAiTutor = (() => {
       const onMove = (ev) => {
         const rawW = side === 'left' ? ev.clientX - railW : window.innerWidth - ev.clientX;
         const maxW = Math.min(AI_PANE_MAX_W, Math.round(window.innerWidth * 0.65));
+        if (rawW < AI_COLLAPSE_THRESHOLD) {
+          willCollapse = true;
+          pane.classList.add('is-collapsing');
+          // Keep visual pane at min width while dimmed/nudged toward the edge so user gets a crisp collapse snap
+          document.documentElement.style.setProperty('--ai-pane-w', `${AI_PANE_MIN_W}px`);
+          updatePaneNarrowClass(pane);
+          if (rawW < 52) {
+            cleanup(true);
+          }
+          return;
+        }
+        willCollapse = false;
+        pane.classList.remove('is-collapsing');
         const clamped = Math.max(AI_PANE_MIN_W, Math.min(maxW, rawW));
         applyPaneWidth(clamped);
         updatePaneNarrowClass(pane);
       };
-      const onUp = () => {
+      const cleanup = (forceClose) => {
         document.body.classList.remove('ai-pane-resizing');
-        pane.classList.remove('is-resizing');
+        pane.classList.remove('is-resizing', 'is-collapsing');
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
+        if (forceClose || willCollapse) {
+          applyPaneWidth(restoreW);
+          close();
+        }
       };
+      const onUp = () => cleanup(false);
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
@@ -696,60 +724,112 @@ window.StudyAiTutor = (() => {
   function popoverHtml(byok) {
     if (!popoverMode) return '';
     const speed = getThinkingSpeed();
+    const speedLbl = thinkingShortLabel();
     const model = getPreferredModel();
+    const focusModelId = hoveredModelId || model;
+    const quotaCompact = byok
+      ? 'Personal key'
+      : serverStatus?.available && Number.isFinite(serverStatus.remaining)
+      ? `${serverStatus.remaining}/${serverStatus.limit} left`
+      : '';
 
     if (popoverMode === 'speed') {
+      const side = getDockSide();
+      const flySideClass = side === 'left' ? 'is-fly-right' : 'is-fly-left';
       return `
-        <div class="ai-codex-popover" id="ai-speed-popover">
-          <div class="ai-pop-section">
-            <div class="ai-pop-label">Thinking Speed</div>
-            <div class="ai-speed-grid">
-              ${THINKING_MODES.map((t) => `
-                <button type="button" class="ai-speed-opt ${speed === t.id ? 'is-active' : ''}" data-pick-speed="${esc(t.id)}">
-                  <strong>${esc(t.label)}</strong>
-                  <small>${esc(t.hint)}</small>
-                </button>`).join('')}
-            </div>
+        <div class="ai-codex-popover ai-menu-pop" id="ai-speed-popover" role="menu" aria-label="Model and thinking effort">
+          <div class="ai-menu-head">Model</div>
+          <div class="ai-menu-list">
+            ${MODELS.map((m) => {
+              const isSelected = model === m.id;
+              const isFocused = focusModelId === m.id;
+              return `
+                <button type="button" class="ai-menu-row ${isSelected ? 'is-selected' : ''} ${isFocused ? 'is-focused' : ''}" data-pick-model="${esc(m.id)}" role="menuitemradio" aria-checked="${isSelected ? 'true' : 'false'}">
+                  <span class="ai-menu-row-main">
+                    <span class="ai-menu-row-name">${esc(m.label)}</span>
+                    <span class="ai-menu-row-effort">${esc(speedLbl)}</span>
+                    ${m.tag ? `<span class="ai-menu-pill">${esc(m.tag)}</span>` : ''}
+                  </span>
+                  <svg class="ai-menu-chev" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M6 3.5 10.5 8 6 12.5"/>
+                  </svg>
+                </button>`;
+            }).join('')}
           </div>
-          <div class="ai-pop-section">
-            <div class="ai-pop-label">Model</div>
-            <div class="ai-model-list">
-              ${MODELS.map((m) => `
-                <button type="button" class="ai-model-opt ${model === m.id ? 'is-active' : ''}" data-pick-model="${esc(m.id)}">
-                  <span>${esc(m.label)}</span>
-                  ${model === m.id ? '<span class="ai-opt-check">✓</span>' : ''}
+          <div class="ai-menu-sep"></div>
+          <button type="button" class="ai-menu-row ai-menu-foot-row" id="ai-menu-open-usage">
+            <span class="ai-menu-row-main">
+              <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M2.5 11.2a6 6 0 1 1 11 0"/><path d="M8 8.5l2.6-2.8"/><circle cx="8" cy="9.2" r="1"/>
+              </svg>
+              <span class="ai-menu-row-name">View Usage</span>
+            </span>
+            <span class="ai-menu-foot-right">
+              ${quotaCompact ? `<span class="ai-menu-row-effort">${esc(quotaCompact)}</span>` : ''}
+              <svg class="ai-menu-chev" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 3.5 10.5 8 6 12.5"/>
+              </svg>
+            </span>
+          </button>
+
+          <div class="ai-effort-flyout ${flySideClass}" id="ai-effort-flyout" role="menu" aria-label="Thinking effort">
+            <div class="ai-effort-head">
+              <span>Thinking effort</span>
+              <span class="ai-effort-info" title="Minimal = fastest instant replies · High = deepest step-by-step proofs">
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6"/><path d="M8 7.2v3.5M8 5.2h.01"/>
+                </svg>
+              </span>
+            </div>
+            <div class="ai-effort-list">
+              ${THINKING_MODES.map((t) => `
+                <button type="button" class="ai-effort-row ${speed === t.id ? 'is-selected' : ''}" data-pick-speed="${esc(t.id)}" title="${esc(t.hint)}" role="menuitemradio" aria-checked="${speed === t.id ? 'true' : 'false'}">
+                  <span>${esc(t.label)}</span>
+                  ${speed === t.id ? '<svg class="ai-opt-check" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.2 8.4 6.5 11.7 12.8 4.8"/></svg>' : ''}
                 </button>`).join('')}
             </div>
           </div>
         </div>`;
     }
 
-    // popoverMode === 'settings'
-    const quota = byok
-      ? 'Personal Gemini key active'
-      : serverStatus?.available && Number.isFinite(serverStatus.remaining)
-      ? `${serverStatus.remaining}/${serverStatus.limit} left today`
-      : '';
+    // popoverMode === 'settings' — Clean Codex / Antigravity surface matching Model menu
     return `
-      <div class="ai-codex-popover ai-codex-settings-pop" id="ai-settings-popover">
-        <div class="ai-pop-head">
-          <strong>Adamlite Settings</strong>
-          ${quota ? `<span class="ai-pop-quota">${esc(quota)}</span>` : ''}
+      <div class="ai-codex-popover ai-menu-pop ai-codex-settings-pop" id="ai-settings-popover">
+        <div class="ai-set-head">
+          <span class="ai-set-title">Settings</span>
+          ${quotaCompact ? `<span class="ai-menu-pill">${esc(quotaCompact)}</span>` : ''}
         </div>
-        <label class="ai-pop-check">
-          <input type="checkbox" id="ai-ctx-checkbox" ${contextEnabled ? 'checked' : ''}>
-          <span>Include current question, working &amp; Markdown note section</span>
+        <label class="ai-set-toggle-row" for="ai-ctx-checkbox">
+          <span class="ai-set-toggle-copy">
+            <strong>Study context</strong>
+            <small>Question, working &amp; note section</small>
+          </span>
+          <span class="ai-codex-switch">
+            <input type="checkbox" id="ai-ctx-checkbox" ${contextEnabled ? 'checked' : ''}>
+            <span class="ai-codex-switch-track" aria-hidden="true"></span>
+          </span>
         </label>
-        <div class="ai-byok-fields">
-          <input type="password" id="ai-byok-input" value="${esc(byok)}" placeholder="Optional free Gemini API key (AIza…)" autocomplete="off" spellcheck="false" aria-label="Google Gemini API key">
-          <div class="ai-pop-actions">
-            <div class="ai-pop-actions-left">
-              <button type="button" class="primary-btn ai-pop-btn" id="ai-byok-save">Save</button>
-              ${byok ? '<button type="button" class="ghost-btn ai-pop-btn" id="ai-byok-clear">Remove</button>' : ''}
-            </div>
-            <button type="button" class="ai-text-link" id="ai-open-mcp-btn">Desktop MCP</button>
+        <div class="ai-menu-sep"></div>
+        <div class="ai-set-key-block">
+          <div class="ai-set-field-label">Gemini API key (optional)</div>
+          <div class="ai-set-key-row">
+            <input type="password" id="ai-byok-input" value="${esc(byok)}" placeholder="AIza…" autocomplete="off" spellcheck="false" aria-label="Google Gemini API key">
+            <button type="button" class="ai-set-save-btn" id="ai-byok-save">Save</button>
+            ${byok ? '<button type="button" class="ai-set-rm-btn" id="ai-byok-clear" title="Remove personal key" aria-label="Remove personal key">×</button>' : ''}
           </div>
         </div>
+        <div class="ai-menu-sep"></div>
+        <button type="button" class="ai-menu-row ai-menu-foot-row" id="ai-open-mcp-btn">
+          <span class="ai-menu-row-main">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="3" width="12" height="9" rx="1.6"/><path d="M5.5 14h5M5 6.5 6.8 8 5 9.5M8.2 9.5h2.5"/>
+            </svg>
+            <span class="ai-menu-row-name">Desktop MCP</span>
+          </span>
+          <svg class="ai-menu-chev" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 3.5 10.5 8 6 12.5"/>
+          </svg>
+        </button>
       </div>`;
   }
 
@@ -1000,7 +1080,12 @@ window.StudyAiTutor = (() => {
     });
     pane.querySelector('#ai-speed-trigger')?.addEventListener('click', () => {
       popoverMode = popoverMode === 'speed' ? '' : 'speed';
+      hoveredModelId = getPreferredModel();
       renderPane({ focusInput: !popoverMode });
+    });
+    pane.querySelector('#ai-menu-open-usage')?.addEventListener('click', () => {
+      popoverMode = 'settings';
+      renderPane();
     });
     pane.querySelector('#ai-ctx-toggle')?.addEventListener('click', () => {
       contextEnabled = !contextEnabled;
@@ -1012,18 +1097,28 @@ window.StudyAiTutor = (() => {
       renderPane();
     });
 
-    // Thinking speed & model selectors
+    // Thinking speed & model selectors (Antigravity / Codex cascading menu)
     pane.querySelectorAll('[data-pick-speed]').forEach((btn) => {
       btn.addEventListener('click', () => {
+        if (hoveredModelId && MODELS.some((m) => m.id === hoveredModelId)) {
+          setPreferredModel(hoveredModelId);
+        }
         setThinkingSpeed(btn.dataset.pickSpeed);
         popoverMode = '';
-        toast(`Adamlite speed: ${thinkingShortLabel()}`);
+        toast(`Adamlite: ${modelShortLabel()} · ${thinkingShortLabel()}`);
         renderPane({ focusInput: true });
       });
     });
     pane.querySelectorAll('[data-pick-model]').forEach((btn) => {
+      btn.addEventListener('mouseenter', () => {
+        hoveredModelId = btn.dataset.pickModel || '';
+        pane.querySelectorAll('[data-pick-model]').forEach((row) => {
+          row.classList.toggle('is-focused', row === btn);
+        });
+      });
       btn.addEventListener('click', () => {
         setPreferredModel(btn.dataset.pickModel);
+        hoveredModelId = btn.dataset.pickModel;
         popoverMode = '';
         renderPane({ focusInput: true });
       });
