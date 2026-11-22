@@ -1899,27 +1899,29 @@ window.StudyUI = (() => {
       if (gestureUnlockBound) return;
       gestureUnlockBound = true;
       const unlock = () => {
-        if (!isPlaying || !audioCtx) {
+        if (!isPlaying) {
           disarm();
           return;
         }
-        if (audioCtx.state === 'running') {
+        if (!ensureContext()) {
+          disarm();
+          return;
+        }
+        const finishStart = () => {
           waitingForGesture = false;
-          if (!suspendedForBreak) rampMasterGain(volumeToLinearGain(prefs.volume), 0.22);
+          if (isPlaying && !suspendedForBreak) {
+            if (!activeVoice || activeVoice.presetId !== prefs.preset) mountPresetVoice(prefs.preset);
+            rampMasterGain(volumeToLinearGain(prefs.volume), 0.25);
+          }
           updateDom();
           disarm();
+        };
+        if (audioCtx.state === 'running') {
+          finishStart();
           return;
         }
         audioCtx.resume().then(() => {
-          if (audioCtx && audioCtx.state === 'running') {
-            waitingForGesture = false;
-            if (isPlaying && !suspendedForBreak) {
-              if (!activeVoice) mountPresetVoice(prefs.preset);
-              rampMasterGain(volumeToLinearGain(prefs.volume), 0.25);
-            }
-            updateDom();
-            disarm();
-          }
+          if (audioCtx && audioCtx.state === 'running') finishStart();
         }).catch(() => {});
       };
       const disarm = () => {
@@ -2291,6 +2293,17 @@ window.StudyUI = (() => {
       },
       restoreFromPrefs() {
         if (!prefs.enabled) return false;
+        // Defer AudioContext creation until first user gesture when browser autoplay policy blocks boot audio
+        // so Chrome emits zero autoplay warnings while keeping the switch ON and resuming seamlessly on first tap.
+        const hasGesture = Boolean(navigator.userActivation?.hasBeenActive);
+        if (!hasGesture && !audioCtx) {
+          isPlaying = true;
+          suspendedForBreak = Boolean(prefs.muteOnBreak && workState.mode === 'break');
+          waitingForGesture = true;
+          armGestureUnlock();
+          updateDom();
+          return true;
+        }
         this.play(prefs.preset, { persist: false, silentFail: true });
         return true;
       },
