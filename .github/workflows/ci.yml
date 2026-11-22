@@ -34,6 +34,9 @@ jobs:
             app/tutor_bridge.py \
             tools/cli.py \
             tools/build_public_site.py \
+            tools/geo_markdown.py \
+            tools/seo_pages.py \
+            tools/seo_audit.py \
             tools/build_member_library.py \
             tools/study_os_mcp.py
 

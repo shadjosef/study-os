@@ -32,6 +32,7 @@ class PageInspector(HTMLParser):
         self.meta_desc = ""
         self.canonical = ""
         self.og_title = ""
+        self.markdown_alt = ""
         self.links: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
@@ -47,8 +48,12 @@ class PageInspector(HTMLParser):
                 self.meta_desc = a.get("content", "").strip()
             elif a.get("property", "").lower() == "og:title":
                 self.og_title = a.get("content", "").strip()
-        elif t == "link" and a.get("rel", "").lower() == "canonical":
-            self.canonical = a.get("href", "").strip()
+        elif t == "link":
+            rel_val = a.get("rel", "").lower()
+            if rel_val == "canonical":
+                self.canonical = a.get("href", "").strip()
+            elif rel_val == "alternate" and a.get("type", "").lower() == "text/markdown":
+                self.markdown_alt = a.get("href", "").strip()
         elif t == "a" and a.get("href"):
             self.links.append(a["href"].strip())
 
@@ -107,6 +112,16 @@ def audit(dist_dir: Path, base_url: str = "https://studyos.no") -> list[str]:
             if not p.og_title:
                 errors.append(f"{rel or 'index.html'}: missing og:title")
 
+        if not p.markdown_alt:
+            errors.append(f"{rel or 'index.html'}: missing <link rel=\"alternate\" type=\"text/markdown\">")
+        elif p.markdown_alt.startswith(base_url):
+            md_rel = p.markdown_alt.removeprefix(base_url).lstrip("/")
+            md_file = dist_dir / md_rel
+            if not md_file.is_file():
+                errors.append(f"{rel or 'index.html'}: missing Markdown mirror {md_rel}")
+            elif len(md_file.read_text(encoding="utf-8").strip()) < 400:
+                errors.append(f"{rel or 'index.html'}: Markdown mirror {md_rel} is suspiciously short")
+
         for idx, raw_ld in enumerate(p.json_lds):
             try:
                 json.loads(raw_ld)
@@ -133,7 +148,29 @@ def audit(dist_dir: Path, base_url: str = "https://studyos.no") -> list[str]:
         if count == 0:
             errors.append(f"Orphan sitemap page (0 inbound internal links): {url}")
 
-    print(f"SEO Audit checked {len(sitemap_urls)} sitemap URLs: {len(errors)} error(s)")
+    # Verify GEO discovery files (`llms.txt` and `llms-full.txt`) and every linked `.md`/`.txt` mirror
+    llms_path = dist_dir / "llms.txt"
+    llms_full_path = dist_dir / "llms-full.txt"
+    if not llms_path.is_file():
+        errors.append("Missing llms.txt")
+    else:
+        llms_text = llms_path.read_text(encoding="utf-8")
+        if len(llms_text.strip()) < 500:
+            errors.append("llms.txt is suspiciously short")
+        for m in re.finditer(r"\((https://studyos\.no/[^)\s]+)\)", llms_text):
+            href = m.group(1)
+            parsed = urlsplit(href)
+            rel_target = parsed.path.lstrip("/")
+            if rel_target and not (dist_dir / rel_target).is_file():
+                errors.append(f"llms.txt broken link: {href} -> {dist_dir / rel_target}")
+    if not llms_full_path.is_file():
+        errors.append("Missing llms-full.txt")
+    elif len(llms_full_path.read_text(encoding="utf-8").strip()) < 5000:
+        errors.append("llms-full.txt is suspiciously short")
+
+    md_count = sum(1 for p in dist_dir.rglob("*.md") if "vendor" not in p.parts)
+    full_kb = (llms_full_path.stat().st_size / 1024) if llms_full_path.is_file() else 0.0
+    print(f"SEO/GEO Audit checked {len(sitemap_urls)} sitemap URLs, {md_count} .md mirrors, llms-full.txt ({full_kb:.1f} KB): {len(errors)} error(s)")
     for u, c in sorted(inbound_counts.items()):
         print(f"  {c:2d} inbound | {u}")
     return errors

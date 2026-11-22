@@ -10,6 +10,7 @@ on:
       - examples/**
       - site-pack/**
       - tools/build_public_site.py
+      - tools/geo_markdown.py
       - tools/seo_pages.py
       - tools/seo_audit.py
       - .github/workflows/pages.yml

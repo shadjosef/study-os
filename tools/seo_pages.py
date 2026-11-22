@@ -383,6 +383,41 @@ UNIVERSITIES: list[dict[str, Any]] = [
 ]
 
 
+GPA_FAQS: list[tuple[str, str]] = [
+    (
+        "Hvordan regnes karaktersnitt på universitet og høyskole i Norge (A–F)?",
+        "I norsk høyere utdanning regnes karaktersnitt som et studiepoengvektet gjennomsnitt der A = 5, B = 4, C = 3, D = 2 og E = 1. Hver tallkarakter ganges med antall studiepoeng (f.eks. 7,5 eller 10 stp), summeres, og deles på totalt antall beståtte graderte studiepoeng.",
+    ),
+    (
+        "Teller Bestått / Ikke bestått (Pass/Fail) på karaktersnittet?",
+        "Nei. Emner vurdert med Bestått / Ikke bestått (som enkelte ex.phil.- eller praksisemner) gir studiepoeng, men inngår ikke i beregningen av karaktersnitt til masteropptak ved BI, NHH, NTNU, UiO eller UiA.",
+    ),
+    (
+        "Hvilket karaktersnitt trenger man for masteropptak (MSc / siviløkonom)?",
+        "De fleste norske masterprogrammer krever minimum C (2,5–3,0) som formelt minstekrav, mens populære programmer som siviløkonom / MSc på NHH, BI og NTNU ofte har konkurransepoeng rundt 3,7–4,3 (B-nivå). Bruk målsnitt-kalkulatoren over for å se hva du må få på gjenstående emner.",
+    ),
+    (
+        "Lagres karakterene mine på en server?",
+        "Nei. Alt beregnes lokalt i nettleseren din og lagres kun i din egen nettleser (localStorage) — ingen konto, ingen reklame, ingen sporing.",
+    ),
+]
+
+COMPARE_FAQS: list[tuple[str, str]] = [
+    (
+        "Should I replace Notion or Obsidian with Study-OS?",
+        "Not necessarily. Notion and Obsidian are still better for writing long-form essays, group project wikis, and personal note gardens. Study-OS shines during exam prep: syncing Canvas/TimeEdit/TP automatically, running timed WISEflow/active-recall sessions, reading PDFs side-by-side instantly, and tracking study debt.",
+    ),
+    (
+        "How is Study-OS different from Anki or Quizlet?",
+        "Anki is unbeatable for pure vocabulary/medical flashcard memorization. Study-OS uses FSRS spaced repetition like Anki, but adds multi-step calculation & WISEflow FLOWmulti worksheets, 1-click Canvas + TimeEdit/TP timetable sync, instant inline PDF pages, and circadian DLPFC scheduling.",
+    ),
+    (
+        "Why is Study-OS free when Quizlet Plus, Studocu, and Norwegian exam portals charge monthly?",
+        "Study-OS is an independent open-source student project built in Oslo with lightweight Cloudflare & static browser architecture (PDFs stay local in your browser), keeping operating costs near zero with no ads or paywalls.",
+    ),
+]
+
+
 def _breadcrumb_ld(base: str, crumbs: list[tuple[str, str]]) -> dict[str, Any]:
     return {
         "@type": "BreadcrumbList",
@@ -490,6 +525,7 @@ def generate_growth_seo_pages(
   <meta name="geo.region" content="{escape(uni['geo_region'], quote=True)}">
   <meta name="geo.placename" content="{escape(uni['geo_placename'], quote=True)}">
   <link rel="canonical" href="{escape(page_url, quote=True)}">
+  <link rel="alternate" type="text/markdown" href="{base}/uni/{escape(slug, quote=True)}.md" title="{escape(uni['short'], quote=True)} Guide (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
   <meta property="og:url" content="{escape(page_url, quote=True)}">
@@ -682,6 +718,7 @@ def generate_growth_seo_pages(
   <meta name="description" content="{escape(hub_desc, quote=True)}">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <link rel="canonical" href="{base}/universities.html">
+  <link rel="alternate" type="text/markdown" href="{base}/universities.md" title="Supported Universities (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
   <meta property="og:url" content="{base}/universities.html">
@@ -757,24 +794,7 @@ def generate_growth_seo_pages(
         "Gratis karaktersnitt kalkulator for norske universiteter og høyskoler (BI, UiA, NTNU, UiO, NHH, UiB, OsloMet). "
         "Vektet snitt med A=5 til E=1, studiepoeng (ECTS), og målsnitt-planlegger for masteropptak."
     )
-    gpa_faqs = [
-        (
-            "Hvordan regnes karaktersnitt på universitet og høyskole i Norge (A–F)?",
-            "I norsk høyere utdanning regnes karaktersnitt som et studiepoengvektet gjennomsnitt der A = 5, B = 4, C = 3, D = 2 og E = 1. Hver tallkarakter ganges med antall studiepoeng (f.eks. 7,5 eller 10 stp), summeres, og deles på totalt antall beståtte graderte studiepoeng.",
-        ),
-        (
-            "Teller Bestått / Ikke bestått (Pass/Fail) på karaktersnittet?",
-            "Nei. Emner vurdert med Bestått / Ikke bestått (som enkelte ex.phil.- eller praksisemner) gir studiepoeng, men inngår ikke i beregningen av karaktersnitt til masteropptak ved BI, NHH, NTNU, UiO eller UiA.",
-        ),
-        (
-            "Hvilket karaktersnitt trenger man for masteropptak (MSc / siviløkonom)?",
-            "De fleste norske masterprogrammer krever minimum C (2,5–3,0) som formelt minstekrav, mens populære programmer som siviløkonom / MSc på NHH, BI og NTNU ofte har konkurransepoeng rundt 3,7–4,3 (B-nivå). Bruk målsnitt-kalkulatoren over for å se hva du må få på gjenstående emner.",
-        ),
-        (
-            "Lagres karakterene mine på en server?",
-            "Nei. Alt beregnes lokalt i nettleseren din og lagres kun i din egen nettleser (localStorage) — ingen konto, ingen reklame, ingen sporing.",
-        ),
-    ]
+    gpa_faqs = GPA_FAQS
     gpa_faq_html = "".join(
         f"        <details><summary>{escape(q)}</summary><p>{escape(a)}</p></details>\n"
         for q, a in gpa_faqs
@@ -814,6 +834,7 @@ def generate_growth_seo_pages(
   <meta name="geo.region" content="NO">
   <meta name="geo.placename" content="Norway">
   <link rel="canonical" href="{base}/gpa-calculator.html">
+  <link rel="alternate" type="text/markdown" href="{base}/gpa-calculator.md" title="Karaktersnitt Kalkulator (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
   <meta property="og:url" content="{base}/gpa-calculator.html">
@@ -1095,20 +1116,7 @@ def generate_growth_seo_pages(
         "Honest comparison of Study-OS vs Notion, Anki, and Quizlet for Canvas LMS, TimeEdit/TP, and WISEflow "
         "exam prep — including when Notion or Anki is actually the better choice."
     )
-    cmp_faqs = [
-        (
-            "Should I replace Notion or Obsidian with Study-OS?",
-            "Not necessarily. Notion and Obsidian are still better for writing long-form essays, group project wikis, and personal note gardens. Study-OS shines during exam prep: syncing Canvas/TimeEdit/TP automatically, running timed WISEflow/active-recall sessions, reading PDFs side-by-side instantly, and tracking study debt.",
-        ),
-        (
-            "How is Study-OS different from Anki or Quizlet?",
-            "Anki is unbeatable for pure vocabulary/medical flashcard memorization. Study-OS uses FSRS spaced repetition like Anki, but adds multi-step calculation & WISEflow FLOWmulti worksheets, 1-click Canvas + TimeEdit/TP timetable sync, instant inline PDF pages, and circadian DLPFC scheduling.",
-        ),
-        (
-            "Why is Study-OS free when Quizlet Plus and Notion AI charge monthly?",
-            "Study-OS is an independent open-source student project built in Oslo with lightweight Cloudflare & static browser architecture (PDFs stay local in your browser), keeping operating costs near zero with no ads or paywalls.",
-        ),
-    ]
+    cmp_faqs = COMPARE_FAQS
     cmp_faq_html = "".join(
         f"        <details><summary>{escape(q)}</summary><p>{escape(a)}</p></details>\n"
         for q, a in cmp_faqs
@@ -1142,6 +1150,7 @@ def generate_growth_seo_pages(
   <meta name="description" content="{escape(cmp_desc, quote=True)}">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <link rel="canonical" href="{base}/compare.html">
+  <link rel="alternate" type="text/markdown" href="{base}/compare.md" title="Study-OS Comparison (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
   <meta property="og:url" content="{base}/compare.html">

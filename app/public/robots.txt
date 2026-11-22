@@ -1,4 +1,63 @@
+# Study-OS (https://studyos.no)
+# AI / LLM Documentation: https://studyos.no/llms.txt
+# Full Markdown Corpus:   https://studyos.no/llms-full.txt
+
 User-agent: *
+Allow: /
+Disallow: /canvas-connect.html
+Disallow: /tutor-bridge.html
+Disallow: /member-library/
+
+# Explicitly welcome AI search & assistant crawlers
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /canvas-connect.html
+Disallow: /tutor-bridge.html
+Disallow: /member-library/
+
+User-agent: GPTBot
+Allow: /
+Disallow: /canvas-connect.html
+Disallow: /tutor-bridge.html
+Disallow: /member-library/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /canvas-connect.html
+Disallow: /tutor-bridge.html
+Disallow: /member-library/
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /canvas-connect.html
+Disallow: /tutor-bridge.html
+Disallow: /member-library/
+
+User-agent: Claude-User
+Allow: /
+Disallow: /canvas-connect.html
+Disallow: /tutor-bridge.html
+Disallow: /member-library/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /canvas-connect.html
+Disallow: /tutor-bridge.html
+Disallow: /member-library/
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /canvas-connect.html
+Disallow: /tutor-bridge.html
+Disallow: /member-library/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /canvas-connect.html
+Disallow: /tutor-bridge.html
+Disallow: /member-library/
+
+User-agent: Applebot-Extended
 Allow: /
 Disallow: /canvas-connect.html
 Disallow: /tutor-bridge.html
