@@ -3602,22 +3602,27 @@ window.StudyApp = (() => {
       if (col === 'concept-mcq') return 63;
       if (col.startsWith('foundation-')) return 56;
     } else if (cid === 'math-2588') {
-      const mathExamRanks = {
-        'exam-2025h': 100,
-        'exam-2024h': 98,
-        'exam-2024v': 97,
-        'exam-2023h': 96,
-        'exam-2023v': 94,
-        'exam-2022h': 93,
-      };
-      if (mathExamRanks[col]) return mathExamRanks[col];
+      const tier = Number(q.dlpfcBase || q.difficulty || 2);
+      // In EBA 1181, weekly tutoring problem sets (especially Medium-difficulty core problems) are #1 exam priority,
+      // followed by Tutoring Hard/Easy + Week 43 tutoring paper, then recent official past exams (EBA11805).
       if (col.startsWith('tut-') || cat === 'tutoring') {
         const coreMathTopic = !['1', '2'].includes(tid);
-        return q.kind === 'mcq' ? 87 : (91 + (coreMathTopic ? 1 : 0));
+        if (tier === 2) return coreMathTopic ? 100 : 99;
+        if (tier === 3) return coreMathTopic ? 97 : 96;
+        return q.kind === 'mcq' ? 92 : 94;
       }
-      if (col === 'paper-2022a') return 90;
-      if (col.startsWith('paper-')) return 87;
-      if (col === 'multchoice-2025') return 82;
+      if (col === 'paper-2022a') return 96; // Official Week 43 Oct 21 tutoring session paper
+      const mathExamRanks = {
+        'exam-2025h': 95,
+        'exam-2024h': 94,
+        'exam-2024v': 93,
+        'exam-2023h': 93,
+        'exam-2023v': 92,
+        'exam-2022h': 91,
+      };
+      if (mathExamRanks[col]) return mathExamRanks[col];
+      if (col.startsWith('paper-')) return 89;
+      if (col === 'multchoice-2025') return 88;
       if (col.startsWith('mc-')) return 78;
       if (col === 'mock-exam-math-autumn-2026' || cat === 'ai_mock') return 65;
       if (cat === 'ai_synthetic') return 58;
@@ -3652,6 +3657,14 @@ window.StudyApp = (() => {
 
   function examRelevanceBand(q, bank = null) {
     const score = examRelevanceScore(q, bank);
+    const cid = String(q?.courseId || bank?.courseId || '');
+    if (cid === 'math-2588') {
+      if (score >= 99) return 0; // Top Math Priority: Medium-difficulty weekly tutoring session problems
+      if (score >= 96) return 1; // Other weekly tutoring Hard problems & Week 43 tutoring paper
+      if (score >= 88) return 2; // Recent official EBA11805 past exams, tutoring warmups & course papers
+      if (score >= 70) return 3; // Older midterm MC drills
+      return 4;                  // AI mock & synthetic practice
+    }
     if (score >= 88) return 0; // Core Exam Priority (Official Exams, Tutoring, Lecture Exercises, Home Assignments)
     if (score >= 70) return 1; // Official Supporting (Diagnostics, Readings, Extra MC Drills)
     if (score >= 52) return 2; // Exam-Calibrated Mocks & Core Textbook
@@ -4420,7 +4433,8 @@ window.StudyApp = (() => {
         if (tVal === 'all' && cVal === 'all') {
           filtered = interleaveByTopic(filtered, (q) => {
             const done = (getProgressRecord(q.id)?.status || 'not_started') === 'done' ? 1 : 0;
-            const tier = Math.floor(examRelevanceScore(q, bank) / 4);
+            const sc = examRelevanceScore(q, bank);
+            const tier = sc >= 99 ? 50 : Math.floor(sc / 3);
             return `${done}:${examRelevanceBand(q, bank)}:${tier}`;
           });
         }
