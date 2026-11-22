@@ -22,7 +22,16 @@ const cfModels = [
 
 // Per-isolate fast caches so dead/404 model IDs or unsupported thinking schemas never waste round-trips
 const deadModelUntil = new Map();
-const modelThinkingStyle = new Map(); // modelId -> 'budget' | 'level' | 'none'
+const modelThinkingStyle = new Map(); // modelId -> 'level' | 'level-low' | 'budget' | 'none'
+
+function defaultThinkingStyleFor(modelId) {
+  // Gemini 3+ and Gemini 4 models use thinkingLevel; only Gemini 2.5 uses thinkingBudget.
+  return /^gemini-2\./i.test(String(modelId || '')) ? 'budget' : 'level';
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function dailyLimitFor(env, isAdmin) {
   if (isAdmin) return adminDailyLimit;
@@ -41,7 +50,7 @@ function activeProviderInfo(env) {
   return { available: false, provider: 'none', modelLabel: '', modelId: '' };
 }
 
-function buildSystemInstruction(action, thinking = 'minimal') {
+function buildSystemInstruction(action, thinking = 'minimal', contextBlock = '', hasAutoImage = false) {
   const formatting = [
     'You are Adamlite, Study-OS\'s fast, concise university study tutor (Economics, Accounting & Finance, Mathematics, OB, Data Science).',
     'Rules:',
@@ -49,6 +58,7 @@ function buildSystemInstruction(action, thinking = 'minimal') {
     '- Never output raw HTML or scripts. Prefer tight bullet points or numbered steps over long walls of text.',
     '- Match the student\'s language (Norwegian if they write Norwegian, otherwise crisp English).',
     '- Ground formulas and definitions in the provided Reference Note snippet when relevant.',
+    '- When ACTIVE STUDY CONTEXT or an attached question figure/PDF image is provided, use it directly right away — NEVER say you cannot see the problem or ask the student to paste it.',
   ];
   if (thinking === 'minimal') {
     formatting.push('- Speed mode is MINIMAL: get straight to the answer/step cleanly without filler.');
@@ -61,7 +71,14 @@ function buildSystemInstruction(action, thinking = 'minimal') {
     chat: 'MODE: TUTORING. Answer the student\'s question directly and clearly.',
   }[action] || '';
 
-  return [...formatting, modeRule].join('\n');
+  const parts = [...formatting, modeRule];
+  if (contextBlock) {
+    parts.push(`\nACTIVE STUDY CONTEXT (the student's current problem on screen right now):\n${contextBlock}`);
+  }
+  if (hasAutoImage) {
+    parts.push('\nNote: Image(s) of the visible question prompt / PDF table on the student\'s screen are attached to the latest user message. Read exact numbers, tables, and diagrams directly from those image(s).');
+  }
+  return parts.filter(Boolean).join('\n');
 }
 
 function defaultActionPrompt(action) {
@@ -95,26 +112,19 @@ function sanitizeAttachments(rawList) {
   return out;
 }
 
-function buildGeminiContents(contextBlock, history, userPrompt, attachments = []) {
+function buildGeminiContents(_contextBlock, history, userPrompt, attachments = []) {
   const contents = [];
-  const prefix = contextBlock ? `STUDY CONTEXT:\n${contextBlock}\n\n---\n\n` : '';
-  let attachedContext = false;
 
   for (const turn of history) {
     const role = turn.role === 'assistant' ? 'model' : 'user';
-    const text = !attachedContext && role === 'user' ? (attachedContext = true, `${prefix}${turn.text}`) : turn.text;
-    contents.push({ role, parts: [{ text }] });
+    contents.push({ role, parts: [{ text: turn.text }] });
   }
 
   const textAttachments = attachments
     .filter((a) => a.kind === 'text')
     .map((a) => `ATTACHED FILE (${a.name}):\n${a.text}`)
     .join('\n\n');
-  const finalText = [
-    attachedContext ? '' : prefix,
-    textAttachments ? `${textAttachments}\n\n` : '',
-    userPrompt,
-  ].join('');
+  const finalText = textAttachments ? `${textAttachments}\n\n${userPrompt}` : userPrompt;
 
   const userParts = [{ text: finalText }];
   for (const att of attachments) {
@@ -128,16 +138,21 @@ function buildGeminiContents(contextBlock, history, userPrompt, attachments = []
 
 function thinkingConfigFor(thinking, style) {
   if (style === 'none') return null;
+  if (style === 'level-low') {
+    // Fastest valid floor for Gemini 4 models whose minimum thinkingLevel is 'low'
+    const map = { minimal: 'low', low: 'low', medium: 'medium', high: 'high' };
+    return { thinkingLevel: map[thinking] || 'low' };
+  }
   if (style === 'level') {
     const map = { minimal: 'minimal', low: 'low', medium: 'medium', high: 'high' };
     return { thinkingLevel: map[thinking] || 'minimal' };
   }
-  // Default: thinkingBudget (Gemini 2.5 / 3+ compatible; 0 = instant minimal thinking!)
+  // Legacy Gemini 2.5 thinkingBudget (0 = instant minimal thinking)
   const budgets = { minimal: 0, low: 512, medium: 2048, high: 8192 };
   return { thinkingBudget: budgets[thinking] ?? 0 };
 }
 
-function orderedGeminiModels(preferredModelId, thinking) {
+function orderedGeminiModels(preferredModelId) {
   const now = Date.now();
   const alive = geminiModels.filter((m) => (deadModelUntil.get(m.id) || 0) <= now);
   const pool = alive.length ? alive : geminiModels;
@@ -145,7 +160,7 @@ function orderedGeminiModels(preferredModelId, thinking) {
     const exact = pool.find((m) => m.id === preferredModelId);
     if (exact) return [exact, ...pool.filter((m) => m.id !== exact.id)];
   }
-  // In minimal speed mode, still honor primary fast Flash/Hydrogen chain
+  // Always lead with Gemini 4 Hydrogen (never downgrade to 3.5 Flash-Lite unless Hydrogen + 3.8 fail)
   return pool;
 }
 
@@ -158,12 +173,21 @@ function extractVisibleText(parts) {
 }
 
 async function fetchGeminiWithThinkingFallback(apiKey, modelId, endpoint, bodyBase, thinking) {
-  const preferredStyle = modelThinkingStyle.get(modelId) || 'budget';
-  const stylesToTry = preferredStyle === 'budget'
-    ? ['budget', 'level', 'none']
-    : preferredStyle === 'level'
-    ? ['level', 'budget', 'none']
-    : ['none'];
+  const preferredStyle = modelThinkingStyle.get(modelId) || defaultThinkingStyleFor(modelId);
+  let stylesToTry;
+  if (preferredStyle === 'level') {
+    stylesToTry = thinking === 'minimal'
+      ? ['level', 'level-low', 'budget', 'none']
+      : ['level', 'budget', 'none'];
+  } else if (preferredStyle === 'level-low') {
+    stylesToTry = ['level-low', 'budget', 'none'];
+  } else if (preferredStyle === 'budget') {
+    stylesToTry = thinking === 'minimal'
+      ? ['budget', 'level', 'level-low', 'none']
+      : ['budget', 'level', 'none'];
+  } else {
+    stylesToTry = ['none'];
+  }
 
   let lastRes = null;
   for (const style of stylesToTry) {
@@ -172,7 +196,7 @@ async function fetchGeminiWithThinkingFallback(apiKey, modelId, endpoint, bodyBa
     if (tc) generationConfig.thinkingConfig = tc;
     else delete generationConfig.thinkingConfig;
 
-    const res = await fetch(
+    const doReq = () => fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:${endpoint}`,
       {
         method: 'POST',
@@ -181,8 +205,16 @@ async function fetchGeminiWithThinkingFallback(apiKey, modelId, endpoint, bodyBa
           'x-goog-api-key': apiKey,
         },
         body: JSON.stringify({ ...bodyBase, generationConfig }),
+        signal: AbortSignal.timeout(14_000),
       }
     );
+
+    let res = await doReq();
+    // For primary Hydrogen model, give one brief retry on transient 503/429 before downgrading
+    if ((res.status === 503 || res.status === 429) && modelId === 'gemini-4-hydrogen') {
+      await sleep(260);
+      res = await doReq();
+    }
     lastRes = res;
     if (res.ok) {
       modelThinkingStyle.set(modelId, style);
@@ -193,7 +225,7 @@ async function fetchGeminiWithThinkingFallback(apiKey, modelId, endpoint, bodyBa
       return res;
     }
     if (res.status === 400 && style !== 'none') {
-      // Likely unsupported thinkingBudget/thinkingLevel field for this model — try next style immediately
+      // Unsupported thinkingLevel/thinkingBudget value — step immediately to next style (e.g. minimal -> low)
       continue;
     }
     return res;
@@ -419,12 +451,16 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
       }, 429);
     }
 
-    const systemInstruction = buildSystemInstruction(action, thinking);
+    const hasAutoImage = attachments.some((a) => a.kind === 'image');
+    const systemInstruction = buildSystemInstruction(action, thinking, contextBlock, hasAutoImage);
     const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.trim() : '';
     const hasCf = Boolean(env.AI && typeof env.AI.run === 'function');
+    let triedGemini = false;
+    let firstError = null;
 
     // Fast Real-Time SSE Streaming path
     if (wantStream && geminiKey.length > 10) {
+      triedGemini = true;
       try {
         const streamInfo = await openGeminiStream(geminiKey, systemInstruction, contextBlock, history, userPrompt, {
           thinking,
@@ -488,14 +524,14 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
             ...corsHeaders,
           },
         });
-      } catch {
-        // Fall through cleanly to non-streaming / Cloudflare fallback
+      } catch (err) {
+        firstError = err;
+        // Skip re-running Gemini a second time; fall directly to Cloudflare AI fallback below
       }
     }
 
     let result = null;
-    let firstError = null;
-    if (geminiKey.length > 10) {
+    if (!triedGemini && geminiKey.length > 10) {
       try {
         result = await callGemini(geminiKey, systemInstruction, contextBlock, history, userPrompt, {
           thinking,
@@ -508,7 +544,7 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
     }
     if (!result && hasCf) {
       try {
-        result = await callCloudflareAi(env.AI, systemInstruction, contextBlock, history, userPrompt, { attachments });
+        result = await callCloudflareAi(env.AI, systemInstruction, '', history, userPrompt, { attachments });
       } catch (err) {
         firstError = firstError || err;
       }

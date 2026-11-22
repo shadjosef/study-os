@@ -185,9 +185,9 @@ window.StudyAiTutor = (() => {
   }
   function getPreferredModel() {
     try {
-      const v = localStorage.getItem(BYOK_MODEL_KEY) || 'auto';
-      return MODELS.some((m) => m.id === v) ? v : 'auto';
-    } catch { return 'auto'; }
+      const v = localStorage.getItem(BYOK_MODEL_KEY) || 'gemini-4-hydrogen';
+      return MODELS.some((m) => m.id === v) ? v : 'gemini-4-hydrogen';
+    } catch { return 'gemini-4-hydrogen'; }
   }
   function setPreferredModel(val) {
     try { localStorage.setItem(BYOK_MODEL_KEY, val); } catch {}
@@ -270,15 +270,82 @@ window.StudyAiTutor = (() => {
     return { mode: 'waiting' };
   }
 
+  async function currentExerciseSnapshotAsync(includeSolution = false) {
+    if (window.StudyQuestionCopy?.tutorPayloadAsync) {
+      const p = await window.StudyQuestionCopy.tutorPayloadAsync({ includeSolution });
+      if (p.mode !== 'waiting') return p;
+    }
+    return currentExerciseSnapshot(includeSolution);
+  }
+
+  function captureVisiblePromptImages(maxCount = 2) {
+    if (!contextEnabled || maxCount <= 0) return [];
+    const runnerView = document.getElementById('view-runner');
+    const card = document.getElementById('runner-question-card');
+    if (!runnerView || runnerView.hidden || !card || !card.isConnected) return [];
+
+    const out = [];
+    const seen = new Set();
+    const candidates = card.querySelectorAll('.pdf-figure canvas, .pdf-figure img, #source-pdf-reader canvas');
+
+    for (const el of candidates) {
+      if (out.length >= maxCount) break;
+      if (seen.has(el)) continue;
+      seen.add(el);
+      // Strictly never capture solution figures or hidden/collapsed elements
+      if (el.closest('#solution-box, .solution-box, [data-solution-figure], [data-is-solution="1"], [hidden]')) continue;
+      const closedDetails = el.closest('details:not([open])');
+      if (closedDetails) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 80 || rect.height < 50) continue;
+
+      let srcW = 0;
+      let srcH = 0;
+      if (el.tagName === 'CANVAS') {
+        srcW = el.width || 0;
+        srcH = el.height || 0;
+      } else if (el.tagName === 'IMG') {
+        if (!el.complete || !el.naturalWidth || !el.naturalHeight) continue;
+        srcW = el.naturalWidth;
+        srcH = el.naturalHeight;
+      }
+      if (srcW < 100 || srcH < 60) continue;
+
+      try {
+        const scale = Math.min(1, 1024 / Math.max(srcW, srcH));
+        const w = Math.max(1, Math.round(srcW * scale));
+        const h = Math.max(1, Math.round(srcH * scale));
+        const off = document.createElement('canvas');
+        off.width = w;
+        off.height = h;
+        const ctx = off.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(el, 0, 0, w, h);
+        const dataUrl = off.toDataURL('image/jpeg', 0.78);
+        const base64 = dataUrl.split(',')[1] || '';
+        if (!base64 || base64.length > 900_000) continue;
+        const cap = el.closest('figure')?.querySelector('figcaption')?.textContent?.trim()?.slice(0, 60) || `Question figure ${out.length + 1}`;
+        out.push({ kind: 'image', name: cap, mimeType: 'image/jpeg', base64, auto: true });
+      } catch {
+        // Ignore cross-origin tainted canvases/images cleanly
+      }
+    }
+    return out;
+  }
+
   async function buildLeanStudyContext(snap) {
     if (!contextEnabled || snap?.mode !== 'practice') return '';
     const parts = [];
     if (snap.context) parts.push(String(snap.context).trim().slice(0, 5800));
 
-    // Attach ONLY the matching Markdown reference section for this topic (fast, focused, never whole book)
+    // Attach ONLY the matching Markdown reference section for this topic (fast, capped at 1.5s)
     if (snap.noteFile && snap.noteHeading && window.StudyApp?.fetchReferenceSection) {
       try {
-        const sec = await window.StudyApp.fetchReferenceSection(snap.noteFile, snap.noteHeading);
+        const sec = await Promise.race([
+          window.StudyApp.fetchReferenceSection(snap.noteFile, snap.noteHeading),
+          new Promise((resolve) => setTimeout(() => resolve(null), 1500)),
+        ]);
         if (sec?.available && sec.selectedHeading && sec.markdown) {
           const cleanSec = String(sec.markdown).trim().slice(0, 2600);
           if (cleanSec) {
@@ -469,16 +536,19 @@ window.StudyAiTutor = (() => {
   // ---------------------------------------------------------------------------
   // DIRECT BYOK STREAMING GEMINI CLIENT (Thinking Speed + Multimodal)
   // ---------------------------------------------------------------------------
-  function buildSystemInstruction(action, thinking) {
+  function buildSystemInstruction(action, thinking, contextBlock = '', hasAutoImage = false) {
     const lines = [
       'You are Adamlite, Study-OS\'s fast, concise university study tutor (Economics, Accounting & Finance, Mathematics, OB, Data Science).',
       '- Be direct, clear, and concise. Use $...$ for inline math and $$...$$ for display equations.',
       '- Never output raw HTML or scripts. Match the student\'s language (Norwegian or English).',
       '- Ground formulas and definitions in the provided Reference Note snippet when relevant.',
+      '- When ACTIVE STUDY CONTEXT or an attached question figure/PDF image is provided, use it directly right away — NEVER say you cannot see the problem.',
     ];
     if (thinking === 'minimal') lines.push('- Speed mode is MINIMAL: get straight to the answer/step cleanly without filler.');
     if (action === 'hint') lines.push('Give ONE focused next-step hint without spoiling the final answer.');
     if (action === 'solution') lines.push('Walk through the complete step-by-step solution cleanly.');
+    if (contextBlock) lines.push(`\nACTIVE STUDY CONTEXT:\n${contextBlock}`);
+    if (hasAutoImage) lines.push('\nNote: Image(s) of the visible question prompt / PDF table on screen are attached to the latest user message. Read exact numbers and tables directly from them.');
     return lines.join('\n');
   }
 
@@ -490,17 +560,15 @@ window.StudyAiTutor = (() => {
           ...BYOK_AUTO_CHAIN.filter((m) => m.id !== preferredModel),
         ];
 
-    const systemInstruction = buildSystemInstruction(action, thinking);
-    const prefix = contextBlock ? `STUDY CONTEXT:\n${contextBlock}\n\n---\n\n` : '';
+    const hasAutoImage = attachments.some((a) => a.kind === 'image');
+    const systemInstruction = buildSystemInstruction(action, thinking, contextBlock, hasAutoImage);
     const contents = [];
-    let attached = false;
     for (const turn of history.slice(-8)) {
       const role = turn.role === 'assistant' ? 'model' : 'user';
-      const text = !attached && role === 'user' ? (attached = true, `${prefix}${turn.text}`) : turn.text;
-      contents.push({ role, parts: [{ text }] });
+      contents.push({ role, parts: [{ text: turn.text }] });
     }
     const textAtts = attachments.filter((a) => a.kind === 'text').map((a) => `ATTACHED FILE (${a.name}):\n${a.text}`).join('\n\n');
-    const finalText = [attached ? '' : prefix, textAtts ? `${textAtts}\n\n` : '', userPrompt].join('');
+    const finalText = textAtts ? `${textAtts}\n\n${userPrompt}` : userPrompt;
     const userParts = [{ text: finalText }];
     for (const att of attachments) {
       if (att.kind === 'image') userParts.push({ inlineData: { mimeType: att.mimeType, data: att.base64 } });
@@ -512,7 +580,13 @@ window.StudyAiTutor = (() => {
 
     let lastErr = 'Gemini API request failed.';
     for (const model of models) {
-      for (const tc of [{ thinkingBudget: budgets[thinking] ?? 0 }, { thinkingLevel: thinking }, null]) {
+      const isLegacy = /^gemini-2\./i.test(model.id);
+      const tcChain = isLegacy
+        ? [{ thinkingBudget: budgets[thinking] ?? 0 }, { thinkingLevel: thinking }, null]
+        : thinking === 'minimal'
+        ? [{ thinkingLevel: 'minimal' }, { thinkingLevel: 'low' }, { thinkingBudget: 0 }, null]
+        : [{ thinkingLevel: thinking }, { thinkingBudget: budgets[thinking] ?? 512 }, null];
+      for (const tc of tcChain) {
         try {
           const generationConfig = { temperature: 0.3, maxOutputTokens: maxTok };
           if (tc) generationConfig.thinkingConfig = tc;
@@ -1329,12 +1403,21 @@ window.StudyAiTutor = (() => {
     try {
       const thinking = getThinkingSpeed();
       const model = getPreferredModel();
-      const contextText = await buildLeanStudyContext(snap);
+      const richSnap = await currentExerciseSnapshotAsync(includeSolution);
+      const contextText = await buildLeanStudyContext(richSnap);
       const wireAttachments = attachmentsToSend.map((a) =>
         a.kind === 'image'
           ? { kind: 'image', name: a.name, mimeType: a.mimeType, base64: a.base64 }
           : { kind: 'text', name: a.name, text: a.text }
       );
+      // Automatically attach visible prompt PDF/figure image(s) (e.g. tables, exam scans, graphs)
+      // when Study Context is enabled so Adamlite sees exact numbers without manual screenshots!
+      if (contextEnabled && richSnap.mode === 'practice' && wireAttachments.length < 3) {
+        const autoImgs = captureVisiblePromptImages(Math.min(2, 3 - wireAttachments.length));
+        for (const img of autoImgs) {
+          wireAttachments.push({ kind: 'image', name: img.name, mimeType: img.mimeType, base64: img.base64 });
+        }
+      }
 
       let res;
       if (byok) {

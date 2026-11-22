@@ -17,8 +17,8 @@ window.StudyQuestionCopy = (() => {
       question.contextMarkdown?.trim(),
       promptTxt,
     ];
-    // In fast/lean mode, skip redundant raw PDF text extraction when promptMarkdown already has the full task
-    const includePdfTranscript = !lean || promptTxt.length < 120;
+    // In fast/lean mode, skip redundant raw PDF text extraction only when promptMarkdown already has the full task
+    const includePdfTranscript = !lean || promptTxt.length < 240;
     if (includePdfTranscript) {
       for (const [index, source] of sources.entries()) {
         if (transcript[index]) {
@@ -107,7 +107,8 @@ window.StudyQuestionCopy = (() => {
       return transcript;
     });
     current = context;
-    card.querySelector('#btn-copy-for-ai').onclick = () => copyAsync(textForCopy(context));
+    const copyBtn = card.querySelector('#btn-copy-for-ai');
+    if (copyBtn) copyBtn.onclick = () => copyAsync(textForCopy(context));
     window.StudyTutor.changed();
     window.StudyAiTutor?.syncContext?.();
   }
@@ -177,5 +178,16 @@ window.StudyQuestionCopy = (() => {
     }
   });
 
-  return { bind, tutorContext, tutorPayload };
+  async function tutorPayloadAsync({ includeSolution = false } = {}) {
+    if (!current?.card.isConnected || document.getElementById('view-runner').hidden) return { mode: 'waiting' };
+    if (!current.transcript && current.reading) {
+      await Promise.race([
+        current.reading.catch(() => []),
+        new Promise((resolve) => setTimeout(resolve, 550)),
+      ]);
+    }
+    return tutorPayload({ includeSolution });
+  }
+
+  return { bind, tutorContext, tutorPayload, tutorPayloadAsync };
 })();
