@@ -7495,6 +7495,17 @@ dialog.ai-set-modal {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+.auth-pass-ready-pill {
+  margin: 0 0 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: color-mix(in srgb, #16a34a 12%, var(--panel-alt));
+  border: 1px solid color-mix(in srgb, #16a34a 40%, var(--line));
+  color: var(--ink);
+}
+
 
 
 

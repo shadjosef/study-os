@@ -823,14 +823,16 @@ window.StudyRunner = (() => {
     const canvasCard = canvasRefs.length ? (() => {
       const c = canvasRefs[0];
       const hasExtBridge = Boolean(document.documentElement.dataset.studyOsSyncExt);
-      const canDirectFetch = hasExtBridge && Boolean(c.canvasCourseId && c.canvasFileId);
-      const fetchKey = c.canvasCourseId && c.canvasFileId ? `${c.canvasCourseId}:${c.canvasFileId}` : '';
+      const hasCanvasFileId = Boolean(c.canvasCourseId && c.canvasFileId);
+      const canDirectFetch = hasExtBridge && hasCanvasFileId;
+      const fetchKey = hasCanvasFileId ? `${c.canvasCourseId}:${c.canvasFileId}` : '';
       const isFetching = Boolean(fetchKey && autoCanvasFetchInFlight.has(fetchKey));
       const fetchErr = fetchKey ? autoCanvasFetchFailed.get(fetchKey) || '' : '';
       const pagesSummary = [...new Set(canvasRefs.map((x) => `p. ${x.page || 1}`))].join(', ');
       const fileChips = canvasRefs.slice(0, 4).map((r) =>
         `<span class="badge">${esc(r.filename || r.title)}${r.page ? ` · p. ${r.page}` : ''}</span>`
       ).join('');
+      const canUnlockWithCode = Boolean(window.StudyMembers?.enabled && !window.StudyMembers.isUnlocked());
       if (compact) {
         if (isFetching) {
           return `<div class="source-gate-card source-gate-compact source-gate-canvas is-loading">
@@ -840,33 +842,38 @@ window.StudyRunner = (() => {
             </div>
           </div>`;
         }
+        const compactTitle = fetchErr
+          ? 'Sign in to BI Canvas to auto-load inline'
+          : canDirectFetch
+          ? 'Load BI Canvas PDF inline'
+          : isSynced && !hasCanvasFileId
+          ? `Attach ${esc(c.filename || c.title)} for inline view`
+          : isSynced
+          ? 'BI Canvas synced · Open PDF or drop for inline view'
+          : 'Sign in with access code or sync Canvas to view source PDF';
+        const compactSub = fetchErr
+          ? esc(fetchErr)
+          : canDirectFetch
+          ? 'Loads straight from your signed-in Chrome BI Canvas session — stays private in your browser.'
+          : isSynced && !hasCanvasFileId
+          ? 'This exam PDF is not stored under a direct Canvas file ID — drop your copy here, open Canvas Files, or unlock with an access code.'
+          : isSynced
+          ? 'Open directly on BI Canvas, drop your downloaded PDF here, or reload Study-OS Sync v1.6 in Chrome for auto-inline loading.'
+          : 'Course PDFs &amp; slides stay copyright-safe. Unlock with your class access code, sync Canvas, or drop your own PDF copy.';
         return `<div class="source-gate-card source-gate-compact source-gate-canvas" data-local-dropzone data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-source-kind="canvas" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">
           <div class="source-gate-copy">
-            <strong>${
-              fetchErr
-                ? 'Sign in to BI Canvas to auto-load inline'
-                : canDirectFetch
-                ? 'Load BI Canvas PDF inline'
-                : isSynced
-                ? 'BI Canvas synced · Reload Study-OS Sync v1.5 for auto-inline PDFs'
-                : 'Sync with BI Canvas to unlock readable course material'
-            }</strong>
-            <small class="muted">${esc(c.filename || c.title)} (${esc(pagesSummary)}) · ${
-              fetchErr
-                ? esc(fetchErr)
-                : canDirectFetch
-                ? 'Loads straight from your signed-in Chrome BI Canvas session — stays private in your browser.'
-                : isSynced
-                ? 'Reload the updated Study-OS Sync extension in Chrome to pop up BI PDFs automatically here, or open on BI Canvas / drop the PDF.'
-                : 'Course PDFs &amp; slides stay on BI Canvas to respect copyright.'
-            }</small>
+            <strong>${compactTitle}</strong>
+            <small class="muted">${esc(c.filename || c.title)} (${esc(pagesSummary)}) · ${compactSub}</small>
           </div>
           <div class="row-actions">
             ${canDirectFetch
               ? `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-fetch-canvas-pdf data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-canvas-course="${esc(c.canvasCourseId)}" data-canvas-file="${esc(c.canvasFileId)}" data-canvas-url="${esc(c.canvasUrl || '')}" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">${fetchErr ? 'Retry inline' : 'Load PDF inline'}</button>`
+              : canUnlockWithCode && !isSynced
+              ? `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-open-member-unlock>Unlock with code</button>`
               : isSynced && c.canvasUrl
               ? `<a class="primary-btn" style="padding:6px 12px;font-size:12.5px;text-decoration:none" href="${esc(c.canvasUrl)}" target="_blank" rel="noopener">Open on BI Canvas ↗</a>`
               : `<button type="button" class="primary-btn" style="padding:6px 12px;font-size:12.5px" data-open-bi-sync>Sync BI Canvas</button>`}
+            ${canUnlockWithCode && isSynced ? `<button type="button" class="ghost-btn" style="padding:6px 10px;font-size:12.5px" data-open-member-unlock>Access code</button>` : ''}
             ${canDirectFetch && c.canvasUrl ? `<a class="ghost-btn" style="padding:6px 10px;font-size:12.5px;text-decoration:none" href="${esc(c.canvasUrl)}" target="_blank" rel="noopener">BI Canvas ↗</a>` : ''}
             <label class="ghost-btn source-gate-upload-btn" style="padding:6px 10px;font-size:12.5px">
               Drop PDF

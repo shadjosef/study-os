@@ -128,11 +128,28 @@ window.StudyMembers = (() => {
     previews.clear();
   }
 
+  const BOOK_TITLE_RE = /atrill|mclaney|textbook|pearson|syds[æa]ter|robbins|non-specialists|essential\s+math|12th\s*ed|6th\s*ed|^\s*books?\s*$/i;
+  function isRestrictedBook(courseId, item) {
+    if (!session?.transient) return false;
+    if (String(courseId || '') === 'econ-2522') return false; // CORE Econ is open-access
+    if (!item) return false;
+    if (item.kind === 'book' || item.sourceId === 'textbook-12e') return true;
+    const text = `${item.title || ''} ${item.filename || ''} ${item.section || ''}`;
+    return BOOK_TITLE_RE.test(text);
+  }
+
   function course(courseId) {
-    return session?.courses[courseId];
+    const entry = session?.courses[courseId];
+    if (!entry) return undefined;
+    if (!session?.transient || String(courseId) === 'econ-2522') return entry;
+    return {
+      ...entry,
+      documents: (entry.documents || []).filter((doc) => !isRestrictedBook(courseId, doc)),
+    };
   }
 
   function sourceDocument(courseId, ref) {
+    if (isRestrictedBook(courseId, ref)) return null;
     const title = courseId === 'acct-2527' && ref.sourceId === 'textbook-12e'
       ? 'Accounting and Finance for Non-Specialists - Atrill and McLaney - 12th edition.pdf'
       : ref.filename;
@@ -150,7 +167,20 @@ window.StudyMembers = (() => {
       const paper = entry.documents.find((doc) => doc.title === 'EXC 3430_Exam_2023.pdf');
       if (paper) bank.sources.E23F = paper;
     }
-    if (courseId === 'acct-2527' && !bank.sources['textbook-12e']) {
+    if (session?.transient && String(courseId) !== 'econ-2522') {
+      // Class access codes never unlock copyrighted publisher textbooks outside open-access Economics.
+      for (const [sid, meta] of Object.entries(bank.sources || {})) {
+        if (sid === 'textbook-12e' || isRestrictedBook(courseId, meta)) {
+          delete bank.sources[sid];
+        }
+      }
+      for (const q of bank.questions || []) {
+        if (q.origin === 'textbook') {
+          q.promptAssets = [];
+          q.solutionAssets = [];
+        }
+      }
+    } else if (courseId === 'acct-2527' && !bank.sources['textbook-12e']) {
       const textbook = sourceDocument(courseId, { sourceId: 'textbook-12e' });
       if (textbook) bank.sources['textbook-12e'] = textbook;
     }

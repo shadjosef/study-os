@@ -1178,16 +1178,49 @@ window.StudyApp = (() => {
     };
   }
 
+  function readCourseFiltersFromSearch(searchStr = window.location.search) {
+    const p = new URLSearchParams(searchStr || '');
+    const dRaw = (p.get('diff') || '').trim().toLowerCase();
+    const dlRaw = (p.get('dlpfc') || '').trim().toLowerCase();
+    const v = dRaw || dlRaw;
+    const diff = (v === '3' || v === 'high' || v === 'high_dlpfc' || v === 'hard') ? '3'
+      : (v === '2' || v === 'med' || v === 'medium' || v === 'med_dlpfc') ? '2'
+      : (v === '1' || v === 'low' || v === 'low_dlpfc' || v === 'easy') ? '1'
+      : (v === '2plus' || v === 'med_high') ? '2plus'
+      : '';
+    return {
+      preset: (p.get('preset') || '').trim(),
+      origin: (p.get('origin') || '').trim(),
+      real: p.get('real') === '1' || p.get('real') === 'true',
+      topic: (p.get('topic') || '').trim(),
+      coll: (p.get('coll') || p.get('collection') || '').trim(),
+      kind: (p.get('kind') || p.get('format') || '').trim(),
+      diff,
+      horizon: (p.get('horizon') || '').trim(),
+      status: (p.get('status') || '').trim(),
+      sort: (p.get('sort') || '').trim(),
+      budget: (p.get('budget') || '').trim(),
+      profile: (p.get('profile') || '').trim(),
+      q: (p.get('q') || p.get('search') || '').trim(),
+    };
+  }
+
   async function refreshBootstrap(forceCalendar = false) {
     if (isStaticWeb) {
       boot = await apiGet('./static-data/bootstrap.json');
       if (members.isUnlocked()) {
-        boot.catalog = boot.catalog.map((entry) => ({
-          ...entry, ...members.course(entry.courseId)?.catalog,
-        }));
+        boot.catalog = boot.catalog.map((entry) => {
+          const mCat = members.course(entry.courseId)?.catalog;
+          if (!mCat) return entry;
+          return {
+            ...entry,
+            ...mCat,
+            questionCount: Math.max(Number(entry.questionCount || 0), Number(mCat.questionCount || 0)),
+          };
+        });
         for (const ref of boot.references) {
           const course = members.course(ref.courseId);
-          if (course) ref.questionCount = course.catalog.questionCount;
+          if (course) ref.questionCount = Math.max(Number(ref.questionCount || 0), Number(course.catalog?.questionCount || 0));
         }
       }
       recomputeWebAnalytics();
@@ -1209,7 +1242,7 @@ window.StudyApp = (() => {
     else if (currentView === 'references') await renderReferencesHub();
     else if (currentView === 'schedule') renderScheduleStudio();
     else if (currentView === 'exams') renderExamsHub();
-    else if (currentView === 'course') await renderCourseExplorer(selectedCourseId);
+    else if (currentView === 'course') await renderCourseExplorer(selectedCourseId, '', readCourseFiltersFromSearch());
     else if (currentView === 'analytics') renderAnalytics();
   }
 
@@ -4522,10 +4555,16 @@ window.StudyApp = (() => {
       };
     };
 
+    const COURSE_SEO_SLUGS = {
+      'acct-2527': 'exc3430-accounting',
+      'econ-2522': 'exc3420-economics',
+      'math-2588': 'eba1181-mathematics',
+      'ob-2537': 'exc3460-leadership',
+      'prog-3021': 'eba3400-programming',
+    };
     const buildShareableCoursePath = ({ includeDefaultSort = false } = {}) => {
       const sp = new URLSearchParams();
-      sp.set('view', 'course');
-      sp.set('course', courseId);
+      sp.set('course', COURSE_SEO_SLUGS[courseId] || courseId);
       const oVal = document.getElementById('flt-origin')?.value || 'all';
       const effectiveOrigin = realTasksOnly && oVal === 'all' ? 'official_only' : oVal;
       if (effectiveOrigin !== 'all') sp.set('origin', effectiveOrigin);
@@ -6741,10 +6780,11 @@ window.StudyApp = (() => {
       return;
     }
 
-    // Handle deep links (`?view=course&course=acct-2527&origin=official_only&diff=2&sort=exam_relevance`,
+    // Handle deep links (`?course=exc3430-accounting&origin=official_only&diff=2&sort=exam_relevance&code=BI2026`,
     // `?view=exams|references|schedule|community`, `?join_room=CODE`, or `?autostart_event=...`)
     const params = new URLSearchParams(window.location.search);
     const joinRoomCode = (params.get('join_room') || '').trim().toUpperCase();
+    const qAccessCode = (params.get('code') || params.get('pass') || params.get('invite') || '').trim().slice(0, 120);
     const autoEvent = params.get('autostart_event');
     const qCourseRaw = (params.get('course') || '').trim();
     const qTopic = (params.get('topic') || '').trim();
@@ -6753,8 +6793,41 @@ window.StudyApp = (() => {
     const qDiffRaw = (params.get('diff') || '').trim().toLowerCase();
     const autoStart = params.get('autostart') === '1';
 
+    if (qAccessCode) {
+      // Strip the code param from the visible address bar immediately while preserving target course/filters
+      const cleanParams = new URLSearchParams(window.location.search);
+      cleanParams.delete('code');
+      cleanParams.delete('pass');
+      cleanParams.delete('invite');
+      const nextUrl = cleanParams.toString() ? `${window.location.pathname}?${cleanParams.toString()}` : window.location.pathname;
+      window.history.replaceState({}, '', nextUrl);
+      if (isStaticWeb && window.StudyCommunity?.isSignedIn?.() && !/^sos1_/i.test(qAccessCode)) {
+        window.StudyCommunity.redeemAccessCode(qAccessCode).then((res) => {
+          if (res?.archiveUnlocked) toast('Access pass activated — BI course PDFs unlocked!');
+        }).catch(() => {});
+      }
+    }
+
+    const COURSE_SLUG_ALIASES = {
+      'exc3430-accounting': 'acct-2527',
+      'accounting': 'acct-2527',
+      'exc3420-economics': 'econ-2522',
+      'economics': 'econ-2522',
+      'econ': 'econ-2522',
+      'eba1181-mathematics': 'math-2588',
+      'mathematics': 'math-2588',
+      'math': 'math-2588',
+      'exc3460-leadership': 'ob-2537',
+      'leadership': 'ob-2537',
+      'ob': 'ob-2537',
+      'eba3400-programming': 'prog-3021',
+      'programming': 'prog-3021',
+      'prog': 'prog-3021',
+    };
     const resolveCourseIdParam = (raw) => {
       if (!raw) return '';
+      const lower = raw.toLowerCase();
+      if (COURSE_SLUG_ALIASES[lower]) return COURSE_SLUG_ALIASES[lower];
       const exact = (boot.catalog || []).find((c) => c.courseId === raw);
       if (exact) return exact.courseId;
       const norm = raw.toUpperCase().replace(/[\s_-]+/g, '');
@@ -6846,9 +6919,13 @@ window.StudyApp = (() => {
       }
     }
 
-    // Prompt unsigned-in visitors to sign in & enter their access code right on opening the site
+    // Prompt unsigned-in visitors to unlock full Study-OS right on opening ANY link (drops them right on target course/filters after login!)
     if (isStaticWeb && window.StudyCommunity?.enabled && !window.StudyCommunity.isSignedIn() && !/bot|crawler|spider|lighthouse/i.test(navigator.userAgent || '')) {
-      window.StudyCommunity.requireProfile({ allowDemo: true }).catch(() => {});
+      window.StudyCommunity.requireProfile({
+        allowDemo: true,
+        forcePrompt: Boolean(qAccessCode),
+        prefillCode: qAccessCode,
+      }).catch(() => {});
     }
   }
 

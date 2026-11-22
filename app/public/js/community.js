@@ -629,9 +629,10 @@ window.StudyCommunity = (() => {
       <p>Delete your profile anytime to erase your account, passkeys, synced backup, and message history from the active database. Cloudflare may retain rolling backups briefly.</p>
     </details>`;
 
-  function renderEntry(root, error = '', onSignedIn = render, onDemo) {
+  function renderEntry(root, error = '', onSignedIn = render, onDemo, prefillCode = '') {
     const passkeyReady = supportsPasskeys();
     const localSchool = readLocalSchool();
+    const cleanPrefill = String(prefillCode || '').trim().slice(0, 120);
     root.innerHTML = `
       <div class="auth-card">
         <div class="auth-head">
@@ -642,16 +643,18 @@ window.StudyCommunity = (() => {
             </svg>
           </div>
           <div>
-            <h1 class="auth-title">Sign in to Study-OS</h1>
-            <p class="muted auth-sub">Sync Canvas courses, AI study sets &amp; progress across devices.</p>
-            <p class="mobile-auth-tip muted">On a computer, connect Canvas and your timetable in Schedule.</p>
+            <h1 class="auth-title">Unlock full Study-OS</h1>
+            <p class="muted auth-sub">Free student account — save progress across devices, unlock AI tutor &amp; study sets, and open BI course PDFs.</p>
+            <p class="mobile-auth-tip muted">On a computer, you can also sync Canvas &amp; TimeEdit in 1 click.</p>
           </div>
         </div>
 
-        <div id="community-top-code-wrap" class="auth-access-code-box" hidden>
+        ${cleanPrefill ? `<div class="auth-pass-ready-pill" role="status">✓ Access pass link detected — sign in below to unlock full version &amp; jump straight to your course!</div>` : ''}
+
+        <div id="community-top-code-wrap" class="auth-access-code-box" ${cleanPrefill ? '' : 'hidden'}>
           <label class="field-label" style="margin:0">
-            Access code <small class="muted" id="community-top-code-hint">(required for new accounts &amp; instant PDF access)</small>
-            <input id="community-top-code" type="text" autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026" maxlength="120">
+            Access code <small class="muted" id="community-top-code-hint">(required for new accounts &amp; instant course PDF access)</small>
+            <input id="community-top-code" type="text" value="${esc(cleanPrefill)}" autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026" maxlength="120">
           </label>
         </div>
 
@@ -723,7 +726,7 @@ window.StudyCommunity = (() => {
 
         ${onDemo ? `
           <div class="auth-demo-bar">
-            <button type="button" class="ghost-btn" id="community-demo">Continue without signing in</button>
+            <button type="button" class="ghost-btn" id="community-demo">Continue with limited preview (no sync or PDFs)</button>
           </div>
         ` : ''}
         ${privacyNote}
@@ -746,6 +749,7 @@ window.StudyCommunity = (() => {
         if (inp.value !== val) inp.value = val;
       });
     };
+    if (cleanPrefill) syncCodeInputs(cleanPrefill);
     topCodeInput?.addEventListener('input', () => syncCodeInputs(topCodeInput.value));
     root.querySelectorAll('input[name="invite"]').forEach((inp) => {
       inp.addEventListener('input', () => {
@@ -968,7 +972,7 @@ window.StudyCommunity = (() => {
     }, status);
   }
 
-  async function requireProfile({ allowDemo = false, forcePrompt = false, silent = false } = {}) {
+  async function requireProfile({ allowDemo = false, forcePrompt = false, silent = false, prefillCode = '' } = {}) {
     if (!api) return true;
     if (token) {
       try {
@@ -985,7 +989,7 @@ window.StudyCommunity = (() => {
       window.StudyApp?.syncSettingsRows?.();
       return false;
     }
-    if (allowDemo && !forcePrompt) {
+    if (allowDemo && !forcePrompt && !prefillCode) {
       try { if (sessionStorage.getItem(demoKey)) return false; } catch {}
     }
     const gate = document.getElementById('profile-gate');
@@ -1003,7 +1007,7 @@ window.StudyCommunity = (() => {
         window.StudyApp?.syncSettingsRows?.();
         window.StudyApp?.syncCloudProgress?.().catch(() => {});
         resolve(true);
-      }, allowDemo ? tryDemo : undefined);
+      }, allowDemo ? tryDemo : undefined, prefillCode);
       gate.oncancel = (event) => {
         event.preventDefault();
         if (allowDemo) tryDemo();
@@ -1763,21 +1767,24 @@ window.StudyCommunity = (() => {
           <form id="admin-create-invite" class="admin-invite-form">
             <label class="field-label">Label <input name="label" maxlength="60" placeholder="e.g. OB Class Nov 2026"></label>
             <label class="field-label">Max uses <small class="muted">(0 = unlimited)</small> <input name="maxUses" type="number" min="0" max="10000" value="0"></label>
-            <label class="field-label">Expires in days <small class="muted">(0 = never)</small> <input name="expiresInDays" type="number" min="0" max="365" value="0"></label>
+            <label class="field-label">Expires in days <small class="muted">(7 = 1 week · 0 = never)</small> <input name="expiresInDays" type="number" min="0" max="365" value="7"></label>
             <label class="field-label">Custom access code <small class="muted">(optional, 4–120 chars, no spaces — e.g. <code>BI2026</code>, or leave blank for random <code>soci1_…</code>)</small>
               <input name="customCode" maxlength="120" autocomplete="off" spellcheck="false" placeholder="e.g. BI2026 (easy to type)">
             </label>
             <div class="row-actions">
-              <button type="submit" class="primary-btn">Create Community invite</button>
+              <button type="submit" class="primary-btn">Create access code</button>
             </div>
           </form>
           ${lastCreatedCode ? `
             <div class="admin-created-code">
               <div>
-                <strong>New join string (shown once — copy it now):</strong>
+                <strong>New access code (shown once — copy code or share link now):</strong>
                 <code id="admin-new-code-text" style="display:block;margin-top:4px;word-break:break-all">${esc(lastCreatedCode)}</code>
               </div>
-              <button type="button" class="primary-btn" id="admin-copy-new-code">Copy join string</button>
+              <div class="row-actions" style="gap:6px;flex-wrap:wrap">
+                <button type="button" class="primary-btn" id="admin-copy-new-code">Copy code</button>
+                <button type="button" class="ghost-btn" id="admin-copy-new-link">Copy access link</button>
+              </div>
             </div>` : ''}
           ${inviteRows ? `<div class="community-table" style="margin-top:10px"><table>
             <thead><tr><th>Invite</th><th>Uses</th><th>Expires</th><th>Status</th><th>Actions</th></tr></thead>
@@ -1846,9 +1853,18 @@ window.StudyCommunity = (() => {
       body.querySelector('#admin-copy-new-code')?.addEventListener('click', async () => {
         try {
           await navigator.clipboard.writeText(lastCreatedCode);
-          toast('Join string copied.');
+          toast('Access code copied.');
         } catch {
-          status.textContent = 'Select and copy the join string shown above.';
+          status.textContent = 'Select and copy the access code shown above.';
+        }
+      });
+      body.querySelector('#admin-copy-new-link')?.addEventListener('click', async () => {
+        const link = `${window.location.origin}/?code=${encodeURIComponent(lastCreatedCode)}`;
+        try {
+          await navigator.clipboard.writeText(link);
+          toast('Expiring access link copied!');
+        } catch {
+          window.prompt('Copy this access link:', link);
         }
       });
 
