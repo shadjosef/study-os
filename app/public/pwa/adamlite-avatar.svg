@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Adamlite">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="68%">
+      <stop offset="0%" stop-color="#f7d36a"/>
+      <stop offset="52%" stop-color="#c98a1f"/>
+      <stop offset="100%" stop-color="#5c3908"/>
+    </radialGradient>
+    <linearGradient id="skin" x1="30%" y1="15%" x2="72%" y2="88%">
+      <stop offset="0%" stop-color="#ffe799"/>
+      <stop offset="50%" stop-color="#e3ad3b"/>
+      <stop offset="100%" stop-color="#9e6712"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="20%" y1="10%" x2="85%" y2="80%">
+      <stop offset="0%" stop-color="#fff0b5"/>
+      <stop offset="45%" stop-color="#d49524"/>
+      <stop offset="100%" stop-color="#7c4c0a"/>
+    </linearGradient>
+    <linearGradient id="collar" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#733915"/>
+      <stop offset="100%" stop-color="#3b1b08"/>
+    </linearGradient>
+    <linearGradient id="gem" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#a7f3d0"/>
+      <stop offset="48%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <circle cx="64" cy="64" r="64" fill="url(#bg)"/>
+  <circle cx="64" cy="64" r="56" fill="none" stroke="#ffefb8" stroke-opacity="0.28" stroke-width="1.6"/>
+  <circle cx="64" cy="64" r="46" fill="none" stroke="#ffefb8" stroke-opacity="0.16" stroke-width="1"/>
+  <!-- Shoulders & tunic collar -->
+  <path d="M22 128c4-22 19-33 42-33s38 11 42 33z" fill="url(#collar)"/>
+  <path d="M40 97l24 20 24-20" fill="none" stroke="#f5c95c" stroke-width="3.2" stroke-linejoin="round"/>
+  <!-- Neck -->
+  <path d="M52 84h24v16c0 6-24 6-24 0z" fill="#b77b18"/>
+  <!-- Swept golden hair back -->
+  <path d="M34 54c-2-20 12-34 30-34s32 13 30 34c-2-9-7-17-16-20-9-3-20-3-28 0-9 3-14 11-16 20z" fill="url(#hair)"/>
+  <!-- Ears -->
+  <ellipse cx="36" cy="62" rx="4.5" ry="7.5" fill="#c98d22"/>
+  <ellipse cx="92" cy="62" rx="4.5" ry="7.5" fill="#b37818"/>
+  <!-- Sculpted golden face -->
+  <path d="M38 52c0-15 11-24 26-24s26 9 26 24c0 17-7 32-18 37-5 2.4-11 2.4-16 0-11-5-18-20-18-37z" fill="url(#skin)"/>
+  <!-- Swept hair crest -->
+  <path d="M36 47c2-17 15-26 30-26 14 0 24 7 27 20-5-7-13-11-24-11-13 0-23 6-33 17z" fill="url(#hair)"/>
+  <!-- Calm sculpted brows & eyes -->
+  <path d="M46 57c3.5-2 8.5-2 12 0M70 57c3.5-2 8.5-2 12 0" fill="none" stroke="#6e4309" stroke-width="2.4" stroke-linecap="round"/>
+  <ellipse cx="52" cy="62.5" rx="3.4" ry="2.2" fill="#3a2407"/>
+  <ellipse cx="76" cy="62.5" rx="3.4" ry="2.2" fill="#3a2407"/>
+  <circle cx="53" cy="61.8" r="0.9" fill="#fff7d6"/>
+  <circle cx="77" cy="61.8" r="0.9" fill="#fff7d6"/>
+  <!-- Nose & composed mouth -->
+  <path d="M64 58v12c0 1.4-1.5 2.2-3 2.2" fill="none" stroke="#996312" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M56 79.5c3 1.6 13 1.6 16 0" fill="none" stroke="#85510c" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- Signature emerald-gold forehead diamond crystal -->
+  <polygon points="64,39 69.5,46.5 64,54 58.5,46.5" fill="url(#gem)" stroke="#fff5cc" stroke-width="1.4" stroke-linejoin="round"/>
+  <polygon points="64,41.5 67,46.5 64,49.5 61,46.5" fill="#d1fae5" fill-opacity="0.55"/>
+</svg>

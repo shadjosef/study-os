@@ -1794,6 +1794,7 @@ window.StudyUI = (() => {
       volume: 38,
       tone: 52,
       muteOnBreak: true,
+      enabled: false,
     };
     try {
       const raw = JSON.parse(localStorage.getItem(SOUND_PREFS_KEY));
@@ -1803,6 +1804,7 @@ window.StudyUI = (() => {
         volume: Math.max(0, Math.min(100, Number(raw.volume ?? 38))),
         tone: Math.max(0, Math.min(100, Number(raw.tone ?? 52))),
         muteOnBreak: raw.muteOnBreak !== undefined ? Boolean(raw.muteOnBreak) : true,
+        enabled: Boolean(raw.enabled),
       };
     } catch {
       return defaults;
@@ -1889,7 +1891,48 @@ window.StudyUI = (() => {
     let activeVoice = null;
     let isPlaying = false;
     let suspendedForBreak = false;
+    let waitingForGesture = false;
+    let gestureUnlockBound = false;
     const bufferCache = new Map();
+
+    function armGestureUnlock() {
+      if (gestureUnlockBound) return;
+      gestureUnlockBound = true;
+      const unlock = () => {
+        if (!isPlaying || !audioCtx) {
+          disarm();
+          return;
+        }
+        if (audioCtx.state === 'running') {
+          waitingForGesture = false;
+          if (!suspendedForBreak) rampMasterGain(volumeToLinearGain(prefs.volume), 0.22);
+          updateDom();
+          disarm();
+          return;
+        }
+        audioCtx.resume().then(() => {
+          if (audioCtx && audioCtx.state === 'running') {
+            waitingForGesture = false;
+            if (isPlaying && !suspendedForBreak) {
+              if (!activeVoice) mountPresetVoice(prefs.preset);
+              rampMasterGain(volumeToLinearGain(prefs.volume), 0.25);
+            }
+            updateDom();
+            disarm();
+          }
+        }).catch(() => {});
+      };
+      const disarm = () => {
+        if (!gestureUnlockBound) return;
+        gestureUnlockBound = false;
+        window.removeEventListener('pointerdown', unlock, true);
+        window.removeEventListener('keydown', unlock, true);
+        window.removeEventListener('touchstart', unlock, true);
+      };
+      window.addEventListener('pointerdown', unlock, true);
+      window.addEventListener('keydown', unlock, true);
+      window.addEventListener('touchstart', unlock, true);
+    }
 
     function savePrefs() {
       try {
@@ -2180,6 +2223,8 @@ window.StudyUI = (() => {
           ? `Off · ${presetMeta.name}`
           : suspendedForBreak
           ? `Auto-muted for 1:5 break · ${presetMeta.name}`
+          : waitingForGesture
+          ? `Resuming on first tap · ${presetMeta.name} · ${prefs.volume}%`
           : `Playing · ${presetMeta.name} · ${prefs.volume}%`;
       }
       const presetValEl = document.getElementById('settings-sound-preset-val');
@@ -2209,24 +2254,54 @@ window.StudyUI = (() => {
     }
 
     return {
-      play(presetId = prefs.preset) {
+      play(presetId = prefs.preset, opts = {}) {
+        const persist = opts.persist !== false;
+        const silentFail = Boolean(opts.silentFail);
         if (SOUND_PRESETS[presetId]) prefs.preset = presetId;
+        if (persist) prefs.enabled = true;
         savePrefs();
         if (!ensureContext()) {
-          toast('Web Audio is not supported in this browser.');
+          if (!silentFail) toast('Web Audio is not supported in this browser.');
           return;
         }
-        suspendedForBreak = false;
+        suspendedForBreak = Boolean(!persist && prefs.muteOnBreak && workState.mode === 'break');
         if (!isPlaying || !activeVoice || activeVoice.presetId !== prefs.preset) {
           mountPresetVoice(prefs.preset);
         }
         isPlaying = true;
-        rampMasterGain(volumeToLinearGain(prefs.volume), 0.3);
+        waitingForGesture = audioCtx.state === 'suspended';
+        if (waitingForGesture) {
+          armGestureUnlock();
+          audioCtx.resume().then(() => {
+            if (audioCtx && audioCtx.state === 'running') {
+              waitingForGesture = false;
+              if (isPlaying && !suspendedForBreak) {
+                rampMasterGain(volumeToLinearGain(prefs.volume), 0.28);
+              }
+              updateDom();
+            }
+          }).catch(() => {});
+        }
+        if (!suspendedForBreak) {
+          rampMasterGain(volumeToLinearGain(prefs.volume), 0.3);
+        } else {
+          rampMasterGain(0, 0.05);
+        }
         updateDom();
       },
-      stop() {
+      restoreFromPrefs() {
+        if (!prefs.enabled) return false;
+        this.play(prefs.preset, { persist: false, silentFail: true });
+        return true;
+      },
+      stop(opts = {}) {
         isPlaying = false;
         suspendedForBreak = false;
+        waitingForGesture = false;
+        if (!opts.keepPref) {
+          prefs.enabled = false;
+          savePrefs();
+        }
         rampMasterGain(0, 0.25);
         if (activeVoice) {
           stopVoiceHandle(activeVoice, 0.25);
@@ -2391,7 +2466,12 @@ window.StudyUI = (() => {
     applyTheme();
     soundMasker.renderUi();
     updateSettingsIndicators();
+    const mathAutoEl = document.getElementById('settings-math-par-answers');
+    if (mathAutoEl && window.StudyRunner?.isMathParAutoRevealEnabled) {
+      mathAutoEl.checked = Boolean(window.StudyRunner.isMathParAutoRevealEnabled());
+    }
     window.StudyApp?.syncSettingsRows?.();
+    window.StudyCommunity?.renderSettingsSchoolMajor?.();
     if (!dialog.open) {
       dialog.showModal();
       dialog.focus({ preventScroll: true });
@@ -2476,8 +2556,31 @@ window.StudyUI = (() => {
     });
     document.getElementById('settings-close-btn')?.addEventListener('click', closeSettings);
     const settingsDialog = document.getElementById('settings-dialog');
-    settingsDialog?.addEventListener('click', (ev) => {
-      if (ev.target === settingsDialog) closeSettings();
+    // Universal click-outside backdrop dismissal for all non-lockout <dialog> modals
+    // Verifies BOTH pointerdown and click occurred outside the dialog box so text-selection drags never dismiss.
+    let backdropDownDialog = null;
+    const isPointOutsideDialog = (dlg, ev) => {
+      if (!dlg || ev.target !== dlg) return false;
+      const r = dlg.getBoundingClientRect();
+      if (!r || (!r.width && !r.height)) return false;
+      return ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom;
+    };
+    document.addEventListener('pointerdown', (ev) => {
+      const dlg = ev.target instanceof HTMLDialogElement && ev.target.open ? ev.target : null;
+      backdropDownDialog = dlg && isPointOutsideDialog(dlg, ev) ? dlg : null;
+    }, true);
+    document.addEventListener('click', (ev) => {
+      const dlg = backdropDownDialog;
+      backdropDownDialog = null;
+      if (!dlg || !dlg.open || ev.target !== dlg) return;
+      if (!isPointOutsideDialog(dlg, ev)) return;
+      if (dlg.hasAttribute('data-no-backdrop-close')) return;
+      if (dlg.id === 'break-modal' && !eveningBreakAccess()) return;
+      if (dlg === settingsDialog) {
+        closeSettings();
+        return;
+      }
+      dlg.close();
     });
     document.getElementById('settings-search')?.addEventListener('input', (ev) => {
       filterSettingsRows(ev.target.value);
@@ -2505,6 +2608,9 @@ window.StudyUI = (() => {
     document.getElementById('settings-fullscreen-toggle')?.addEventListener('change', () => {
       window.StudyRunner?.toggleFullscreen?.();
     });
+    document.getElementById('settings-math-par-answers')?.addEventListener('change', (ev) => {
+      window.StudyRunner?.setMathParAutoRevealEnabled?.(ev.target.checked);
+    });
     document.querySelectorAll('#settings-autopause-seg [data-autopause-val]').forEach((btn) => {
       btn.addEventListener('click', () => {
         window.StudyRunner?.setAutoPauseMode?.(btn.dataset.autopauseVal);
@@ -2513,6 +2619,7 @@ window.StudyUI = (() => {
 
     // Background Sound Masking Controls (inside Settings)
     soundMasker.renderUi();
+    soundMasker.restoreFromPrefs();
     document.getElementById('settings-sound-toggle')?.addEventListener('change', (ev) => {
       if (ev.target.checked) {
         soundMasker.play();

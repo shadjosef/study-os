@@ -1427,10 +1427,17 @@ window.StudyApp = (() => {
 
     const profileAvatar = document.getElementById('settings-profile-avatar');
     const runnerAvatar = document.getElementById('run-profile-avatar');
+    const runnerIcon = document.getElementById('run-profile-icon');
     const hasRunnerAvatar = Boolean(signedIn && prof);
-    runnerAvatar.hidden = !hasRunnerAvatar;
-    document.getElementById('run-profile-icon').hidden = hasRunnerAvatar;
-    runnerAvatar.innerHTML = hasRunnerAvatar ? window.StudyCommunity.avatarHtml(prof.nickname, prof.avatar, 22) : '';
+    if (runnerAvatar) {
+      runnerAvatar.hidden = !hasRunnerAvatar;
+      runnerAvatar.style.display = hasRunnerAvatar ? '' : 'none';
+      runnerAvatar.innerHTML = hasRunnerAvatar ? window.StudyCommunity.avatarHtml(prof.nickname, prof.avatar, 24) : '';
+    }
+    if (runnerIcon) {
+      runnerIcon.toggleAttribute('hidden', hasRunnerAvatar);
+      runnerIcon.style.display = hasRunnerAvatar ? 'none' : '';
+    }
     const profileName = document.getElementById('settings-profile-name');
     const modeBadge = document.getElementById('settings-mode-badge');
     if (signedIn && prof) {
@@ -1577,8 +1584,6 @@ window.StudyApp = (() => {
       if (obsLink) obsLink.hidden = true;
       const railRef = document.getElementById('run-ref-btn');
       if (railRef) railRef.hidden = false;
-      const railAl = document.getElementById('rail-al-btn');
-      if (railAl) railAl.hidden = false;
     }
     if (window.StudyUI?.isReferenceDrawerOpen?.()) window.StudyUI.closeReferenceDrawer();
     if (resetScroll) window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -6902,7 +6907,7 @@ window.StudyApp = (() => {
         {
           group: 'Actions',
           title: 'Open Settings',
-          sub: 'Appearance, sound, Al tutor & backup (,)',
+          sub: 'Appearance, sound, Adamlite & backup (,)',
           keywords: 'settings preferences theme sound backup',
           run: () => window.StudyUI.openSettings?.(),
         },
@@ -6938,9 +6943,16 @@ window.StudyApp = (() => {
         },
         {
           group: 'Actions',
-          title: 'Al Tutor',
-          sub: 'Live MCP exercise sharing & tutor prompt',
-          keywords: 'al ai tutor mcp claude codex prompt',
+          title: 'Adamlite AI Chat',
+          sub: 'Ask Adamlite about any question, formula, or mistake (T)',
+          keywords: 'adamlite al ai tutor chat assistant history',
+          run: () => window.StudyAiTutor?.toggle?.(),
+        },
+        {
+          group: 'Actions',
+          title: 'Desktop MCP Bridge',
+          sub: 'Live MCP exercise sharing & desktop setup',
+          keywords: 'adamlite al ai tutor mcp claude codex prompt',
           run: () => window.StudyTutor?.open?.(),
         },
         ...(window.StudyPdfCraft?.isAvailable?.() ? [{
@@ -7035,11 +7047,177 @@ window.StudyApp = (() => {
     dialog.addEventListener('click', (ev) => {
       if (ev.target === dialog) dialog.close();
     });
-    document.getElementById('rail-search-btn')?.addEventListener('click', () => openPalette());
-    document.getElementById('rail-al-btn')?.addEventListener('click', () => window.StudyAiTutor?.toggle?.());
+    document.getElementById('hdr-al-btn')?.addEventListener('click', () => window.StudyAiTutor?.toggle?.());
+
+    // VS Code-style Study Explorer Sidebar (#site-explorer-drawer)
+    const expBtn = document.getElementById('rail-explorer-btn');
+    const expDrawer = document.getElementById('site-explorer-drawer');
+    const expBackdrop = document.getElementById('site-explorer-backdrop');
+    const expTree = document.getElementById('site-explorer-tree');
+    const expFilter = document.getElementById('explorer-filter-input');
+    let expOpen = false;
+    let expActions = [];
+
+    const leaveRunnerForExplorer = () => {
+      if (!document.getElementById('view-runner')?.hidden) {
+        document.getElementById('run-exit-btn')?.click();
+      }
+    };
+
+    const closeExplorer = () => {
+      if (!expOpen) return;
+      expOpen = false;
+      if (expDrawer) expDrawer.hidden = true;
+      if (expBackdrop) expBackdrop.hidden = true;
+      document.body.classList.remove('explorer-open');
+      if (expBtn) {
+        expBtn.classList.remove('active');
+        expBtn.setAttribute('aria-expanded', 'false');
+      }
+    };
+
+    const renderExplorerTree = (rawQuery = '') => {
+      if (!expTree) return;
+      const q = String(rawQuery || '').trim().toLowerCase();
+      expActions = [];
+      const reg = (fn) => {
+        const id = expActions.length;
+        expActions.push(fn);
+        return id;
+      };
+      const fileIcon = '<svg class="exp-svg" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 1.5H4a1.5 1.5 0 0 0-1.5 1.5v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.5l-4-4Z"/><path d="M9.5 1.5v4h4"/></svg>';
+      const folderIcon = '<svg class="exp-svg" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.2A1.2 1.2 0 0 1 3.2 3h3l1.3 1.4h5.3A1.2 1.2 0 0 1 14 5.6v6.2a1.2 1.2 0 0 1-1.2 1.2H3.2A1.2 1.2 0 0 1 2 11.8V4.2Z"/></svg>';
+
+      const courseBranches = (boot.catalog || []).map((c) => {
+        const mLocked = isCourseInMaintenanceForUser(c.courseId);
+        const mInfo = getCourseMaintenance(c.courseId);
+        const noteRef = (boot.references || []).find((r) => r.courseId === c.courseId || r.file === c.obsidian?.mainReference);
+        const subItems = [
+          {
+            label: 'Practice Questions',
+            badge: mLocked ? mInfo.badge : `${c.questionCount || 0}`,
+            active: currentView === 'course' && selectedCourseId === c.courseId,
+            hay: `${c.code} ${c.title} ${c.shortTitle} practice questions topics`,
+            run: () => { leaveRunnerForExplorer(); navigate('course', { courseId: c.courseId }); },
+          },
+          {
+            label: 'Mock Exams & Papers',
+            badge: c.examInfo?.date ? c.examInfo.date.slice(0, 6) : '',
+            active: currentView === 'exams',
+            hay: `${c.code} ${c.title} ${c.shortTitle} exams mock papers`,
+            run: () => { leaveRunnerForExplorer(); navigate('exams', { focusCourseId: c.courseId }); },
+          },
+          ...(noteRef ? [{
+            label: 'Course Notes',
+            badge: 'MD',
+            active: currentView === 'references' && selectedRefFile === noteRef.file,
+            hay: `${c.code} ${c.title} ${noteRef.title} notes reference formula`,
+            run: () => { leaveRunnerForExplorer(); navigate('references', { refFile: noteRef.file }); },
+          }] : []),
+        ].filter((it) => !q || it.hay.toLowerCase().includes(q));
+        if (!subItems.length) return '';
+        const isCurrentCourse = selectedCourseId === c.courseId;
+        const shouldOpen = Boolean(q || isCurrentCourse);
+        return `
+          <details class="exp-sub" ${shouldOpen ? 'open' : ''}>
+            <summary class="exp-row exp-folder-row">
+              <span class="exp-chev" aria-hidden="true"></span>
+              ${folderIcon}
+              <span class="exp-name">${esc(c.shortTitle || c.title)}</span>
+              <span class="exp-tag">${esc(c.code)}</span>
+            </summary>
+            <div class="exp-children">
+              ${subItems.map((it) => `
+                <button type="button" class="exp-row exp-file-row ${it.active ? 'is-active' : ''}" data-exp-act="${reg(it.run)}">
+                  ${fileIcon}
+                  <span class="exp-name">${esc(it.label)}</span>
+                  ${it.badge ? `<span class="exp-meta">${esc(it.badge)}</span>` : ''}
+                </button>`).join('')}
+            </div>
+          </details>`;
+      }).filter(Boolean).join('');
+
+      const noteItems = (boot.references || [])
+        .filter((r) => !q || `${r.title} ${r.code} ${r.semester || ''} notes reference`.toLowerCase().includes(q))
+        .map((r) => {
+          const isAct = currentView === 'references' && selectedRefFile === r.file;
+          return `
+            <button type="button" class="exp-row exp-file-row ${isAct ? 'is-active' : ''}" data-exp-act="${reg(() => { leaveRunnerForExplorer(); navigate('references', { refFile: r.file }); })}">
+              ${fileIcon}
+              <span class="exp-name">${esc(r.title)}</span>
+              <span class="exp-meta">${esc(r.code || 'Note')}</span>
+            </button>`;
+        }).join('');
+
+      const toolEntries = [
+        { label: 'Home Dashboard', meta: '', active: currentView === 'home', hay: 'home dashboard overview', run: () => { leaveRunnerForExplorer(); navigate('home'); } },
+        { label: 'All Mock Exams', meta: '', active: currentView === 'exams', hay: 'exams wiseflow mocks', run: () => { leaveRunnerForExplorer(); navigate('exams'); } },
+        { label: 'Schedule & TimeEdit', meta: '', active: currentView === 'schedule', hay: 'schedule calendar timeedit', run: () => { leaveRunnerForExplorer(); navigate('schedule'); } },
+        { label: 'Metrics & UPI', meta: '', active: currentView === 'analytics', hay: 'metrics analytics upi', run: () => { leaveRunnerForExplorer(); navigate('analytics'); } },
+        ...(window.StudyCommunity?.enabled ? [{ label: 'Community & Leaderboard', meta: '', active: currentView === 'community', hay: 'community leaderboard chat rooms ed', run: () => { leaveRunnerForExplorer(); navigate('community'); } }] : []),
+        ...(window.StudyPdfCraft?.isAvailable?.() ? [{ label: 'PdfCraft PDF Editor', meta: 'WASM', active: false, hay: 'pdf pdfcraft edit highlight sign merge ocr', run: () => window.StudyPdfCraft.openBlank() }] : []),
+        { label: 'Adamlite AI Chat', meta: 'T', active: Boolean(window.StudyAiTutor?.isOpen?.()), hay: 'adamlite ai chat tutor history', run: () => window.StudyAiTutor?.toggle?.() },
+        { label: 'Settings', meta: ',', active: false, hay: 'settings theme sound school major', run: () => window.StudyUI.openSettings?.() },
+      ].filter((it) => !q || `${it.label} ${it.hay}`.toLowerCase().includes(q));
+
+      const toolItems = toolEntries.map((it) => `
+        <button type="button" class="exp-row exp-file-row ${it.active ? 'is-active' : ''}" data-exp-act="${reg(it.run)}">
+          ${fileIcon}
+          <span class="exp-name">${esc(it.label)}</span>
+          ${it.meta ? `<span class="exp-meta">${esc(it.meta)}</span>` : ''}
+        </button>`).join('');
+
+      const sections = [
+        courseBranches ? `<details class="exp-section" open><summary class="exp-section-head"><span class="exp-chev" aria-hidden="true"></span><span>COURSES</span></summary><div class="exp-section-body">${courseBranches}</div></details>` : '',
+        noteItems ? `<details class="exp-section" ${q ? 'open' : ''}><summary class="exp-section-head"><span class="exp-chev" aria-hidden="true"></span><span>NOTES &amp; SHEETS</span></summary><div class="exp-section-body">${noteItems}</div></details>` : '',
+        toolItems ? `<details class="exp-section" open><summary class="exp-section-head"><span class="exp-chev" aria-hidden="true"></span><span>WORKSPACE &amp; TOOLS</span></summary><div class="exp-section-body">${toolItems}</div></details>` : '',
+      ].filter(Boolean).join('');
+
+      expTree.innerHTML = sections || '<p class="muted" style="padding:14px 12px;font-size:12.5px">No matching items.</p>';
+    };
+
+    const openExplorer = () => {
+      if (!expDrawer) return;
+      if (window.StudyUI?.isReferenceDrawerOpen?.()) window.StudyUI.closeReferenceDrawer();
+      expOpen = true;
+      renderExplorerTree(expFilter?.value || '');
+      expDrawer.hidden = false;
+      if (expBackdrop) expBackdrop.hidden = false;
+      document.body.classList.add('explorer-open');
+      if (expBtn) {
+        expBtn.classList.add('active');
+        expBtn.setAttribute('aria-expanded', 'true');
+      }
+      setTimeout(() => expFilter?.focus?.(), 20);
+    };
+
+    const toggleExplorer = () => (expOpen ? closeExplorer() : openExplorer());
+
+    expBtn?.addEventListener('click', toggleExplorer);
+    expBackdrop?.addEventListener('click', closeExplorer);
+    document.getElementById('explorer-close-btn')?.addEventListener('click', closeExplorer);
+    document.getElementById('explorer-cmd-btn')?.addEventListener('click', () => {
+      closeExplorer();
+      openPalette();
+    });
+    expFilter?.addEventListener('input', () => renderExplorerTree(expFilter.value));
+    expTree?.addEventListener('click', (ev) => {
+      const btn = ev.target?.closest?.('[data-exp-act]');
+      if (!btn) return;
+      const fn = expActions[Number(btn.dataset.expAct)];
+      closeExplorer();
+      if (typeof fn === 'function') fn();
+    });
+
     document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && expOpen) {
+        ev.preventDefault();
+        closeExplorer();
+        return;
+      }
       if ((ev.metaKey || ev.ctrlKey) && !ev.altKey && ev.key.toLowerCase() === 'k') {
         ev.preventDefault();
+        closeExplorer();
         if (dialog.open) dialog.close();
         else openPalette();
         return;
@@ -7050,8 +7228,12 @@ window.StudyApp = (() => {
       const tag = ev.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ev.target?.isContentEditable) return;
       const k = ev.key.toLowerCase();
-      if (k === 'o') {
+      if (k === 'e') {
         ev.preventDefault();
+        toggleExplorer();
+      } else if (k === 'o') {
+        ev.preventDefault();
+        closeExplorer();
         toggleSiteReferenceSidebar();
       } else if (k === 't') {
         ev.preventDefault();
@@ -7568,7 +7750,8 @@ window.StudyApp = (() => {
                 <select id="bi-sync-school-select">
                   <option value="" ${!schoolSelectVal ? 'selected' : ''}>Choose your school (or just open any Canvas tab)…</option>
                   ${catalog.map((s) => `<option value="${esc(s.name)}" ${schoolSelectVal === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
-                  <option value="__custom__" ${schoolSelectVal === '__custom__' ? 'selected' : ''}>Other university / custom Canvas…</option>
+                  <option value="__custom__" ${schoolSelectVal === '__custom__' ? 'selected' : ''}>Not listed here (enter custom…)</option>
+                  <option value="__private__" ${schoolSelectVal === '__private__' ? 'selected' : ''}>Prefer not to say</option>
                 </select>
               </label>
             </div>
@@ -7667,7 +7850,9 @@ window.StudyApp = (() => {
       `;
 
       dlg.querySelector('#bi-sync-done')?.addEventListener('click', () => dlg.close());
-      dlg.querySelector('#bi-sync-school-select')?.addEventListener('change', async (ev) => {
+      const biSchoolSel = dlg.querySelector('#bi-sync-school-select');
+      window.StudyCommunity?.bindTypeaheadSelect?.(biSchoolSel);
+      biSchoolSel?.addEventListener('change', async (ev) => {
         const val = ev.currentTarget.value;
         if (val === '__custom__') {
           customSchoolMode = true;
@@ -7676,6 +7861,12 @@ window.StudyApp = (() => {
           return;
         }
         customSchoolMode = false;
+        if (val === '__private__') {
+          await window.StudyCommunity?.updateProfileSchool?.('Prefer not to say', '');
+          toast('School hidden.');
+          renderBiDialog(linkCode);
+          return;
+        }
         const preset = (window.StudyCommunity?.SCHOOL_CATALOG || []).find((s) => s.name === val);
         if (preset) {
           await window.StudyCommunity?.updateProfileSchool?.(preset.name, preset.canvasOrigin);

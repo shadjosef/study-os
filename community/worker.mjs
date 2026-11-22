@@ -3,7 +3,7 @@ import {
   verifyJoinProof, consumeInviteUse, handleAdmin, getAdminMemberKey,
   getJoinSettings, verifyInviteCodeOnly, grantArchivePass, getActiveArchiveMemberKey,
 } from './admin.mjs';
-import { handlePublicAuth, handleAuthedAuth, cleanSecondaryLanguage, cleanContactEmail, maskEmailHint, cleanSchoolName, cleanProfileCanvasOrigin } from './auth.mjs';
+import { handlePublicAuth, handleAuthedAuth, cleanSecondaryLanguage, cleanContactEmail, maskEmailHint, cleanSchoolName, cleanMajorName, cleanProfileCanvasOrigin } from './auth.mjs';
 import { handleSync } from './sync.mjs';
 import { checkHuman } from './human.mjs';
 import { readTimeEdit, pushTimeEditFeed, getTimeEditFeed } from './timeedit.mjs';
@@ -95,6 +95,7 @@ function profileSummary(me, isAdmin, now) {
     nextNicknameChangeAt: nextAt,
     secondaryLanguage: me.secondary_language || '',
     school: me.school || '',
+    major: me.major || '',
     canvasOrigin: me.canvas_origin || '',
     newsletterOptIn: Boolean(me.newsletter_opt_in),
     contactEmailHint: maskEmailHint(me.contact_email || ''),
@@ -198,6 +199,7 @@ export default {
       }
       const secondaryLanguage = cleanSecondaryLanguage(data.secondaryLanguage);
       const school = cleanSchoolName(data.school || '');
+      const major = cleanMajorName(data.major || '');
       const canvasOrigin = cleanProfileCanvasOrigin(data.canvasOrigin || '');
       const newsletterOptIn = Boolean(data.newsletterOptIn) ? 1 : 0;
       const contactEmail = newsletterOptIn ? cleanContactEmail(data.contactEmail || '') : '';
@@ -206,9 +208,9 @@ export default {
       const id = crypto.randomUUID();
       const token = 'soc1_' + hex(crypto.getRandomValues(new Uint8Array(32)));
       const result = await db.prepare(`
-        INSERT OR IGNORE INTO profiles(id, token_hash, nickname, secondary_language, school, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(id, await digest(token), nickname, secondaryLanguage, school, canvasOrigin, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
+        INSERT OR IGNORE INTO profiles(id, token_hash, nickname, secondary_language, school, major, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(id, await digest(token), nickname, secondaryLanguage, school, major, canvasOrigin, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
       if (!result.meta.changes) return reply({ error: 'That nickname is taken.' }, 409);
       if (check.inviteId && !await consumeInviteUse(db, check.inviteId, nowJoin)) {
         await db.prepare('DELETE FROM profiles WHERE id = ?').bind(id).run();
@@ -226,7 +228,7 @@ export default {
     const now = Date.now();
     let me = await db.prepare(`
       SELECT profiles.id, profiles.token_hash AS primary_token_hash, nickname, avatar, bio, nickname_changed_at,
-        secondary_language, school, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
+        secondary_language, school, major, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
         study_minutes, break_minutes, break_count, last_break_at,
         completed, attempts, accuracy, break_ends_at, expires_at
       FROM profiles LEFT JOIN presence ON presence.profile = profiles.id WHERE token_hash = ?
@@ -234,7 +236,7 @@ export default {
     if (!me) {
       me = await db.prepare(`
         SELECT profiles.id, profiles.token_hash AS primary_token_hash, nickname, avatar, bio, nickname_changed_at,
-          secondary_language, school, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
+          secondary_language, school, major, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
           study_minutes, break_minutes, break_count, last_break_at,
           completed, attempts, accuracy, break_ends_at, expires_at,
           profile_sessions.last_used_at AS session_last_used_at
@@ -329,6 +331,7 @@ export default {
         let nextBio = me.bio || '';
         let nextSecLang = me.secondary_language || '';
         let nextSchool = me.school || '';
+        let nextMajor = me.major || '';
         let nextCanvasOrigin = me.canvas_origin || '';
         let nextNewsletter = Number(me.newsletter_opt_in || 0);
         let nextNewsletterAt = Number(me.newsletter_opt_in_at || 0);
@@ -339,6 +342,9 @@ export default {
         }
         if (Object.prototype.hasOwnProperty.call(data, 'school')) {
           nextSchool = cleanSchoolName(data.school || '');
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'major')) {
+          nextMajor = cleanMajorName(data.major || '');
         }
         if (Object.prototype.hasOwnProperty.call(data, 'canvasOrigin')) {
           nextCanvasOrigin = cleanProfileCanvasOrigin(data.canvasOrigin || '');
@@ -401,9 +407,9 @@ export default {
           await db.prepare(`
             UPDATE profiles
             SET nickname = ?, avatar = ?, bio = ?, nickname_changed_at = ?,
-                secondary_language = ?, school = ?, canvas_origin = ?, newsletter_opt_in = ?, newsletter_opt_in_at = ?, contact_email = ?
+                secondary_language = ?, school = ?, major = ?, canvas_origin = ?, newsletter_opt_in = ?, newsletter_opt_in_at = ?, contact_email = ?
             WHERE id = ?
-          `).bind(nextNickname, nextAvatar, nextBio, nextChangedAt, nextSecLang, nextSchool, nextCanvasOrigin, nextNewsletter, nextNewsletterAt, nextEmail, me.id).run();
+          `).bind(nextNickname, nextAvatar, nextBio, nextChangedAt, nextSecLang, nextSchool, nextMajor, nextCanvasOrigin, nextNewsletter, nextNewsletterAt, nextEmail, me.id).run();
         } catch {
           return reply({ error: 'That nickname is taken.' }, 409);
         }
@@ -416,6 +422,7 @@ export default {
           nickname_changed_at: nextChangedAt,
           secondary_language: nextSecLang,
           school: nextSchool,
+          major: nextMajor,
           canvas_origin: nextCanvasOrigin,
           newsletter_opt_in: nextNewsletter,
           newsletter_opt_in_at: nextNewsletterAt,
@@ -444,7 +451,7 @@ export default {
       const offset = Number(url.searchParams.get('offset') || 0);
       if (!boundedInt(offset, 1_000_000)) return reply({ error: 'Invalid leaderboard page.' }, 400);
       const ranks = await db.prepare(`
-        SELECT profiles.id, nickname, avatar, bio, school, study_minutes, break_minutes, break_count, last_break_at,
+        SELECT profiles.id, nickname, avatar, bio, school, major, study_minutes, break_minutes, break_count, last_break_at,
           completed, attempts, accuracy, presence.mode,
           presence.elapsed_seconds, presence.updated_at, presence.break_ends_at
         FROM profiles LEFT JOIN presence ON presence.profile = profiles.id AND presence.expires_at > ?

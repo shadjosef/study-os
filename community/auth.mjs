@@ -9,6 +9,11 @@ export function cleanSchoolName(raw) {
   return raw.normalize('NFC').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 48);
 }
 
+export function cleanMajorName(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw.normalize('NFC').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+
 export function cleanProfileCanvasOrigin(raw) {
   if (typeof raw !== 'string' || !raw.trim()) return '';
   let candidate = raw.trim();
@@ -366,6 +371,7 @@ export async function handlePublicAuth({
     }
     const secondaryLanguage = cleanSecondaryLanguage(data.secondaryLanguage);
     const school = cleanSchoolName(data.school || '');
+    const major = cleanMajorName(data.major || '');
     const canvasOrigin = cleanProfileCanvasOrigin(data.canvasOrigin || '');
     const newsletterOptIn = Boolean(data.newsletterOptIn) ? 1 : 0;
     const contactEmail = newsletterOptIn ? cleanContactEmail(data.contactEmail || pending.verified_email || '') : '';
@@ -380,9 +386,9 @@ export async function handlePublicAuth({
     const id = crypto.randomUUID();
     const primaryToken = 'soc1_' + hex(crypto.getRandomValues(new Uint8Array(32)));
     const inserted = await db.prepare(`
-      INSERT OR IGNORE INTO profiles(id, token_hash, nickname, secondary_language, school, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(id, await digest(primaryToken), nickname, secondaryLanguage, school, canvasOrigin, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
+      INSERT OR IGNORE INTO profiles(id, token_hash, nickname, secondary_language, school, major, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(id, await digest(primaryToken), nickname, secondaryLanguage, school, major, canvasOrigin, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
     if (!inserted.meta.changes) {
       // Put ticket back so user can pick another nickname without re-auth
       await db.prepare(`

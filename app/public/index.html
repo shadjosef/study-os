@@ -160,6 +160,10 @@
           <span class="settings-trigger-label">Settings</span>
           <span class="settings-active-dot" hidden aria-hidden="true"></span>
         </button>
+        <button type="button" class="ghost-btn adamlite-hdr-btn" id="hdr-al-btn" title="Adamlite AI (T)" aria-label="Open Adamlite AI" aria-expanded="false" aria-controls="ai-tutor-pane">
+          <img class="adamlite-avatar-xs" src="./pwa/adamlite-avatar.svg" alt="" width="18" height="18">
+          <span class="adamlite-hdr-label">Adamlite</span>
+        </button>
       </div>
     </div>
   </header>
@@ -181,11 +185,8 @@
         <button type="button" class="ghost-btn" id="runner-room-btn" hidden>Room</button>
         <button type="button" class="ghost-btn" id="run-layout-btn" title="Switch between Split and Focus (V)">Split</button>
         <span class="runner-domain runner-domain-desktop">StudyOS.no</span>
-        <button type="button" class="runner-icon-btn" id="run-al-btn" title="Al (T)" aria-label="Al tutor" aria-expanded="false" aria-controls="ai-tutor-pane" hidden>
-          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4.6 3.7h10.8a2.4 2.4 0 0 1 2.4 2.4v6a2.4 2.4 0 0 1-2.4 2.4H8.5L5 17v-2.5h-.4a2.4 2.4 0 0 1-2.4-2.4v-6a2.4 2.4 0 0 1 2.4-2.4Z"/>
-            <path d="m6.2 7.1 2 2-2 2m4.5 0h3.1"/>
-          </svg>
+        <button type="button" class="runner-icon-btn adamlite-run-btn" id="run-al-btn" title="Adamlite (T)" aria-label="Adamlite AI" aria-expanded="false" aria-controls="ai-tutor-pane" hidden>
+          <img class="adamlite-avatar-xs" src="./pwa/adamlite-avatar.svg" alt="" width="20" height="20">
         </button>
       </div>
     </div>
@@ -204,24 +205,20 @@
   </header>
 
   <nav class="runner-rail app-rail" aria-label="Workspace tools">
-    <button type="button" class="runner-icon-btn" id="run-ref-btn" title="Course Notes & Reference (O)" aria-label="Course Notes and Reference" aria-expanded="false">
+    <button type="button" class="runner-icon-btn rail-desktop-only" id="rail-explorer-btn" title="Explorer (E)" aria-label="Study-OS Explorer" aria-expanded="false" aria-controls="site-explorer-drawer">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M14 2H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V6l-4-4Z"/>
+        <path d="M14 2v4h4"/>
+        <path d="M9 22h9a2 2 0 0 0 2-2V9"/>
+      </svg>
+    </button>
+    <button type="button" class="runner-icon-btn" id="run-ref-btn" title="Course Notes &amp; Reference (O)" aria-label="Course Notes and Reference" aria-expanded="false">
       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M12 5.5C8.6 3.5 5 3.6 2.8 4.5v14c3-.9 6.1-.8 9.2 1.3 3.1-2.1 6.2-2.2 9.2-1.3v-14c-2.2-.9-5.8-1-9.2 1ZM12 5.5v14"/>
       </svg>
     </button>
-    <button type="button" class="runner-icon-btn rail-desktop-only" id="rail-search-btn" title="Quick Search (⌘K)" aria-label="Quick Search">
-      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="11" cy="11" r="7"></circle>
-        <path d="m20 20-3.5-3.5"></path>
-      </svg>
-    </button>
-    <button type="button" class="runner-icon-btn rail-desktop-only" id="rail-al-btn" title="Al Tutor (T)" aria-label="Al tutor" aria-expanded="false" aria-controls="ai-tutor-pane">
-      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="m5 7 3.5 3L5 13M10.5 13h4.5"/>
-      </svg>
-    </button>
     <div class="runner-rail-bottom">
-      <button type="button" class="runner-icon-btn" id="run-canvas-btn" title="Canvas sync" aria-label="Canvas sync">
+      <button type="button" class="runner-icon-btn" id="run-canvas-btn" title="Reload / Canvas sync" aria-label="Reload and Canvas sync">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M20 8a8 8 0 0 0-13-3L4 8m0-4v4h4m8 8h4v4m0-4-3 3a8 8 0 0 1-13-3"/>
         </svg>
@@ -242,10 +239,28 @@
     </div>
   </nav>
 
+  <!-- VS Code-style Study Explorer Sidebar (flush beside the left rail) -->
+  <div id="site-explorer-backdrop" class="explorer-backdrop" hidden></div>
+  <aside id="site-explorer-drawer" class="explorer-drawer" hidden aria-label="Study-OS Explorer">
+    <div class="explorer-head">
+      <span class="explorer-title">EXPLORER</span>
+      <div class="explorer-head-actions">
+        <button type="button" class="explorer-icon-btn" id="explorer-cmd-btn" title="Quick Search (⌘K)" aria-label="Quick Search">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </button>
+        <button type="button" class="explorer-icon-btn" id="explorer-close-btn" title="Close Explorer (Esc)" aria-label="Close Explorer">✕</button>
+      </div>
+    </div>
+    <div class="explorer-filter-bar">
+      <input type="search" id="explorer-filter-input" class="explorer-filter-input" placeholder="Filter courses, notes, tools…" autocomplete="off" spellcheck="false" aria-label="Filter Explorer">
+    </div>
+    <div id="site-explorer-tree" class="explorer-tree"></div>
+  </aside>
+
   <dialog id="profile-gate" class="member-dialog auth-sheet" tabindex="-1" aria-label="Sign in to Study-OS"></dialog>
   <dialog id="account-security-dialog" class="member-dialog security-sheet" tabindex="-1" aria-labelledby="security-sheet-title"></dialog>
   <dialog id="tutor-dialog" class="member-dialog" aria-labelledby="tutor-title">
-    <h2 id="tutor-title">Al tutor</h2>
+    <h2 id="tutor-title">Adamlite &amp; Desktop MCP</h2>
     <p>Connect Study-OS to your preferred assistant once. Live sharing sends the current practice question, your working, and readable source text to the local bridge.</p>
     <div class="row-actions">
       <button type="button" class="primary-btn" id="tutor-pair" hidden>Connect desktop app</button>
@@ -863,6 +878,14 @@
         </div>
       </section>
 
+      <!-- GROUP 0B: SCHOOL & MAJOR -->
+      <section class="ios-section" id="settings-school-major-section" data-settings-group>
+        <h3 class="ios-group-title">School &amp; Major</h3>
+        <div class="ios-group">
+          <div class="settings-school-major-box" id="settings-school-major-box" data-settings-item="school university major program bba data science digital business canvas"></div>
+        </div>
+      </section>
+
       <!-- GROUP 1: APPEARANCE -->
       <section class="ios-section" data-settings-group>
         <h3 class="ios-group-title">Appearance</h3>
@@ -1033,6 +1056,22 @@
             </div>
           </div>
 
+          <label class="ios-row ios-row-switch" data-settings-item="math answers par auto reveal timer check final result adamlite">
+            <span class="ios-icon ios-icon-amber" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </span>
+            <span class="ios-row-copy">
+              <span class="ios-row-label">Auto-reveal Math answers by par time</span>
+              <small class="ios-row-sub">Gradually shows final answers (no steps, zero penalty) as par elapses</small>
+            </span>
+            <span class="ios-switch-wrap">
+              <input type="checkbox" id="settings-math-par-answers" class="ios-switch" role="switch" aria-label="Auto-reveal Math answers by par time">
+            </span>
+          </label>
+
           <label class="ios-row ios-row-switch" data-settings-item="fullscreen focus screen lock f11">
             <span class="ios-icon ios-icon-slate" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1070,19 +1109,17 @@
         </div>
       </section>
 
-      <!-- GROUP 3: AI & INTEGRATIONS -->
+      <!-- GROUP 3: ADAMLITE & INTEGRATIONS -->
       <section class="ios-section" data-settings-group>
-        <h3 class="ios-group-title">Al &amp; Integrations</h3>
+        <h3 class="ios-group-title">Adamlite &amp; Integrations</h3>
         <div class="ios-group">
-          <button type="button" class="ios-row ios-row-btn" id="btn-home-tutor" data-settings-item="al ai tutor mcp codex claude live share">
-            <span class="ios-icon ios-icon-purple" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z"></path>
-              </svg>
+          <button type="button" class="ios-row ios-row-btn" id="btn-home-tutor" data-settings-item="adamlite al ai tutor mcp codex claude live share">
+            <span class="ios-icon ios-icon-gold" aria-hidden="true">
+              <img class="adamlite-avatar-xs" src="./pwa/adamlite-avatar.svg" alt="" width="20" height="20">
             </span>
             <span class="ios-row-copy">
-              <span class="ios-row-label">Al</span>
-              <small class="ios-row-sub">Tutor chat, Gemini key &amp; desktop MCP</small>
+              <span class="ios-row-label">Adamlite</span>
+              <small class="ios-row-sub">AI tutor chat, history, Gemini key &amp; desktop MCP</small>
             </span>
             <span class="ios-row-trailing">
               <span class="ios-row-value" id="settings-tutor-value">Off</span>
@@ -1380,7 +1417,7 @@
               </svg>
             </span>
             <span class="ios-row-copy">
-              <span class="ios-row-label">Al Tutor Setup Guide</span>
+              <span class="ios-row-label">Adamlite Setup Guide</span>
               <small class="ios-row-sub">Connect Claude, Codex or Antigravity via MCP</small>
             </span>
             <span class="ios-row-trailing">

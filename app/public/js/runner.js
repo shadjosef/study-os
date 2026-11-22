@@ -33,6 +33,281 @@ window.StudyRunner = (() => {
   function isInstantMcqEnabled(prefs = getRunnerUiPrefs()) {
     return prefs.instantMcq !== false;
   }
+  function isMathParAutoRevealEnabled(prefs = getRunnerUiPrefs()) {
+    return Boolean(prefs.mathParAutoReveal);
+  }
+  function setMathParAutoRevealEnabled(enabled) {
+    saveRunnerUiPrefs({ mathParAutoReveal: Boolean(enabled) });
+    const chk = document.getElementById('settings-math-par-answers');
+    if (chk) chk.checked = Boolean(enabled);
+    if (activeRun && !document.getElementById('view-runner')?.hidden) {
+      const q = currentQuestion();
+      if (q) {
+        const st = itemState(q.id);
+        refreshAnswerTrayInPlace(q, st);
+      }
+    }
+    toast(enabled ? 'Math par auto-reveal ON (final answers only, zero penalty)' : 'Math par auto-reveal OFF');
+  }
+
+  // ---------------------------------------------------------------------------
+  // FINAL-ANSWERS-ONLY EXTRACTOR (Zero-Penalty Answer Check · No Worked Steps)
+  // ---------------------------------------------------------------------------
+  function cleanConciseAnswer(raw) {
+    let s = String(raw || '').trim();
+    if (!s) return '';
+    // Unwrap display math $$...$$ into inline $...$ for compact answer chips
+    s = s.replace(/\$\$([\s\S]*?)\$\$/g, (_, inner) => `$${inner.trim().replace(/\s*\n\s*/g, ' ')}$`);
+    // Handle orphaned leading/trailing $$ or $ after splitting a display/inline math expression
+    if (/\$\$$/.test(s) && !/^\$\$/.test(s)) s = `$${s.replace(/\$\$$/, '').trim()}$`;
+    if (/^\$\$/.test(s) && !/\$\$$/.test(s)) s = `$${s.replace(/^\$\$/, '').trim()}$`;
+    const singleDollars = (s.replace(/\\\$/g, '').match(/\$/g) || []).length;
+    if (singleDollars % 2 === 1) {
+      if (!s.startsWith('$')) s = `$${s}`;
+      else s = `${s}$`;
+    }
+    // Strip trailing alternate form like \quad \left(= ...\right) so splitting on = never leaves dangling \right)
+    s = s.replace(/\\quad\s*\\left\(\s*=\s*[\s\S]*?\\right\)/g, '');
+    s = s.replace(/\\quad\s*\(\s*=\s*[^)]*\)/g, '');
+    s = s.replace(/\\boxed\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g, '$1');
+    const leftCount = (s.match(/\\left\b/g) || []).length;
+    const rightCount = (s.match(/\\right\b/g) || []).length;
+    if (leftCount !== rightCount) {
+      s = s.replace(/\\left(?=[(\[|{.])|\\right(?=[)\]|}.])/g, '');
+    }
+    s = s.replace(/\s+/g, ' ').replace(/[.,;:]\s*$/, '').trim();
+    return s;
+  }
+
+  function extractResultFromSegment(segment) {
+    const raw = String(segment || '').trim();
+    if (!raw) return '';
+
+    // Special case: polynomial division equation followed by "with remainder **$R$**"
+    const remMatch = raw.match(/(?:\$\$|\$)[^$\n]*?=\s*([^$\n]+?)(?:\$\$|\$)[\s,]*with\s+remainder\s+(?:\*\*)?\$?([^$\n*]+?)\$?(?:\*\*)?/i);
+    if (remMatch) {
+      const rhs = cleanConciseAnswer(remMatch[1]).replace(/^\$|\$$/g, '').trim();
+      const rem = cleanConciseAnswer(remMatch[2]).replace(/^\$|\$$/g, '').trim();
+      if (rhs) return `$${rhs}$ (rem $${rem || '0'}$)`;
+    }
+
+    // Check explicit "Answer:" / "Final answer:" / "Conclusion:" / "⇒" / "∴" markers
+    const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const ln = lines[i];
+      const explicit = ln.match(/(?:^|\b)(?:final\s+answer|answer|result|solution|therefore|thus|hence|conclude)\s*[:\-–—]?\s*(.+)$/i);
+      if (explicit && explicit[1].trim().length >= 1 && explicit[1].trim().length <= 180) {
+        const val = cleanConciseAnswer(explicit[1]);
+        if (val) return val;
+      }
+    }
+
+    // Look for bolded final values (**$...$** or **...**) preferring the last one
+    const boldMatches = [...raw.matchAll(/\*\*([^*\n]{1,140})\*\*/g)]
+      .map((m) => m[1].trim())
+      .filter((t) => !/^(?:step\s*\d+|method|part\s*[a-z0-9]+|note|check|verify|hint|given|formula|recall|answer|solution|a\)|b\)|c\)|d\)|e\)|f\)|i\)|ii\)|iii\)|iv\)|[a-z]\)|\(\w+\)):?$/i.test(t));
+    if (boldMatches.length) {
+      const lastBold = cleanConciseAnswer(boldMatches[boldMatches.length - 1]);
+      if (lastBold && lastBold.length <= 160) return lastBold;
+    }
+
+    // Look at the last math expression or arrow-conclusion on the final non-empty line
+    const tail = lines[lines.length - 1] || raw;
+    const arrowParts = tail.split(/(?:⇒|⟹|→|\\Rightarrow|\\implies|∴)/);
+    if (arrowParts.length > 1) {
+      const rhs = cleanConciseAnswer(arrowParts[arrowParts.length - 1]);
+      if (rhs && rhs.length <= 160) return rhs;
+    }
+
+    // Extract last inline/display math chunk and take its final RHS if it's a chained equality
+    const mathChunks = [...raw.matchAll(/\$\$?([^$]+?)\$\$?/g)].map((m) => m[1].trim()).filter(Boolean);
+    if (mathChunks.length) {
+      let lastTex = mathChunks[mathChunks.length - 1]
+        .replace(/\\quad\s*\\left\(\s*=\s*[\s\S]*?\\right\)/g, '')
+        .replace(/\\quad\s*\(\s*=\s*[^)]*\)/g, '')
+        .replace(/\\boxed\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g, '$1')
+        .trim();
+      // Split on top-level `=` (not inside \left...\right or braces) when there are multiple `=` steps
+      const eqParts = lastTex.split(/\s*=\s*/);
+      if (eqParts.length >= 3) {
+        const lhs = eqParts[0].trim();
+        const finalRhs = eqParts[eqParts.length - 1].trim();
+        if (lhs.length <= 14 && /^[a-zA-Z\\_{}^0-9(),']+$/i.test(lhs)) {
+          lastTex = `${lhs} = ${finalRhs}`;
+        } else {
+          lastTex = finalRhs;
+        }
+      }
+      // Balance stray \left / \right if any
+      const leftCount = (lastTex.match(/\\left\b/g) || []).length;
+      const rightCount = (lastTex.match(/\\right\b/g) || []).length;
+      if (leftCount !== rightCount) {
+        lastTex = lastTex.replace(/\\left(?=[(\[|{.])|\\right(?=[)\]|}.])/g, '');
+      }
+      if (lastTex && lastTex.length <= 240) return `$${lastTex}$`;
+    }
+
+    const compact = cleanConciseAnswer(tail);
+    if (compact.length <= 240 || compact.includes('$')) return compact;
+    return `${compact.slice(0, 237)}…`;
+  }
+
+  function extractFinalAnswers(q) {
+    if (!q) return [];
+    if (q.kind === 'mcq') return [];
+    if (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0) return [];
+    if (q._cachedFinalAnswers) return q._cachedFinalAnswers;
+
+    const sol = String(q.solutionMarkdown || '').trim();
+    const parts = [];
+
+    if (sol) {
+      // Mask $$...$$ blocks so line splitting never splits inside multi-line LaTeX
+      const displayBlocks = [];
+      const masked = sol.replace(/\$\$[\s\S]*?\$\$/g, (m) => {
+        const idx = displayBlocks.length;
+        displayBlocks.push(m);
+        return `@@DISP_${idx}@@`;
+      });
+      const unmask = (txt) => txt.replace(/@@DISP_(\d+)@@/g, (_, idx) => displayBlocks[Number(idx)] || '');
+
+      // Detect subparts like: "**a)** ...", "- **a)** ...", "a) ...", "(a) ...", "**i)** ...", "### a) ...", "1) ..."
+      const lines = masked.split('\n');
+      const partStartRe = /^(?:[-*•]\s*|#{1,4}\s*)?(?:\*\*)?(\(?[a-h]\)|\(?(?:i|ii|iii|iv|v|vi)\)|Part\s+[a-z0-9]+|[1-9]\))(?:\*\*)?[:.\s]+(.*)$/i;
+      const grouped = [];
+      let cur = null;
+
+      for (const rawLine of lines) {
+        const trimmed = rawLine.trim();
+        const m = trimmed.match(partStartRe);
+        if (m) {
+          if (cur) grouped.push(cur);
+          const rawLbl = m[1].replace(/^\(/, '').replace(/\)$/, '');
+          const lbl = /^part\s/i.test(rawLbl) ? rawLbl : `${rawLbl})`;
+          cur = { label: lbl, lines: [m[2] || ''] };
+        } else if (cur) {
+          cur.lines.push(rawLine);
+        }
+      }
+      if (cur) grouped.push(cur);
+
+      if (grouped.length >= 2) {
+        for (const g of grouped) {
+          const val = extractResultFromSegment(unmask(g.lines.join('\n')));
+          if (val) parts.push({ label: g.label, md: val });
+        }
+      }
+
+      if (!parts.length) {
+        const single = extractResultFromSegment(sol);
+        if (single) parts.push({ label: 'Answer', md: single });
+      }
+    }
+
+    if (!parts.length && q.numericAnswer && q.numericAnswer.value !== undefined && q.numericAnswer.value !== null) {
+      const unit = q.numericAnswer.unit ? ` ${q.numericAnswer.unit}` : '';
+      parts.push({ label: 'Answer', md: `**${q.numericAnswer.value}**${unit}` });
+    }
+
+    q._cachedFinalAnswers = parts;
+    return parts;
+  }
+
+  function isMathParAutoActiveFor(q, isBlindUnfinished) {
+    if (!activeRun || !q || isBlindUnfinished) return false;
+    return activeRun.courseMeta?.courseId === 'math-2588'
+      && activeRun.mode === 'practice'
+      && isMathParAutoRevealEnabled();
+  }
+
+  function renderAnswerTrayInnerHtml(q, st, isBlindUnfinished) {
+    const answers = extractFinalAnswers(q);
+    if (!answers.length || isBlindUnfinished || st.revealed) return '';
+    const autoOn = isMathParAutoActiveFor(q, isBlindUnfinished);
+    const total = answers.length;
+    const isShown = (idx) =>
+      (st.peekedAnswers?.has(idx) || (autoOn && st.autoRevealedAnswers?.has(idx)))
+      && !st.hiddenAnswers?.has(idx);
+    const shownCount = answers.reduce((n, _, idx) => n + (isShown(idx) ? 1 : 0), 0);
+
+    let paceNote = '';
+    if (autoOn) {
+      const activeSec = itemActiveSec(st);
+      const targetSec = Math.max(30, Number(st.targetSec) || 180);
+      let nextIdx = -1;
+      for (let i = 0; i < total; i++) {
+        if (!st.autoRevealedAnswers?.has(i)) { nextIdx = i; break; }
+      }
+      if (nextIdx >= 0) {
+        const nextAt = Math.round(((nextIdx + 1) / total) * targetSec);
+        const rem = Math.max(0, nextAt - activeSec);
+        paceNote = `<span class="ans-tray-pace">Par auto-reveal · ${esc(answers[nextIdx].label)} in ${clockSec(rem)}</span>`;
+      } else {
+        paceNote = `<span class="ans-tray-pace is-done">Par auto-reveal · all ${total} unlocked</span>`;
+      }
+    }
+
+    return `
+      <div class="ans-tray-head">
+        <div class="ans-tray-title">
+          <strong>Final answers</strong>
+          <small>No steps · zero penalty</small>
+          ${paceNote}
+        </div>
+        <div class="ans-tray-actions">
+          <button type="button" class="mini-tool-btn" data-ans-bulk="${shownCount < total ? 'all' : 'none'}">
+            ${shownCount < total ? 'Reveal all' : 'Hide all'}
+          </button>
+        </div>
+      </div>
+      <div class="ans-chip-list">
+        ${answers.map((part, idx) => {
+          const visible = isShown(idx);
+          const isAuto = Boolean(autoOn && st.autoRevealedAnswers?.has(idx) && !st.peekedAnswers?.has(idx));
+          return `<button type="button" class="ans-chip ${visible ? 'is-revealed' : 'is-hidden'} ${isAuto ? 'is-auto' : ''}" data-ans-idx="${idx}" aria-pressed="${visible ? 'true' : 'false'}" title="${visible ? 'Click to hide' : 'Reveal final answer only (zero penalty)'}">
+            <span class="ans-chip-lbl">${esc(part.label)}</span>
+            ${visible
+              ? `<span class="ans-chip-val">${renderMarkdownWithMath(part.md)}</span>`
+              : `<span class="ans-chip-mask">Reveal answer</span>`}
+          </button>`;
+        }).join('')}
+      </div>
+    `;
+  }
+
+  function refreshAnswerTrayInPlace(q, st) {
+    if (!activeRun || !q || !st) return;
+    const isBlindUnfinished = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
+    const answers = extractFinalAnswers(q);
+    const tray = document.getElementById('runner-answer-tray');
+    const toggleBtn = document.getElementById('btn-toggle-answers');
+    if (!tray) return;
+
+    if (!answers.length || isBlindUnfinished || st.revealed) {
+      tray.hidden = true;
+      tray.innerHTML = '';
+      if (toggleBtn) toggleBtn.hidden = true;
+      return;
+    }
+
+    const autoOn = isMathParAutoActiveFor(q, isBlindUnfinished);
+    const shownCount = answers.reduce((n, _, idx) => {
+      const vis = (st.peekedAnswers?.has(idx) || (autoOn && st.autoRevealedAnswers?.has(idx))) && !st.hiddenAnswers?.has(idx);
+      return n + (vis ? 1 : 0);
+    }, 0);
+
+    if (toggleBtn) {
+      toggleBtn.hidden = false;
+      toggleBtn.classList.toggle('active', Boolean(st.answerTrayOpen));
+      toggleBtn.setAttribute('aria-expanded', st.answerTrayOpen ? 'true' : 'false');
+      toggleBtn.textContent = shownCount > 0 ? `Answers (${shownCount}/${answers.length})` : 'Answers';
+    }
+
+    tray.hidden = !st.answerTrayOpen;
+    if (st.answerTrayOpen) {
+      tray.innerHTML = renderAnswerTrayInnerHtml(q, st, isBlindUnfinished);
+    }
+  }
 
   function needsSplitByContent(q, st) {
     if (!q) return false;
@@ -224,6 +499,10 @@ window.StudyRunner = (() => {
         revealed: false,
         solutionPeeked: false,
         earlyPeekConfirmed: false,
+        answerTrayOpen: false,
+        peekedAnswers: new Set(),
+        autoRevealedAnswers: new Set(),
+        hiddenAnswers: new Set(),
         loggedAttempt: null,
         pauseActive: null,
         focusSwitches: [],
@@ -1314,12 +1593,9 @@ window.StudyRunner = (() => {
     refButton.hidden = !canOpenReference;
     refButton.setAttribute('aria-expanded', String(isTriPane));
     const alButton = document.getElementById('run-al-btn');
-    alButton.hidden = isBlindUnfinished;
-    alButton.setAttribute('aria-expanded', String(Boolean(window.StudyAiTutor?.isOpen?.())));
-    const railAlBtn = document.getElementById('rail-al-btn');
-    if (railAlBtn) {
-      railAlBtn.hidden = isBlindUnfinished;
-      railAlBtn.setAttribute('aria-expanded', String(Boolean(window.StudyAiTutor?.isOpen?.())));
+    if (alButton) {
+      alButton.hidden = isBlindUnfinished;
+      alButton.setAttribute('aria-expanded', String(Boolean(window.StudyAiTutor?.isOpen?.())));
     }
 
     document.body.classList.toggle('runner-split-wide', isSplit);
@@ -1327,11 +1603,14 @@ window.StudyRunner = (() => {
     document.body.classList.toggle('runner-split-ref', isTriPane);
     document.body.classList.toggle('runner-foveal-compact', !isSplit);
 
-    // Preserve left-pane and reference-pane scroll positions when re-rendering the same question
+    // Preserve left-pane, right-pane, and reference-pane scroll positions when re-rendering the same question
+    const sameQuestion = activeRun.lastRenderedQid === q.id;
     const prevLeftEl = document.querySelector('.runner-pane-left-scroll');
-    const prevLeftScroll = activeRun.lastRenderedQid === q.id && prevLeftEl ? prevLeftEl.scrollTop : 0;
+    const prevLeftScroll = sameQuestion && prevLeftEl ? prevLeftEl.scrollTop : 0;
+    const prevRightEl = document.querySelector('.runner-pane-right');
+    const prevRightScroll = sameQuestion && prevRightEl ? prevRightEl.scrollTop : 0;
     const prevRefEl = document.querySelector('.runner-pane-ref-scroll');
-    const prevRefScroll = activeRun.lastRenderedQid === q.id && prevRefEl ? prevRefEl.scrollTop : 0;
+    const prevRefScroll = sameQuestion && prevRefEl ? prevRefEl.scrollTop : 0;
     activeRun.lastRenderedQid = q.id;
 
     // Top sticky header controls
@@ -1452,8 +1731,8 @@ window.StudyRunner = (() => {
       const inlineLocalPrompt = renderInlineLocalPdfFigures(filteredPromptPdfs);
       if (inlineLocalPrompt.mountItems.length) inlineLocalMountItems.push(...inlineLocalPrompt.mountItems);
       const rawPromptStr = String(q.promptMarkdown || '').trim();
-      const hasFullTranscribedPrompt = rawPromptStr.length >= 220
-        && !/\b(sheet above|pages? above|shown above|figure\s*\d|in the figure|in the graph|graph below|diagram below)\b/i.test(rawPromptStr);
+      const hasFullTranscribedPrompt = rawPromptStr.length >= 140
+        && !/\b(sheet above|pages? above|shown above|figure\s*\d|in the figure|in the graph|graph below|diagram below|table above|chart above)\b/i.test(rawPromptStr);
       const rawScanHtml = `${promptAssetsHtml}${inlineLocalPrompt.html}`;
       const scanPageCount = (promptAssets?.length || 0) + (filteredPromptPdfs?.length || 0);
       const collapsedScanHtml = rawScanHtml
@@ -1759,20 +2038,29 @@ window.StudyRunner = (() => {
              <small>${instantMcq ? 'ON' : 'Off'}</small>
            </button>`
         : '';
+    const mathParAutoOn = isMathParAutoRevealEnabled(uiPrefs);
+    const mathParToggleHtml =
+      !isBlindUnfinished && activeRun.mode === 'practice' && activeRun.courseMeta?.courseId === 'math-2588'
+        ? `<button type="button" class="runner-menu-item ${mathParAutoOn ? 'active' : ''}" id="btn-toggle-math-par-answers" title="Gradually reveal final answers (no steps) as par elapses">
+             <span>Par Auto-Reveal Answers</span>
+             <small>${mathParAutoOn ? 'ON' : 'Off'}</small>
+           </button>`
+        : '';
 
     const toolsMenuHtml = isBlindUnfinished
       ? `<details class="runner-tools-menu">
            <summary class="st-btn runner-more-btn" title="Question tools" aria-label="More question tools">•••</summary>
            <div class="runner-tools-popover">
-             <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Al</span></button>
+             <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Adamlite</span></button>
            </div>
          </details>`
       : `<details class="runner-tools-menu">
            <summary class="st-btn runner-more-btn" title="Question tools" aria-label="More question tools">•••</summary>
            <div class="runner-tools-popover">
-             <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Al</span></button>
+             <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Adamlite</span></button>
              <button type="button" class="runner-menu-item" id="btn-open-tutor"><span>Desktop MCP Tutor</span></button>
              ${instantMcqToggleHtml}
+             ${mathParToggleHtml}
              <div class="runner-menu-divider"></div>
              <label class="runner-menu-select-row">
                <span>Status</span>
@@ -1841,12 +2129,29 @@ window.StudyRunner = (() => {
         ? `<button type="button" class="ghost-btn" id="btn-next-q" title="Advance to next question (Shortcut: N or Enter)">${nextShortLbl}</button>`
         : '';
 
+    const finalAnswers = !isBlindUnfinished && !st.revealed ? extractFinalAnswers(q) : [];
+    const autoOnNow = isMathParAutoActiveFor(q, isBlindUnfinished);
+    const shownAnswerCount = finalAnswers.reduce((n, _, idx) => {
+      const vis = (st.peekedAnswers?.has(idx) || (autoOnNow && st.autoRevealedAnswers?.has(idx))) && !st.hiddenAnswers?.has(idx);
+      return n + (vis ? 1 : 0);
+    }, 0);
+    const answerTrayHtml = finalAnswers.length
+      ? `<section id="runner-answer-tray" class="ans-check-tray" aria-label="Final answers check" ${st.answerTrayOpen ? '' : 'hidden'}>${
+          st.answerTrayOpen ? renderAnswerTrayInnerHtml(q, st, isBlindUnfinished) : ''
+        }</section>`
+      : `<section id="runner-answer-tray" class="ans-check-tray" hidden></section>`;
+
     const fovealActionBarHtml = `
       <div class="foveal-action-bar">
         <div class="row-actions" style="gap:7px">
           ${primaryActionBtn}
           ${secondaryNextBtn}
           ${canHint ? `<button type="button" class="ghost-btn" id="btn-hint" title="Show hint (H)" data-study-help>Hint ${st.hintsUsed + 1}/${hintsArr.length}</button>` : ''}
+          ${
+            finalAnswers.length
+              ? `<button type="button" class="ghost-btn ans-check-toggle-btn ${st.answerTrayOpen ? 'active' : ''}" id="btn-toggle-answers" aria-expanded="${st.answerTrayOpen ? 'true' : 'false'}" aria-controls="runner-answer-tray" title="Check final answers one by one (no steps, zero penalty)">Answers${shownAnswerCount ? ` (${shownAnswerCount}/${finalAnswers.length})` : ''}</button>`
+              : ''
+          }
           ${
             !isBlindUnfinished && !st.revealed && (q.kind === 'mcq' || hasWf)
               ? `<button type="button" class="ghost-btn" id="btn-reveal-sol" title="Reveal worked solution (S)" data-study-help>Solution</button>`
@@ -1922,6 +2227,7 @@ window.StudyRunner = (() => {
             <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
             ${workspaceHtml}
             ${fovealActionBarHtml}
+            ${answerTrayHtml}
             ${hintsHtml}
             ${solutionHtml}
             ${kbdBarHtml}
@@ -1947,6 +2253,7 @@ window.StudyRunner = (() => {
             <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
             ${workspaceHtml}
             ${fovealActionBarHtml}
+            ${answerTrayHtml}
             ${hintsHtml}
             ${solutionHtml}
             ${kbdBarHtml}
@@ -1964,6 +2271,7 @@ window.StudyRunner = (() => {
         <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
         ${workspaceHtml}
         ${fovealActionBarHtml}
+        ${answerTrayHtml}
         ${hintsHtml}
         ${solutionHtml}
         ${kbdBarHtml}
@@ -1973,6 +2281,10 @@ window.StudyRunner = (() => {
     const newLeftEl = document.querySelector('.runner-pane-left-scroll');
     if (newLeftEl && prevLeftScroll > 0) {
       newLeftEl.scrollTop = prevLeftScroll;
+    }
+    const newRightEl = document.querySelector('.runner-pane-right');
+    if (newRightEl && prevRightScroll > 0) {
+      newRightEl.scrollTop = prevRightScroll;
     }
     const newRefEl = document.querySelector('.runner-pane-ref-scroll');
     if (newRefEl && prevRefScroll > 0) {
@@ -2415,18 +2727,28 @@ window.StudyRunner = (() => {
       });
     });
 
-    // WISEflow choice pills (Right / Wrong or sub-choices)
+    // WISEflow choice pills (Right / Wrong or sub-choices) — update in-place to preserve PDF/task scroll!
     document.querySelectorAll('[data-wf-choice-id]').forEach((btn) => {
       btn.addEventListener('click', () => {
         if (st.revealed) return;
         const fid = btn.dataset.wfChoiceId;
-        st.wiseflow[fid] = Number(btn.dataset.wfChoiceIdx);
+        const pickedIdx = Number(btn.dataset.wfChoiceIdx);
+        st.wiseflow[fid] = pickedIdx;
+        const pillGroup = btn.closest('.wf-choice-pills');
+        if (pillGroup) {
+          pillGroup.querySelectorAll('[data-wf-choice-id]').forEach((sib) => {
+            sib.classList.toggle('selected', Number(sib.dataset.wfChoiceIdx) === pickedIdx);
+          });
+        }
+        if (isBlindUnfinished) {
+          const curJump = document.querySelector(`#runner-jump-grid [data-jump-idx="${activeRun.index}"]`);
+          if (curJump) curJump.classList.add('answered');
+        }
         window.StudyApp.debouncedSaveDraft(q.id, {
           wiseflowAnswers: st.wiseflow,
           activeElapsedSec: itemActiveSec(st),
           profile: activeRun.profile,
         });
-        renderRunner();
       });
     });
 
@@ -2480,6 +2802,53 @@ window.StudyRunner = (() => {
     document.getElementById('btn-hint')?.addEventListener('click', () => {
       st.hintsUsed = Math.min((q.hints || []).length, st.hintsUsed + 1);
       renderRunner();
+    });
+
+    // Zero-Penalty Final Answers Check (one-by-one reveal, no worked steps)
+    document.getElementById('btn-toggle-answers')?.addEventListener('click', () => {
+      st.answerTrayOpen = !st.answerTrayOpen;
+      refreshAnswerTrayInPlace(q, st);
+    });
+    document.getElementById('runner-answer-tray')?.addEventListener('click', (ev) => {
+      const chip = ev.target?.closest?.('[data-ans-idx]');
+      if (chip) {
+        const idx = Number(chip.dataset.ansIdx);
+        const autoOn = isMathParAutoActiveFor(q, isBlindUnfinished);
+        const currentlyShown = (st.peekedAnswers.has(idx) || (autoOn && st.autoRevealedAnswers.has(idx)))
+          && !st.hiddenAnswers.has(idx);
+        if (currentlyShown) {
+          st.peekedAnswers.delete(idx);
+          st.hiddenAnswers.add(idx);
+        } else {
+          st.hiddenAnswers.delete(idx);
+          st.peekedAnswers.add(idx);
+        }
+        refreshAnswerTrayInPlace(q, st);
+        return;
+      }
+      const bulk = ev.target?.closest?.('[data-ans-bulk]');
+      if (bulk) {
+        const answers = extractFinalAnswers(q);
+        if (bulk.dataset.ansBulk === 'all') {
+          st.hiddenAnswers.clear();
+          answers.forEach((_, idx) => st.peekedAnswers.add(idx));
+        } else {
+          st.peekedAnswers.clear();
+          answers.forEach((_, idx) => st.hiddenAnswers.add(idx));
+        }
+        refreshAnswerTrayInPlace(q, st);
+      }
+    });
+    document.getElementById('btn-toggle-math-par-answers')?.addEventListener('click', (ev) => {
+      ev.currentTarget.closest('details')?.removeAttribute('open');
+      setMathParAutoRevealEnabled(!isMathParAutoRevealEnabled());
+      const btn = document.getElementById('btn-toggle-math-par-answers');
+      const nowOn = isMathParAutoRevealEnabled();
+      if (btn) {
+        btn.classList.toggle('active', nowOn);
+        const sm = btn.querySelector('small');
+        if (sm) sm.textContent = nowOn ? 'ON' : 'Off';
+      }
     });
 
     // Check MCQ (Guided / Practice mode)
@@ -2839,6 +3208,40 @@ window.StudyRunner = (() => {
       stallBanner.hidden = true;
     }
 
+    // Math Par Auto-Reveal (optional user setting: uncovers final answers one-by-one as par elapses, zero penalty)
+    if (!st.revealed && isMathParAutoActiveFor(q, isBlindUnfinished)) {
+      const answers = extractFinalAnswers(q);
+      if (answers.length) {
+        const targetSec = Math.max(30, Number(st.targetSec) || 180);
+        let newlyUnlocked = false;
+        for (let i = 0; i < answers.length; i++) {
+          const threshold = Math.round(((i + 1) / answers.length) * targetSec);
+          if (activeSec >= threshold && !st.autoRevealedAnswers.has(i)) {
+            st.autoRevealedAnswers.add(i);
+            st.hiddenAnswers.delete(i);
+            newlyUnlocked = true;
+          }
+        }
+        if (newlyUnlocked) {
+          st.answerTrayOpen = true;
+          refreshAnswerTrayInPlace(q, st);
+        } else if (st.answerTrayOpen) {
+          // Gently update countdown label in-place without replacing chip DOM
+          const paceEl = document.querySelector('#runner-answer-tray .ans-tray-pace');
+          if (paceEl && !paceEl.classList.contains('is-done')) {
+            let nextIdx = -1;
+            for (let i = 0; i < answers.length; i++) {
+              if (!st.autoRevealedAnswers.has(i)) { nextIdx = i; break; }
+            }
+            if (nextIdx >= 0) {
+              const nextAt = Math.round(((nextIdx + 1) / answers.length) * targetSec);
+              paceEl.textContent = `Par auto-reveal · ${answers[nextIdx].label} in ${clockSec(Math.max(0, nextAt - activeSec))}`;
+            }
+          }
+        }
+      }
+    }
+
     // Total Exam Paper Countdown
     const examCd = document.getElementById('run-exam-countdown');
     if (examCd && activeRun.examBudgetSec && !activeRun.paperSubmitted) {
@@ -2873,7 +3276,7 @@ window.StudyRunner = (() => {
       <h2>${m.reviewed} / ${m.total} Verified · Run UPI ${m.liveUpi ?? '—'}</h2>
       ${examLine}
       <div class="metrics-grid" style="margin:12px 0 4px">
-        <div class="metric-tile"><small>Beat Al</small><b>${m.beatCount} / ${m.reviewed || 0}</b></div>
+        <div class="metric-tile"><small>Beat Adamlite</small><b>${m.beatCount} / ${m.reviewed || 0}</b></div>
         <div class="metric-tile"><small>Accuracy</small><b>${m.reviewed ? Math.round(m.avgAcc * 100) + '%' : '—'}</b></div>
         <div class="metric-tile"><small>Run Focus</small><b>${clockSec(m.activeSec)}</b><small>${activeRun.sessionFocusSwitches || 0} focus sw.</small></div>
         <div class="metric-tile"><small>Screen Today</small><b>${esc(scr.screenLabel || '0m')}</b><small>${esc(scr.offScreenLabel || '0m')} off-screen</small></div>
@@ -3244,6 +3647,8 @@ window.StudyRunner = (() => {
     isSaving: () => pendingSaves > 0,
     setAutoPauseMode,
     getAutoPauseMode: () => autoPauseMode,
+    isMathParAutoRevealEnabled,
+    setMathParAutoRevealEnabled,
     toggleFullscreen,
     refreshCurrent: () => { if (activeRun) renderRunner(); },
   };

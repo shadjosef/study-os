@@ -1,6 +1,6 @@
-/* Built-in Socratic AI Tutor for Study-OS
- * Docked side-pane chat interface (Claude / ChatGPT / Gemini style) that adapts
- * the workspace layout side-by-side so you can read the question and chat live.
+/* Adamlite — Built-in Socratic AI Tutor for Study-OS
+ * Docked side-pane chat interface with persistent local conversation history
+ * (switch back into any previous chat anytime) & live exercise context.
  *
  * Dual-mode engine:
  *  1) Default (zero setup): calls Study-OS Cloudflare Worker (/ai/tutor) powered by
@@ -16,6 +16,10 @@ window.StudyAiTutor = (() => {
   const BYOK_MODEL_KEY = 'study-os-ai-byok-model-v1';
   const SIDE_KEY = 'study-os-ai-side-v1';
   const WIDTH_KEY = 'study-os-ai-width-v1';
+  const CHATS_KEY = 'study-os-adamlite-chats-v1';
+  const MAX_STORED_CHATS = 40;
+  const MAX_MSGS_PER_CHAT = 60;
+  const AVATAR_SRC = './pwa/adamlite-avatar.svg';
 
   const BYOK_MODELS = [
     { id: 'auto', label: 'Auto (Hydrogen → Flash → Lite)' },
@@ -30,14 +34,129 @@ window.StudyAiTutor = (() => {
     { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite' },
   ];
 
-  const threadsByQuestion = new Map(); // key -> [{ role, text, meta? }]
+  const AI_PANE_MIN_W = 200;
+  const AI_PANE_MAX_W = 580;
+  const AI_DOCK_MIN_VP = 760;
+
+  let conversations = loadStoredChats(); // [{ id, key, title, course, ctxLabel, updatedAt, messages }]
+  let activeConvoId = '';
   let activeKey = 'general';
   let customCourseContext = null;
   let isOpen = false;
   let busy = false;
   let serverStatus = null;
   let configOpen = false;
+  let historyOpen = false;
   let draftByKey = new Map();
+
+  function loadStoredChats() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(CHATS_KEY) || '[]');
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .filter((c) => c && typeof c.id === 'string' && Array.isArray(c.messages))
+        .slice(0, MAX_STORED_CHATS)
+        .map((c) => ({
+          id: c.id,
+          key: String(c.key || 'general'),
+          title: String(c.title || 'New chat').slice(0, 90),
+          course: String(c.course || '').slice(0, 48),
+          ctxLabel: String(c.ctxLabel || '').slice(0, 72),
+          updatedAt: Number(c.updatedAt) || Date.now(),
+          messages: c.messages
+            .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.text === 'string')
+            .slice(-MAX_MSGS_PER_CHAT)
+            .map((m) => ({ role: m.role, text: m.text, meta: String(m.meta || '') })),
+        }));
+    } catch {
+      return [];
+    }
+  }
+
+  function persistChats() {
+    try {
+      const nonEmpty = conversations
+        .filter((c) => c.messages && c.messages.length > 0)
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .slice(0, MAX_STORED_CHATS)
+        .map((c) => ({ ...c, messages: c.messages.slice(-MAX_MSGS_PER_CHAT) }));
+      localStorage.setItem(CHATS_KEY, JSON.stringify(nonEmpty));
+    } catch {}
+  }
+
+  function makeConvoId() {
+    return `adm-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  }
+
+  function findConvoById(id) {
+    return conversations.find((c) => c.id === id) || null;
+  }
+
+  function ensureActiveConvo(key, snap) {
+    let cur = findConvoById(activeConvoId);
+    if (cur) return cur;
+    // Try resuming latest saved chat for this exact exercise key
+    const matching = conversations
+      .filter((c) => c.key === key && c.messages.length > 0)
+      .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    if (matching) {
+      activeConvoId = matching.id;
+      return matching;
+    }
+    const fresh = {
+      id: makeConvoId(),
+      key,
+      title: snap?.mode === 'practice' && snap.title ? String(snap.title).slice(0, 80) : 'New chat',
+      course: snap?.mode === 'practice' ? String(snap.course || '') : '',
+      ctxLabel: shortContextTag(snap || { mode: 'waiting' }),
+      updatedAt: Date.now(),
+      messages: [],
+    };
+    conversations.unshift(fresh);
+    activeConvoId = fresh.id;
+    return fresh;
+  }
+
+  function startNewChat(snap) {
+    const hasQuestion = snap?.mode === 'practice';
+    const key = hasQuestion ? `${snap.courseId}:${snap.questionId}` : 'general';
+    activeKey = key;
+    const fresh = {
+      id: makeConvoId(),
+      key,
+      title: hasQuestion && snap.title ? String(snap.title).slice(0, 80) : 'New chat',
+      course: hasQuestion ? String(snap.course || '') : '',
+      ctxLabel: shortContextTag(snap || { mode: 'waiting' }),
+      updatedAt: Date.now(),
+      messages: [],
+    };
+    // Remove any unused empty scratch chats before adding fresh one
+    conversations = conversations.filter((c) => c.messages.length > 0);
+    conversations.unshift(fresh);
+    activeConvoId = fresh.id;
+    draftByKey.set(key, '');
+    historyOpen = false;
+    return fresh;
+  }
+
+  function deleteChat(id) {
+    conversations = conversations.filter((c) => c.id !== id);
+    if (activeConvoId === id) activeConvoId = '';
+    persistChats();
+  }
+
+  function relativeTime(ts) {
+    const diffSec = Math.max(0, Math.round((Date.now() - Number(ts || 0)) / 1000));
+    if (diffSec < 45) return 'Just now';
+    if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
+    if (diffSec < 86400) return `${Math.round(diffSec / 3600)}h ago`;
+    if (diffSec < 86400 * 7) return `${Math.round(diffSec / 86400)}d ago`;
+    try {
+      return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    } catch {
+      return '';
+    }
+  }
 
   function getByokKey() {
     try { return (localStorage.getItem(BYOK_KEY) || '').trim(); } catch { return ''; }
@@ -66,9 +185,6 @@ window.StudyAiTutor = (() => {
     try { localStorage.setItem(SIDE_KEY, clean); } catch {}
     syncBodyClasses();
   }
-  const AI_PANE_MIN_W = 200;
-  const AI_PANE_MAX_W = 580;
-  const AI_DOCK_MIN_VP = 760;
 
   function getSavedWidth() {
     try {
@@ -116,7 +232,7 @@ window.StudyAiTutor = (() => {
 
   function buildSystemInstruction(action) {
     const formatting = [
-      'You are the Study-OS Socratic Tutor for university students (Finance, Economics, Mathematics, Data Science).',
+      'You are Adamlite, Study-OS\'s Socratic study tutor for university students (Finance, Economics, Mathematics, Data Science).',
       'Formatting rules:',
       '- Write clear, concise Markdown. Use $...$ for inline math and $$...$$ for display equations.',
       '- Never output raw HTML or scripts. Keep answers scannable with short paragraphs or numbered steps.',
@@ -154,7 +270,7 @@ window.StudyAiTutor = (() => {
     const prefix = contextBlock ? `CURRENT EXERCISE CONTEXT:\n${contextBlock}\n\n---\n\n` : '';
     const contents = [];
     let attached = false;
-    for (const turn of history.slice(-8)) {
+    for (const turn of history.slice(-10)) {
       const role = turn.role === 'assistant' ? 'model' : 'user';
       const text = !attached && role === 'user' ? (attached = true, `${prefix}${turn.text}`) : turn.text;
       contents.push({ role, parts: [{ text }] });
@@ -214,18 +330,13 @@ window.StudyAiTutor = (() => {
     return { mode: 'waiting' };
   }
 
-  function threadFor(key) {
-    if (!threadsByQuestion.has(key)) threadsByQuestion.set(key, []);
-    return threadsByQuestion.get(key);
-  }
-
   function syncBodyClasses() {
     const side = getDockSide();
     document.body.classList.toggle('ai-pane-open', isOpen);
     document.body.classList.toggle('ai-pane-left', isOpen && side === 'left');
     document.body.classList.toggle('ai-pane-right', isOpen && side !== 'left');
     document.getElementById('run-al-btn')?.setAttribute('aria-expanded', String(isOpen));
-    document.getElementById('rail-al-btn')?.setAttribute('aria-expanded', String(isOpen));
+    document.getElementById('hdr-al-btn')?.setAttribute('aria-expanded', String(isOpen));
   }
 
   function ensurePane() {
@@ -250,12 +361,15 @@ window.StudyAiTutor = (() => {
     pane.className = 'ai-tutor-pane';
     pane.hidden = true;
     pane.setAttribute('role', 'complementary');
-    pane.setAttribute('aria-label', 'Al');
+    pane.setAttribute('aria-label', 'Adamlite');
     pane.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') {
         ev.stopPropagation();
         if (configOpen) {
           configOpen = false;
+          renderPane({ focusInput: true });
+        } else if (historyOpen) {
+          historyOpen = false;
           renderPane({ focusInput: true });
         } else {
           close();
@@ -273,10 +387,10 @@ window.StudyAiTutor = (() => {
       return m && m.id !== 'auto' ? `${m.label} (Key)` : 'Gemini Auto (Key)';
     }
     if (serverStatus?.available) {
-      return serverStatus.modelLabel || 'Study-OS Al';
+      return serverStatus.modelLabel || 'Adamlite';
     }
     if (window.StudyCommunity?.isSignedIn?.()) return 'Gemini 4 Hydrogen';
-    return 'Connect Al';
+    return 'Connect Adamlite';
   }
 
   function quotaSuffix() {
@@ -288,7 +402,7 @@ window.StudyAiTutor = (() => {
   }
 
   function shortContextTag(snap) {
-    if (snap.mode !== 'practice') return '';
+    if (snap?.mode !== 'practice') return '';
     const raw = String(snap.title || snap.questionId || '').trim();
     if (!raw) return String(snap.course || '').trim();
     return raw.length > 34 ? `${raw.slice(0, 33)}…` : raw;
@@ -303,7 +417,7 @@ window.StudyAiTutor = (() => {
       handle.setPointerCapture?.(startEv.pointerId);
       document.body.classList.add('ai-pane-resizing');
       const side = getDockSide();
-      const railW = document.body.classList.contains('in-runner') ? 42 : 0;
+      const railW = window.innerWidth >= 900 ? 42 : 0;
       const onMove = (ev) => {
         const rawW = side === 'left' ? ev.clientX - railW : window.innerWidth - ev.clientX;
         const maxW = Math.min(AI_PANE_MAX_W, Math.round(window.innerWidth * 0.65));
@@ -334,7 +448,7 @@ window.StudyAiTutor = (() => {
   }
 
   function focusComposerIfReady() {
-    if (!isOpen || configOpen || !shouldAutoFocusComposer()) return;
+    if (!isOpen || configOpen || historyOpen || !shouldAutoFocusComposer()) return;
     const inputEl = document.getElementById('ai-tutor-input');
     if (!inputEl || inputEl.disabled) return;
     if (document.activeElement !== inputEl) {
@@ -342,6 +456,49 @@ window.StudyAiTutor = (() => {
       const end = inputEl.value.length;
       try { inputEl.setSelectionRange(end, end); } catch {}
     }
+  }
+
+  function renderHistoryPanelHtml() {
+    const saved = conversations
+      .filter((c) => c.messages && c.messages.length > 0)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
+
+    if (!saved.length) {
+      return `
+        <div class="ai-history-panel">
+          <div class="ai-history-head">
+            <strong>Previous chats</strong>
+            <button type="button" class="mini-tool-btn" id="ai-history-close">Back</button>
+          </div>
+          <p class="muted ai-history-empty">No saved conversations yet. Your chats with Adamlite are saved automatically in this browser.</p>
+        </div>`;
+    }
+
+    return `
+      <div class="ai-history-panel">
+        <div class="ai-history-head">
+          <strong>Previous chats (${saved.length})</strong>
+          <div class="row-actions" style="gap:6px">
+            <button type="button" class="mini-tool-btn" id="ai-history-new">+ New</button>
+            <button type="button" class="mini-tool-btn" id="ai-history-close">Back</button>
+          </div>
+        </div>
+        <div class="ai-history-list" role="list">
+          ${saved.map((c) => {
+            const isCur = c.id === activeConvoId;
+            const turns = Math.ceil(c.messages.length / 2);
+            const subtitle = [c.course || c.ctxLabel, `${turns} turn${turns === 1 ? '' : 's'}`, relativeTime(c.updatedAt)].filter(Boolean).join(' · ');
+            return `
+              <div class="ai-history-item ${isCur ? 'is-active' : ''}" role="listitem">
+                <button type="button" class="ai-history-open" data-open-chat-id="${esc(c.id)}">
+                  <span class="ai-history-title">${esc(c.title || 'Untitled chat')}</span>
+                  <small class="muted">${esc(subtitle)}</small>
+                </button>
+                <button type="button" class="ai-history-del" data-del-chat-id="${esc(c.id)}" title="Delete chat" aria-label="Delete chat">×</button>
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
   }
 
   function renderPane(opts = {}) {
@@ -355,17 +512,28 @@ window.StudyAiTutor = (() => {
     const snap = currentExerciseSnapshot(false);
     const hasQuestion = snap.mode === 'practice';
     const nextKey = hasQuestion ? `${snap.courseId}:${snap.questionId}` : 'general';
-    activeKey = nextKey;
+    if (opts.followContext && nextKey !== activeKey) {
+      activeKey = nextKey;
+      // Only auto-switch convo when navigating questions if current chat is empty or tied to another question
+      const cur = findConvoById(activeConvoId);
+      if (!cur || cur.key !== nextKey) {
+        activeConvoId = '';
+      }
+    } else if (!activeKey) {
+      activeKey = nextKey;
+    }
 
-    const messages = threadFor(activeKey);
+    const convo = ensureActiveConvo(activeKey, snap);
+    const messages = convo.messages;
+    const savedCount = conversations.filter((c) => c.messages.length > 0).length;
     const byok = getByokKey();
     const signedIn = Boolean(window.StudyCommunity?.isSignedIn?.());
     const canAsk = Boolean(byok || signedIn);
     const side = getDockSide();
-    const ctxTag = shortContextTag(snap);
+    const ctxTag = shortContextTag(snap) || convo.ctxLabel || '';
     const ctxFull = hasQuestion
       ? `${snap.course || 'Practice'} · ${snap.title || 'Current question'}`
-      : '';
+      : convo.title || 'General study chat';
     const draft = draftByKey.get(activeKey) || '';
 
     const messagesHtml = messages.length
@@ -378,6 +546,10 @@ window.StudyAiTutor = (() => {
           }
           return `
             <div class="ai-turn ai-turn-assistant">
+              <div class="ai-assistant-byline">
+                <img class="adamlite-avatar-xs" src="${AVATAR_SRC}" alt="" aria-hidden="true">
+                <span>Adamlite</span>
+              </div>
               <div class="ai-assistant-prose">${renderSafeMd(m.text)}</div>
               <div class="ai-turn-actions">
                 <button type="button" class="ai-icon-micro" data-copy-msg="${idx}" title="Copy response" aria-label="Copy response">
@@ -389,16 +561,13 @@ window.StudyAiTutor = (() => {
             </div>`;
         }).join('')
       : `<div class="ai-empty-canvas">
-           <div class="ai-empty-mark" aria-hidden="true">
-             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-               <path d="M12 3l1.9 5.3L19 10l-5.1 1.7L12 17l-1.9-5.3L5 10l5.1-1.7L12 3z"></path>
-               <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z"></path>
-             </svg>
+           <div class="ai-empty-mark adamlite-hero-mark" aria-hidden="true">
+             <img src="${AVATAR_SRC}" alt="Adamlite" class="adamlite-avatar-lg">
            </div>
-           <h3>${snap.mode === 'blind' ? 'Paused for blind exam' : 'How can I help?'}</h3>
+           <h3>${snap.mode === 'blind' ? 'Adamlite paused for blind exam' : 'How can Adamlite help?'}</h3>
            <p class="muted">${
              snap.mode === 'blind'
-               ? 'Al turns off automatically during blind timed exams.'
+               ? 'Adamlite turns off automatically during blind timed exams.'
                : hasQuestion
                  ? 'Ask about any step, formula, or mistake — I can see this question and your current working.'
                  : 'Ask any study question, or open a practice problem for live context.'
@@ -406,9 +575,9 @@ window.StudyAiTutor = (() => {
          </div>`;
 
     const configPopoverHtml = configOpen ? `
-      <div class="ai-settings-popover" role="dialog" aria-label="Al model and key settings">
+      <div class="ai-settings-popover" role="dialog" aria-label="Adamlite model and key settings">
         <div class="ai-pop-head">
-          <strong>Al Engine &amp; Gemini Key</strong>
+          <strong>Adamlite Engine &amp; Gemini Key</strong>
           <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get free key ↗</a>
         </div>
         ${quotaSuffix() ? `<p class="ai-pop-quota">${esc(quotaSuffix())}</p>` : ''}
@@ -441,26 +610,28 @@ window.StudyAiTutor = (() => {
 
       <header class="ai-pane-head">
         <div class="ai-pane-head-left">
-          <span class="ai-pane-title">Al</span>
+          <img class="adamlite-avatar-sm" src="${AVATAR_SRC}" alt="" aria-hidden="true">
+          <span class="ai-pane-title">Adamlite</span>
           ${ctxTag ? `<span class="ai-pane-ctx-chip" title="${esc(ctxFull)}">${esc(ctxTag)}</span>` : ''}
         </div>
         <div class="ai-pane-head-actions">
-          ${messages.length ? `
-            <button type="button" class="ai-head-icon-btn" id="ai-tutor-clear" title="New chat" aria-label="New chat">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
-            </button>` : ''}
+          <button type="button" class="ai-head-icon-btn ${historyOpen ? 'active' : ''}" id="ai-tutor-history" title="Previous chats (${savedCount})" aria-label="Previous chats" aria-pressed="${historyOpen}">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15.5 14"></polyline></svg>
+          </button>
+          <button type="button" class="ai-head-icon-btn" id="ai-tutor-clear" title="New chat" aria-label="New chat">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+          </button>
           <button type="button" class="ai-head-icon-btn ai-dock-flip-btn" id="ai-dock-flip" title="${side === 'left' ? 'Dock to right side' : 'Dock to left side'}" aria-label="${side === 'left' ? 'Dock to right side' : 'Dock to left side'}">
             ${dockIconSvg}
           </button>
-          <button type="button" class="ai-head-icon-btn" id="ai-tutor-close" title="Close (Esc)" aria-label="Close Al">
+          <button type="button" class="ai-head-icon-btn" id="ai-tutor-close" title="Close (Esc)" aria-label="Close Adamlite">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
       </header>
 
       <div class="ai-thread" id="ai-tutor-thread">
-        ${messagesHtml}
-        ${busy ? '<div class="ai-turn ai-turn-assistant"><div class="ai-typing" aria-label="Thinking"><span></span><span></span><span></span></div></div>' : ''}
+        ${historyOpen ? renderHistoryPanelHtml() : `${messagesHtml}${busy ? '<div class="ai-turn ai-turn-assistant"><div class="ai-typing" aria-label="Thinking"><span></span><span></span><span></span></div></div>' : ''}`}
       </div>
 
       <div class="ai-composer-zone">
@@ -468,7 +639,7 @@ window.StudyAiTutor = (() => {
 
         ${!canAsk && snap.mode !== 'blind' ? `
           <div class="ai-signin-bar">
-            <span>Sign in for free Al tutoring or add your own Gemini key.</span>
+            <span>Sign in for free Adamlite tutoring or add your own Gemini key.</span>
             <div class="ai-signin-bar-btns">
               ${window.StudyCommunity?.enabled ? '<button type="button" class="primary-btn ai-pop-btn" id="ai-tutor-signin">Sign in</button>' : ''}
               <button type="button" class="ghost-btn ai-pop-btn" id="ai-tutor-open-byok">Gemini key</button>
@@ -480,7 +651,7 @@ window.StudyAiTutor = (() => {
           <textarea
             id="ai-tutor-input"
             rows="1"
-            placeholder="${snap.mode === 'blind' ? 'Unavailable during blind exam…' : 'Message Al…'}"
+            placeholder="${snap.mode === 'blind' ? 'Unavailable during blind exam…' : 'Ask Adamlite…'}"
             ${busy || !canAsk || snap.mode === 'blind' ? 'disabled' : ''}
           >${esc(draft)}</textarea>
           <div class="ai-composer-bar">
@@ -506,16 +677,45 @@ window.StudyAiTutor = (() => {
     bindResizeHandle(pane);
 
     const threadEl = pane.querySelector('#ai-tutor-thread');
-    if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+    if (threadEl && !historyOpen) threadEl.scrollTop = threadEl.scrollHeight;
 
     pane.querySelector('#ai-tutor-close')?.addEventListener('click', () => close());
     pane.querySelector('#ai-dock-flip')?.addEventListener('click', () => {
       setDockSide(getDockSide() === 'left' ? 'right' : 'left');
       renderPane({ focusInput: true });
     });
+    pane.querySelector('#ai-tutor-history')?.addEventListener('click', () => {
+      historyOpen = !historyOpen;
+      configOpen = false;
+      renderPane({ focusInput: !historyOpen });
+    });
+    pane.querySelector('#ai-history-close')?.addEventListener('click', () => {
+      historyOpen = false;
+      renderPane({ focusInput: true });
+    });
+    pane.querySelector('#ai-history-new')?.addEventListener('click', () => {
+      startNewChat(snap);
+      renderPane({ focusInput: true });
+    });
+    pane.querySelectorAll('[data-open-chat-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const picked = findConvoById(btn.dataset.openChatId);
+        if (!picked) return;
+        activeConvoId = picked.id;
+        activeKey = picked.key || 'general';
+        historyOpen = false;
+        renderPane({ focusInput: true });
+      });
+    });
+    pane.querySelectorAll('[data-del-chat-id]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        deleteChat(btn.dataset.delChatId);
+        renderPane();
+      });
+    });
     pane.querySelector('#ai-tutor-clear')?.addEventListener('click', () => {
-      threadsByQuestion.set(activeKey, []);
-      draftByKey.set(activeKey, '');
+      startNewChat(snap);
       renderPane({ focusInput: true });
     });
     pane.querySelector('#ai-engine-toggle')?.addEventListener('click', () => {
@@ -546,7 +746,7 @@ window.StudyAiTutor = (() => {
       setByokKey(val);
       setByokModel(mod);
       configOpen = false;
-      toast(val ? 'Personal Gemini key saved on this device.' : 'Switched back to Study-OS Al.');
+      toast(val ? 'Personal Gemini key saved on this device.' : 'Switched back to Adamlite.');
       renderPane({ focusInput: true });
     });
     pane.querySelector('#ai-byok-clear')?.addEventListener('click', () => {
@@ -590,7 +790,7 @@ window.StudyAiTutor = (() => {
           if (inputEl.value.trim()) formEl?.requestSubmit();
         }
       });
-      if (!inputEl.disabled && !configOpen && (hadFocus || (opts.focusInput && shouldAutoFocusComposer()))) {
+      if (!inputEl.disabled && !configOpen && !historyOpen && (hadFocus || (opts.focusInput && shouldAutoFocusComposer()))) {
         inputEl.focus({ preventScroll: true });
         const end = inputEl.value.length;
         const start = Number.isInteger(prevSelStart) ? Math.min(prevSelStart, end) : end;
@@ -619,7 +819,7 @@ window.StudyAiTutor = (() => {
     const includeSolution = action === 'solution';
     const snap = currentExerciseSnapshot(includeSolution);
     if (snap.mode === 'blind') {
-      toast('Al is disabled during blind exams.');
+      toast('Adamlite is disabled during blind exams.');
       return;
     }
 
@@ -630,10 +830,22 @@ window.StudyAiTutor = (() => {
       return;
     }
 
-    const thread = threadFor(activeKey);
-    const priorHistory = thread.slice(-8).map((m) => ({ role: m.role, text: m.text }));
+    historyOpen = false;
+    const convo = ensureActiveConvo(activeKey, snap);
+    const thread = convo.messages;
+    const priorHistory = thread.slice(-10).map((m) => ({ role: m.role, text: m.text }));
     const visibleUser = displayBubble || userMessage || defaultActionPrompt(action);
+    if (thread.length === 0) {
+      convo.title = (snap.mode === 'practice' && snap.title)
+        ? `${snap.title}: ${visibleUser}`.slice(0, 84)
+        : visibleUser.slice(0, 84);
+      convo.course = snap.mode === 'practice' ? String(snap.course || '') : convo.course;
+      convo.ctxLabel = shortContextTag(snap) || convo.ctxLabel;
+    }
     thread.push({ role: 'user', text: visibleUser });
+    convo.updatedAt = Date.now();
+    persistChats();
+
     configOpen = false;
     busy = true;
     renderPane();
@@ -665,15 +877,20 @@ window.StudyAiTutor = (() => {
         }
       }
       thread.push({ role: 'assistant', text: res.reply, meta: res.modelLabel || '' });
+      convo.updatedAt = Date.now();
+      persistChats();
     } catch (err) {
       const message = err?.message
-        ?.replaceAll('AI Tutor', 'Al Tutor')
-        .replaceAll('Copy for AI', 'Copy for Al');
+        ?.replaceAll('AI Tutor', 'Adamlite')
+        .replaceAll('Al Tutor', 'Adamlite')
+        .replaceAll('Copy for AI', 'Copy for Adamlite');
       thread.push({
         role: 'assistant',
         text: `Could not get a reply: ${message || 'Try again in a moment.'}`,
         meta: 'Error',
       });
+      convo.updatedAt = Date.now();
+      persistChats();
     } finally {
       busy = false;
       renderPane({ focusInput: true });
@@ -707,7 +924,7 @@ window.StudyAiTutor = (() => {
     pane.hidden = false;
     if (backdrop) backdrop.hidden = false;
     syncBodyClasses();
-    renderPane({ focusInput: true });
+    renderPane({ focusInput: true, followContext: true });
     requestAnimationFrame(() => focusComposerIfReady());
     refreshStatus();
   }
@@ -717,6 +934,7 @@ window.StudyAiTutor = (() => {
     const backdrop = document.getElementById('ai-tutor-backdrop');
     isOpen = false;
     configOpen = false;
+    historyOpen = false;
     if (pane) pane.hidden = true;
     if (backdrop) backdrop.hidden = true;
     syncBodyClasses();
@@ -756,7 +974,7 @@ window.StudyAiTutor = (() => {
     const snap = currentExerciseSnapshot(false);
     if (snap.mode === 'practice') customCourseContext = null;
     syncBodyClasses();
-    renderPane();
+    renderPane({ followContext: true });
   }
 
   return {
@@ -766,6 +984,7 @@ window.StudyAiTutor = (() => {
     openForCourse,
     syncContext,
     refreshStatus,
+    listChats: () => conversations.filter((c) => c.messages.length > 0),
     isOpen: () => isOpen,
   };
 })();

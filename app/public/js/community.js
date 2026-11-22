@@ -175,20 +175,132 @@ window.StudyCommunity = (() => {
 
   const SCHOOL_CATALOG = [
     { name: 'BI Oslo', short: 'BI', canvasOrigin: 'https://canvas.bi.no', timetableUrl: 'https://cloud.timeedit.net/bi/web/public/ri1Q7.html', timetableLabel: 'BI TimeEdit' },
-    { name: 'NTNU', short: 'NTNU', canvasOrigin: 'https://ntnu.instructure.com', timetableUrl: 'https://tp.educloud.no/ntnu/', timetableLabel: 'NTNU TP' },
-    { name: 'UiO', short: 'UiO', canvasOrigin: 'https://uio.instructure.com', timetableUrl: 'https://tp.educloud.no/uio/', timetableLabel: 'UiO TP' },
-    { name: 'UiA', short: 'UiA', canvasOrigin: 'https://uia.instructure.com', timetableUrl: 'https://tp.educloud.no/uia/', timetableLabel: 'UiA TP' },
+    { name: 'HVL', short: 'HVL', canvasOrigin: 'https://hvl.instructure.com', timetableUrl: 'https://tp.educloud.no/hvl/', timetableLabel: 'HVL TP' },
+    { name: 'Kristiania', short: 'Kristiania', canvasOrigin: 'https://kristiania.instructure.com', timetableUrl: 'https://cloud.timeedit.net/kristiania/web/', timetableLabel: 'Kristiania TimeEdit' },
     { name: 'NHH', short: 'NHH', canvasOrigin: 'https://nhh.instructure.com', timetableUrl: 'https://cloud.timeedit.net/nhh/web/', timetableLabel: 'NHH TimeEdit' },
-    { name: 'UiB', short: 'UiB', canvasOrigin: 'https://mitt.uib.no', timetableUrl: 'https://tp.educloud.no/uib/', timetableLabel: 'UiB TP' },
+    { name: 'NMBU', short: 'NMBU', canvasOrigin: 'https://nmbu.instructure.com', timetableUrl: 'https://cloud.timeedit.net/nmbu/web/', timetableLabel: 'NMBU TimeEdit' },
+    { name: 'NTNU', short: 'NTNU', canvasOrigin: 'https://ntnu.instructure.com', timetableUrl: 'https://tp.educloud.no/ntnu/', timetableLabel: 'NTNU TP' },
     { name: 'OsloMet', short: 'OsloMet', canvasOrigin: 'https://oslomet.instructure.com', timetableUrl: 'https://tp.educloud.no/oslomet/', timetableLabel: 'OsloMet TP' },
+    { name: 'UiA', short: 'UiA', canvasOrigin: 'https://uia.instructure.com', timetableUrl: 'https://tp.educloud.no/uia/', timetableLabel: 'UiA TP' },
+    { name: 'UiB', short: 'UiB', canvasOrigin: 'https://mitt.uib.no', timetableUrl: 'https://tp.educloud.no/uib/', timetableLabel: 'UiB TP' },
+    { name: 'UiO', short: 'UiO', canvasOrigin: 'https://uio.instructure.com', timetableUrl: 'https://tp.educloud.no/uio/', timetableLabel: 'UiO TP' },
     { name: 'UiS', short: 'UiS', canvasOrigin: 'https://uis.instructure.com', timetableUrl: 'https://tp.educloud.no/uis/', timetableLabel: 'UiS TP' },
     { name: 'UiT', short: 'UiT', canvasOrigin: 'https://uit.instructure.com', timetableUrl: 'https://tp.educloud.no/uit/', timetableLabel: 'UiT TP' },
     { name: 'USN', short: 'USN', canvasOrigin: 'https://usn.instructure.com', timetableUrl: 'https://cloud.timeedit.net/usn/web/', timetableLabel: 'USN TimeEdit' },
-    { name: 'NMBU', short: 'NMBU', canvasOrigin: 'https://nmbu.instructure.com', timetableUrl: 'https://cloud.timeedit.net/nmbu/web/', timetableLabel: 'NMBU TimeEdit' },
-    { name: 'HVL', short: 'HVL', canvasOrigin: 'https://hvl.instructure.com', timetableUrl: 'https://tp.educloud.no/hvl/', timetableLabel: 'HVL TP' },
-    { name: 'Kristiania', short: 'Kristiania', canvasOrigin: 'https://kristiania.instructure.com', timetableUrl: 'https://cloud.timeedit.net/kristiania/web/', timetableLabel: 'Kristiania TimeEdit' },
   ];
+  const MAJOR_CATALOG = [
+    'Accounting & Auditing',
+    'Architecture & Design',
+    'BBA (Business Administration)',
+    'Biology & Life Sciences',
+    'Business Analytics',
+    'Computer Science',
+    'Data Science for Business',
+    'Digital Business',
+    'Economics',
+    'Engineering',
+    'Entrepreneurship & Innovation',
+    'Finance',
+    'International Business',
+    'Law',
+    'Management & Leadership',
+    'Marketing & Communication',
+    'Mathematics & Statistics',
+    'Medicine & Health Sciences',
+    'Political Science & International Relations',
+    'Psychology',
+    'Quantitative Finance',
+    'Real Estate',
+    'Shipping & Maritime Management',
+    'Software Engineering',
+    'Supply Chain & Logistics',
+  ];
+  const PREFER_NOT_TO_SAY = 'Prefer not to say';
   const LOCAL_SCHOOL_KEY = 'study-os-selected-school-v1';
+  const LOCAL_MAJOR_KEY = 'study-os-selected-major-v1';
+
+  const isPublicBadgeVal = (val) => {
+    const s = String(val || '').trim();
+    return Boolean(s && s.toLowerCase() !== PREFER_NOT_TO_SAY.toLowerCase());
+  };
+
+  function bindTypeaheadSelect(sel) {
+    if (!sel || sel.dataset.typeaheadBound === '1') return;
+    sel.dataset.typeaheadBound = '1';
+    let buffer = '';
+    let lastChar = '';
+    let lastTime = 0;
+    let cyclingChar = '';
+
+    sel.addEventListener('keydown', (ev) => {
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      if (!ev.key || ev.key.length !== 1 || /\s/.test(ev.key)) {
+        if (ev.key === 'Escape' || ev.key === 'Enter' || ev.key === 'Tab') {
+          buffer = '';
+          cyclingChar = '';
+        }
+        return;
+      }
+      const ch = ev.key.toLowerCase();
+      const now = Date.now();
+      const withinWindow = (now - lastTime) < 950;
+      const allOpts = [...sel.options].filter((o) => !o.disabled && o.value !== '');
+      if (!allOpts.length) return;
+
+      const labelOf = (opt) => String(opt.textContent || '').trim().toLowerCase();
+      const pickOption = (opt) => {
+        if (!opt) return;
+        const idx = opt.index;
+        if (sel.selectedIndex !== idx) {
+          sel.selectedIndex = idx;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      };
+
+      // Repeated same-letter press cycles down matching options (e.g. D -> Data Science -> Digital Business)
+      if (withinWindow && ch === lastChar && (buffer.length === 1 || cyclingChar === ch)) {
+        ev.preventDefault();
+        cyclingChar = ch;
+        buffer = ch;
+        lastTime = now;
+        const matches = allOpts.filter((o) => labelOf(o).startsWith(ch));
+        if (matches.length) {
+          const curPos = matches.findIndex((o) => o.index === sel.selectedIndex);
+          pickOption(matches[(curPos + 1) % matches.length]);
+        }
+        return;
+      }
+
+      ev.preventDefault();
+      if (withinWindow && !cyclingChar) {
+        buffer += ch;
+      } else {
+        buffer = ch;
+        cyclingChar = '';
+      }
+      lastChar = ch;
+      lastTime = now;
+
+      // Try multi-character prefix first (e.g. "di" -> Digital Business, "uio" -> UiO)
+      let hit = allOpts.find((o) => labelOf(o).startsWith(buffer));
+      if (!hit && buffer.length > 1) {
+        buffer = ch;
+        const singleMatches = allOpts.filter((o) => labelOf(o).startsWith(ch));
+        if (singleMatches.length) {
+          const curPos = singleMatches.findIndex((o) => o.index === sel.selectedIndex);
+          hit = curPos >= 0 ? singleMatches[(curPos + 1) % singleMatches.length] : singleMatches[0];
+        }
+      } else if (hit && buffer.length === 1) {
+        // Fresh single-letter press: if currently on an option starting with ch, jump to the NEXT one
+        const singleMatches = allOpts.filter((o) => labelOf(o).startsWith(ch));
+        if (singleMatches.length > 1) {
+          const curPos = singleMatches.findIndex((o) => o.index === sel.selectedIndex);
+          if (curPos >= 0) hit = singleMatches[(curPos + 1) % singleMatches.length];
+        }
+      }
+      if (hit) pickOption(hit);
+    });
+  }
 
   function normalizeCanvasUrl(raw) {
     const val = String(raw || '').trim();
@@ -257,19 +369,37 @@ window.StudyCommunity = (() => {
     } catch {}
   }
 
+  function readLocalMajor() {
+    try {
+      return String(localStorage.getItem(LOCAL_MAJOR_KEY) || '').trim().slice(0, 64);
+    } catch {
+      return '';
+    }
+  }
+
+  function saveLocalMajor(major = '') {
+    try {
+      const clean = String(major || '').trim().slice(0, 64);
+      if (!clean) localStorage.removeItem(LOCAL_MAJOR_KEY);
+      else localStorage.setItem(LOCAL_MAJOR_KEY, clean);
+    } catch {}
+  }
+
   function schoolFieldHtml(selectedSchool = '', selectedOrigin = '') {
     const cleanSchool = String(selectedSchool || '').trim();
     const cleanOrigin = normalizeCanvasUrl(selectedOrigin);
-    const preset = SCHOOL_CATALOG.find((s) => s.name.toLowerCase() === cleanSchool.toLowerCase());
-    const isCustom = Boolean(!preset && (cleanSchool || cleanOrigin));
-    const selectValue = preset ? preset.name : isCustom ? '__custom__' : '';
+    const isPrivate = cleanSchool.toLowerCase() === PREFER_NOT_TO_SAY.toLowerCase();
+    const preset = isPrivate ? null : SCHOOL_CATALOG.find((s) => s.name.toLowerCase() === cleanSchool.toLowerCase());
+    const isCustom = Boolean(!isPrivate && !preset && (cleanSchool || cleanOrigin));
+    const selectValue = isPrivate ? '__private__' : preset ? preset.name : isCustom ? '__custom__' : '';
     return `
       <div class="school-picker-wrap" data-school-picker>
-        <label class="field-label">University / school <small class="muted">(tailors your Canvas &amp; timetable links)</small>
+        <label class="field-label">University / school <small class="muted">(type letters to jump/cycle)</small>
           <select name="schoolPreset" data-school-select>
             <option value="" ${!selectValue ? 'selected' : ''}>Select your university / school (optional)</option>
             ${SCHOOL_CATALOG.map((s) => `<option value="${esc(s.name)}" ${selectValue === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
-            <option value="__custom__" ${selectValue === '__custom__' ? 'selected' : ''}>Other university / custom Canvas…</option>
+            <option value="__custom__" ${selectValue === '__custom__' ? 'selected' : ''}>Not listed here (enter custom…)</option>
+            <option value="__private__" ${selectValue === '__private__' ? 'selected' : ''}>Prefer not to say</option>
           </select>
         </label>
         <div class="school-picker-custom" data-school-custom ${isCustom ? '' : 'hidden'}>
@@ -283,11 +413,37 @@ window.StudyCommunity = (() => {
       </div>`;
   }
 
+  function majorFieldHtml(selectedMajor = '') {
+    const cleanMajor = String(selectedMajor || '').trim();
+    const isPrivate = cleanMajor.toLowerCase() === PREFER_NOT_TO_SAY.toLowerCase();
+    const preset = isPrivate ? null : MAJOR_CATALOG.find((m) => m.toLowerCase() === cleanMajor.toLowerCase());
+    const isCustom = Boolean(!isPrivate && !preset && cleanMajor);
+    const selectValue = isPrivate ? '__private__' : preset ? preset : isCustom ? '__custom__' : '';
+    return `
+      <div class="school-picker-wrap" data-major-picker>
+        <label class="field-label">Major / study program <small class="muted">(optional · press a letter repeatedly to cycle)</small>
+          <select name="majorPreset" data-major-select>
+            <option value="" ${!selectValue ? 'selected' : ''}>Select your major (optional)</option>
+            ${MAJOR_CATALOG.map((m) => `<option value="${esc(m)}" ${selectValue === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
+            <option value="__custom__" ${selectValue === '__custom__' ? 'selected' : ''}>Not listed here (enter custom…)</option>
+            <option value="__private__" ${selectValue === '__private__' ? 'selected' : ''}>Prefer not to say</option>
+          </select>
+        </label>
+        <div class="school-picker-custom" data-major-custom ${isCustom ? '' : 'hidden'}>
+          <label class="field-label">Custom major / program
+            <input name="customMajor" type="text" maxlength="64" value="${esc(isCustom ? cleanMajor : '')}" placeholder="e.g. Industrial Economics, Cognitive Science" ${isCustom ? '' : 'disabled'}>
+          </label>
+        </div>
+      </div>`;
+  }
+
   function bindSchoolPickers(root) {
+    if (!root) return;
     root.querySelectorAll('[data-school-picker]').forEach((wrap) => {
       const sel = wrap.querySelector('[data-school-select]');
       const customBox = wrap.querySelector('[data-school-custom]');
       if (!sel || !customBox) return;
+      bindTypeaheadSelect(sel);
       const sync = () => {
         const isCustom = sel.value === '__custom__';
         customBox.hidden = !isCustom;
@@ -296,11 +452,26 @@ window.StudyCommunity = (() => {
       sel.addEventListener('change', sync);
       sync();
     });
+    root.querySelectorAll('[data-major-picker]').forEach((wrap) => {
+      const sel = wrap.querySelector('[data-major-select]');
+      const customBox = wrap.querySelector('[data-major-custom]');
+      if (!sel || !customBox) return;
+      bindTypeaheadSelect(sel);
+      const sync = () => {
+        const isCustom = sel.value === '__custom__';
+        customBox.hidden = !isCustom;
+        customBox.querySelectorAll('input').forEach((inp) => { inp.disabled = !isCustom; });
+      };
+      sel.addEventListener('change', sync);
+      sync();
+    });
+    root.querySelectorAll('select[name="secondaryLanguage"]').forEach(bindTypeaheadSelect);
   }
 
   function extractSchoolFields(formData) {
     const presetVal = String(formData.get('schoolPreset') || '').trim();
     if (!presetVal) return { school: '', canvasOrigin: '' };
+    if (presetVal === '__private__') return { school: PREFER_NOT_TO_SAY, canvasOrigin: '' };
     if (presetVal === '__custom__') {
       const school = String(formData.get('customSchool') || '').trim().slice(0, 48);
       const canvasOrigin = normalizeCanvasUrl(formData.get('customCanvasOrigin') || '');
@@ -308,6 +479,14 @@ window.StudyCommunity = (() => {
     }
     const found = SCHOOL_CATALOG.find((s) => s.name === presetVal);
     return found ? { school: found.name, canvasOrigin: found.canvasOrigin } : { school: presetVal.slice(0, 48), canvasOrigin: '' };
+  }
+
+  function extractMajorField(formData) {
+    const presetVal = String(formData.get('majorPreset') || '').trim();
+    if (!presetVal) return '';
+    if (presetVal === '__private__') return PREFER_NOT_TO_SAY;
+    if (presetVal === '__custom__') return String(formData.get('customMajor') || '').trim().slice(0, 64);
+    return presetVal.slice(0, 64);
   }
 
   const SECONDARY_LANGUAGES = [
@@ -632,6 +811,7 @@ window.StudyCommunity = (() => {
   function renderEntry(root, error = '', onSignedIn = render, onDemo, prefillCode = '') {
     const passkeyReady = supportsPasskeys();
     const localSchool = readLocalSchool();
+    const localMajor = readLocalMajor();
     const cleanPrefill = String(prefillCode || '').trim().slice(0, 120);
     root.innerHTML = `
       <div class="auth-card">
@@ -680,6 +860,7 @@ window.StudyCommunity = (() => {
             <input type="hidden" name="ticket">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
             ${schoolFieldHtml(localSchool.school, localSchool.canvasOrigin)}
+            ${majorFieldHtml(localMajor)}
             <label class="field-label" data-join-invite="google" hidden>Access code <input name="invite" type="text" disabled autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026"></label>
             ${secondaryLanguageFieldHtml('')}
             ${signupConsentHtml({ showEmailField: false })}
@@ -700,6 +881,7 @@ window.StudyCommunity = (() => {
           <form id="community-join" class="auth-form" data-auth-pane="join">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Alex" required></label>
             ${schoolFieldHtml(localSchool.school, localSchool.canvasOrigin)}
+            ${majorFieldHtml(localMajor)}
             <label class="field-label" data-join-invite hidden>Access code <input name="invite" type="text" disabled autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026"></label>
             ${secondaryLanguageFieldHtml('')}
             ${passkeyReady ? '<label class="check-row"><input name="withPasskey" type="checkbox" checked> Set up a passkey after signup</label>' : ''}
@@ -849,10 +1031,12 @@ window.StudyCommunity = (() => {
 
     action(root.querySelector('#community-google-complete-form'), async (form, element) => {
       const { school, canvasOrigin } = extractSchoolFields(form);
+      const major = extractMajorField(form);
       const res = await request('/auth/google/complete', {
         ticket: form.get('ticket'),
         nickname: form.get('nickname'),
         school,
+        major,
         canvasOrigin,
         secondaryLanguage: String(form.get('secondaryLanguage') || ''),
         tosAccepted: form.get('tosAccepted') === 'on',
@@ -861,6 +1045,7 @@ window.StudyCommunity = (() => {
         label: detectDeviceLabel(),
       }, '');
       if (school || canvasOrigin) saveLocalSchool(school, canvasOrigin);
+      if (major) saveLocalMajor(major);
       useProfile(res.token);
       currentProfile = await request('/profile').catch(() => null);
       const unlocked = await syncTransientArchiveFromProfile(currentProfile);
@@ -921,9 +1106,11 @@ window.StudyCommunity = (() => {
 
     action(root.querySelector('#community-join'), async (form, element) => {
       const { school, canvasOrigin } = extractSchoolFields(form);
+      const major = extractMajorField(form);
       const result = await request('/join', {
         nickname: form.get('nickname'),
         school,
+        major,
         canvasOrigin,
         secondaryLanguage: String(form.get('secondaryLanguage') || ''),
         tosAccepted: form.get('tosAccepted') === 'on',
@@ -932,6 +1119,7 @@ window.StudyCommunity = (() => {
         ...await signupAccess(form, element),
       }, '');
       if (school || canvasOrigin) saveLocalSchool(school, canvasOrigin);
+      if (major) saveLocalMajor(major);
       useProfile(result.token);
       currentProfile = await request('/profile').catch(() => null);
       const unlocked = await syncTransientArchiveFromProfile(currentProfile);
@@ -1390,6 +1578,7 @@ window.StudyCommunity = (() => {
             <input name="bio" value="${esc(profile.bio || '')}" maxlength="140" placeholder="e.g. BSc Economics · Grinding Finance &amp; Maths">
           </label>
           ${schoolFieldHtml(profile.school || '', profile.canvasOrigin || '')}
+          ${majorFieldHtml(profile.major || readLocalMajor())}
           ${secondaryLanguageFieldHtml(profile.secondaryLanguage || '')}
           <label class="check-row" style="font-size:13px;align-items:flex-start;margin:6px 0">
             <input name="newsletterOptIn" type="checkbox" ${profile.newsletterOptIn ? 'checked' : ''} style="margin-top:2px">
@@ -1472,10 +1661,12 @@ window.StudyCommunity = (() => {
       try {
         const fd = new FormData(form);
         const { school, canvasOrigin } = extractSchoolFields(fd);
+        const major = extractMajorField(fd);
         const payload = {
           avatar: draftAvatar,
           bio: String(form.elements.bio.value || '').trim(),
           school,
+          major,
           canvasOrigin,
           secondaryLanguage: String(form.elements.secondaryLanguage?.value || ''),
           newsletterOptIn: Boolean(form.elements.newsletterOptIn?.checked),
@@ -1489,6 +1680,7 @@ window.StudyCommunity = (() => {
         const updated = await request('/profile', payload);
         if (updated && typeof updated === 'object') currentProfile = { ...currentProfile, ...updated };
         saveLocalSchool(school, canvasOrigin);
+        saveLocalMajor(major);
         window.StudyApp?.onSchoolChanged?.();
         toast('Profile updated.');
         await onSaved();
@@ -2247,7 +2439,7 @@ window.StudyCommunity = (() => {
                 ${isOnline ? `<span class="lb-online-dot ${row.mode === 'break' ? 'is-break' : ''}" title="${row.mode === 'break' ? 'On break' : 'Studying now'}"></span>` : ''}
               </div>
               <div class="lb-podium-name">
-                <strong>${esc(row.nickname)}</strong>${row.id === meId ? ' <span class="badge good">You</span>' : ''}${row.school ? ` <span class="leaderboard-school-pill">${esc(row.school)}</span>` : ''}
+                <strong>${esc(row.nickname)}</strong>${row.id === meId ? ' <span class="badge good">You</span>' : ''}${isPublicBadgeVal(row.school) ? ` <span class="leaderboard-school-pill">${esc(row.school)}</span>` : ''}${isPublicBadgeVal(row.major) ? ` <span class="leaderboard-major-pill">${esc(row.major)}</span>` : ''}
               </div>
               <div class="lb-podium-primary">${primaryMetric}</div>
               <div class="lb-podium-sub">
@@ -2326,7 +2518,8 @@ window.StudyCommunity = (() => {
               <div class="lb-player-line">
                 <span class="lb-title-tag ${t.cls}" title="${esc(t.name)}">${esc(t.code)}</span>
                 <strong>${esc(row.nickname)}</strong>
-                ${row.school ? `<span class="leaderboard-school-pill">${esc(row.school)}</span>` : ''}
+                ${isPublicBadgeVal(row.school) ? `<span class="leaderboard-school-pill">${esc(row.school)}</span>` : ''}
+                ${isPublicBadgeVal(row.major) ? `<span class="leaderboard-major-pill">${esc(row.major)}</span>` : ''}
                 ${row.id === meId ? '<span class="badge good">You</span>' : ''}
               </div>
               ${row.bio ? `<small class="community-bio-sub">${esc(row.bio)}</small>` : ''}
@@ -2542,7 +2735,7 @@ window.StudyCommunity = (() => {
         <div class="community-identity">
           ${avatarHtml(me.nickname, me.avatar, 48)}
           <div>
-            <strong>Signed in as ${esc(me.nickname)}</strong>${me.school ? ` <span class="leaderboard-school-pill">${esc(me.school)}</span>` : ''}${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}
+            <strong>Signed in as ${esc(me.nickname)}</strong>${isPublicBadgeVal(me.school) ? ` <span class="leaderboard-school-pill">${esc(me.school)}</span>` : ''}${isPublicBadgeVal(me.major) ? ` <span class="leaderboard-major-pill">${esc(me.major)}</span>` : ''}${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}
             ${me.bio ? `<p class="community-bio-sub">${esc(me.bio)}</p>` : ''}
           </div>
         </div>
@@ -2993,7 +3186,7 @@ window.StudyCommunity = (() => {
             ${avatarHtml(me.nickname, me.avatar, 48)}
             <div>
               <h1 style="margin-bottom:2px">Study community</h1>
-              <p class="muted" style="margin:0">Signed in as <strong id="community-signed-in">${esc(me.nickname)}</strong>${me.school ? ` <span class="leaderboard-school-pill">${esc(me.school)}</span>` : ''}${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}</p>
+              <p class="muted" style="margin:0">Signed in as <strong id="community-signed-in">${esc(me.nickname)}</strong>${isPublicBadgeVal(me.school) ? ` <span class="leaderboard-school-pill">${esc(me.school)}</span>` : ''}${isPublicBadgeVal(me.major) ? ` <span class="leaderboard-major-pill">${esc(me.major)}</span>` : ''}${me.isAdmin ? ' <span class="badge admin-badge">Admin</span>' : ''}</p>
               ${me.bio ? `<p class="community-bio-sub">${esc(me.bio)}</p>` : ''}
             </div>
           </div>
@@ -3160,19 +3353,71 @@ window.StudyCommunity = (() => {
     return request('/sets', { title: set.title, cards: set.cards });
   }
 
-  async function updateProfileSchool(school, canvasOrigin = '') {
+  async function updateProfileSchool(school, canvasOrigin = '', major = undefined) {
     const cleanSchool = String(school || '').trim().slice(0, 48);
     const cleanOrigin = normalizeCanvasUrl(canvasOrigin);
     saveLocalSchool(cleanSchool, cleanOrigin);
+    const body = { school: cleanSchool, canvasOrigin: cleanOrigin };
+    if (major !== undefined) {
+      const cleanMajor = String(major || '').trim().slice(0, 64);
+      saveLocalMajor(cleanMajor);
+      body.major = cleanMajor;
+    }
     if (api && token) {
       try {
-        const updated = await request('/profile', { school: cleanSchool, canvasOrigin: cleanOrigin });
+        const updated = await request('/profile', body);
         if (updated && typeof updated === 'object') {
           currentProfile = { ...(currentProfile || {}), ...updated };
         }
       } catch {}
     }
     window.StudyApp?.onSchoolChanged?.();
+  }
+
+  function renderSettingsSchoolMajor() {
+    const mount = document.getElementById('settings-school-major-box');
+    if (!mount) return;
+    const localSch = readLocalSchool();
+    const curSchool = currentProfile?.school || localSch.school || '';
+    const curOrigin = currentProfile?.canvasOrigin || localSch.canvasOrigin || '';
+    const curMajor = currentProfile?.major || readLocalMajor() || '';
+
+    mount.innerHTML = `
+      <form id="settings-school-major-form" class="settings-school-major-form">
+        ${schoolFieldHtml(curSchool, curOrigin)}
+        ${majorFieldHtml(curMajor)}
+        <div class="settings-school-major-foot">
+          <small class="muted" id="settings-school-major-status">Press any letter repeatedly on a dropdown to cycle options.</small>
+          <button type="submit" class="ghost-btn settings-sm-save-btn">Save</button>
+        </div>
+      </form>`;
+    bindSchoolPickers(mount);
+    const form = mount.querySelector('#settings-school-major-form');
+    const status = mount.querySelector('#settings-school-major-status');
+    const persistForm = async (quiet = false) => {
+      const fd = new FormData(form);
+      const { school, canvasOrigin } = extractSchoolFields(fd);
+      const major = extractMajorField(fd);
+      await updateProfileSchool(school, canvasOrigin, major);
+      if (status) {
+        const summary = [
+          school ? (school === PREFER_NOT_TO_SAY ? 'School hidden' : school) : '',
+          major ? (major === PREFER_NOT_TO_SAY ? 'Major hidden' : major) : '',
+        ].filter(Boolean).join(' · ');
+        status.textContent = summary ? `Saved · ${summary}` : 'Cleared';
+      }
+      if (!quiet) toast('School & major updated');
+    };
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      persistForm(false);
+    });
+    // Auto-save non-custom selections smoothly on change (custom values save on Save/blur)
+    form.querySelectorAll('[data-school-select], [data-major-select]').forEach((sel) => {
+      sel.addEventListener('change', () => {
+        if (sel.value !== '__custom__') persistForm(true);
+      });
+    });
   }
 
   async function generateAiSet(payload) {
@@ -3192,9 +3437,14 @@ window.StudyCommunity = (() => {
   return {
     enabled: Boolean(api),
     SCHOOL_CATALOG,
+    MAJOR_CATALOG,
     schoolConfigFor,
     readLocalSchool,
     saveLocalSchool,
+    readLocalMajor,
+    saveLocalMajor,
+    bindTypeaheadSelect,
+    renderSettingsSchoolMajor,
     updateProfileSchool,
     generateAiSet,
     hasProfile: () => !api || Boolean(token),
