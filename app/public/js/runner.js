@@ -30,6 +30,9 @@ window.StudyRunner = (() => {
     } catch {}
     return next;
   }
+  function isInstantMcqEnabled(prefs = getRunnerUiPrefs()) {
+    return prefs.instantMcq !== false;
+  }
 
   function needsSplitByContent(q, st) {
     if (!q) return false;
@@ -1236,7 +1239,7 @@ window.StudyRunner = (() => {
     const lockedSourceRefs = getQuestionLockedSources(q, isBlindUnfinished, st.revealed, sourcePdfs);
     const uiPrefs = getRunnerUiPrefs();
     const splitRatio = ['balanced', 'custom'].includes(uiPrefs.splitRatio) ? uiPrefs.splitRatio : 'wide-left';
-    const instantMcq = Boolean(uiPrefs.instantMcq) && !isBlindUnfinished;
+    const instantMcq = isInstantMcqEnabled(uiPrefs) && !isBlindUnfinished;
 
     // Guard invalid reader tab (e.g. if switched to question without PDFs or blind exam locks reference)
     if (st.readerTab === 'pdf' && !sourcePdfs.length) st.readerTab = lockedSourceRefs.length ? 'context' : 'task';
@@ -1749,7 +1752,9 @@ window.StudyRunner = (() => {
         : `<button type="button" class="primary-btn" id="btn-submit-paper-bottom">Submit Paper</button>`;
     } else if (q.kind === 'mcq') {
       primaryActionBtn = !st.revealed
-        ? `<button type="button" class="primary-btn" id="btn-check-mcq" ${st.choice === null ? 'disabled' : ''}>Check Answer</button>`
+        ? (instantMcq && st.choice === null
+            ? ''
+            : `<button type="button" class="primary-btn" id="btn-check-mcq" ${st.choice === null ? 'disabled' : ''}>Check Answer</button>`)
         : `<button type="button" class="primary-btn" id="btn-next-q">${nextFullLbl}</button>`;
     } else if (hasWf) {
       primaryActionBtn = !st.revealed
@@ -1804,7 +1809,7 @@ window.StudyRunner = (() => {
     `
         : `
       <div class="kbd-hint-bar" data-study-help>
-        ${q.kind === 'mcq' ? '<span><kbd>1–6</kbd>/<kbd>A–F</kbd> Select</span>' : '<span><kbd>⌘/Ctrl+↵</kbd> Reveal/Check</span>'}
+        ${q.kind === 'mcq' ? (instantMcq ? '<span><kbd>1–6</kbd>/<kbd>A–F</kbd> Answer</span>' : '<span><kbd>1–6</kbd>/<kbd>A–F</kbd> Select</span>') : '<span><kbd>⌘/Ctrl+↵</kbd> Reveal/Check</span>'}
         <span><kbd>S</kbd> Solution</span>
         <span><kbd>Enter</kbd>/<kbd>N</kbd> Check/Next</span>
         <span><kbd>P</kbd> Pause</span>
@@ -2123,7 +2128,7 @@ window.StudyRunner = (() => {
     });
 
     document.getElementById('btn-toggle-instant-mcq')?.addEventListener('click', () => {
-      const nextInstant = !Boolean(getRunnerUiPrefs().instantMcq);
+      const nextInstant = !isInstantMcqEnabled();
       saveRunnerUiPrefs({ instantMcq: nextInstant });
       toast(nextInstant ? '1-Tap MCQ Check ON (click or press A–D to check immediately)' : '1-Tap MCQ Check OFF');
       renderRunner();
@@ -2288,7 +2293,7 @@ window.StudyRunner = (() => {
         if (st.revealed) return;
         st.choice = Number(el.dataset.mcqIdx);
         window.StudyApp.saveDraft(q.id, { choice: st.choice, activeElapsedSec: itemActiveSec(st), profile: activeRun.profile });
-        if (!isBlindUnfinished && Boolean(getRunnerUiPrefs().instantMcq)) {
+        if (!isBlindUnfinished && isInstantMcqEnabled()) {
           await runMcqCheckNow();
           return;
         }
