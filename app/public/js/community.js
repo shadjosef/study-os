@@ -190,31 +190,23 @@ window.StudyCommunity = (() => {
     { name: 'USN', short: 'USN', canvasOrigin: 'https://usn.instructure.com', timetableUrl: 'https://cloud.timeedit.net/usn/web/', timetableLabel: 'USN TimeEdit' },
   ];
   const MAJOR_CATALOG = [
-    'Accounting & Auditing',
-    'Architecture & Design',
     'BBA (Business Administration)',
-    'Biology & Life Sciences',
     'Business Analytics',
-    'Computer Science',
     'Data Science for Business',
+    'Datateknologi / Informatikk',
     'Digital Business',
-    'Economics',
-    'Engineering',
-    'Entrepreneurship & Innovation',
-    'Finance',
-    'International Business',
-    'Law',
-    'Management & Leadership',
-    'Marketing & Communication',
-    'Mathematics & Statistics',
-    'Medicine & Health Sciences',
-    'Political Science & International Relations',
-    'Psychology',
-    'Quantitative Finance',
-    'Real Estate',
-    'Shipping & Maritime Management',
-    'Software Engineering',
-    'Supply Chain & Logistics',
+    'Eiendomsmegling',
+    'Finans',
+    'Indøk (Industriell økonomi)',
+    'IT og informasjonssystemer',
+    'Jus / Forretningsjus',
+    'Markedsføring / Marketing',
+    'Matematikk & Statistikk',
+    'MSc Business / Siviløkonom',
+    'MSc Finance / Quantitative Finance',
+    'Regnskap og revisjon',
+    'Samfunnsøkonomi (Economics)',
+    'Økonomi og administrasjon (ØkAd)',
   ];
   const PREFER_NOT_TO_SAY = 'Prefer not to say';
   const LOCAL_SCHOOL_KEY = 'study-os-selected-school-v1';
@@ -248,7 +240,12 @@ window.StudyCommunity = (() => {
       const allOpts = [...sel.options].filter((o) => !o.disabled && o.value !== '');
       if (!allOpts.length) return;
 
+      const foldNo = (s) => s.replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/å/g, 'a');
       const labelOf = (opt) => String(opt.textContent || '').trim().toLowerCase();
+      const startsWithKey = (opt, prefix) => {
+        const lbl = labelOf(opt);
+        return lbl.startsWith(prefix) || foldNo(lbl).startsWith(foldNo(prefix));
+      };
       const pickOption = (opt) => {
         if (!opt) return;
         const idx = opt.index;
@@ -258,13 +255,13 @@ window.StudyCommunity = (() => {
         }
       };
 
-      // Repeated same-letter press cycles down matching options (e.g. D -> Data Science -> Digital Business)
+      // Repeated same-letter press cycles down matching options (e.g. D -> Data Science -> Datateknologi -> Digital Business)
       if (withinWindow && ch === lastChar && (buffer.length === 1 || cyclingChar === ch)) {
         ev.preventDefault();
         cyclingChar = ch;
         buffer = ch;
         lastTime = now;
-        const matches = allOpts.filter((o) => labelOf(o).startsWith(ch));
+        const matches = allOpts.filter((o) => startsWithKey(o, ch));
         if (matches.length) {
           const curPos = matches.findIndex((o) => o.index === sel.selectedIndex);
           pickOption(matches[(curPos + 1) % matches.length]);
@@ -282,18 +279,18 @@ window.StudyCommunity = (() => {
       lastChar = ch;
       lastTime = now;
 
-      // Try multi-character prefix first (e.g. "di" -> Digital Business, "uio" -> UiO)
-      let hit = allOpts.find((o) => labelOf(o).startsWith(buffer));
+      // Try multi-character prefix first (e.g. "di" -> Digital Business, "ok" -> Økonomi, "uio" -> UiO)
+      let hit = allOpts.find((o) => startsWithKey(o, buffer));
       if (!hit && buffer.length > 1) {
         buffer = ch;
-        const singleMatches = allOpts.filter((o) => labelOf(o).startsWith(ch));
+        const singleMatches = allOpts.filter((o) => startsWithKey(o, ch));
         if (singleMatches.length) {
           const curPos = singleMatches.findIndex((o) => o.index === sel.selectedIndex);
           hit = curPos >= 0 ? singleMatches[(curPos + 1) % singleMatches.length] : singleMatches[0];
         }
       } else if (hit && buffer.length === 1) {
         // Fresh single-letter press: if currently on an option starting with ch, jump to the NEXT one
-        const singleMatches = allOpts.filter((o) => labelOf(o).startsWith(ch));
+        const singleMatches = allOpts.filter((o) => startsWithKey(o, ch));
         if (singleMatches.length > 1) {
           const curPos = singleMatches.findIndex((o) => o.index === sel.selectedIndex);
           if (curPos >= 0) hit = singleMatches[(curPos + 1) % singleMatches.length];
