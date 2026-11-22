@@ -9410,6 +9410,99 @@ details[open] > summary > .exp-chev::before {
   color: #a5b4fc;
 }
 
+/* Inline Reference & Notes Figure Zoom (enlarges neatly inside the reference bar field) */
+.markdown-body img {
+  cursor: zoom-in;
+  transition: box-shadow 140ms ease, outline-color 140ms ease;
+}
+.markdown-body img:hover {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+.md-img-zoom-frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  border-radius: 10px;
+  transition: box-shadow 160ms ease;
+}
+.md-img-zoom-frame.is-zoomed {
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  padding: 6px 4px 4px;
+}
+:root[data-theme="dark"] .md-img-zoom-frame.is-zoomed {
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.42);
+}
+.runner-pane-ref .md-img-zoom-frame.is-zoomed,
+.ref-drawer-body .md-img-zoom-frame.is-zoomed {
+  margin-inline: -10px;
+  width: calc(100% + 20px);
+}
+.md-img-zoom-scroll {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  border-radius: 7px;
+}
+.md-img-zoom-frame.is-zoomed .md-img-zoom-scroll {
+  cursor: grab;
+}
+.md-img-zoom-scroll.is-panning {
+  cursor: grabbing !important;
+  user-select: none;
+}
+.md-img-zoom-scroll > img {
+  display: block;
+  height: auto;
+  border-radius: 6px;
+}
+.md-img-zoom-frame.is-zoomed .md-img-zoom-scroll > img {
+  cursor: zoom-out;
+  box-shadow: none;
+}
+.md-img-zoom-scroll.is-panning > img {
+  cursor: grabbing !important;
+}
+.md-img-zoom-bar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.14);
+}
+.md-img-zoom-bar[hidden] {
+  display: none !important;
+}
+.md-img-zoom-btn {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.md-img-zoom-btn:hover {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
 
 
 

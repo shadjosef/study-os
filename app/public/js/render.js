@@ -2748,10 +2748,139 @@ window.StudyUI = (() => {
     clearInterval(workTickHandle);
     workTickHandle = setInterval(renderWorkClockDom, 1000);
 
+    // Inline figure enlargement within reference panes & notes (enlarges right inside the column, drag-to-pan, click to fit)
+    const MD_ZOOM_SCALES = [1, 1.85, 2.6];
+
+    function ensureInlineZoomFrame(img) {
+      const existing = img.closest('.md-img-zoom-frame');
+      if (existing) return existing;
+      const frame = document.createElement('span');
+      frame.className = 'md-img-zoom-frame';
+      frame.dataset.zoomLevel = '0';
+
+      const scroll = document.createElement('span');
+      scroll.className = 'md-img-zoom-scroll';
+
+      const bar = document.createElement('span');
+      bar.className = 'md-img-zoom-bar';
+      bar.hidden = true;
+      bar.innerHTML =
+        '<button type="button" class="md-img-zoom-btn" data-md-zoom="step" title="Toggle closer zoom" aria-label="Toggle closer zoom">2.6×</button>' +
+        '<button type="button" class="md-img-zoom-btn" data-md-zoom="reset" title="Fit back to column" aria-label="Fit back to column">Fit</button>' +
+        '<button type="button" class="md-img-zoom-btn" data-md-zoom="lightbox" title="Open full screen" aria-label="Open full screen">⤢</button>';
+
+      img.replaceWith(frame);
+      img.draggable = false;
+      scroll.appendChild(img);
+      frame.append(scroll, bar);
+      return frame;
+    }
+
+    function applyInlineImgZoom(frame, nextLevel, focusRatioX = 0.5) {
+      if (!frame) return;
+      const clamped = Math.max(0, Math.min(MD_ZOOM_SCALES.length - 1, Number(nextLevel) || 0));
+      const scale = MD_ZOOM_SCALES[clamped];
+      const scroll = frame.querySelector('.md-img-zoom-scroll');
+      const img = scroll?.querySelector('img');
+      const bar = frame.querySelector('.md-img-zoom-bar');
+      const stepBtn = bar?.querySelector('[data-md-zoom="step"]');
+      if (!scroll || !img) return;
+
+      frame.dataset.zoomLevel = String(clamped);
+      frame.classList.toggle('is-zoomed', clamped > 0);
+      if (bar) bar.hidden = clamped === 0;
+      if (stepBtn) stepBtn.textContent = clamped === 1 ? '2.6×' : '1.85×';
+
+      if (clamped === 0) {
+        img.style.width = '';
+        img.style.maxWidth = '';
+        scroll.scrollLeft = 0;
+      } else {
+        img.style.width = `${Math.round(scale * 100)}%`;
+        img.style.maxWidth = 'none';
+        requestAnimationFrame(() => {
+          const maxScroll = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+          const target = Math.round(focusRatioX * scroll.scrollWidth - scroll.clientWidth / 2);
+          scroll.scrollLeft = Math.max(0, Math.min(maxScroll, target));
+        });
+      }
+    }
+
+    // Horizontal drag-to-pan on enlarged inline reference figures
+    document.addEventListener('pointerdown', (ev) => {
+      if (ev.button !== 0) return;
+      if (ev.target?.closest?.('.md-img-zoom-bar')) return;
+      const scroll = ev.target?.closest?.('.md-img-zoom-frame.is-zoomed .md-img-zoom-scroll');
+      if (!scroll) return;
+      const frame = scroll.closest('.md-img-zoom-frame');
+      const startX = ev.clientX;
+      const startScroll = scroll.scrollLeft;
+      let moved = false;
+
+      const onMove = (mEv) => {
+        const dx = mEv.clientX - startX;
+        if (!moved && Math.abs(dx) > 5) {
+          moved = true;
+          scroll.classList.add('is-panning');
+        }
+        if (moved) {
+          scroll.scrollLeft = startScroll - dx;
+        }
+      };
+      const onUp = () => {
+        scroll.classList.remove('is-panning');
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        if (moved && frame) frame._suppressClickUntil = Date.now() + 260;
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    });
+
     document.addEventListener('click', (e) => {
       const figImg = e.target?.closest?.('.pdf-figure:not([data-pdf-excerpt]) img');
       if (figImg && figImg.src) {
         openLightbox(figImg.src, figImg.alt);
+        return;
+      }
+
+      // Inline reference figure toolbar actions (+ / Fit / Fullscreen)
+      const zoomActionBtn = e.target?.closest?.('[data-md-zoom]');
+      if (zoomActionBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const frame = zoomActionBtn.closest('.md-img-zoom-frame');
+        const scroll = frame?.querySelector('.md-img-zoom-scroll');
+        const img = scroll?.querySelector('img');
+        if (!frame || !img) return;
+        const action = zoomActionBtn.dataset.mdZoom;
+        if (action === 'reset') {
+          applyInlineImgZoom(frame, 0);
+        } else if (action === 'step') {
+          const cur = Number(frame.dataset.zoomLevel || 0);
+          const curCenterRatio = scroll.scrollWidth > 0
+            ? (scroll.scrollLeft + scroll.clientWidth / 2) / scroll.scrollWidth
+            : 0.5;
+          applyInlineImgZoom(frame, cur === 1 ? 2 : 1, curCenterRatio);
+        } else if (action === 'lightbox' && img.src) {
+          openLightbox(img.src, img.alt);
+        }
+        return;
+      }
+
+      // Click directly on any markdown figure/diagram image to enlarge inline (or fit back)
+      const mdImg = e.target?.closest?.('.markdown-body img');
+      if (mdImg && mdImg.src && !mdImg.closest('.pdf-figure') && !mdImg.closest('a[href]')) {
+        if (mdImg.clientWidth > 0 && mdImg.clientWidth < 48) return;
+        const existingFrame = mdImg.closest('.md-img-zoom-frame');
+        if (existingFrame && Date.now() < (existingFrame._suppressClickUntil || 0)) return;
+        const rect = mdImg.getBoundingClientRect();
+        const ratioX = rect.width > 0 ? Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) : 0.5;
+        const frame = ensureInlineZoomFrame(mdImg);
+        const curLevel = Number(frame.dataset.zoomLevel || 0);
+        applyInlineImgZoom(frame, curLevel === 0 ? 1 : 0, ratioX);
       }
     });
     document.addEventListener('keydown', (e) => {
@@ -2759,7 +2888,15 @@ window.StudyUI = (() => {
         if (!document.getElementById('img-lightbox')?.hidden) {
           closeLightbox();
           e.preventDefault();
-        } else if (isReferenceDrawerOpen()) {
+          return;
+        }
+        const zoomedFrames = document.querySelectorAll('.md-img-zoom-frame.is-zoomed');
+        if (zoomedFrames.length) {
+          zoomedFrames.forEach((f) => applyInlineImgZoom(f, 0));
+          e.preventDefault();
+          return;
+        }
+        if (isReferenceDrawerOpen()) {
           closeReferenceDrawer();
           e.preventDefault();
         }
