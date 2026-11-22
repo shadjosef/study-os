@@ -403,6 +403,87 @@ function collectEdTabContext() {
   return { region, host, tokens: Array.from(tokens).slice(0, 4), domCourses };
 }
 
+function stripEdDocumentXml(docStr, fallbackText = '') {
+  const raw = typeof docStr === 'string' && docStr.trim() ? docStr : String(fallbackText || '');
+  if (!raw.trim()) return '';
+  let text = raw
+    .replace(/<(?:paragraph|heading|pre|blockquote)\b[^>]*>/gi, '')
+    .replace(/<\/(?:paragraph|heading|pre|blockquote)>/gi, '\n\n')
+    .replace(/<list-item\b[^>]*>/gi, '• ')
+    .replace(/<\/list-item>/gi, '\n')
+    .replace(/<break\s*\/?>|<br\s*\/?>/gi, '\n')
+    .replace(/<image\b[^>]*>/gi, '[image] ')
+    .replace(/<file\b[^>]*filename="([^"]+)"[^>]*\/?>/gi, '[$1] ')
+    .replace(/<[^>]+>/g, '');
+  text = text
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return text.slice(0, 620);
+}
+
+async function fetchEdThreadsForCourses(apiHost, authHeaders, courses) {
+  const targets = courses.slice(0, 8);
+  const all = [];
+  await Promise.all(targets.map(async (course) => {
+    try {
+      const res = await fetch(`https://${apiHost}/api/courses/${course.id}/threads?limit=12&sort=new`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json', ...authHeaders },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) return;
+      const payload = await res.json().catch(() => null);
+      const rawThreads = Array.isArray(payload?.threads) ? payload.threads : [];
+      const userMap = new Map();
+      for (const u of (Array.isArray(payload?.users) ? payload.users : [])) {
+        if (u?.id) userMap.set(String(u.id), u);
+      }
+      for (const t of rawThreads.slice(0, 12)) {
+        if (!t || !t.id || t.is_private) continue;
+        const u = t.user_id ? userMap.get(String(t.user_id)) : null;
+        const authorName = t.is_anonymous ? 'Anonymous' : (u?.name || t.user?.name || '');
+        const role = String(u?.course_role || t.user?.course_role || '').toLowerCase();
+        const isStaff = ['admin', 'staff', 'tutor', 'instructor'].includes(role) || t.type === 'announcement';
+        const snippet = stripEdDocumentXml(t.content || '', t.document || '');
+        const rawType = String(t.type || '').toLowerCase();
+        const type = rawType === 'announcement' ? 'announcement' : rawType === 'question' ? 'question' : 'post';
+        all.push({
+          id: String(t.id),
+          courseId: String(course.id),
+          courseCode: course.code || '',
+          courseName: course.name || '',
+          host: apiHost,
+          number: Number(t.number) || 0,
+          title: String(t.title || '').trim().slice(0, 180),
+          snippet,
+          category: String(t.category || '').trim().slice(0, 60),
+          type,
+          isPinned: Boolean(t.is_pinned),
+          isAnswered: Boolean(t.is_answered || t.is_staff_answered),
+          isStaff,
+          author: String(authorName).trim().slice(0, 60),
+          replyCount: Math.max(0, Number(t.reply_count) || 0),
+          createdAt: t.created_at || new Date().toISOString(),
+          updatedAt: t.updated_at || t.created_at || new Date().toISOString(),
+        });
+      }
+    } catch {}
+  }));
+  all.sort((a, b) => {
+    if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+    return Date.parse(b.updatedAt || b.createdAt || '') - Date.parse(a.updatedAt || a.createdAt || '');
+  });
+  return all.slice(0, 60);
+}
+
 async function fetchEdCoursesFromContext(ctx) {
   const capturedAt = new Date().toISOString();
   const regions = [...new Set([ctx?.region || 'eu', 'eu', 'us', 'au', ''])];
@@ -445,13 +526,16 @@ async function fetchEdCoursesFromContext(ctx) {
         if (!res.ok) continue;
         const payload = await res.json().catch(() => null);
         const courses = parseEdPayload(payload, apiHost);
-        if (courses.length) return { capturedAt, courses };
+        if (courses.length) {
+          const threads = await fetchEdThreadsForCourses(apiHost, authHeaders, courses);
+          return { capturedAt, courses, threads };
+        }
       } catch {}
     }
   }
 
   if (Array.isArray(ctx?.domCourses) && ctx.domCourses.length) {
-    return { capturedAt, courses: ctx.domCourses };
+    return { capturedAt, courses: ctx.domCourses, threads: [] };
   }
   return {
     error: 'Could not read Ed courses — open "My Courses" in your signed-in Ed Discussion tab, then click Sync again.',
@@ -610,10 +694,12 @@ async function syncSingleSite(tabId, site, sharePublic, cloudToken, desktopToken
       sharePublic,
       capturedAt: result.capturedAt,
       courses: result.courses,
+      threads: Array.isArray(result.threads) ? result.threads : [],
     }, cloudToken);
     return {
       site: 'ed',
       courses: pushed.syncedCourses || result.courses.length,
+      threads: pushed.threadCount ?? (result.threads?.length || 0),
       createdCount: pushed.createdCount || 0,
       updatedCount: pushed.updatedCount || 0,
       sharedPublic: Boolean(pushed.sharedPublic),

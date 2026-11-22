@@ -2909,6 +2909,7 @@ window.StudyCommunity = (() => {
           <input type="search" id="ed-hub-search" class="ed-hub-search" placeholder="Filter by course code, name, school, or Ed topic…" aria-label="Filter Ed Discussion courses" />
           <div class="ed-hub-filter-pills" id="ed-hub-school-pills"></div>
         </div>
+        <div id="community-ed-feed"></div>
         <div class="ed-course-grid" id="community-ed-grid">
           <p class="muted" style="margin:6px 0">Loading synced Ed Discussion course forums…</p>
         </div>
@@ -2957,7 +2958,12 @@ window.StudyCommunity = (() => {
     const section = root?.querySelector('#community-ed-section');
     if (!section) return;
     const grid = section.querySelector('#community-ed-grid');
+    const feedEl = section.querySelector('#community-ed-feed');
     const badge = section.querySelector('#ed-hub-count-badge');
+
+    if (feedEl && window.StudyApp?.renderEdFeedInto) {
+      window.StudyApp.renderEdFeedInto(feedEl, { limit: 8, title: 'Recent Ed Discussion posts' });
+    }
     const controls = section.querySelector('#ed-hub-controls');
     const searchEl = section.querySelector('#ed-hub-search');
     const schoolPills = section.querySelector('#ed-hub-school-pills');
@@ -3091,7 +3097,7 @@ window.StudyCommunity = (() => {
               <a class="primary-btn" href="${esc(forumUrl)}" target="_blank" rel="noopener">Open Forum ↗</a>
               <a class="ghost-btn" href="${esc(askUrl)}" target="_blank" rel="noopener">Ask Question ↗</a>
               ${matchedLocal ? `<button type="button" class="ghost-btn" data-ed-practice="${esc(matchedLocal.courseId)}">Practice →</button>` : ''}
-              <button type="button" class="ghost-btn" data-ed-ai-set="${idx}">✨ AI Set</button>
+              <button type="button" class="ghost-btn" data-ed-ai-set="${idx}">Study Set</button>
               ${c.pinned ? `<button type="button" class="ghost-btn" data-ed-unpin="${esc(c.edHost + ':' + c.edCourseId)}" title="Remove pinned link">Remove</button>` : ''}
             </div>
           </article>`;
@@ -3419,8 +3425,13 @@ window.StudyCommunity = (() => {
   }
 
   async function generateAiSet(payload) {
-    if (!api || !token) throw new Error('Sign in to generate study sets with built-in Gemini 4 Hydrogen, or use the "Your Own AI" tab.');
+    if (!api || !token) throw new Error('Sign in to build study sets with built-in Gemini 4 Hydrogen, or use the "External LLM" tab.');
     return request('/ai/generate-set', payload);
+  }
+
+  async function generateAiSchedule(payload) {
+    if (!api || !token) throw new Error('Sign in to plan with Gemini 4 Hydrogen, or use Quick auto-plan.');
+    return request('/ai/generate-schedule', payload);
   }
 
   async function roomRequest(path = '', data) {
@@ -3498,6 +3509,7 @@ window.StudyCommunity = (() => {
     renderSettingsSchoolMajor,
     updateProfileSchool,
     generateAiSet,
+    generateAiSchedule,
     hasProfile: () => !api || Boolean(token),
     isSignedIn: () => Boolean(api && token),
     isAdmin: () => Boolean(currentProfile?.isAdmin),

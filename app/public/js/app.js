@@ -291,9 +291,10 @@ window.StudyApp = (() => {
         sessions: Array.isArray(raw.sessions) ? raw.sessions : [],
         customSchedule: raw.customSchedule || { enabled: false, prefs: {}, blocks: [] },
         canvasSnapshot: raw.canvasSnapshot || null,
+        edSnapshot: raw.edSnapshot || null,
       };
     } catch {
-      return { records: {}, attempts: [], sessions: [], customSchedule: { enabled: false, prefs: {}, blocks: [] } };
+      return { records: {}, attempts: [], sessions: [], customSchedule: { enabled: false, prefs: {}, blocks: [] }, canvasSnapshot: null, edSnapshot: null };
     }
   }
 
@@ -415,6 +416,10 @@ window.StudyApp = (() => {
     const canvasChanged = snapshot && Array.isArray(snapshot.courses) &&
       backupTime(snapshot.syncedAt) > backupTime(ws.canvasSnapshot?.syncedAt);
     if (canvasChanged) ws.canvasSnapshot = snapshot;
+    const edSnap = data.edSnapshot;
+    const edChanged = edSnap && (Array.isArray(edSnap.threads) || Array.isArray(edSnap.courses)) &&
+      backupTime(edSnap.syncedAt) > backupTime(ws.edSnapshot?.syncedAt);
+    if (edChanged) ws.edSnapshot = edSnap;
     const addedSets = Array.isArray(data.customSets)
       ? (window.StudySets?.mergeFromCloud?.(data.customSets) || 0)
       : 0;
@@ -426,6 +431,7 @@ window.StudyApp = (() => {
       ws.sessions.length > originalSessionCount ? `${ws.sessions.length - originalSessionCount} sessions` : '',
       scheduleChanged ? 'your schedule' : '',
       canvasChanged ? 'Canvas deadlines' : '',
+      edChanged ? 'Ed Discussion posts' : '',
       addedSets ? `${addedSets} study set${addedSets === 1 ? '' : 's'}` : '',
     ].filter(Boolean);
     return restored.length ? `Restored ${restored.join(', ')}.` : 'This backup contains no newer study data.';
@@ -646,6 +652,8 @@ window.StudyApp = (() => {
         source: ws.customSchedule.source || 'browser_schedule',
         prefs: ws.customSchedule.prefs || {},
         estimate: ws.customSchedule.estimate || null,
+        aiSummary: ws.customSchedule.aiSummary || '',
+        modelLabel: ws.customSchedule.modelLabel || '',
       };
     } else {
       boot.calendar = { source: 'static_web', blocks: [] };
@@ -1313,6 +1321,7 @@ window.StudyApp = (() => {
         prefs: { ...ws.customSchedule.prefs, timeeditUrl: undefined },
       },
       canvasSnapshot: ws.canvasSnapshot,
+      edSnapshot: ws.edSnapshot,
       customSets: window.StudySets?.exportForSync?.() || [],
     };
   }
@@ -1336,6 +1345,7 @@ window.StudyApp = (() => {
       let cloudSessionCount = 0;
       let cloudScheduleAt = 0;
       let cloudCanvasAt = 0;
+      let cloudEdAt = 0;
       let cloudSetCount = 0;
       if (!pushOnly) {
         const remote = await window.StudyCommunity.fetchCloudBackup();
@@ -1345,6 +1355,7 @@ window.StudyApp = (() => {
           cloudSessionCount = Number(remote.sessionCount || 0);
           cloudScheduleAt = backupTime(remote.data.customSchedule?.updatedAt);
           cloudCanvasAt = backupTime(remote.data.canvasSnapshot?.syncedAt);
+          cloudEdAt = backupTime(remote.data.edSnapshot?.syncedAt);
           cloudSetCount = Array.isArray(remote.data.customSets) ? remote.data.customSets.length : 0;
           const msg = restoreWebBackup(remote.data);
           if (msg && msg.startsWith('Restored ')) {
@@ -1364,10 +1375,11 @@ window.StudyApp = (() => {
       const localSetCount = (payload.customSets || []).length;
       const scheduleAt = backupTime(payload.customSchedule.updatedAt);
       const canvasAt = backupTime(payload.canvasSnapshot?.syncedAt);
-      const hasLocalData = localRecCount > 0 || localAttemptCount > 0 || localSessionCount > 0 || localSetCount > 0 || scheduleAt > 0 || canvasAt > 0;
+      const edAt = backupTime(payload.edSnapshot?.syncedAt);
+      const hasLocalData = localRecCount > 0 || localAttemptCount > 0 || localSessionCount > 0 || localSetCount > 0 || scheduleAt > 0 || canvasAt > 0 || edAt > 0;
       const shouldPush = pushOnly || interactive || (hasLocalData && (
         localRecCount !== cloudRecCount || localAttemptCount !== cloudAttemptCount || localSessionCount !== cloudSessionCount ||
-        localSetCount !== cloudSetCount || scheduleAt > cloudScheduleAt || canvasAt > cloudCanvasAt || mergedFromCloud
+        localSetCount !== cloudSetCount || scheduleAt > cloudScheduleAt || canvasAt > cloudCanvasAt || edAt > cloudEdAt || mergedFromCloud
       ));
       if (shouldPush) {
         const res = await window.StudyCommunity.pushCloudBackup(payload);
@@ -2575,7 +2587,7 @@ window.StudyApp = (() => {
               <h3 class="course-card-title" style="cursor:default">${esc(c.name)}</h3>
               ${nextDue
                 ? `<p class="synced-course-deadlines">Next: <strong>${esc(nextDue.name)}</strong> · ${esc(fmtShortDate(nextDue.dueAt))}</p>`
-                : `<p class="synced-course-deadlines">Synced from ${esc(schoolInfo.school || 'Canvas')} · ${topics.length ? `${topics.length} module${topics.length === 1 ? '' : 's'}` : 'Ready for Gemini / AI study sets'}</p>`}
+                : `<p class="synced-course-deadlines">Synced from ${esc(schoolInfo.school || 'Canvas')} · ${topics.length ? `${topics.length} module${topics.length === 1 ? '' : 's'}` : 'Ready for custom study sets'}</p>`}
               ${topics.length
                 ? `<div class="community-course-topics">${topics.slice(0, 4).map((t) => `<span class="topic-mini-chip">${esc(t)}</span>`).join('')}${topics.length > 4 ? `<span class="topic-mini-chip">+${topics.length - 4}</span>` : ''}</div>`
                 : ''}
@@ -2592,8 +2604,8 @@ window.StudyApp = (() => {
             <div class="course-actions">
               ${latestSet
                 ? `<button type="button" class="primary-btn" data-synced-launch-set="${esc(latestSet.id)}">Practice Set (${latestSet.questions.length} Qs) →</button>
-                   <button type="button" class="ghost-btn" data-synced-gen="${idx}" title="Generate a new AI study set for this course">+ AI Set</button>`
-                : `<button type="button" class="primary-btn" data-synced-gen="${idx}">✨ Generate AI Set</button>`}
+                   <button type="button" class="ghost-btn" data-synced-gen="${idx}" title="Build a new custom study set for this course">+ Study Set</button>`
+                : `<button type="button" class="primary-btn" data-synced-gen="${idx}">Build Study Set</button>`}
               <button type="button" class="ghost-btn" data-synced-ai="${idx}">Al</button>
               <a class="ghost-btn" href="${esc(courseUrl)}" target="_blank" rel="noopener">Canvas ↗</a>
             </div>
@@ -5915,10 +5927,165 @@ window.StudyApp = (() => {
       .join('\n');
   }
 
+  function parseHmToMins(hm, fallback = 450) {
+    const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hm || '').trim());
+    return m ? Number(m[1]) * 60 + Number(m[2]) : fallback;
+  }
+
+  function minsToHm(mins) {
+    const n = ((Math.round(mins) % 1440) + 1440) % 1440;
+    return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+  }
+
+  function deriveSleepWindow(wakeTime, sleepHours = 8) {
+    const wakeMins = parseHmToMins(wakeTime, 7 * 60 + 30);
+    const sleep = Math.max(6, Math.min(10, Number(sleepHours) || 8));
+    const bedMins = wakeMins - Math.round(sleep * 60);
+    return {
+      wakeTime: minsToHm(wakeMins),
+      bedTime: minsToHm(bedMins),
+      studyStart: minsToHm(wakeMins + 30),
+      studyEnd: minsToHm(bedMins - 30),
+      sleepHours: sleep,
+    };
+  }
+
+  function formatRelativePostAge(iso) {
+    const ts = Date.parse(iso || '');
+    if (!Number.isFinite(ts)) return '';
+    const diffMin = Math.max(0, Math.floor((Date.now() - ts) / 60_000));
+    if (diffMin < 2) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const hrs = Math.floor(diffMin / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(ts).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  }
+
+  function renderEdFeedInto(container, opts = {}) {
+    if (!container) return 0;
+    const snap = isStaticWeb ? loadWebState().edSnapshot : null;
+    const allThreads = Array.isArray(snap?.threads) ? snap.threads : [];
+    if (!allThreads.length) {
+      if (opts.emptyHint) {
+        container.innerHTML = `<p class="muted ed-feed-empty-hint">${esc(opts.emptyHint)}</p>`;
+      } else {
+        container.innerHTML = '';
+      }
+      return 0;
+    }
+
+    const courses = [...new Map(
+      allThreads.map((t) => [t.courseId || t.courseCode || t.courseName, {
+        key: t.courseId || t.courseCode || t.courseName,
+        label: t.courseCode || t.courseName || 'Ed',
+      }])
+    ).values()];
+
+    let activeCourse = 'all';
+    let showAll = false;
+    const baseLimit = Math.max(2, Number(opts.limit) || 5);
+    const title = opts.title || 'Ed Discussion';
+
+    const paint = () => {
+      const filtered = activeCourse === 'all'
+        ? allThreads
+        : allThreads.filter((t) => (t.courseId || t.courseCode || t.courseName) === activeCourse);
+      const visible = showAll ? filtered : filtered.slice(0, baseLimit);
+      const syncedAgo = formatRelativePostAge(snap?.syncedAt);
+
+      container.innerHTML = `
+        <div class="ed-feed-wrap">
+          <div class="row-between ed-feed-head">
+            <div class="row-actions" style="gap:7px;flex-wrap:wrap">
+              <h3 class="ed-feed-title">${esc(title)}</h3>
+              <span class="badge">${filtered.length} post${filtered.length === 1 ? '' : 's'}</span>
+              ${syncedAgo ? `<small class="muted">Synced ${esc(syncedAgo)}</small>` : ''}
+            </div>
+            ${courses.length > 1 ? `
+              <div class="ed-feed-pills" role="tablist" aria-label="Filter Ed posts by course">
+                <button type="button" class="ed-filter-pill ${activeCourse === 'all' ? 'active' : ''}" data-ed-feed-course="all">All</button>
+                ${courses.slice(0, 6).map((c) => `
+                  <button type="button" class="ed-filter-pill ${activeCourse === c.key ? 'active' : ''}" data-ed-feed-course="${esc(c.key)}">${esc(c.label)}</button>
+                `).join('')}
+              </div>` : ''}
+          </div>
+          <div class="ed-feed-list">
+            ${visible.map((t, idx) => {
+              const snippet = String(t.snippet || '').trim();
+              const isLong = snippet.length > 180 || snippet.split('\n').length > 3;
+              const safeUrl = /^https:\/\/(?:(?:eu|us|au)\.)?edstem\.org\/courses\/\d+\/discussion\/\d+$/.test(t.url || '')
+                ? t.url
+                : `https://${/^(?:(?:eu|us|au)\.)?edstem\.org$/.test(t.host || '') ? t.host : 'eu.edstem.org'}/courses/${encodeURIComponent(t.courseId || '')}/discussion/${encodeURIComponent(t.id || '')}`;
+              const age = formatRelativePostAge(t.updatedAt || t.createdAt);
+              return `
+                <article class="ed-feed-item ${t.isPinned || t.type === 'announcement' ? 'is-pinned' : ''}">
+                  <div class="ed-feed-meta">
+                    <div class="ed-feed-tags">
+                      ${t.courseCode || t.courseName ? `<span class="course-code-pill">${esc(t.courseCode || t.courseName)}</span>` : ''}
+                      ${t.isPinned ? '<span class="badge live">Pinned</span>' : ''}
+                      ${t.type === 'announcement' ? '<span class="badge live">Announcement</span>' : ''}
+                      ${t.isStaff && t.type !== 'announcement' ? '<span class="badge">Staff</span>' : ''}
+                      ${t.isAnswered ? '<span class="badge good">Answered</span>' : ''}
+                      ${t.category ? `<span class="topic-mini-chip">${esc(t.category)}</span>` : ''}
+                    </div>
+                    <small class="muted ed-feed-age">${t.number ? `#${t.number} · ` : ''}${esc(age)}</small>
+                  </div>
+                  <a class="ed-feed-post-title" href="${esc(safeUrl)}" target="_blank" rel="noopener">${esc(t.title)}</a>
+                  ${snippet ? `<div class="ed-feed-snippet ${isLong ? 'is-clamped' : ''}" data-ed-snippet="${idx}">${esc(snippet)}</div>` : ''}
+                  <div class="ed-feed-foot">
+                    <small class="muted">
+                      ${t.author ? `${esc(t.author)} · ` : ''}${t.replyCount} repl${t.replyCount === 1 ? 'y' : 'ies'}
+                    </small>
+                    <div class="row-actions" style="gap:8px">
+                      ${isLong ? `<button type="button" class="link-btn ed-feed-more-btn" data-ed-expand="${idx}">Read more</button>` : ''}
+                      <a class="link-btn" href="${esc(safeUrl)}" target="_blank" rel="noopener">Open in Ed ↗</a>
+                    </div>
+                  </div>
+                </article>`;
+            }).join('')}
+          </div>
+          ${filtered.length > baseLimit ? `
+            <div class="ed-feed-toggle-row">
+              <button type="button" class="ghost-btn" id="btn-ed-feed-toggle" style="padding:5px 12px;font-size:12px">
+                ${showAll ? 'Show fewer posts' : `Show all ${filtered.length} posts`}
+              </button>
+            </div>` : ''}
+        </div>`;
+
+      container.querySelectorAll('[data-ed-feed-course]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          activeCourse = btn.dataset.edFeedCourse || 'all';
+          showAll = false;
+          paint();
+        });
+      });
+      container.querySelectorAll('[data-ed-expand]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const snip = container.querySelector(`[data-ed-snippet="${btn.dataset.edExpand}"]`);
+          if (!snip) return;
+          const expanded = !snip.classList.toggle('is-clamped');
+          btn.textContent = expanded ? 'Show less' : 'Read more';
+        });
+      });
+      container.querySelector('#btn-ed-feed-toggle')?.addEventListener('click', () => {
+        showAll = !showAll;
+        paint();
+      });
+    };
+
+    paint();
+    return allThreads.length;
+  }
+
   function renderScheduleStudio() {
     const root = document.getElementById('schedule-studio-root');
     const cfg = boot.scheduleConfig || {};
-    const personalCanvas = isStaticWeb ? loadWebState().canvasSnapshot : null;
+    const wsNow = isStaticWeb ? loadWebState() : {};
+    const personalCanvas = isStaticWeb ? wsNow.canvasSnapshot : null;
+    const personalEd = isStaticWeb ? wsNow.edSnapshot : null;
+    const edThreads = Array.isArray(personalEd?.threads) ? personalEd.threads : [];
     const snapOrigin = safeCanvasOrigin(personalCanvas?.canvasOrigin || personalCanvas?.courses?.[0]?.url || '');
     const validCanvasId = id => /^[1-9][0-9]{0,19}$/.test(id || '');
     const due = (personalCanvas?.courses || []).filter(course => validCanvasId(course.id)).flatMap(course => {
@@ -5948,14 +6115,30 @@ window.StudyApp = (() => {
       breakMinutes: 10,
       restDays: [6],
       courseWeights: {},
+      customNotes: '',
       ...(cfg.prefs || {}),
     };
-    prefs.wakeTime ||= `${String(prefs.dayStartHour - 1).padStart(2, '0')}:30`;
-    prefs.bedTime ||= `${String(prefs.dayEndHour).padStart(2, '0')}:30`;
+    prefs.wakeTime ||= `${String(Math.max(5, (prefs.dayStartHour || 8) - 1)).padStart(2, '0')}:30`;
+    const sleepWin = deriveSleepWindow(prefs.wakeTime, 8);
+    prefs.bedTime = sleepWin.bedTime;
+
     const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const fixedUpcoming = (boot.calendar?.blocks || [])
+      .filter((b) => (b.blockKind === 'class_session' || b.blockKind === 'exam') && getBlockEffectiveState(b).timingState !== 'past');
     const classBlocksCount = (boot.calendar?.blocks || []).filter((b) => b.blockKind === 'class_session').length;
-    const approxWeeklyClassH = classBlocksCount ? Math.round((classBlocksCount * 1.75) / 2) : 8;
+    const approxWeeklyClassH = classBlocksCount ? Math.max(2, Math.round((classBlocksCount * 1.75) / 2)) : 8;
     const est = cfg.estimate || computeClientStudyEstimate(prefs.weeklyWorkHours, approxWeeklyClassH, boot.catalog.length || 4);
+    const isHydrogenPlan = cfg.enabled && cfg.source === 'gemini_hydrogen_schedule';
+    const aiSummary = typeof cfg.aiSummary === 'string' ? cfg.aiSummary : (wsNow.customSchedule?.aiSummary || '');
+    const aiModelLabel = typeof cfg.modelLabel === 'string' ? cfg.modelLabel : (wsNow.customSchedule?.modelLabel || 'Gemini 4 Hydrogen');
+
+    const syncStatusPill = classBlocksCount > 0
+      ? `<span class="badge good">TimeEdit synced · ${classBlocksCount} class${classBlocksCount === 1 ? '' : 'es'}</span>`
+      : isHydrogenPlan
+      ? `<span class="badge live">${esc(aiModelLabel)} plan</span>`
+      : cfg.source === 'calendar_plan_import'
+      ? '<span class="badge">Imported .ics plan</span>'
+      : '<span class="badge">Default timetable</span>';
 
     const courseWeightRows = (boot.catalog || [])
       .map((c) => {
@@ -5974,8 +6157,6 @@ window.StudyApp = (() => {
       .join('');
 
     const qState = getScheduledQueueState();
-    const fixedUpcoming = (boot.calendar?.blocks || [])
-      .filter((b) => (b.blockKind === 'class_session' || b.blockKind === 'exam') && getBlockEffectiveState(b).timingState !== 'past');
     const activeRows = [
       ...qState.debtBlocks,
       ...[...qState.liveBlocks, ...qState.upcomingBlocks, ...fixedUpcoming].sort(
@@ -5983,26 +6164,26 @@ window.StudyApp = (() => {
       ),
     ].slice(0, 32);
     const doneRows = qState.completedBlocks.slice(0, 15);
+    const hasUpdates = due.length > 0 || edThreads.length > 0;
 
     root.innerHTML = `
-      <div class="hero-card" style="margin-bottom:18px">
-        <div class="row-between" style="margin:0;flex-wrap:wrap;gap:12px">
-          <div>
-            <h1 class="hero-title" style="margin:2px 0 4px">Study schedule</h1>
-            <p class="muted" style="margin:0;font-size:13.5px">${cfg.source === 'calendar_plan_import'
-              ? 'Using your imported calendar plan · Europe/Oslo'
-              : 'Plan two weeks around your classes, work hours, and sleep.'}</p>
-          </div>
-          <div class="row-actions">
-            <button type="button" class="ghost-btn" id="btn-export-schedule">Download calendar (.ics)</button>
-            ${!isStaticWeb ? '<a class="ghost-btn" href="./canvas-connect.html" target="_blank" rel="noopener">Canvas deadlines ↗</a>' : ''}
-            ${cfg.enabled ? '<button type="button" class="ghost-btn" id="btn-reset-custom-sched">Revert to Default Calendar</button>' : ''}
-          </div>
+      <div class="sch-top-bar">
+        <div class="sch-top-left">
+          <h1 class="sch-page-title">Study schedule</h1>
+          ${syncStatusPill}
+        </div>
+        <div class="row-actions" style="gap:6px;flex-wrap:wrap">
+          ${isStaticWeb
+            ? '<button type="button" class="ghost-btn" id="btn-pair-sync-ext">Sync TimeEdit / Ed</button>'
+            : '<button type="button" class="ghost-btn" id="btn-send-desktop-setup">Send to phone ↗</button>'}
+          <button type="button" class="ghost-btn" id="btn-export-schedule">Download .ics</button>
+          ${!isStaticWeb ? '<a class="ghost-btn" href="./canvas-connect.html" target="_blank" rel="noopener">Canvas ↗</a>' : ''}
+          ${cfg.enabled ? '<button type="button" class="ghost-btn" id="btn-reset-custom-sched">Reset</button>' : ''}
         </div>
       </div>
 
       ${desktopImport ? `
-        <section class="panel device-setup-card">
+        <section class="panel device-setup-card" style="margin-bottom:14px">
           <h2>Desktop setup is ready to import</h2>
           ${desktopImport.customSchedule || desktopImport.canvasSnapshot ? `
             <p class="muted">Save your ${desktopImport.customSchedule ? 'study plan' : ''}${desktopImport.customSchedule && desktopImport.canvasSnapshot ? ' and ' : ''}${desktopImport.canvasSnapshot ? 'Canvas deadlines' : ''} to your Study-OS profile.</p>
@@ -6011,151 +6192,152 @@ window.StudyApp = (() => {
           ` : '<p class="muted">Build a study plan or run Canvas Browser Sync on your computer, then send it again.</p>'}
         </section>` : ''}
 
-      <section class="panel device-setup-card">
-        <h2>One-click browser sync (Canvas · TimeEdit / TP · Ed)</h2>
-        ${isStaticWeb
-          ? `<p class="muted">Install the Study-OS Chrome extension once, pair it with a 6-char device code, then click the extension while on <b>Canvas</b> (BI, UiA, NHH, UiO, NTNU, UiB &amp; any school), <b>TimeEdit / TP</b>, or <b>Ed Discussion</b> to sync automatically across desktop and phone.</p>
-             <div class="row-actions" style="flex-wrap:wrap">
-               <button type="button" class="primary-btn" id="btn-pair-sync-ext">Get 6-char pairing code</button>
-               <button type="button" class="ghost-btn" id="btn-pull-ext-timeedit">${cfg.enabled && cfg.source !== 'timeedit_extension_sync' ? 'Replace plan with synced timetable' : 'Import synced timetable'}</button>
-               <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Extension guide ↗</a>
-             </div>`
-          : '<p class="muted">After syncing your courses in Chrome, send your plan and Canvas deadlines to your online profile.</p><button type="button" class="ghost-btn" id="btn-send-desktop-setup">Send to phone ↗</button>'}
-        ${personalCanvas ? `<h3>Canvas deadlines${personalCanvas.school ? ` · ${esc(personalCanvas.school)}` : ''}</h3>` + (due.length ? '<ul class="mobile-deadline-list">' +
-          due.map(task => `<li><a href="${esc(task.url)}" target="_blank" rel="noopener">${esc(task.name)}</a><small>${esc(task.course)} · ${esc(new Date(task.dueAt).toLocaleString())}</small></li>`).join('') + '</ul>'
-          : '<p class="muted">No upcoming Canvas deadlines.</p>') : ''}
-      </section>
-
-      ${isStaticWeb ? `
-        <section class="panel">
-          <h2>Use your calendar plan</h2>
-          <p class="muted">Import the next two weeks from Google Calendar or Apple Calendar. Start study event titles with the course name or code, such as “Accounting: Cash flow”.</p>
-          <div class="row-actions">
-            <button type="button" class="ghost-btn" id="btn-import-calendar-plan">Import study plan (.ics)</button>
-            <input type="file" id="sch-calendar-plan" accept=".ics,text/calendar" hidden>
-          </div>
-        </section>` : ''}
-
-      <div class="schedule-studio-grid">
-        <!-- PANEL A: TIMEEDIT / TP + WORK HOURS AUTO-SCHEDULER -->
-        <section class="panel" style="margin:0">
-          <h2>Plan around TimeEdit or TP (.ics)</h2>
-          <p class="muted">Open your university's timetable in TimeEdit or TP, choose Subscribe (Abonnér), and paste the iCal / .ics link — or upload any .ics file.</p>
-          <div class="row-actions timetable-links" style="flex-wrap:wrap">
-            ${(() => {
-              const sc = getUserSchoolConfig();
-              if (sc.name && sc.timetableUrl) {
-                return `<a class="ghost-btn" href="${esc(sc.timetableUrl)}" target="_blank" rel="noopener">${esc(sc.timetableLabel)} ↗</a>
-                  <a class="ghost-btn" href="https://cloud.timeedit.net/" target="_blank" rel="noopener">TimeEdit ↗</a>
-                  <a class="ghost-btn" href="https://tp.educloud.no/" target="_blank" rel="noopener">TP Timetable ↗</a>`;
-              }
-              return `<a class="ghost-btn" href="https://cloud.timeedit.net/" target="_blank" rel="noopener">TimeEdit ↗</a>
-                <a class="ghost-btn" href="https://tp.educloud.no/" target="_blank" rel="noopener">TP Timetable ↗</a>`;
-            })()}
-          </div>
-
-          <label class="field-label">TimeEdit or TP iCal / .ics subscription link
-            <input type="url" id="sch-te-url" value="${esc(prefs.timeeditUrl || '')}" placeholder="https://cloud.timeedit.net/… or https://tp.educloud.no/…" autocomplete="off" autocapitalize="off" spellcheck="false">
-          </label>
-
-          <label class="field-label" style="margin-top:8px">Or upload an .ics file
-            <input type="file" id="sch-ics-file" accept=".ics,text/calendar" style="font-size:12.5px">
-          </label>
-
-          <div class="schedule-range-fields">
-            <label class="field-label" for="sch-work-h">
-              <span>Paid work per week <output id="sch-work-output" for="sch-work-h"></output></span>
-              <input type="range" id="sch-work-h" min="0" max="50" step="1" value="${Number(prefs.weeklyWorkHours || 0)}">
+      <section class="panel sch-planner-card">
+        <div class="sch-core-grid">
+          <div class="sch-field-group">
+            <label class="field-label sch-slider-label" for="sch-work-h">
+              <span>Paid work per week</span>
+              <output id="sch-work-output" for="sch-work-h">${Number(prefs.weeklyWorkHours || 0)} h</output>
             </label>
-            <label class="field-label" for="sch-study-h">
-              <span>Study time outside class <output id="sch-study-output" for="sch-study-h"></output></span>
-              <input type="range" id="sch-study-h" min="2" max="45" step="0.5" value="${Number(prefs.targetStudyHours || est.recommendedStudyHours)}" ${prefs.autoAdjustStudy !== false ? 'disabled' : ''}>
-            </label>
-          </div>
-
-          <label style="display:inline-flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;cursor:pointer">
-            <input type="checkbox" id="sch-auto-adjust" ${prefs.autoAdjustStudy !== false ? 'checked' : ''}>
-            <span><strong>Auto-adjust study hours</strong> from weekly job hours &amp; lecture load</span>
-          </label>
-
-          <div class="estimate-callout" id="sch-estimate-box">
-            <strong>Rough Weekly Load Estimate:</strong>
-            Job <b>${est.weeklyWorkHours}h</b> + Lectures <b>~${est.weeklyClassHours}h</b> → Recommended Deep Study: <b>${est.recommendedStudyHours}h/wk</b> (Total committed: <b>${est.totalCommittedHours}h/wk</b>)
-          </div>
-
-          <div class="schedule-time-fields">
-            <label class="field-label">Wake-up time
-              <input type="time" id="sch-wake" required value="${esc(prefs.wakeTime)}">
-            </label>
-            <label class="field-label">Bedtime
-              <input type="time" id="sch-bed" required value="${esc(prefs.bedTime)}">
-            </label>
-            <label class="field-label">Block Rhythm
-              <select id="sch-rhythm">
-                <option value="50:10" ${Number(prefs.blockMinutes) === 50 ? 'selected' : ''}>50m / 10m</option>
-                <option value="75:15" ${Number(prefs.blockMinutes) === 75 ? 'selected' : ''}>75m / 15m</option>
-                <option value="40:10" ${Number(prefs.blockMinutes) === 40 ? 'selected' : ''}>40m / 10m</option>
-              </select>
-            </label>
-          </div>
-          <p class="muted schedule-field-tip">Study starts at least 30 minutes after waking and ends at least 30 minutes before bedtime.</p>
-
-          <div style="margin-top:10px">
-            <small class="muted" style="font-weight:700">REST / OFF DAYS:</small>
-            <div class="day-toggle-row">
-              ${dayLabels
-                .map(
-                  (lbl, idx) => `
-                <label class="day-chip">
-                  <input type="checkbox" data-rest-day="${idx}" ${(prefs.restDays || []).includes(idx) ? 'checked' : ''}>
-                  ${lbl}
-                </label>`
-                )
-                .join('')}
+            <input type="range" id="sch-work-h" class="sch-range" min="0" max="45" step="1" value="${Number(prefs.weeklyWorkHours || 0)}">
+            <div class="sch-load-hint" id="sch-estimate-box">
+              Classes <b>~${est.weeklyClassHours}h</b> · Study <b>${est.recommendedStudyHours}h/wk</b> · Total <b>${est.totalCommittedHours}h/wk</b>
             </div>
           </div>
 
-          ${courseWeightRows ? `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:13px;font-weight:600">Customize Per-Course Weights</summary><div style="margin-top:6px">${courseWeightRows}</div></details>` : ''}
-
-          <div class="row-actions" style="margin-top:14px">
-            <button type="button" class="primary-btn" id="btn-generate-sched">Build my study plan</button>
+          <div class="sch-field-group sch-wake-group">
+            <label class="field-label" for="sch-wake">
+              <span>Wake-up time</span>
+              <input type="time" id="sch-wake" required value="${esc(sleepWin.wakeTime)}">
+            </label>
+            <div class="sch-load-hint" id="sch-sleep-hint">
+              8h sleep protected · Bedtime <b>${esc(sleepWin.bedTime)}</b> · Study <b>${esc(sleepWin.studyStart)}–${esc(sleepWin.studyEnd)}</b>
+            </div>
           </div>
-        </section>
-
-        <!-- PANEL B: 1-PROMPT ANY-LLM COPY-PASTE SCHEDULE BUILDER -->
-        <section class="panel" style="margin:0">
-          <span class="eyebrow">Option 2 · Zero-API-Key Any-LLM Workflow</span>
-          <h3 style="margin:4px 0 6px">1-Prompt LLM Schedule Designer</h3>
-          <p class="muted" style="margin:0 0 10px;font-size:13px">
-            Works with ChatGPT, Claude, Gemini, or any local on-device LLM (Ollama / LM Studio). Copy one prompt, let the LLM plan around your exact shifts, and paste its JSON or <code>.ics</code> reply below.
-          </p>
-
-          <label class="field-label">Your Personal Shifts / Preferences for the Prompt (optional)
-            <input type="text" id="llm-custom-notes" placeholder="e.g. Work Tue &amp; Thu 16:00-21:00, gym Mon/Wed 17:00, focus extra on Accounting...">
-          </label>
-
-          <div class="row-actions" style="margin:10px 0 12px">
-            <button type="button" class="ghost-btn" style="flex:1" id="btn-copy-llm-prompt">1. Copy Universal LLM Schedule Prompt</button>
-          </div>
-
-          <label class="field-label">2. Paste LLM Output Here (<code>study-os-schedule-v1</code> JSON or <code>BEGIN:VCALENDAR</code> .ics)
-            <textarea id="llm-paste-box" style="min-height:165px;font-family:ui-monospace,monospace;font-size:12px" placeholder='Paste the JSON block or .ics calendar output from your LLM here...'></textarea>
-          </label>
-
-          <div class="row-actions" style="margin-top:10px">
-            <button type="button" class="primary-btn" style="flex:1" id="btn-apply-llm-sched">Apply Pasted Schedule →</button>
-          </div>
-        </section>
-      </div>
-
-      <section class="panel timetable-links">
-        <h2>Add your plan to a calendar</h2>
-        <p class="muted">Download your study blocks. Import the file into Google Calendar on a computer, or open it in Calendar on a Mac and choose your iCloud calendar.</p>
-        <div class="row-actions">
-          <a class="ghost-btn" href="https://calendar.google.com/calendar/r/settings/export" target="_blank" rel="noopener">Google Calendar import ↗</a>
-          <a class="ghost-btn" href="https://support.apple.com/guide/calendar/icl1023/mac" target="_blank" rel="noopener">Apple Calendar import ↗</a>
         </div>
+
+        <label class="field-label sch-notes-field">
+          <span>Shifts, workouts or priorities <small class="muted">(optional — used by Gemini 4 Hydrogen)</small></span>
+          <input type="text" id="llm-custom-notes" maxlength="500" value="${esc(prefs.customNotes || '')}" placeholder="e.g. Work Tue &amp; Thu 16:00–21:00, gym Mon/Wed 18:00, focus extra on Accounting">
+        </label>
+
+        <div class="sch-action-bar">
+          <button type="button" class="primary-btn" id="btn-hydrogen-sched">${isHydrogenPlan ? 'Update with Hydrogen' : 'Plan with Hydrogen'}</button>
+          <button type="button" class="ghost-btn" id="btn-generate-sched">Quick auto-plan</button>
+          <span class="muted sch-plan-status" id="sch-plan-status" role="status"></span>
+        </div>
+
+        ${isHydrogenPlan && aiSummary ? `
+          <div class="sch-ai-summary">
+            <span class="badge good">${esc(aiModelLabel)}</span>
+            <span>${esc(aiSummary)}</span>
+          </div>` : ''}
+
+        <details class="sch-more-details">
+          <summary>More options · Timetable .ics, rhythm, weights &amp; external LLM</summary>
+          <div class="sch-more-body">
+            <div class="sch-more-col">
+              <h4>Timetable &amp; calendar import</h4>
+              <div class="row-actions" style="flex-wrap:wrap;gap:6px;margin-bottom:8px">
+                ${isStaticWeb ? `<button type="button" class="ghost-btn" id="btn-pull-ext-timeedit">${cfg.enabled && cfg.source !== 'timeedit_extension_sync' ? 'Pull synced TimeEdit' : 'Import synced TimeEdit'}</button>` : ''}
+                ${isStaticWeb ? `<button type="button" class="ghost-btn" id="btn-import-calendar-plan">Import calendar (.ics)</button><input type="file" id="sch-calendar-plan" accept=".ics,text/calendar" hidden>` : ''}
+                ${(() => {
+                  const sc = getUserSchoolConfig();
+                  const primary = sc.name && sc.timetableUrl
+                    ? `<a class="ghost-btn" href="${esc(sc.timetableUrl)}" target="_blank" rel="noopener">${esc(sc.timetableLabel)} ↗</a>`
+                    : '';
+                  return `${primary}<a class="ghost-btn" href="https://cloud.timeedit.net/" target="_blank" rel="noopener">TimeEdit ↗</a><a class="ghost-btn" href="https://tp.educloud.no/" target="_blank" rel="noopener">TP ↗</a>`;
+                })()}
+              </div>
+              <label class="field-label">TimeEdit or TP iCal / .ics link
+                <input type="url" id="sch-te-url" value="${esc(prefs.timeeditUrl || '')}" placeholder="https://cloud.timeedit.net/… or https://tp.educloud.no/…" autocomplete="off" autocapitalize="off" spellcheck="false">
+              </label>
+              <label class="field-label" style="margin-top:6px">Or upload an .ics file
+                <input type="file" id="sch-ics-file" accept=".ics,text/calendar" style="font-size:12.5px">
+              </label>
+              <div class="row-actions" style="flex-wrap:wrap;gap:6px;margin-top:8px">
+                <a class="ghost-btn" href="https://calendar.google.com/calendar/r/settings/export" target="_blank" rel="noopener">Google Calendar import ↗</a>
+                <a class="ghost-btn" href="https://support.apple.com/guide/calendar/icl1023/mac" target="_blank" rel="noopener">Apple Calendar import ↗</a>
+                <a class="ghost-btn" href="https://github.com/shadjosef/study-os/blob/main/docs/canvas-browser-sync.md" target="_blank" rel="noopener">Extension guide ↗</a>
+              </div>
+            </div>
+
+            <div class="sch-more-col">
+              <h4>Fine-tune blocks &amp; weights</h4>
+              <div class="sch-finetune-row">
+                <label class="field-label" for="sch-study-h" style="flex:1">
+                  <span>Study hrs/wk <output id="sch-study-output" for="sch-study-h"></output></span>
+                  <input type="range" id="sch-study-h" class="sch-range" min="2" max="45" step="0.5" value="${Number(prefs.targetStudyHours || est.recommendedStudyHours)}" ${prefs.autoAdjustStudy !== false ? 'disabled' : ''}>
+                </label>
+                <label class="field-label" style="width:128px">Block rhythm
+                  <select id="sch-rhythm">
+                    <option value="50:10" ${Number(prefs.blockMinutes) === 50 ? 'selected' : ''}>50m / 10m</option>
+                    <option value="75:15" ${Number(prefs.blockMinutes) === 75 ? 'selected' : ''}>75m / 15m</option>
+                    <option value="40:10" ${Number(prefs.blockMinutes) === 40 ? 'selected' : ''}>40m / 10m</option>
+                  </select>
+                </label>
+              </div>
+              <label style="display:inline-flex;align-items:center;gap:8px;margin-top:4px;font-size:12.5px;cursor:pointer">
+                <input type="checkbox" id="sch-auto-adjust" ${prefs.autoAdjustStudy !== false ? 'checked' : ''}>
+                <span>Auto-adjust study hours from work &amp; lectures</span>
+              </label>
+              <div style="margin-top:8px">
+                <small class="muted" style="font-weight:700">REST / OFF DAYS</small>
+                <div class="day-toggle-row">
+                  ${dayLabels.map((lbl, idx) => `
+                    <label class="day-chip">
+                      <input type="checkbox" data-rest-day="${idx}" ${(prefs.restDays || []).includes(idx) ? 'checked' : ''}>
+                      ${lbl}
+                    </label>`).join('')}
+                </div>
+              </div>
+              ${courseWeightRows ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px;font-weight:600">Per-course weights</summary><div style="margin-top:4px">${courseWeightRows}</div></details>` : ''}
+            </div>
+
+            <div class="sch-more-col sch-more-full">
+              <h4>External LLM (ChatGPT, Claude, Ollama)</h4>
+              <div class="row-actions" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                <button type="button" class="ghost-btn" id="btn-copy-llm-prompt">Copy schedule prompt</button>
+                <button type="button" class="primary-btn" id="btn-apply-llm-sched">Apply pasted JSON / .ics →</button>
+              </div>
+              <textarea id="llm-paste-box" style="min-height:92px;font-family:ui-monospace,monospace;font-size:12px" placeholder='Paste study-os-schedule-v1 JSON or BEGIN:VCALENDAR .ics here…'></textarea>
+            </div>
+          </div>
+        </details>
       </section>
+
+      ${hasUpdates ? `
+        <div class="sch-updates-grid ${due.length && edThreads.length ? 'two-col' : ''}">
+          ${due.length ? `
+            <section class="panel sch-compact-panel">
+              <div class="row-between" style="margin:0 0 8px;gap:8px">
+                <div class="row-actions" style="gap:7px">
+                  <h3 style="margin:0;font-size:15px">Canvas deadlines${personalCanvas?.school ? ` · ${esc(personalCanvas.school)}` : ''}</h3>
+                  <span class="badge">${due.length}</span>
+                </div>
+              </div>
+              <ul class="sch-deadline-list">
+                ${due.slice(0, 6).map((task) => `
+                  <li>
+                    <a href="${esc(task.url)}" target="_blank" rel="noopener">${esc(task.name)}</a>
+                    <small>${esc(task.course)} · ${esc(new Date(task.dueAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</small>
+                  </li>`).join('')}
+              </ul>
+              ${due.length > 6 ? `
+                <details style="margin-top:6px">
+                  <summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--muted)">Show ${due.length - 6} more deadlines</summary>
+                  <ul class="sch-deadline-list" style="margin-top:6px">
+                    ${due.slice(6).map((task) => `
+                      <li>
+                        <a href="${esc(task.url)}" target="_blank" rel="noopener">${esc(task.name)}</a>
+                        <small>${esc(task.course)} · ${esc(new Date(task.dueAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</small>
+                      </li>`).join('')}
+                  </ul>
+                </details>` : ''}
+            </section>` : ''}
+          ${edThreads.length ? `<section class="panel sch-compact-panel" id="sch-ed-feed-slot"></section>` : ''}
+        </div>` : ''}
+
       <!-- ACTIVE SCHEDULE, STUDY DEBT ROLLOVER & EARLY COMPLETION -->
       <div class="panel">
         <div class="row-between" style="margin-top:0;flex-wrap:wrap;gap:10px">
@@ -6211,7 +6393,7 @@ window.StudyApp = (() => {
                         </tr>`;
                       })
                       .join('')
-                  : '<tr><td colspan="6" class="muted">No queued blocks yet — build a study plan above or paste an LLM schedule.</td></tr>'
+                  : '<tr><td colspan="6" class="muted">No queued blocks yet — click Plan with Hydrogen or Quick auto-plan above.</td></tr>'
               }
             </tbody>
           </table>
@@ -6241,8 +6423,11 @@ window.StudyApp = (() => {
       </div>
     `;
 
+    const edSlot = document.getElementById('sch-ed-feed-slot');
+    if (edSlot) renderEdFeedInto(edSlot, { limit: 4, title: 'Ed Discussion' });
+
     const collectFormPrefs = () => {
-      const [bMin, brkMin] = document.getElementById('sch-rhythm').value.split(':').map(Number);
+      const [bMin, brkMin] = (document.getElementById('sch-rhythm')?.value || '50:10').split(':').map(Number);
       const restDays = [];
       root.querySelectorAll('[data-rest-day]').forEach((cb) => {
         if (cb.checked) restDays.push(Number(cb.dataset.restDay));
@@ -6251,17 +6436,20 @@ window.StudyApp = (() => {
       root.querySelectorAll('[data-course-weight]').forEach((sel) => {
         courseWeights[sel.dataset.courseWeight] = Number(sel.value);
       });
+      const wakeVal = document.getElementById('sch-wake')?.value || '07:30';
+      const win = deriveSleepWindow(wakeVal, 8);
       return {
-        timeeditUrl: document.getElementById('sch-te-url').value.trim(),
-        weeklyWorkHours: Number(document.getElementById('sch-work-h').value || 0),
-        autoAdjustStudy: document.getElementById('sch-auto-adjust').checked,
-        targetStudyHours: Number(document.getElementById('sch-study-h').value || 25),
-        wakeTime: document.getElementById('sch-wake').value,
-        bedTime: document.getElementById('sch-bed').value,
+        timeeditUrl: document.getElementById('sch-te-url')?.value.trim() || '',
+        weeklyWorkHours: Number(document.getElementById('sch-work-h')?.value || 0),
+        autoAdjustStudy: document.getElementById('sch-auto-adjust')?.checked ?? true,
+        targetStudyHours: Number(document.getElementById('sch-study-h')?.value || 25),
+        wakeTime: win.wakeTime,
+        bedTime: win.bedTime,
         blockMinutes: bMin || 50,
         breakMinutes: brkMin || 10,
         restDays,
         courseWeights,
+        customNotes: document.getElementById('llm-custom-notes')?.value.trim() || '',
       };
     };
 
@@ -6269,21 +6457,31 @@ window.StudyApp = (() => {
       const p = collectFormPrefs();
       const e = computeClientStudyEstimate(p.weeklyWorkHours, approxWeeklyClassH, boot.catalog.length || 4);
       const studyInput = document.getElementById('sch-study-h');
-      studyInput.disabled = p.autoAdjustStudy;
-      if (p.autoAdjustStudy) studyInput.value = e.recommendedStudyHours;
-      document.getElementById('sch-work-output').value = `${p.weeklyWorkHours} h`;
-      document.getElementById('sch-study-output').value = `${studyInput.value} h`;
-      document.getElementById('sch-estimate-box').innerHTML = `
-        <strong>Rough Weekly Load Estimate:</strong>
-        Job <b>${e.weeklyWorkHours}h</b> + Lectures <b>~${e.weeklyClassHours}h</b> → Recommended Deep Study: <b>${e.recommendedStudyHours}h/wk</b> (Total committed: <b>${
-        Math.round((e.weeklyWorkHours + e.weeklyClassHours + (p.autoAdjustStudy ? e.recommendedStudyHours : p.targetStudyHours)) * 10) / 10
-      }h/wk</b>)
-      `;
+      if (studyInput) {
+        studyInput.disabled = p.autoAdjustStudy;
+        if (p.autoAdjustStudy) studyInput.value = e.recommendedStudyHours;
+      }
+      const studyH = p.autoAdjustStudy ? e.recommendedStudyHours : p.targetStudyHours;
+      const totalH = Math.round((e.weeklyWorkHours + e.weeklyClassHours + studyH) * 10) / 10;
+      const workOut = document.getElementById('sch-work-output');
+      const studyOut = document.getElementById('sch-study-output');
+      if (workOut) workOut.value = `${p.weeklyWorkHours} h`;
+      if (studyOut && studyInput) studyOut.value = `${studyInput.value} h`;
+      const estBox = document.getElementById('sch-estimate-box');
+      if (estBox) {
+        estBox.innerHTML = `Classes <b>~${e.weeklyClassHours}h</b> · Study <b>${studyH}h/wk</b> · Total <b>${totalH}h/wk</b>`;
+      }
+      const win = deriveSleepWindow(p.wakeTime, 8);
+      const sleepHint = document.getElementById('sch-sleep-hint');
+      if (sleepHint) {
+        sleepHint.innerHTML = `8h sleep protected · Bedtime <b>${esc(win.bedTime)}</b> · Study <b>${esc(win.studyStart)}–${esc(win.studyEnd)}</b>`;
+      }
     };
 
-    document.getElementById('sch-work-h').oninput = refreshEstimateUI;
-    document.getElementById('sch-study-h').oninput = refreshEstimateUI;
-    document.getElementById('sch-auto-adjust').onchange = refreshEstimateUI;
+    document.getElementById('sch-work-h')?.addEventListener('input', refreshEstimateUI);
+    document.getElementById('sch-study-h')?.addEventListener('input', refreshEstimateUI);
+    document.getElementById('sch-auto-adjust')?.addEventListener('change', refreshEstimateUI);
+    document.getElementById('sch-wake')?.addEventListener('input', refreshEstimateUI);
     refreshEstimateUI();
 
     document.getElementById('btn-export-schedule').onclick = () => {
@@ -6332,6 +6530,198 @@ window.StudyApp = (() => {
       finally { button.disabled = false; }
     });
 
+    async function resolveFixedTimetableEvents(formPrefs, icsText = '') {
+      if (icsText) return window.StudySchedule.readCalendar(icsText);
+      if (formPrefs.timeeditUrl) {
+        const text = await window.StudyCommunity.fetchTimeEdit(formPrefs.timeeditUrl);
+        return window.StudySchedule.readCalendar(text);
+      }
+      const ws = loadWebState();
+      const existing = (ws.customSchedule?.blocks || [])
+        .filter((b) => ['class_session', 'exam'].includes(b.blockKind) && Date.parse(b.endIso) > Date.now());
+      if (existing.length) {
+        return existing.map((b) => ({
+          uid: b.eventId,
+          summary: b.summary,
+          start: Date.parse(b.startIso),
+          end: Date.parse(b.endIso),
+          allDay: b.allDay,
+          kind: b.blockKind,
+          courseId: b.courseId || '',
+        }));
+      }
+      if (isStaticWeb && window.StudyCommunity?.isSignedIn?.()) {
+        try {
+          const feed = await window.StudyCommunity.fetchExtensionTimeEdit();
+          if (feed?.hasFeed && feed.calendar) {
+            return await window.StudySchedule.readCalendar(feed.calendar);
+          }
+        } catch {}
+      }
+      return [];
+    }
+
+    const hydrogenBtn = document.getElementById('btn-hydrogen-sched');
+    if (hydrogenBtn) {
+      hydrogenBtn.onclick = async () => {
+        if (!window.StudyCommunity?.enabled) {
+          toast('Hydrogen planner needs the online API — use Quick auto-plan here.');
+          return;
+        }
+        if (!window.StudyCommunity.isSignedIn?.()) {
+          window.StudyCommunity.requireProfile?.('Sign in to plan with Gemini 4 Hydrogen, or use Quick auto-plan.');
+          return;
+        }
+        const statusEl = document.getElementById('sch-plan-status');
+        hydrogenBtn.disabled = true;
+        hydrogenBtn.textContent = 'Planning with Hydrogen…';
+        if (statusEl) statusEl.textContent = 'Reading synced timetable & building 2-week plan…';
+        try {
+          const formPrefs = collectFormPrefs();
+          window.StudySchedule.bounds(formPrefs.wakeTime, formPrefs.bedTime);
+          const fileEl = document.getElementById('sch-ics-file');
+          const file = fileEl?.files?.[0];
+          if (file && file.size > 2_000_000) throw new Error('Choose an .ics file under 2 MB.');
+          const icsText = file ? await file.text() : '';
+          const fixed = await resolveFixedTimetableEvents(formPrefs, icsText);
+
+          const fixedEvents = fixed
+            .filter((ev) => !ev.allDay && Number.isFinite(ev.start) && Number.isFinite(ev.end) && ev.end > Date.now())
+            .slice(0, 60)
+            .map((ev) => {
+              const sd = new Date(ev.start);
+              const ed = new Date(ev.end);
+              const dateStr = `${sd.getFullYear()}-${String(sd.getMonth() + 1).padStart(2, '0')}-${String(sd.getDate()).padStart(2, '0')}`;
+              return {
+                date: dateStr,
+                startTime: `${String(sd.getHours()).padStart(2, '0')}:${String(sd.getMinutes()).padStart(2, '0')}`,
+                endTime: `${String(ed.getHours()).padStart(2, '0')}:${String(ed.getMinutes()).padStart(2, '0')}`,
+                summary: String(ev.summary || 'Class').slice(0, 80),
+                kind: /\b(eksamen|exam|midterm|final)\b/i.test(ev.summary || '') || ev.kind === 'exam' ? 'exam' : 'class',
+              };
+            });
+
+          const weeklyClassH = fixedEvents.length ? Math.max(2, Math.round((fixedEvents.length * 1.75) / 2)) : approxWeeklyClassH;
+          const liveEst = computeClientStudyEstimate(formPrefs.weeklyWorkHours, weeklyClassH, boot.catalog.length || 4);
+          const targetStudyHours = formPrefs.autoAdjustStudy ? liveEst.recommendedStudyHours : formPrefs.targetStudyHours;
+          const nowDate = new Date();
+          const startDate = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}-${String(nowDate.getDate()).padStart(2, '0')}`;
+
+          const coursesPayload = (boot.catalog || []).slice(0, 12).map((c) => {
+            const cp = boot.analytics?.courseProgress?.[c.courseId] || {};
+            return {
+              courseId: c.courseId,
+              code: c.code || '',
+              title: c.shortTitle || c.title || '',
+              examDate: c.examInfo?.date || '',
+              done: Number(cp.done || 0),
+              total: Number(c.questionCount || 0),
+              weight: Number(formPrefs.courseWeights?.[c.courseId] ?? 1.0),
+              topics: (c.topics || []).slice(0, 6).map((t) => String(t.title || '').slice(0, 60)).filter(Boolean),
+            };
+          });
+
+          const res = await window.StudyCommunity.generateAiSchedule({
+            wakeTime: formPrefs.wakeTime,
+            sleepHours: 8,
+            weeklyWorkHours: formPrefs.weeklyWorkHours,
+            targetStudyHours,
+            blockMinutes: formPrefs.blockMinutes,
+            breakMinutes: formPrefs.breakMinutes,
+            restDays: formPrefs.restDays,
+            notes: formPrefs.customNotes,
+            startDate,
+            horizonDays: 14,
+            courses: coursesPayload,
+            fixedEvents,
+            deadlines: due.slice(0, 12).map((d) => ({
+              date: String(d.dueAt || '').slice(0, 10),
+              name: d.name,
+              course: d.course,
+            })),
+          });
+
+          const fixedBlocks = fixed
+            .filter((ev) => !ev.allDay && Number.isFinite(ev.start) && Number.isFinite(ev.end) && ev.end > Date.now())
+            .map((ev, i) => {
+              const sd = new Date(ev.start);
+              const ed = new Date(ev.end);
+              const isExam = /\b(eksamen|exam|midterm|final)\b/i.test(ev.summary || '') || ev.kind === 'exam';
+              const matchCourse = (boot.catalog || []).find((c) =>
+                String(ev.summary || '').toLowerCase().includes((c.code || '').toLowerCase()) ||
+                (c.shortTitle && String(ev.summary || '').toLowerCase().includes(c.shortTitle.toLowerCase()))
+              );
+              return {
+                eventId: ev.uid || `te-fixed-${i + 1}`,
+                summary: ev.summary || (isExam ? 'Exam' : 'Lecture'),
+                date: `${sd.getFullYear()}-${String(sd.getMonth() + 1).padStart(2, '0')}-${String(sd.getDate()).padStart(2, '0')}`,
+                startIso: sd.toISOString(),
+                endIso: ed.toISOString(),
+                startLabel: `${String(sd.getHours()).padStart(2, '0')}:${String(sd.getMinutes()).padStart(2, '0')}`,
+                endLabel: `${String(ed.getHours()).padStart(2, '0')}:${String(ed.getMinutes()).padStart(2, '0')}`,
+                focusMinutes: Math.max(15, Math.round((ed - sd) / 60_000)),
+                attemptBudgetMinutes: 0,
+                courseId: ev.courseId || matchCourse?.courseId || '',
+                blockKind: isExam ? 'exam' : 'class_session',
+                timingState: 'upcoming',
+              };
+            });
+
+          const aiBlocks = (res.blocks || []).map((b, i) => {
+            const sd = new Date(`${b.date}T${b.startTime}:00`);
+            const ed = new Date(`${b.date}T${b.endTime}:00`);
+            const dur = Math.max(20, Math.round((ed - sd) / 60_000));
+            return {
+              eventId: `hydrogen-${b.date}-${b.startTime.replace(':', '')}-${i + 1}`,
+              summary: b.title || 'Focused study block',
+              date: b.date,
+              startIso: sd.toISOString(),
+              endIso: ed.toISOString(),
+              startLabel: b.startTime,
+              endLabel: b.endTime,
+              focusMinutes: dur,
+              attemptBudgetMinutes: Math.round(dur * 0.85),
+              courseId: b.courseId || boot.catalog[0]?.courseId || '',
+              dlpfcMode: b.dlpfcMode || 'high_dlpfc',
+              profile: b.profile === 'exam' ? 'exam' : 'learning',
+              blockKind: 'study_block',
+              timingState: 'upcoming',
+            };
+          });
+
+          const mergedBlocks = [...fixedBlocks, ...aiBlocks].sort(
+            (a, b) => Date.parse(a.startIso || '') - Date.parse(b.startIso || '')
+          );
+
+          const ws = loadWebState();
+          ws.customSchedule = {
+            ...ws.customSchedule,
+            enabled: true,
+            source: 'gemini_hydrogen_schedule',
+            prefs: formPrefs,
+            blocks: mergedBlocks,
+            estimate: liveEst,
+            aiSummary: res.summary || '',
+            modelLabel: res.modelLabel || 'Gemini 4 Hydrogen',
+            updatedAt: new Date().toISOString(),
+          };
+          saveWebState(ws);
+          recomputeWebAnalytics();
+          syncCloudProgress().catch(() => {});
+          toast(`Planned ${aiBlocks.length} study blocks with ${res.modelLabel || 'Gemini 4 Hydrogen'}${fixedBlocks.length ? ` around ${fixedBlocks.length} classes` : ''}.`);
+          renderScheduleStudio();
+        } catch (err) {
+          if (statusEl) statusEl.textContent = '';
+          toast(err?.message || 'Could not generate Hydrogen schedule — try Quick auto-plan.');
+        } finally {
+          if (hydrogenBtn.isConnected) {
+            hydrogenBtn.disabled = false;
+            hydrogenBtn.textContent = isHydrogenPlan ? 'Update with Hydrogen' : 'Plan with Hydrogen';
+          }
+        }
+      };
+    }
+
     document.getElementById('btn-generate-sched').onclick = async (event) => {
       const button = event.currentTarget;
       button.disabled = true;
@@ -6339,22 +6729,19 @@ window.StudyApp = (() => {
       const fileEl = document.getElementById('sch-ics-file');
       try {
         window.StudySchedule.bounds(formPrefs.wakeTime, formPrefs.bedTime);
-        const file = fileEl.files?.[0];
+        const file = fileEl?.files?.[0];
         if (file && file.size > 2_000_000) throw new Error('Choose an .ics file under 2 MB.');
         const icsText = file ? await file.text() : '';
         if (file) formPrefs.timeeditUrl = '';
         if (isStaticWeb) {
-          const text = icsText || (formPrefs.timeeditUrl ? await window.StudyCommunity.fetchTimeEdit(formPrefs.timeeditUrl) : '');
-          const ws = loadWebState();
-          const fixed = text ? await window.StudySchedule.readCalendar(text) : (ws.customSchedule?.blocks || [])
-            .filter(b => ['class_session', 'exam'].includes(b.blockKind) && Date.parse(b.endIso) > Date.now())
-            .map(b => ({ uid: b.eventId, summary: b.summary, start: Date.parse(b.startIso), end: Date.parse(b.endIso), allDay: b.allDay }));
+          const fixed = await resolveFixedTimetableEvents(formPrefs, icsText);
           const plan = window.StudySchedule.plan(fixed, formPrefs, boot.catalog, boot.analytics?.courseProgress || {}, computeClientStudyEstimate);
-          if (!plan.blocks.length) throw new Error('No time fits these settings. Widen your awake hours or choose fewer rest days.');
+          if (!plan.blocks.length) throw new Error('No time fits these settings. Adjust your wake-up time or rest days.');
+          const ws = loadWebState();
           ws.customSchedule = {
             ...ws.customSchedule,
             enabled: true, source: 'timeedit_auto_scheduler', prefs: formPrefs, blocks: plan.blocks,
-            estimate: plan.estimate, updatedAt: new Date().toISOString(),
+            estimate: plan.estimate, aiSummary: '', updatedAt: new Date().toISOString(),
           };
           saveWebState(ws);
           recomputeWebAnalytics();
@@ -6373,22 +6760,23 @@ window.StudyApp = (() => {
       }
     };
 
-    document.getElementById('btn-copy-llm-prompt').onclick = async () => {
+    document.getElementById('btn-copy-llm-prompt')?.addEventListener('click', async () => {
       const promptTxt = buildUniversalLlmSchedulePrompt(
         collectFormPrefs(),
-        document.getElementById('llm-custom-notes').value.trim()
+        document.getElementById('llm-custom-notes')?.value.trim() || ''
       );
       try {
         await navigator.clipboard.writeText(promptTxt);
         toast('Copied Universal LLM Schedule Prompt! Paste it into any LLM.');
       } catch {
-        document.getElementById('llm-paste-box').value = promptTxt;
+        const box = document.getElementById('llm-paste-box');
+        if (box) box.value = promptTxt;
         toast('Placed prompt in text box — copy and send to your LLM!');
       }
-    };
+    });
 
-    document.getElementById('btn-apply-llm-sched').onclick = async () => {
-      const raw = document.getElementById('llm-paste-box').value.trim();
+    document.getElementById('btn-apply-llm-sched')?.addEventListener('click', async () => {
+      const raw = document.getElementById('llm-paste-box')?.value.trim() || '';
       if (!raw) {
         toast('Paste the JSON or .ics output from your LLM first.');
         return;
@@ -6397,7 +6785,7 @@ window.StudyApp = (() => {
         try {
           const blocks = parseClientSchedulePayload(raw);
           const ws = loadWebState();
-          ws.customSchedule = { enabled: true, source: 'llm_universal_import', prefs: collectFormPrefs(), blocks, updatedAt: new Date().toISOString() };
+          ws.customSchedule = { enabled: true, source: 'llm_universal_import', prefs: collectFormPrefs(), blocks, aiSummary: '', updatedAt: new Date().toISOString() };
           saveWebState(ws);
           recomputeWebAnalytics();
           syncCloudProgress().catch(() => {});
@@ -6417,12 +6805,12 @@ window.StudyApp = (() => {
       } catch {
         toast('Could not parse pasted schedule — ensure valid JSON or .ics format.');
       }
-    };
+    });
 
     document.getElementById('btn-reset-custom-sched')?.addEventListener('click', async () => {
       if (isStaticWeb) {
         const ws = loadWebState();
-        ws.customSchedule = { enabled: false, prefs: {}, blocks: [], updatedAt: new Date().toISOString() };
+        ws.customSchedule = { enabled: false, prefs: {}, blocks: [], aiSummary: '', updatedAt: new Date().toISOString() };
         saveWebState(ws);
         await refreshBootstrap(false);
         syncCloudProgress().catch(() => {});
@@ -6446,7 +6834,7 @@ window.StudyApp = (() => {
         if (silent && activePlan.enabled && activePlan.source !== 'timeedit_extension_sync') return;
         const feed = await window.StudyCommunity.fetchExtensionTimeEdit();
         if (!feed?.hasFeed || !feed.calendar) {
-          if (!silent) toast('No TimeEdit timetable synced from the extension yet. Open BI TimeEdit in Chrome and click Study-OS Sync.');
+          if (!silent) toast('No TimeEdit timetable synced from the extension yet. Open TimeEdit or TP in Chrome and click Study-OS Sync.');
           return;
         }
         const formPrefs = collectFormPrefs();
@@ -6563,7 +6951,7 @@ window.StudyApp = (() => {
             ${topicsHtml}
           </div>
           <div class="course-actions">
-            <button type="button" class="primary-btn" data-comm-gen="${idx}">✨ AI Set</button>
+            <button type="button" class="primary-btn" data-comm-gen="${idx}">Study Set</button>
             <button type="button" class="ghost-btn" data-comm-ai="${idx}">Al</button>
             ${/^[1-9][0-9]{0,19}$/.test(course.canvasId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="${esc(origin)}/courses/${course.canvasId}">Canvas ↗</a>` : ''}
             ${/^[1-9][0-9]{0,19}$/.test(course.edCourseId || '') ? `<a class="ghost-btn" target="_blank" rel="noopener" href="https://${edHost}/courses/${course.edCourseId}">Ed ↗</a>` : ''}
@@ -8221,6 +8609,8 @@ window.StudyApp = (() => {
     onSchoolChanged,
     getBiSyncStatus,
     openBiSyncHub,
+    getEdSnapshot: () => (isStaticWeb ? loadWebState().edSnapshot : null),
+    renderEdFeedInto,
     fetchCanvasPdfViaExtension,
     onDevModeChange,
     navigate,

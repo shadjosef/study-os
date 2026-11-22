@@ -88,8 +88,9 @@ function formatResultLine(item) {
     return { cls: 'ok', text: `✓ Timetable: ${s.eventCount || 0} classes synced to Schedule` };
   }
   if (item.site === 'ed') {
+    const posts = s.threads ? `, ${s.threads} post${s.threads === 1 ? '' : 's'}` : '';
     const note = s.sharedPublic ? ` (${s.createdCount} new, ${s.updatedCount} merged)` : ' (private)';
-    return { cls: 'ok', text: `✓ Ed: ${s.courses} course${s.courses === 1 ? '' : 's'}${note}` };
+    return { cls: 'ok', text: `✓ Ed: ${s.courses} course${s.courses === 1 ? '' : 's'}${posts}${note}` };
   }
   const school = s.school ? `${s.school} Canvas` : 'Canvas';
   const note = s.sharedPublic ? ` · ${s.createdCount} new, ${s.updatedCount} merged` : ' · private';

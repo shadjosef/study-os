@@ -154,6 +154,112 @@ function edCourseMetadata(item) {
   };
 }
 
+function cleanMultilineText(value, max) {
+  if (typeof value !== 'string') return '';
+  return value
+    .replace(/\r\n?/g, '\n')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+    .slice(0, max);
+}
+
+export function cleanEdSnapshot(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  if (!Number.isFinite(Date.parse(raw.syncedAt))) return null;
+  const syncedAt = new Date(raw.syncedAt).toISOString();
+  const courses = [];
+  const courseMap = new Map();
+  for (const item of (Array.isArray(raw.courses) ? raw.courses : []).slice(0, 60)) {
+    const meta = edCourseMetadata(item);
+    if (!meta) continue;
+    courses.push({
+      id: meta.id,
+      name: meta.name,
+      code: meta.code,
+      host: meta.host,
+      topics: meta.topics.slice(0, 20),
+    });
+    courseMap.set(meta.id, meta);
+  }
+  const threads = [];
+  const seen = new Set();
+  for (const t of (Array.isArray(raw.threads) ? raw.threads : []).slice(0, 80)) {
+    if (!t || typeof t !== 'object') continue;
+    const id = String(t.id || '').trim();
+    const courseId = String(t.courseId || '').trim();
+    if (!numericId.test(id) || !numericId.test(courseId)) continue;
+    const key = `${courseId}:${id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const cm = courseMap.get(courseId);
+    const rawHost = typeof t.host === 'string' ? t.host.trim().toLowerCase() : (cm?.host || 'eu.edstem.org');
+    const host = validEdHosts.has(rawHost) ? rawHost : 'eu.edstem.org';
+    const title = cleanText(t.title, 180);
+    if (!title) continue;
+    const snippet = cleanMultilineText(t.snippet || t.text || '', 650);
+    const createdAt = Number.isFinite(Date.parse(t.createdAt)) ? new Date(t.createdAt).toISOString() : syncedAt;
+    const updatedAt = Number.isFinite(Date.parse(t.updatedAt)) ? new Date(t.updatedAt).toISOString() : createdAt;
+    const num = Number(t.number);
+    const type = ['announcement', 'question', 'post'].includes(t.type) ? t.type : 'post';
+    threads.push({
+      id,
+      courseId,
+      courseCode: cleanText(t.courseCode || cm?.code || '', 24),
+      courseName: cleanText(t.courseName || cm?.name || '', 120),
+      host,
+      number: Number.isInteger(num) && num > 0 && num < 1_000_000 ? num : 0,
+      title,
+      snippet,
+      category: cleanText(t.category || '', 60),
+      type,
+      isPinned: Boolean(t.isPinned),
+      isAnswered: Boolean(t.isAnswered),
+      isStaff: Boolean(t.isStaff),
+      author: cleanText(t.author || '', 60),
+      replyCount: Math.max(0, Math.min(9999, Math.floor(Number(t.replyCount) || 0))),
+      createdAt,
+      updatedAt,
+      url: `https://${host}/courses/${courseId}/discussion/${id}`,
+    });
+    if (threads.length >= 60) break;
+  }
+  if (!courses.length && !threads.length) return null;
+  return { syncedAt, courses, threads };
+}
+
+async function mergePersonalEdBackup(db, profileId, courses, threads, syncedAtIso, now) {
+  const snapshot = cleanEdSnapshot({ syncedAt: syncedAtIso, courses, threads });
+  if (!snapshot) return { syncedCourses: 0, threadCount: 0 };
+  const row = await db.prepare('SELECT payload FROM study_backups WHERE profile_id = ?')
+    .bind(profileId).first();
+  if (row) {
+    let payload;
+    try { payload = JSON.parse(row.payload); } catch { payload = null; }
+    if (!payload || typeof payload !== 'object') {
+      payload = { format: 'study-os-backup-v1', syncedAt: syncedAtIso, progress: { records: {} }, attempts: [], sessions: [], customSchedule: { enabled: false, prefs: {}, blocks: [] } };
+    }
+    payload.edSnapshot = snapshot;
+    await db.prepare('UPDATE study_backups SET payload = ?, updated_at = ? WHERE profile_id = ?')
+      .bind(JSON.stringify(payload), now, profileId).run();
+  } else {
+    const payload = {
+      format: 'study-os-backup-v1',
+      syncedAt: syncedAtIso,
+      progress: { records: {} },
+      attempts: [],
+      sessions: [],
+      customSchedule: { enabled: false, prefs: {}, blocks: [] },
+      edSnapshot: snapshot,
+    };
+    await db.prepare(`
+      INSERT INTO study_backups(profile_id, payload, updated_at, record_count, attempt_count, session_count)
+      VALUES (?, ?, ?, 0, 0, 0)
+    `).bind(profileId, JSON.stringify(payload), now).run();
+  }
+  return { syncedCourses: snapshot.courses.length, threadCount: snapshot.threads.length };
+}
+
 async function mergePersonalCanvasBackup(db, profileId, courses, syncedAtIso, now, canvasOriginRaw = DEFAULT_CANVAS_ORIGIN) {
   const defaultOrigin = cleanCanvasOrigin(canvasOriginRaw);
   const school = schoolForOrigin(defaultOrigin);
@@ -363,9 +469,9 @@ export async function handleCourses({ path, request, db, data, me, isAdmin, now,
       ? new Date(data.capturedAt).toISOString()
       : new Date(now).toISOString();
 
-    let personal = { syncedCourses: 0, deadlineCount: 0 };
+    let personal = { syncedCourses: 0, deadlineCount: 0, threadCount: 0 };
     if (source === 'canvas') {
-      personal = await mergePersonalCanvasBackup(db, me.id, data.courses, syncedAtIso, now, canvasOrigin);
+      personal = { ...(await mergePersonalCanvasBackup(db, me.id, data.courses, syncedAtIso, now, canvasOrigin)), threadCount: 0 };
       // Auto-populate profile school & Canvas origin if not chosen yet
       if (!me.school && school) {
         await db.prepare(`
@@ -373,6 +479,9 @@ export async function handleCourses({ path, request, db, data, me, isAdmin, now,
           WHERE id = ? AND school = ''
         `).bind(school, canvasOrigin, me.id).run().catch(() => {});
       }
+    } else if (source === 'ed') {
+      const edRes = await mergePersonalEdBackup(db, me.id, data.courses, Array.isArray(data.threads) ? data.threads : [], syncedAtIso, now);
+      personal = { syncedCourses: edRes.syncedCourses, deadlineCount: 0, threadCount: edRes.threadCount };
     }
 
     const deduped = new Map();
@@ -403,8 +512,9 @@ export async function handleCourses({ path, request, db, data, me, isAdmin, now,
       school,
       canvasOrigin: source === 'canvas' ? canvasOrigin : '',
       sharedPublic: sharePublic,
-      syncedCourses: source === 'canvas' ? personal.syncedCourses : deduped.size,
+      syncedCourses: source === 'canvas' ? personal.syncedCourses : (personal.syncedCourses || deduped.size),
       deadlineCount: personal.deadlineCount,
+      threadCount: personal.threadCount || 0,
       createdCount: communityStats.createdCount,
       updatedCount: communityStats.updatedCount,
     });

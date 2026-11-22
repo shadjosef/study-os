@@ -2707,6 +2707,317 @@ html:not([data-show-screen]) [data-layout-screen] { display: none; }
   margin-bottom: 18px;
 }
 
+/* Decluttered Schedule Studio & In-App Ed Discussion Feed */
+.sch-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+}
+.sch-top-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.sch-page-title {
+  margin: 0;
+  font-size: clamp(20px, 2.4vw, 25px);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.sch-planner-card {
+  margin: 0 0 14px;
+  padding: 16px 18px;
+}
+.sch-core-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(190px, 0.9fr);
+  gap: 14px 20px;
+  align-items: start;
+}
+.sch-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.sch-slider-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  margin: 0;
+}
+.sch-slider-label output {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+}
+.sch-range {
+  width: 100%;
+  accent-color: var(--accent);
+  height: 28px;
+  margin: 2px 0 0;
+  cursor: pointer;
+}
+.sch-wake-group .field-label {
+  margin: 0;
+}
+.sch-wake-group input[type="time"] {
+  margin-top: 4px;
+  width: 100%;
+  min-width: 0;
+}
+.sch-load-hint {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.sch-load-hint b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.sch-notes-field {
+  margin-top: 12px;
+}
+.sch-notes-field input {
+  margin-top: 4px;
+}
+.sch-action-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-top: 12px;
+}
+.sch-plan-status {
+  font-size: 12.5px;
+}
+.sch-ai-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.sch-more-details {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.sch-more-details > summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  user-select: none;
+}
+.sch-more-details > summary:hover {
+  color: var(--ink);
+}
+.sch-more-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+  gap: 16px 20px;
+  margin-top: 12px;
+}
+.sch-more-col h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.sch-more-full {
+  grid-column: 1 / -1;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.sch-finetune-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sch-updates-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.sch-updates-grid.two-col {
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+}
+.sch-compact-panel {
+  margin: 0;
+  padding: 14px 16px;
+}
+.sch-deadline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.sch-deadline-list li {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+}
+.sch-deadline-list a {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  text-decoration: none;
+}
+.sch-deadline-list a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.sch-deadline-list small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* In-app formatted Ed Discussion Feed (Schedule + Community) */
+.ed-feed-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#community-ed-feed .ed-feed-wrap {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.ed-feed-head {
+  margin: 0;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ed-feed-title {
+  margin: 0;
+  font-size: 15px;
+}
+.ed-feed-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.ed-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ed-feed-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ed-feed-item.is-pinned {
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--line));
+}
+.ed-feed-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ed-feed-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.ed-feed-age {
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.ed-feed-post-title {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--ink);
+  text-decoration: none;
+  line-height: 1.35;
+}
+.ed-feed-post-title:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.ed-feed-snippet {
+  font-size: 12.5px;
+  line-height: 1.48;
+  color: var(--muted);
+  white-space: pre-line;
+  word-break: break-word;
+}
+.ed-feed-snippet.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ed-feed-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 12px;
+}
+.ed-feed-foot .link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+}
+.ed-feed-foot .link-btn:hover {
+  text-decoration: underline;
+}
+.ed-feed-toggle-row {
+  display: flex;
+  justify-content: flex-start;
+}
+.ed-feed-empty-hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+@media (max-width: 820px) {
+  .sch-core-grid,
+  .sch-updates-grid.two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
 .mobile-sync-tip,
 .mobile-auth-tip { display: none; }
 

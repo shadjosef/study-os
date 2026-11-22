@@ -384,8 +384,121 @@ function parseGeneratedSetJson(rawText, fallbackTitle) {
     });
   }
   if (!questions.length) throw new Error('AI returned no valid practice questions. Try again.');
-  const title = String(parsed?.title || fallbackTitle || 'AI Practice Set').trim().slice(0, 90);
+  const title = String(parsed?.title || fallbackTitle || 'Custom Study Set').trim().slice(0, 90);
   return { title, questions };
+}
+
+function parseHmToMins(hm, fallback = 450) {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hm || '').trim());
+  return m ? Number(m[1]) * 60 + Number(m[2]) : fallback;
+}
+
+function minsToHm(mins) {
+  const n = ((Math.round(mins) % 1440) + 1440) % 1440;
+  return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+}
+
+function deriveBedTimeFromWake(wakeTime, sleepHours = 8) {
+  const wakeMins = parseHmToMins(wakeTime, 7 * 60 + 30);
+  const sleep = Math.max(6, Math.min(10, Number(sleepHours) || 8));
+  return minsToHm(wakeMins - Math.round(sleep * 60));
+}
+
+function parseGeneratedScheduleJson(rawText, opts = {}) {
+  let cleaned = String(rawText || '').trim();
+  const fenced = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) cleaned = fenced[1].trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start >= 0 && end > start) cleaned = cleaned.slice(start, end + 1);
+  const parsed = JSON.parse(cleaned);
+  const rawBlocks = Array.isArray(parsed?.blocks) ? parsed.blocks : [];
+
+  const courses = Array.isArray(opts.courses) ? opts.courses : [];
+  const validCourseIds = new Set(courses.map((c) => c.courseId));
+  const byCode = new Map(
+    courses.filter((c) => c.code).map((c) => [c.code.toUpperCase().replace(/[\s-]+/g, ''), c.courseId])
+  );
+  const fallbackCourseId = courses[0]?.courseId || '';
+
+  const wakeMins = parseHmToMins(opts.wakeTime, 7 * 60 + 30);
+  const sleep = Math.max(6, Math.min(10, Number(opts.sleepHours) || 8));
+  const bedMinsRaw = wakeMins - Math.round(sleep * 60);
+  const awakeStart = wakeMins + 30;
+  const awakeEnd = (bedMinsRaw <= wakeMins ? bedMinsRaw + 1440 : bedMinsRaw) - 30;
+  const toAwakeMin = (hmMins) => (hmMins < wakeMins ? hmMins + 1440 : hmMins);
+
+  const fixedByDate = new Map();
+  for (const ev of Array.isArray(opts.fixedEvents) ? opts.fixedEvents : []) {
+    if (!ev?.date) continue;
+    const s = parseHmToMins(ev.startTime, -1);
+    const e = parseHmToMins(ev.endTime, -1);
+    if (s < 0 || e <= s) continue;
+    if (!fixedByDate.has(ev.date)) fixedByDate.set(ev.date, []);
+    fixedByDate.get(ev.date).push([s, e]);
+  }
+
+  const takenByDate = new Map();
+  const blocks = [];
+  for (const b of rawBlocks.slice(0, 110)) {
+    if (!b || typeof b !== 'object') continue;
+    const date = String(b.date || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const sMins = parseHmToMins(b.startTime || b.start, -1);
+    const eMinsRaw = b.endTime || b.end ? parseHmToMins(b.endTime || b.end, -1) : sMins + Number(b.durationMinutes || 50);
+    if (sMins < 0 || eMinsRaw <= sMins) continue;
+    const dur = eMinsRaw - sMins;
+    if (dur < 20 || dur > 120) continue;
+
+    // Enforce wake + 30m .. bedtime - 30m (8h sleep protection)
+    const relStart = toAwakeMin(sMins);
+    const relEnd = relStart + dur;
+    if (relStart < awakeStart || relEnd > awakeEnd) continue;
+
+    // Prevent overlap with fixed TimeEdit/TP classes & already-scheduled study blocks
+    const fixed = fixedByDate.get(date) || [];
+    const taken = takenByDate.get(date) || [];
+    const clashes = (arr) => arr.some(([a, z]) => sMins < z && eMinsRaw > a);
+    if (clashes(fixed) || clashes(taken)) continue;
+
+    let courseId = typeof b.courseId === 'string' ? b.courseId.trim() : '';
+    if (!validCourseIds.has(courseId)) {
+      const norm = courseId.toUpperCase().replace(/[\s-]+/g, '');
+      courseId = byCode.get(norm) || fallbackCourseId;
+    }
+
+    const rawDlpfc = String(b.dlpfc || b.dlpfcMode || '').toLowerCase();
+    const dlpfcMode = rawDlpfc.includes('high')
+      ? 'high_dlpfc'
+      : rawDlpfc.includes('low')
+      ? 'low_dlpfc'
+      : rawDlpfc.includes('med')
+      ? 'med_dlpfc'
+      : (relStart - wakeMins < 420 ? 'high_dlpfc' : relStart - wakeMins < 660 ? 'med_dlpfc' : 'low_dlpfc');
+
+    const title = String(b.title || b.summary || 'Focused study block').trim().slice(0, 140);
+    const profile = b.profile === 'exam' ? 'exam' : 'learning';
+
+    if (!takenByDate.has(date)) takenByDate.set(date, []);
+    takenByDate.get(date).push([sMins, eMinsRaw]);
+
+    blocks.push({
+      date,
+      startTime: minsToHm(sMins),
+      endTime: minsToHm(eMinsRaw),
+      durationMinutes: dur,
+      courseId,
+      title,
+      dlpfcMode,
+      profile,
+    });
+    if (blocks.length >= 84) break;
+  }
+
+  blocks.sort((a, b) => `${a.date}T${a.startTime}`.localeCompare(`${b.date}T${b.startTime}`));
+  if (!blocks.length) throw new Error('Hydrogen returned no valid study blocks within your awake window. Try adjusting work hours or notes.');
+  const summary = String(parsed?.summary || '').trim().slice(0, 240);
+  return { summary, blocks };
 }
 
 async function getUsage(db, profileId, dayUtc) {
@@ -659,7 +772,7 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
 
     let parsedSet;
     try {
-      const fallbackTitle = [courseCode, courseTitle].filter(Boolean).join(' · ') || 'AI Study Set';
+      const fallbackTitle = [courseCode, courseTitle].filter(Boolean).join(' · ') || 'Custom Study Set';
       parsedSet = parseGeneratedSetJson(result.reply, fallbackTitle);
     } catch (err) {
       return reply({ error: err?.message || 'AI output could not be parsed. Please try again.' }, 502);
@@ -679,6 +792,178 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
         createdAt: new Date(now).toISOString(),
         questions: parsedSet.questions,
       },
+      provider: result.provider,
+      modelLabel: result.modelLabel,
+      used,
+      limit,
+      remaining: Math.max(0, limit - used),
+    });
+  }
+
+  // POST /ai/generate-schedule — Gemini 4 Hydrogen circadian DLPFC study schedule planner
+  if (path === '/ai/generate-schedule' && request.method === 'POST') {
+    const info = activeProviderInfo(env);
+    if (!info.available) {
+      return reply({ error: 'Gemini 4 Hydrogen is unavailable right now — use Quick auto-plan instead.' }, 503);
+    }
+
+    const usedBefore = await getUsage(db, me.id, dayUtc);
+    if (usedBefore >= limit) {
+      return reply({
+        error: `Daily AI limit reached (${limit}/day). Use Quick auto-plan or try again tomorrow.`,
+        used: usedBefore,
+        limit,
+        remaining: 0,
+      }, 429);
+    }
+
+    const wakeTime = /^([01]\d|2[0-3]):([0-5]\d)$/.test(String(data.wakeTime || '').trim())
+      ? String(data.wakeTime).trim()
+      : '07:30';
+    const sleepHours = Math.max(6, Math.min(10, Number(data.sleepHours) || 8));
+    const bedTime = deriveBedTimeFromWake(wakeTime, sleepHours);
+    const weeklyWorkHours = Math.max(0, Math.min(50, Number(data.weeklyWorkHours) || 0));
+    const targetStudyHours = Math.max(2, Math.min(45, Number(data.targetStudyHours) || 24));
+    const blockMinutes = [40, 50, 75].includes(Number(data.blockMinutes)) ? Number(data.blockMinutes) : 50;
+    const breakMinutes = [10, 15].includes(Number(data.breakMinutes)) ? Number(data.breakMinutes) : 10;
+    const restDays = Array.isArray(data.restDays)
+      ? data.restDays.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6).slice(0, 4)
+      : [6];
+    const notes = typeof data.notes === 'string' ? data.notes.trim().slice(0, 600) : '';
+    const startDate = /^\d{4}-\d{2}-\d{2}$/.test(String(data.startDate || '').trim())
+      ? String(data.startDate).trim()
+      : new Date(now).toISOString().slice(0, 10);
+    const horizonDays = Math.max(7, Math.min(14, Number(data.horizonDays) || 14));
+
+    const courses = (Array.isArray(data.courses) ? data.courses : [])
+      .filter((c) => c && typeof c === 'object' && typeof c.courseId === 'string' && c.courseId.trim())
+      .slice(0, 12)
+      .map((c) => ({
+        courseId: String(c.courseId).trim().slice(0, 64),
+        code: String(c.code || '').trim().slice(0, 24),
+        title: String(c.title || c.shortTitle || '').trim().slice(0, 90),
+        examDate: String(c.examDate || '').trim().slice(0, 24),
+        done: Math.max(0, Number(c.done) || 0),
+        total: Math.max(0, Number(c.total) || 0),
+        weight: Math.max(0.5, Math.min(2, Number(c.weight) || 1)),
+        topics: Array.isArray(c.topics) ? c.topics.slice(0, 6).map((t) => String(t || '').trim().slice(0, 60)).filter(Boolean) : [],
+      }));
+
+    if (!courses.length) {
+      return reply({ error: 'No active courses available to schedule.' }, 400);
+    }
+
+    const fixedEvents = (Array.isArray(data.fixedEvents) ? data.fixedEvents : [])
+      .filter((ev) => ev && typeof ev === 'object' && /^\d{4}-\d{2}-\d{2}$/.test(String(ev.date || '')))
+      .slice(0, 60)
+      .map((ev) => ({
+        date: String(ev.date),
+        startTime: String(ev.startTime || '').slice(0, 5),
+        endTime: String(ev.endTime || '').slice(0, 5),
+        summary: String(ev.summary || '').trim().slice(0, 80),
+        kind: ev.kind === 'exam' ? 'exam' : 'class',
+      }));
+
+    const deadlines = (Array.isArray(data.deadlines) ? data.deadlines : [])
+      .filter((d) => d && typeof d === 'object' && d.name)
+      .slice(0, 15)
+      .map((d) => ({
+        date: String(d.date || '').slice(0, 16),
+        name: String(d.name || '').trim().slice(0, 90),
+        course: String(d.course || '').trim().slice(0, 60),
+      }));
+
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const restDayNames = restDays.map((d) => dayNames[d]).filter(Boolean);
+    const wakeStudyStart = minsToHm(parseHmToMins(wakeTime) + 30);
+    const bedStudyEnd = minsToHm(parseHmToMins(bedTime) - 30);
+
+    const sys = [
+      'You are Study-OS\'s circadian DLPFC study schedule planner.',
+      'Return ONLY valid JSON with this exact schema:',
+      '{"summary":"1 short sentence describing the 2-week framework","blocks":[{"date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","courseId":"exact_courseId","title":"Concise specific focus topic (max 80 chars)","dlpfc":"high"|"med"|"low","profile":"learning"|"exam"}]}',
+      'Hard rules:',
+      `- Protect ${sleepHours}h of sleep: wakeTime=${wakeTime}, auto-bedtime=${bedTime}. EVERY block MUST stay strictly inside ${wakeStudyStart}–${bedStudyEnd}.`,
+      `- Use ${blockMinutes}-minute focus blocks with at least ${breakMinutes} minutes break between consecutive blocks.`,
+      '- NEVER overlap any fixed lecture/exam in FIXED_TIMETABLE or any shifts/commitments mentioned in STUDENT_NOTES.',
+      '- Circadian DLPFC energy curve: "high" (hard problem sets, proofs, coding, cases) in the first 7h after waking (max 4.5h/day); "med" (procedural drills) mid-day; "low" (conceptual review/recall) in the evening.',
+      '- Prioritize courses with upcoming deadlines, nearer exam dates, higher weights, or lower completion.',
+      '- Keep block titles specific and actionable (referencing real course topics when listed). No fluff.',
+    ].join('\n');
+
+    const userPrompt = [
+      `PLAN HORIZON: ${horizonDays} days starting ${startDate}`,
+      `WEEKLY WORK HOURS: ${weeklyWorkHours}h/wk -> TARGET SELF-STUDY: ~${targetStudyHours}h/wk (~${Math.round((targetStudyHours * horizonDays) / 7)}h total over ${horizonDays} days, capped at 56 blocks max)`,
+      `WAKE-UP: ${wakeTime} | AUTO-BEDTIME (${sleepHours}h sleep): ${bedTime} | STUDY WINDOW: ${wakeStudyStart}–${bedStudyEnd}`,
+      restDayNames.length ? `PREFERRED REST / LIGHT DAYS: ${restDayNames.join(', ')}` : '',
+      notes ? `STUDENT_NOTES (shifts, gym, priorities — MUST respect): ${notes}` : '',
+      '',
+      'COURSES (use exact courseId):',
+      ...courses.map((c) => `- ${c.courseId} | ${c.code} ${c.title} | Weight: ${c.weight}x | Done: ${c.done}/${c.total} | Exam: ${c.examDate || 'TBD'}${c.topics.length ? ` | Focus topics: ${c.topics.join('; ')}` : ''}`),
+      '',
+      fixedEvents.length
+        ? `FIXED_TIMETABLE (synced TimeEdit/TP classes & exams — NEVER overlap):\n${fixedEvents.map((ev) => `- ${ev.date} ${ev.startTime}-${ev.endTime} [${ev.kind}]: ${ev.summary}`).join('\n')}`
+        : 'FIXED_TIMETABLE: None synced yet — schedule cleanly inside the awake window.',
+      deadlines.length
+        ? `\nUPCOMING CANVAS DEADLINES:\n${deadlines.map((d) => `- ${d.date}: ${d.name} (${d.course})`).join('\n')}`
+        : '',
+      '\nReturn strict JSON only.',
+    ].filter(Boolean).join('\n');
+
+    const geminiKey = typeof env.GEMINI_API_KEY === 'string' ? env.GEMINI_API_KEY.trim() : '';
+    const hasCf = Boolean(env.AI && typeof env.AI.run === 'function');
+    let result = null;
+    let firstError = null;
+    if (geminiKey.length > 10) {
+      try {
+        result = await callGemini(geminiKey, sys, '', [], userPrompt, {
+          modelId: 'gemini-4-hydrogen',
+          jsonMode: true,
+          thinking: 'low',
+          maxOutputTokens: 4096,
+          temperature: 0.35,
+        });
+      } catch (err) {
+        firstError = err;
+      }
+    }
+    if (!result && hasCf) {
+      try {
+        result = await callCloudflareAi(env.AI, sys, '', [], userPrompt, {
+          maxOutputTokens: 3072,
+          temperature: 0.3,
+        });
+      } catch (err) {
+        firstError = firstError || err;
+      }
+    }
+    if (!result) {
+      return reply({ error: firstError?.message || 'Could not generate schedule right now — try Quick auto-plan.' }, 502);
+    }
+
+    let parsedPlan;
+    try {
+      parsedPlan = parseGeneratedScheduleJson(result.reply, {
+        courses,
+        fixedEvents,
+        startDate,
+        horizonDays,
+        wakeTime,
+        sleepHours,
+      });
+    } catch (err) {
+      return reply({ error: err?.message || 'Could not parse generated schedule. Please try again.' }, 502);
+    }
+
+    await bumpUsage(db, me.id, dayUtc, now);
+    const used = usedBefore + 1;
+    return reply({
+      ok: true,
+      summary: parsedPlan.summary,
+      wakeTime,
+      bedTime,
+      sleepHours,
+      blocks: parsedPlan.blocks,
       provider: result.provider,
       modelLabel: result.modelLabel,
       used,

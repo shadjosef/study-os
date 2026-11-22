@@ -482,9 +482,9 @@ window.StudySets = (() => {
       dlg.innerHTML = `
         <div class="playbook-head">
           <div>
-            <span class="eyebrow">Universal AI Study Sets · Any School &amp; Course</span>
+            <span class="eyebrow">Custom Study Sets · Any School &amp; Course</span>
             <h2 id="ai-set-modal-title" style="margin:2px 0 4px">Study Set Studio</h2>
-            <p class="muted" style="margin:0;font-size:13px">Generate exam-grade MCQ &amp; written sets with <b>Gemini 4 Hydrogen</b>, your own AI, or quick cards — and run them right inside Study-OS.</p>
+            <p class="muted" style="margin:0;font-size:13px">Build exam-grade MCQ &amp; written sets with <b>Gemini 4 Hydrogen</b>, an external LLM, or quick cards — and run them right inside Study-OS.</p>
           </div>
           <button type="button" class="ios-done-btn" id="ai-set-done">Done</button>
         </div>
@@ -505,9 +505,9 @@ window.StudySets = (() => {
             </article>
           ` : `
             <div class="ios-segmented ai-set-tabs" role="tablist" aria-label="Study set creation method">
-              <button type="button" role="tab" class="${state.tab === 'gemini' ? 'active' : ''}" data-set-tab="gemini" aria-selected="${state.tab === 'gemini'}">✨ Gemini 4 Hydrogen</button>
-              <button type="button" role="tab" class="${state.tab === 'byo' ? 'active' : ''}" data-set-tab="byo" aria-selected="${state.tab === 'byo'}">🤖 Your Own AI</button>
-              <button type="button" role="tab" class="${state.tab === 'manual' ? 'active' : ''}" data-set-tab="manual" aria-selected="${state.tab === 'manual'}">✍️ Quick Cards</button>
+              <button type="button" role="tab" class="${state.tab === 'gemini' ? 'active' : ''}" data-set-tab="gemini" aria-selected="${state.tab === 'gemini'}">Gemini 4 Hydrogen</button>
+              <button type="button" role="tab" class="${state.tab === 'byo' ? 'active' : ''}" data-set-tab="byo" aria-selected="${state.tab === 'byo'}">External LLM</button>
+              <button type="button" role="tab" class="${state.tab === 'manual' ? 'active' : ''}" data-set-tab="manual" aria-selected="${state.tab === 'manual'}">Quick Cards</button>
             </div>
 
             ${state.tab === 'gemini' ? `
@@ -538,7 +538,7 @@ window.StudySets = (() => {
                 <div class="row-between" style="margin:6px 0 4px;gap:8px;flex-wrap:wrap">
                   <label class="field-label" for="ai-set-notes" style="margin:0">Lecture notes or syllabus text <small class="muted">(optional — makes questions hyper-accurate)</small></label>
                   <label class="ghost-btn" style="padding:4px 10px;font-size:12px;cursor:pointer">
-                    📄 Extract text from PDF
+                    Extract text from PDF
                     <input type="file" id="ai-set-pdf-input" accept=".pdf" hidden>
                   </label>
                 </div>
@@ -569,7 +569,7 @@ window.StudySets = (() => {
                 </div>
                 <div class="row-actions" style="margin-top:12px;align-items:center">
                   <button type="button" class="primary-btn" id="ai-set-generate-btn" ${state.busy || (!signedIn && canUseBuiltIn) ? 'disabled' : ''}>
-                    ${state.busy ? 'Generating with Gemini 4 Hydrogen…' : '✨ Generate with Gemini 4 Hydrogen'}
+                    ${state.busy ? 'Building with Gemini 4 Hydrogen…' : 'Build Study Set'}
                   </button>
                   <span class="muted" id="ai-set-status" role="status" style="font-size:12.5px">${esc(state.statusMsg)}</span>
                 </div>
@@ -771,7 +771,7 @@ window.StudySets = (() => {
       const doByoImport = (launchAfter) => {
         try {
           const parsed = parseImportedJson(state.importJson, {
-            title: [state.courseCode, state.courseTitle].filter(Boolean).join(' · ') || 'Imported AI Set',
+            title: [state.courseCode, state.courseTitle].filter(Boolean).join(' · ') || 'Custom Study Set',
             courseCode: state.courseCode,
             courseTitle: state.courseTitle,
             school: state.school,
@@ -867,8 +867,8 @@ window.StudySets = (() => {
           ${sets.length ? `<span class="badge good">${sets.length} saved</span>` : '<span class="badge">Gemini 4 Hydrogen · BYO AI</span>'}
         </div>
         <div class="row-actions" style="flex-wrap:wrap;gap:6px">
-          <button type="button" class="primary-btn" id="btn-open-set-studio">✨ Create AI Study Set</button>
-          <button type="button" class="ghost-btn" id="btn-open-set-byo">Import JSON / Your AI</button>
+          <button type="button" class="primary-btn" id="btn-open-set-studio">+ New Study Set</button>
+          <button type="button" class="ghost-btn" id="btn-open-set-byo">Import JSON</button>
         </div>
       </div>
 

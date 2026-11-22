@@ -1,5 +1,5 @@
 // Cross-Device Cloud Progress Sync stored in Cloudflare D1 (EU)
-import { courseMetadata, cleanCanvasOrigin, schoolForOrigin } from './courses.mjs';
+import { courseMetadata, cleanCanvasOrigin, schoolForOrigin, cleanEdSnapshot } from './courses.mjs';
 
 const MAX_PAYLOAD_BYTES = 500_000;
 const MAX_RECORDS = 5000;
@@ -168,6 +168,8 @@ export async function handleSync({ request, db, me, now, data, reply }) {
           enabled: data.customSchedule.enabled,
           source: typeof data.customSchedule.source === 'string' ? data.customSchedule.source.slice(0, 64) : '',
           updatedAt: typeof data.customSchedule.updatedAt === 'string' ? data.customSchedule.updatedAt.slice(0, 64) : '',
+          aiSummary: typeof data.customSchedule.aiSummary === 'string' ? data.customSchedule.aiSummary.slice(0, 260) : '',
+          modelLabel: typeof data.customSchedule.modelLabel === 'string' ? data.customSchedule.modelLabel.slice(0, 60) : '',
           prefs: Object.fromEntries(Object.entries(data.customSchedule.prefs).filter(([key]) => key !== 'timeeditUrl')),
           blocks: data.customSchedule.blocks.filter(isObj).slice(0, 200),
           completedEvents: cleanCompletedEvents(data.customSchedule.completedEvents),
@@ -183,6 +185,7 @@ export async function handleSync({ request, db, me, now, data, reply }) {
       sessions,
       customSchedule,
       canvasSnapshot: canvasForSync(data.canvasSnapshot),
+      edSnapshot: cleanEdSnapshot(data.edSnapshot),
       customSets: cleanCustomSets(data.customSets),
     };
 
@@ -205,7 +208,12 @@ export async function handleSync({ request, db, me, now, data, reply }) {
             WHEN COALESCE(julianday(json_extract(study_backups.payload, '$.canvasSnapshot.syncedAt')), 0)
               > COALESCE(julianday(json_extract(excluded.payload, '$.canvasSnapshot.syncedAt')), 0)
             THEN json_extract(study_backups.payload, '$.canvasSnapshot')
-            ELSE json_extract(excluded.payload, '$.canvasSnapshot') END)),
+            ELSE json_extract(excluded.payload, '$.canvasSnapshot') END),
+          '$.edSnapshot', json(CASE
+            WHEN COALESCE(julianday(json_extract(study_backups.payload, '$.edSnapshot.syncedAt')), 0)
+              > COALESCE(julianday(json_extract(excluded.payload, '$.edSnapshot.syncedAt')), 0)
+            THEN json_extract(study_backups.payload, '$.edSnapshot')
+            ELSE json_extract(excluded.payload, '$.edSnapshot') END)),
         updated_at = excluded.updated_at,
         record_count = excluded.record_count,
         attempt_count = excluded.attempt_count,
