@@ -43,6 +43,7 @@ jobs:
           node --check app/public/js/local-sources.js
           node --check app/public/js/layouts.js
           node --check app/public/js/runner.js
+          node --check app/public/js/pdfcraft-editor.js
           node --check app/public/js/pdf-reader.js
           node --check app/public/js/question-copy.js
           node --check app/public/js/study-tutor.js

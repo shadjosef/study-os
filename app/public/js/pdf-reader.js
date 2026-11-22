@@ -351,6 +351,7 @@ window.StudyPdf = (() => {
       ${toolbar(true)}
       <div class="pdf-quick-tools">
         <button type="button" class="mini-tool-btn" data-pdf-search-toggle aria-label="Search in PDF" title="Search in PDF (/)" aria-expanded="false">Search</button>
+        ${window.StudyPdfCraft?.isAvailable?.() ? '<button type="button" class="mini-tool-btn pdf-edit-craft-btn" data-pdf-edit-craft title="Edit, highlight, annotate, sign, or OCR in PdfCraft (pure Rust WASM)">Edit PDF</button>' : ''}
         <details class="pdf-options">
           <summary class="mini-tool-btn" aria-label="PDF options" title="PDF options">⋯</summary>
           <div class="pdf-options-panel">
@@ -884,6 +885,20 @@ window.StudyPdf = (() => {
     const searchClose = root.querySelector('[data-pdf-search-close]');
 
     if (!canvas || !pageForm || !scroll || !paper) return;
+
+    const editCraftBtn = root.querySelector('[data-pdf-edit-craft]');
+    if (editCraftBtn && window.StudyPdfCraft?.openSource) {
+      editCraftBtn.onclick = () => {
+        window.StudyPdfCraft.openSource(source, {
+          onSaved: (savedRec) => {
+            if (savedRec?.key && root.isConnected) {
+              const updated = { ...source, localSourceKey: savedRec.key, memberAsset: null };
+              mount(root, updated, state);
+            }
+          },
+        });
+      };
+    }
 
     const initialTarget = Math.max(1, Number(state.page || source.page) || 1);
     const initialHit = getBitmap(renderCacheKey(dKey, initialTarget, [0, 1], false))

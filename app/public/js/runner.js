@@ -610,7 +610,7 @@ window.StudyRunner = (() => {
       }
       if (!seen.has(entry.key)) {
         seen.add(entry.key);
-        out.push({ ...entry, sourceId: a.sourceId, questionId: q.id, questionTitle: q.title, isSolution: isSol });
+        out.push({ ...entry, courseId: q.courseId, sourceId: a.sourceId, questionId: q.id, questionTitle: q.title, isSolution: isSol });
       }
     };
 
@@ -658,6 +658,7 @@ window.StudyRunner = (() => {
         seen.add(entry.key);
         out.push({
           ...entry,
+          courseId: q.courseId,
           sourceId: ref.sourceId,
           questionId: q.id,
           questionTitle: q.title,
@@ -692,6 +693,7 @@ window.StudyRunner = (() => {
               ${window.StudyPdf.toolbar(true)}
               <button type="button" class="mini-tool-btn" data-inline-invert title="Invert PDF colors (dark mode)">◐</button>
               <button type="button" class="mini-tool-btn" data-open-inline-pdf="${esc(entry.key)}" data-open-inline-page="${esc(entry.page || 1)}" title="Open full multi-page PDF reader with search">Full PDF (p.${esc(entry.page || 1)})</button>
+              ${window.StudyPdfCraft?.isAvailable?.() ? `<button type="button" class="mini-tool-btn pdf-edit-craft-btn" data-edit-inline-pdf="${esc(entry.key)}" title="Edit, highlight, annotate, sign, or OCR in PdfCraft (pure Rust WASM)">Edit PDF</button>` : ''}
             </span>
           </figcaption>
           <p class="muted pdf-status pdf-inline-loading" data-pdf-status role="status" hidden></p>
@@ -2049,6 +2051,19 @@ window.StudyRunner = (() => {
         }
         st.readerTab = 'pdf';
         renderRunner();
+      });
+    });
+
+    document.querySelectorAll('[data-edit-inline-pdf]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const key = btn.dataset.editInlinePdf;
+        const target = sourcePdfs.find((p) => p.key === key);
+        if (target && window.StudyPdfCraft?.openSource) {
+          window.StudyPdfCraft.openSource(target, {
+            onSaved: () => { renderRunner(); },
+          });
+        }
       });
     });
 

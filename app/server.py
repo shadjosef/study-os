@@ -13,6 +13,7 @@ from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 import mimetypes
+mimetypes.add_type("application/wasm", ".wasm")
 import os
 from pathlib import Path
 import re

@@ -34,17 +34,35 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Cache PdfCraft Web WASM release
+        if: hashFiles('site-pack/pdfcraft-web.json') != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/studyos-pdfcraft
+          key: pdfcraft-web-${{ hashFiles('site-pack/pdfcraft-web.json') }}
+
       - name: Build static web bundle
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          EXTRA_ARGS=()
           if [ -f site-pack/member-archive.json ]; then
             tag=$(python3 -c 'import json; print(json.load(open("site-pack/member-archive.json"))["tag"])')
             gh release download "$tag" --pattern study-os-members.zip --dir "$RUNNER_TEMP"
-            python3 tools/build_public_site.py --out ./dist --member-archive "$RUNNER_TEMP/study-os-members.zip"
-          else
-            python3 tools/build_public_site.py --out ./dist
+            EXTRA_ARGS+=(--member-archive "$RUNNER_TEMP/study-os-members.zip")
           fi
+          if [ -f site-pack/pdfcraft-web.json ]; then
+            mkdir -p "$HOME/.cache/studyos-pdfcraft"
+            PDFCRAFT_ASSET=$(python3 -c 'import json; print(json.load(open("site-pack/pdfcraft-web.json"))["asset"])')
+            PDFCRAFT_URL=$(python3 -c 'import json; print(json.load(open("site-pack/pdfcraft-web.json"))["url"])')
+            PDFCRAFT_ZIP="$HOME/.cache/studyos-pdfcraft/$PDFCRAFT_ASSET"
+            if [ ! -f "$PDFCRAFT_ZIP" ]; then
+              curl -fsSL "$PDFCRAFT_URL" -o "${PDFCRAFT_ZIP}.part"
+              mv "${PDFCRAFT_ZIP}.part" "$PDFCRAFT_ZIP"
+            fi
+            EXTRA_ARGS+=(--pdfcraft-archive "$PDFCRAFT_ZIP")
+          fi
+          python3 tools/build_public_site.py --out ./dist "${EXTRA_ARGS[@]}"
           python3 tools/seo_audit.py --dir ./dist
 
       - name: Upload Pages artifact

@@ -1,0 +1,8 @@
+{
+  "repo": "storytold/pdfcraft",
+  "version": "0.21.1",
+  "asset": "pdfcraft-web-0.21.1.zip",
+  "url": "https://github.com/storytold/pdfcraft/releases/download/v0.21.1/pdfcraft-web-0.21.1.zip",
+  "sha256": "fe9708d46af191aebb56f70eb32cf8b112b0b9452d17ae6ba3a8c4a8665fe748",
+  "license": "Apache-2.0 OR MIT"
+}

@@ -2891,7 +2891,7 @@ window.StudyApp = (() => {
     document.getElementById('local-book-title').textContent = name;
     reader.innerHTML = window.StudyPdf.viewer();
     dialog.showModal();
-    const src = localSourceKey ? { localSourceKey, page: 1 } : { rawUrl, page: 1 };
+    const src = localSourceKey ? { localSourceKey, title: name, page: 1 } : { rawUrl, title: name, page: 1 };
     window.StudyPdf.mount(reader, src, { page: 1, zoom: 100, trim: false });
   }
 
@@ -4127,12 +4127,13 @@ window.StudyApp = (() => {
       if (!documentSections.has(doc.section)) documentSections.set(doc.section, []);
       documentSections.get(doc.section).push(doc);
     }
+    const canEditPdf = Boolean(window.StudyPdfCraft?.isAvailable?.());
     const library = [...documentSections].map(([section, files]) => `
       <details class="course-document-group">
         <summary>${esc(section)} (${files.length})</summary>
-        <ul>${files.map((doc) => `<li><button type="button" class="member-file"
+        <ul>${files.map((doc) => `<li class="row-between" style="gap:8px"><button type="button" class="member-file"
           data-member-download="${esc(doc.id)}" data-member-mime="${esc(doc.mime)}" data-filename="${esc(doc.title)}">
-          ${esc(doc.title)}</button></li>`).join('')}</ul>
+          ${esc(doc.title)}</button>${canEditPdf && doc.mime === 'application/pdf' ? `<button type="button" class="ghost-btn pdf-row-edit-btn" data-member-pdfcraft="${esc(doc.id)}" data-member-pdfcraft-name="${esc(doc.title)}" title="Edit, highlight, annotate, or OCR in PdfCraft">Edit</button>` : ''}</li>`).join('')}</ul>
       </details>`).join('');
 
     const topicOptions =
@@ -4233,7 +4234,10 @@ window.StudyApp = (() => {
             </div>
             ${browserFiles.length ? `<ul>${browserFiles.map((f) => `<li class="row-between" style="gap:8px">
               <button type="button" class="member-file" data-browser-pdf-key="${esc(f.key)}" data-browser-pdf-title="${esc(f.title || f.filename)}">${esc(f.filename)} <small class="muted">(${esc(window.StudyLocalSources.formatBytes(f.size))})</small></button>
-              <button type="button" class="ghost-btn" style="padding:2px 8px;font-size:11.5px" data-browser-pdf-del="${esc(f.key)}">Remove</button>
+              <span class="row-actions" style="gap:4px;flex-shrink:0">
+                ${canEditPdf ? `<button type="button" class="ghost-btn pdf-row-edit-btn" data-browser-pdf-edit="${esc(f.key)}" data-browser-pdf-title="${esc(f.title || f.filename)}" title="Edit in PdfCraft">Edit</button>` : ''}
+                <button type="button" class="ghost-btn" style="padding:2px 8px;font-size:11.5px" data-browser-pdf-del="${esc(f.key)}">Remove</button>
+              </span>
             </li>`).join('')}</ul>` : '<p class="muted" style="font-size:12.5px;margin:4px 0 0">No local PDFs attached to this course yet.</p>'}
           </details>`;
         })() : ''}
@@ -4938,6 +4942,23 @@ window.StudyApp = (() => {
     });
 
     members.bindDownloads(root);
+    root.querySelectorAll('[data-member-pdfcraft]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const docId = btn.dataset.memberPdfcraft;
+        const name = btn.dataset.memberPdfcraftName || 'course-document.pdf';
+        window.StudyPdfCraft?.openSource?.({
+          memberAsset: { id: docId, mime: 'application/pdf', title: name },
+          courseId,
+          title: name,
+          pathStr: name,
+        }, {
+          onSaved: async () => {
+            await renderCourseExplorer(courseId, initialPreset);
+            document.getElementById('course-browser-vault')?.setAttribute('open', '');
+          },
+        });
+      });
+    });
     root.querySelector('#exp-open-bi-sync')?.addEventListener('click', () => openBiSyncHub());
     root.querySelector('#exp-browser-pdf-input')?.addEventListener('change', async (ev) => {
       const files = ev.target.files;
@@ -4954,6 +4975,15 @@ window.StudyApp = (() => {
     root.querySelectorAll('[data-browser-pdf-key]').forEach((btn) => {
       btn.addEventListener('click', () => {
         openLocalPdf(btn.dataset.browserPdfTitle || 'Local PDF', '', btn.dataset.browserPdfKey);
+      });
+    });
+    root.querySelectorAll('[data-browser-pdf-edit]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        window.StudyPdfCraft?.openSource?.({
+          localSourceKey: btn.dataset.browserPdfEdit,
+          courseId,
+          title: btn.dataset.browserPdfTitle || 'Local PDF',
+        });
       });
     });
     root.querySelectorAll('[data-browser-pdf-del]').forEach((btn) => {
@@ -6894,6 +6924,13 @@ window.StudyApp = (() => {
           keywords: 'al ai tutor mcp claude codex prompt',
           run: () => window.StudyTutor?.open?.(),
         },
+        ...(window.StudyPdfCraft?.isAvailable?.() ? [{
+          group: 'Tools',
+          title: 'PdfCraft PDF Editor',
+          sub: 'Edit, highlight, annotate, sign, merge, or OCR any PDF (Rust WASM)',
+          keywords: 'pdf pdfcraft edit annotate highlight sign merge split ocr redact compress',
+          run: () => window.StudyPdfCraft.openBlank(),
+        }] : []),
         {
           group: 'Actions',
           title: 'Export Backup',
@@ -7578,6 +7615,7 @@ window.StudyApp = (() => {
                     </div>
                     <div class="row-actions" style="gap:4px;flex-shrink:0">
                       <button type="button" class="ghost-btn bi-mat-mini-btn" data-bi-open-local="${esc(f.key)}" data-bi-local-title="${esc(f.title || f.filename)}">Read</button>
+                      ${window.StudyPdfCraft?.isAvailable?.() ? `<button type="button" class="ghost-btn bi-mat-mini-btn" data-bi-edit-local="${esc(f.key)}" data-bi-local-title="${esc(f.title || f.filename)}">Edit</button>` : ''}
                       <button type="button" class="ghost-btn bi-mat-mini-btn" data-bi-del-local="${esc(f.key)}">Remove</button>
                     </div>
                   </div>
@@ -7772,6 +7810,16 @@ window.StudyApp = (() => {
       dlg.querySelectorAll('[data-bi-open-local]').forEach((btn) => {
         btn.addEventListener('click', () => {
           openLocalPdf(btn.dataset.biLocalTitle || 'Local PDF', '', btn.dataset.biOpenLocal);
+        });
+      });
+      dlg.querySelectorAll('[data-bi-edit-local]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          window.StudyPdfCraft?.openSource?.({
+            localSourceKey: btn.dataset.biEditLocal,
+            title: btn.dataset.biLocalTitle || 'Local PDF',
+          }, {
+            onSaved: () => renderBiDialog(linkCode),
+          });
         });
       });
       dlg.querySelectorAll('[data-bi-del-local]').forEach((btn) => {

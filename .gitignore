@@ -1,6 +1,7 @@
 # Personal BI course banks, OneDrive state, calendar cache, and telemetry logs
 data/
 dist/
+app/public/pdfcraft/
 PUBLISH_TO_GITHUB.command
 
 # Environment variables, local secrets & logs

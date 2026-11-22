@@ -512,6 +512,73 @@ def install_member_library(out_dir: Path, archive: Path) -> None:
         package.extractall(out_dir / "member-library")
 
 
+def install_pdfcraft_web(out_dir: Path, archive: Path) -> None:
+    """Verify and install the official storytold/pdfcraft web WASM build under out_dir/pdfcraft/.
+
+    Kept outside git and excluded from offline-worker.js precache so initial Study-OS loads stay
+    zero-bloat; downloaded lazily only when the user clicks 'Edit PDF'.
+    """
+    spec = json.loads((ROOT_DIR / "site-pack" / "pdfcraft-web.json").read_text(encoding="utf-8"))
+    fingerprint = hashlib.sha256()
+    with archive.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(4 * 1024 * 1024), b""):
+            fingerprint.update(chunk)
+    if fingerprint.hexdigest() != spec["sha256"]:
+        raise ValueError(
+            f"PdfCraft archive SHA-256 mismatch: expected {spec['sha256']}, got {fingerprint.hexdigest()}"
+        )
+
+    prefix = f"pdfcraft-web-{spec['version']}/"
+    allowed_names = {"index.html", "LICENSE-APACHE", "LICENSE-MIT", "NOTICE"}
+    allowed_exts = {".js", ".wasm", ".onnx", ".txt"}
+    skip_names = {"README.md", "HOSTING.md", "_headers", ".htaccess"}
+
+    dest_root = (out_dir / "pdfcraft").resolve()
+    if dest_root.exists():
+        shutil.rmtree(dest_root)
+    dest_root.mkdir(parents=True, exist_ok=True)
+
+    total_bytes = 0
+    has_index = False
+    with ZipFile(archive) as zf:
+        for info in zf.infolist():
+            if info.is_dir():
+                continue
+            if not info.filename.startswith(prefix):
+                raise ValueError(f"Unexpected PdfCraft archive entry: {info.filename}")
+            rel_str = info.filename[len(prefix):]
+            if not rel_str or rel_str.startswith("/") or ".." in Path(rel_str).parts:
+                raise ValueError(f"Unsafe PdfCraft archive path: {info.filename}")
+            if rel_str in skip_names:
+                continue
+            rel_path = Path(rel_str)
+            if rel_str not in allowed_names and rel_path.suffix.lower() not in allowed_exts:
+                raise ValueError(f"Unexpected file type in PdfCraft archive: {rel_str}")
+            total_bytes += info.file_size
+            if total_bytes > 160_000_000:
+                raise ValueError("PdfCraft archive exceeds expected 160 MB static budget.")
+            target = (dest_root / rel_path).resolve()
+            if not target.is_relative_to(dest_root):
+                raise ValueError(f"Path escape in PdfCraft archive: {rel_str}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            data = zf.read(info)
+            if rel_str == "index.html":
+                has_index = True
+                # Strip integrity from <link rel="preload" as="fetch"> so Chromium logs 0 console warnings.
+                html_text = data.decode("utf-8")
+                html_text = re.sub(
+                    r'(<link\s+rel="preload"[^>]*?)\s+integrity="[^"]*"([^>]*>)',
+                    r"\1\2",
+                    html_text,
+                )
+                target.write_text(html_text, encoding="utf-8")
+            else:
+                target.write_bytes(data)
+
+    if not has_index:
+        raise ValueError("PdfCraft archive is missing index.html.")
+
+
 SEO_THEME_SCRIPT = """  <script>
     (function () {
       function syncTheme() {
@@ -1646,7 +1713,12 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     return [loc for loc, _, _ in sitemap_urls]
 
 
-def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path | None = None) -> dict[str, Any]:
+def finalize_site(
+    out_dir: Path,
+    bootstrap: dict[str, Any],
+    member_archive: Path | None = None,
+    pdfcraft_archive: Path | None = None,
+) -> dict[str, Any]:
     static_dir = out_dir / "static-data"
     add_bundled_practice(static_dir, bootstrap)
     for ref in bootstrap["references"]:
@@ -1677,6 +1749,7 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
     index = out_dir / "index.html"
     html = index.read_text(encoding="utf-8")
     member_marker = ' data-member-library="1"' if member_archive else ''
+    pdfcraft_marker = ' data-pdfcraft="1"' if pdfcraft_archive else ''
     community_marker = ""
     config = ROOT_DIR / "site-pack" / "community.json"
     if config.is_file():
@@ -1685,7 +1758,7 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
         if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ValueError("The community endpoint must be an HTTPS URL without credentials.")
         community_marker = f' data-community-api="{escape(endpoint, quote=True)}"'
-    html = html.replace("<html ", f'<html data-study-mode="web"{member_marker}{community_marker} ', 1)
+    html = html.replace("<html ", f'<html data-study-mode="web"{member_marker}{pdfcraft_marker}{community_marker} ', 1)
     html = html.replace(
         "</head>",
         '  <link rel="manifest" href="./app.webmanifest">\n'
@@ -1733,7 +1806,7 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
     for path in sorted(out_dir.rglob("*")):
         if path.is_file() and path.name not in seo_skip_files:
             rel = path.relative_to(out_dir).as_posix()
-            if rel.startswith("downloads/") or rel.startswith("courses/") or rel.startswith("uni/"):
+            if rel.startswith("downloads/") or rel.startswith("courses/") or rel.startswith("uni/") or rel.startswith("pdfcraft/"):
                 continue
             assets.append(quote(rel, safe="/"))
             fingerprint.update(rel.encode() + b"\0" + hashlib.sha256(path.read_bytes()).digest())
@@ -1743,6 +1816,8 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
     )
     if member_archive:
         install_member_library(out_dir, member_archive)
+    if pdfcraft_archive:
+        install_pdfcraft_web(out_dir, pdfcraft_archive)
     return {
         "outDir": str(out_dir),
         "coursesExported": len(bootstrap["catalog"]),
@@ -1752,10 +1827,15 @@ def finalize_site(out_dir: Path, bootstrap: dict[str, Any], member_archive: Path
     }
 
 
-def build_site(out_dir: Path, cname: str = "", member_archive: Path | None = None) -> dict[str, Any]:
+def build_site(
+    out_dir: Path,
+    cname: str = "",
+    member_archive: Path | None = None,
+    pdfcraft_archive: Path | None = None,
+) -> dict[str, Any]:
     if out_dir.exists():
         shutil.rmtree(out_dir)
-    shutil.copytree(APP_DIR / "public", out_dir)
+    shutil.copytree(APP_DIR / "public", out_dir, ignore=shutil.ignore_patterns("pdfcraft"))
     (out_dir / ".nojekyll").write_text("", encoding="utf-8")
     if cname.strip():
         (out_dir / "CNAME").write_text(cname.strip() + "\n", encoding="utf-8")
@@ -1771,7 +1851,7 @@ def build_site(out_dir: Path, cname: str = "", member_archive: Path | None = Non
     if not raw_catalog and not v_root.is_dir() and (pack_static / "bootstrap.json").is_file():
         shutil.copytree(pack_static, static_dir)
         boot_saved = json.loads((static_dir / "bootstrap.json").read_text(encoding="utf-8"))
-        return finalize_site(out_dir, boot_saved, member_archive)
+        return finalize_site(out_dir, boot_saved, member_archive, pdfcraft_archive)
 
     courses_out = static_dir / "courses"
     refs_out = static_dir / "references"
@@ -1849,7 +1929,7 @@ def build_site(out_dir: Path, cname: str = "", member_archive: Path | None = Non
         "analytics": {},
         "recentSessions": [],
     }
-    return finalize_site(out_dir, bootstrap_payload, member_archive)
+    return finalize_site(out_dir, bootstrap_payload, member_archive, pdfcraft_archive)
 
 
 def main() -> int:
@@ -1857,6 +1937,7 @@ def main() -> int:
     parser.add_argument("--out", default=str(ROOT_DIR / "dist"), help="Output directory (default: ./dist)")
     parser.add_argument("--cname", default="", help="Optional custom domain for GitHub Pages CNAME file")
     parser.add_argument("--member-archive", type=Path, help="Verified encrypted library release asset")
+    parser.add_argument("--pdfcraft-archive", type=Path, help="Verified storytold/pdfcraft web release zip")
     parser.add_argument(
         "--sync-pack",
         action="store_true",
@@ -1865,7 +1946,12 @@ def main() -> int:
     args = parser.parse_args()
 
     out_path = Path(args.out).resolve()
-    summary = build_site(out_path, cname=args.cname, member_archive=args.member_archive)
+    summary = build_site(
+        out_path,
+        cname=args.cname,
+        member_archive=args.member_archive,
+        pdfcraft_archive=args.pdfcraft_archive,
+    )
     if args.sync_pack:
         pack_dst = ROOT_DIR / "site-pack" / "static-data"
         if pack_dst.exists():
