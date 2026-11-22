@@ -1083,14 +1083,38 @@ window.StudyApp = (() => {
 
   async function ensureCourseBank(courseId) {
     if (bankCache[courseId]) return bankCache[courseId];
+    const staticUrl = `./static-data/courses/${encodeURIComponent(courseId)}.json`;
     if (isStaticWeb && members.course(courseId)) {
-      const bank = await members.loadBank(courseId);
+      const [bank, pubBank] = await Promise.all([
+        members.loadBank(courseId),
+        apiGet(staticUrl).catch(() => null),
+      ]);
+      if (bank && pubBank) {
+        const seenCols = new Map((bank.collections || []).map((c) => [c.id, c]));
+        for (const pc of pubBank.collections || []) {
+          if (!seenCols.has(pc.id)) {
+            (bank.collections ||= []).push(pc);
+            seenCols.set(pc.id, pc);
+          } else if (pc.id === 'tutoring' && pc.title && seenCols.get(pc.id).title !== pc.title) {
+            seenCols.get(pc.id).title = pc.title;
+          }
+        }
+        const seenQids = new Set((bank.questions || []).map((q) => q.id));
+        for (const pq of pubBank.questions || []) {
+          if (pq?.id && !seenQids.has(pq.id)) {
+            (bank.questions ||= []).push(pq);
+            seenQids.add(pq.id);
+          }
+        }
+        bank.sources ||= {};
+        for (const [sid, smeta] of Object.entries(pubBank.sources || {})) {
+          if (!(sid in bank.sources)) bank.sources[sid] = smeta;
+        }
+      }
       bankCache[courseId] = bank;
       return bank;
     }
-    const url = isStaticWeb
-      ? `./static-data/courses/${encodeURIComponent(courseId)}.json`
-      : `/api/course/${encodeURIComponent(courseId)}`;
+    const url = isStaticWeb ? staticUrl : `/api/course/${encodeURIComponent(courseId)}`;
     const bank = await apiGet(url);
     bankCache[courseId] = bank;
     return bank;
