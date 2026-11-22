@@ -66,15 +66,19 @@ window.StudyAiTutor = (() => {
     try { localStorage.setItem(SIDE_KEY, clean); } catch {}
     syncBodyClasses();
   }
+  const AI_PANE_MIN_W = 200;
+  const AI_PANE_MAX_W = 580;
+  const AI_DOCK_MIN_VP = 760;
+
   function getSavedWidth() {
     try {
       const n = Number(localStorage.getItem(WIDTH_KEY));
-      if (Number.isFinite(n) && n >= 310 && n <= 560) return Math.round(n);
+      if (Number.isFinite(n) && n >= AI_PANE_MIN_W && n <= AI_PANE_MAX_W) return Math.round(n);
     } catch {}
     return null;
   }
   function applyPaneWidth(px) {
-    if (Number.isFinite(px) && px >= 310 && px <= 560) {
+    if (Number.isFinite(px) && px >= AI_PANE_MIN_W && px <= AI_PANE_MAX_W) {
       document.documentElement.style.setProperty('--ai-pane-w', `${Math.round(px)}px`);
       try { localStorage.setItem(WIDTH_KEY, String(Math.round(px))); } catch {}
     }
@@ -293,23 +297,27 @@ window.StudyAiTutor = (() => {
     const handle = pane.querySelector('#ai-pane-resize');
     if (!handle) return;
     handle.addEventListener('pointerdown', (startEv) => {
-      if (window.innerWidth < 960) return;
+      if (window.innerWidth < AI_DOCK_MIN_VP) return;
       startEv.preventDefault();
       handle.setPointerCapture?.(startEv.pointerId);
       document.body.classList.add('ai-pane-resizing');
       const side = getDockSide();
+      const railW = document.body.classList.contains('in-runner') ? 42 : 0;
       const onMove = (ev) => {
-        const nextW = side === 'left' ? ev.clientX : window.innerWidth - ev.clientX;
-        const clamped = Math.max(310, Math.min(540, nextW));
+        const rawW = side === 'left' ? ev.clientX - railW : window.innerWidth - ev.clientX;
+        const maxW = Math.min(AI_PANE_MAX_W, Math.round(window.innerWidth * 0.65));
+        const clamped = Math.max(AI_PANE_MIN_W, Math.min(maxW, rawW));
         applyPaneWidth(clamped);
       };
       const onUp = () => {
         document.body.classList.remove('ai-pane-resizing');
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
       };
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
     });
   }
 
