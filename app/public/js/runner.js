@@ -2096,6 +2096,33 @@ window.StudyRunner = (() => {
                  </button>`
               : `<button type="button" class="st-btn runner-pill-tool ${status === 'revisit' ? 'active-revisit' : ''}" data-set-status="revisit" title="Flag for Revisit (F)">${status === 'revisit' ? 'Flagged' : 'Flag'}</button>`
           }
+          <div class="quick-fix-wrap">
+            <button type="button" class="st-btn runner-pill-tool quick-fix-trigger" id="btn-quick-fix" title="Report an issue with this exercise or page" aria-label="Report issue" aria-expanded="false" aria-controls="quick-fix-popover">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M10.4 2.4a3.2 3.2 0 0 0-3.7 4.7L2.6 11.2a1.3 1.3 0 1 0 1.8 1.8l4.1-4.1a3.2 3.2 0 0 0 4.7-3.7l-1.9 1.9-1.8-1.8 1.9-1.9Z"/>
+              </svg>
+            </button>
+            <div class="quick-fix-popover" id="quick-fix-popover" hidden>
+              <textarea id="quick-fix-text" rows="3" maxlength="1500" placeholder="What's broken or wrong here? Paste or attach a screenshot…"></textarea>
+              <div class="quick-fix-thumb-row" id="quick-fix-thumb-row" hidden>
+                <img id="quick-fix-thumb" alt="Screenshot preview">
+                <span class="quick-fix-thumb-name" id="quick-fix-thumb-name"></span>
+                <button type="button" class="quick-fix-thumb-rm" id="quick-fix-thumb-rm" aria-label="Remove screenshot">&times;</button>
+              </div>
+              <div class="quick-fix-actions">
+                <button type="button" class="ghost-btn quick-fix-shot-btn" id="quick-fix-shot-btn">
+                  <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="2" y="3.5" width="12" height="9.5" rx="2"/>
+                    <circle cx="8" cy="8.2" r="2.2"/>
+                    <path d="M5.5 3.5 6.3 2h3.4l.8 1.5"/>
+                  </svg>
+                  <span>Screenshot</span>
+                </button>
+                <input type="file" id="quick-fix-file" accept="image/*" hidden>
+                <button type="button" class="primary-btn quick-fix-send-btn" id="quick-fix-send-btn">Send</button>
+              </div>
+            </div>
+          </div>
           ${toolsMenuHtml}
         </div>
       </div>
@@ -2994,6 +3021,194 @@ window.StudyRunner = (() => {
       renderRunner();
     });
 
+    // Seamless in-exercise bug / fix report popover (message + screenshot -> Send)
+    (() => {
+      const trigger = document.getElementById('btn-quick-fix');
+      const pop = document.getElementById('quick-fix-popover');
+      const ta = document.getElementById('quick-fix-text');
+      const shotBtn = document.getElementById('quick-fix-shot-btn');
+      const fileInp = document.getElementById('quick-fix-file');
+      const sendBtn = document.getElementById('quick-fix-send-btn');
+      const thumbRow = document.getElementById('quick-fix-thumb-row');
+      const thumbImg = document.getElementById('quick-fix-thumb');
+      const thumbName = document.getElementById('quick-fix-thumb-name');
+      const thumbRm = document.getElementById('quick-fix-thumb-rm');
+      if (!trigger || !pop || !ta || !shotBtn || !fileInp || !sendBtn) return;
+
+      let screenshotData = '';
+
+      const compressImageFile = (file) => new Promise((resolve, reject) => {
+        if (!file || !String(file.type || '').startsWith('image/')) {
+          reject(new Error('Choose an image file.'));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Could not read image.'));
+        reader.onload = () => {
+          const img = new Image();
+          img.onerror = () => reject(new Error('Invalid image file.'));
+          img.onload = () => {
+            const maxDim = 1280;
+            const scale = Math.min(1, maxDim / Math.max(img.width || 1, img.height || 1));
+            const w = Math.max(1, Math.round((img.width || 1) * scale));
+            const h = Math.max(1, Math.round((img.height || 1) * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) { reject(new Error('Canvas unavailable.')); return; }
+            ctx.drawImage(img, 0, 0, w, h);
+            let out = canvas.toDataURL('image/webp', 0.78);
+            if (!out.startsWith('data:image/webp') || out.length > 360_000) {
+              out = canvas.toDataURL('image/jpeg', 0.78);
+            }
+            if (out.length > 380_000) {
+              out = canvas.toDataURL('image/jpeg', 0.6);
+            }
+            if (out.length > 410_000) {
+              reject(new Error('Screenshot is too large — try cropping a smaller area.'));
+              return;
+            }
+            resolve({ dataUrl: out, label: `${file.name || 'screenshot'} (${w}×${h})` });
+          };
+          img.src = String(reader.result || '');
+        };
+        reader.readAsDataURL(file);
+      });
+
+      const clearShot = () => {
+        screenshotData = '';
+        fileInp.value = '';
+        if (thumbRow) thumbRow.hidden = true;
+        if (thumbImg) thumbImg.removeAttribute('src');
+        if (thumbName) thumbName.textContent = '';
+      };
+
+      const attachFile = async (file) => {
+        try {
+          const res = await compressImageFile(file);
+          screenshotData = res.dataUrl;
+          if (thumbImg) thumbImg.src = res.dataUrl;
+          if (thumbName) thumbName.textContent = res.label;
+          if (thumbRow) thumbRow.hidden = false;
+        } catch (err) {
+          toast(err?.message || 'Could not attach screenshot.');
+        }
+      };
+
+      const closePop = () => {
+        if (pop.hidden) return;
+        pop.hidden = true;
+        trigger.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('pointerdown', onOutside, true);
+        document.removeEventListener('keydown', onEsc, true);
+      };
+
+      const onOutside = (ev) => {
+        if (!pop.isConnected) { closePop(); return; }
+        if (pop.contains(ev.target) || trigger.contains(ev.target)) return;
+        closePop();
+      };
+
+      const onEsc = (ev) => {
+        if (ev.key === 'Escape') {
+          ev.stopPropagation();
+          closePop();
+        }
+      };
+
+      trigger.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (!pop.hidden) {
+          closePop();
+          return;
+        }
+        pop.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+        setTimeout(() => ta.focus(), 10);
+        document.addEventListener('pointerdown', onOutside, true);
+        document.addEventListener('keydown', onEsc, true);
+      });
+
+      shotBtn.addEventListener('click', () => fileInp.click());
+      fileInp.addEventListener('change', () => {
+        const f = fileInp.files?.[0];
+        if (f) attachFile(f);
+      });
+      thumbRm?.addEventListener('click', clearShot);
+
+      ta.addEventListener('paste', (ev) => {
+        const items = ev.clipboardData?.items;
+        if (!items) return;
+        for (const it of items) {
+          if (it.kind === 'file' && it.type.startsWith('image/')) {
+            const f = it.getAsFile();
+            if (f) {
+              ev.preventDefault();
+              attachFile(f);
+              break;
+            }
+          }
+        }
+      });
+
+      const doSend = async () => {
+        const msg = ta.value.trim();
+        if (msg.length < (screenshotData ? 2 : 4)) {
+          toast('Write a quick note about the issue first.');
+          ta.focus();
+          return;
+        }
+        if (!window.StudyCommunity?.submitFeedback) {
+          toast('Issue reports require the hosted Study-OS site.');
+          return;
+        }
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending…';
+        try {
+          const meta = {
+            courseId: activeRun.courseMeta?.courseId || '',
+            courseCode: activeRun.courseMeta?.code || '',
+            questionId: q.id || '',
+            questionTitle: String(q.title || '').slice(0, 120),
+            kind: q.kind || '',
+            topicId: String(q.topicId ?? ''),
+            mode: activeRun.mode || '',
+            url: location.pathname + location.hash,
+            viewport: `${window.innerWidth}x${window.innerHeight}`,
+            theme: document.documentElement.dataset.theme || 'light',
+          };
+          await window.StudyCommunity.submitFeedback({
+            category: 'bug',
+            message: msg,
+            page: `exercise:${meta.courseCode || meta.courseId || q.id || 'runner'}`,
+            meta,
+            screenshot: screenshotData,
+          });
+          ta.value = '';
+          clearShot();
+          closePop();
+          toast('Report sent — thanks!');
+        } catch (err) {
+          toast(err?.message || 'Could not send report.');
+        } finally {
+          if (sendBtn.isConnected) {
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send';
+          }
+        }
+      };
+
+      sendBtn.addEventListener('click', doSend);
+      ta.addEventListener('keydown', (ev) => {
+        if ((ev.metaKey || ev.ctrlKey) && ev.key === 'Enter') {
+          ev.preventDefault();
+          ev.stopPropagation();
+          doSend();
+        }
+      });
+    })();
+
     // Status overrides (compact select + Flag button)
     document.getElementById('sel-card-status')?.addEventListener('change', async (ev) => {
       const newSt = ev.target.value;
@@ -3542,7 +3757,7 @@ window.StudyRunner = (() => {
     document.addEventListener('keydown', (e) => {
       if (document.querySelector('dialog[open]')) return;
       if (!activeRun || document.getElementById('view-runner').hidden || !document.getElementById('checkin-modal').hidden) return;
-      if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-reader-bar, .pdf-zoom-tools, #ai-tutor-pane')) return;
+      if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-reader-bar, .pdf-zoom-tools, #ai-tutor-pane, #quick-fix-popover')) return;
       if (!document.getElementById('img-lightbox')?.hidden) return;
 
       // Cmd/Ctrl + Enter works even while typing inside the answer textarea:

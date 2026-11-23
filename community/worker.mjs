@@ -175,7 +175,7 @@ export default {
     if (request.method === 'POST') {
       const limit = (path === '/schedule/timeedit-push' || path === '/ai/tutor')
         ? maxIcsBytes
-        : (path === '/sync' || path === '/courses/sync' || path === '/materials/chunk') ? maxSyncBytes : maxInputBytes;
+        : (path === '/sync' || path === '/courses/sync' || path === '/materials/chunk' || path === '/feedback') ? maxSyncBytes : maxInputBytes;
       try { data = await readJson(request, limit); }
       catch { return reply({ error: 'Invalid request.' }, 400); }
     }

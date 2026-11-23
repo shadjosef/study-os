@@ -1785,24 +1785,85 @@ window.StudyCommunity = (() => {
         const fbSec = document.createElement('section');
         fbSec.className = 'panel course-review';
         const openFbCount = fbItems.filter((f) => f.status !== 'done').length;
+        const formatAdminFbPrompt = (f) => {
+          const m = f.meta && typeof f.meta === 'object' ? f.meta : {};
+          const lines = [
+            `Student bug/fix report (${f.category || 'bug'}) from ${f.nickname || 'Student'}:`,
+            `"${f.message}"`,
+          ];
+          const ctx = [
+            m.courseCode || m.courseId ? `Course: ${[m.courseCode, m.courseId].filter(Boolean).join(' / ')}` : '',
+            m.questionId ? `Question ID: ${m.questionId}` : '',
+            m.questionTitle ? `Title: ${m.questionTitle}` : '',
+            m.kind ? `Kind: ${m.kind}` : '',
+            m.mode ? `Mode: ${m.mode}` : '',
+            m.viewport ? `Viewport: ${m.viewport}` : '',
+            f.pageContext && !m.questionId ? `Page: ${f.pageContext}` : '',
+            f.screenshotData ? 'Screenshot attached in Admin Feedback Inbox.' : '',
+          ].filter(Boolean);
+          if (ctx.length) lines.push('', ...ctx);
+          return lines.join('\n');
+        };
         fbSec.innerHTML = `<h3>Feedback inbox (${openFbCount} open · ${fbItems.length} total)</h3>${fbItems.length
-          ? fbItems.map((f) => `<div class="row-between" style="gap:8px;padding:8px 0;border-bottom:1px solid var(--line);align-items:flex-start">
-              <div style="flex:1;min-width:0">
-                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:3px">
-                  <span class="badge ${f.status === 'done' ? '' : 'gold'}">${esc(f.category || 'idea')}</span>
-                  <strong>${esc(f.nickname || 'Student')}</strong>
-                  <small class="muted">${esc(new Date(f.createdAt).toLocaleString())}</small>
-                  ${f.status === 'done' ? '<span class="badge good">Done</span>' : ''}
+          ? fbItems.map((f, idx) => {
+              const m = f.meta && typeof f.meta === 'object' ? f.meta : null;
+              const ctxBits = [
+                m?.courseCode || m?.courseId || '',
+                m?.questionTitle || m?.questionId || '',
+                m?.kind || '',
+                m?.viewport || '',
+              ].filter(Boolean);
+              const ctxLine = ctxBits.length ? ctxBits.join(' · ') : (f.pageContext || '');
+              const hasShot = typeof f.screenshotData === 'string' && f.screenshotData.startsWith('data:image/');
+              return `<div class="row-between" style="gap:8px;padding:10px 0;border-bottom:1px solid var(--line);align-items:flex-start">
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:3px">
+                    <span class="badge ${f.status === 'done' ? '' : 'gold'}">${esc(f.category || 'idea')}</span>
+                    <strong>${esc(f.nickname || 'Student')}</strong>
+                    <small class="muted">${esc(new Date(f.createdAt).toLocaleString())}</small>
+                    ${f.status === 'done' ? '<span class="badge good">Done</span>' : ''}
+                  </div>
+                  ${ctxLine ? `<div class="admin-fb-meta">${esc(ctxLine)}</div>` : ''}
+                  <p style="margin:3px 0 0;font-size:13.5px;white-space:pre-wrap;word-break:break-word">${esc(f.message)}</p>
+                  ${hasShot ? `<button type="button" class="admin-fb-shot-btn" data-fb-shot="${idx}" title="Click to view full screenshot"><img class="admin-fb-shot" src="${f.screenshotData}" alt="Attached screenshot"></button>` : ''}
                 </div>
-                <p style="margin:2px 0 0;font-size:13.5px;white-space:pre-wrap;word-break:break-word">${esc(f.message)}</p>
-              </div>
-              <div class="row-actions" style="flex-shrink:0">
-                <button type="button" class="ghost-btn" data-fb-act="${f.status === 'done' ? 'open' : 'done'}" data-fb-id="${esc(f.id)}">${f.status === 'done' ? 'Reopen' : 'Done'}</button>
-                <button type="button" class="ghost-btn" data-fb-act="delete" data-fb-id="${esc(f.id)}">Delete</button>
-              </div>
-            </div>`).join('')
+                <div class="row-actions" style="flex-shrink:0;flex-wrap:wrap">
+                  <button type="button" class="ghost-btn" data-fb-copy="${idx}" title="Copy structured fix prompt">Copy prompt</button>
+                  <button type="button" class="ghost-btn" data-fb-act="${f.status === 'done' ? 'open' : 'done'}" data-fb-id="${esc(f.id)}">${f.status === 'done' ? 'Reopen' : 'Done'}</button>
+                  <button type="button" class="ghost-btn" data-fb-act="delete" data-fb-id="${esc(f.id)}">Delete</button>
+                </div>
+              </div>`;
+            }).join('')
           : '<p class="muted">No user feedback yet.</p>'}`;
         body.prepend(fbSec);
+        fbSec.querySelectorAll('[data-fb-copy]').forEach((btn) => {
+          btn.onclick = async () => {
+            const item = fbItems[Number(btn.dataset.fbCopy)];
+            if (!item) return;
+            try {
+              await navigator.clipboard.writeText(formatAdminFbPrompt(item));
+              toast('Copied structured fix prompt.');
+            } catch {
+              toast('Could not copy to clipboard.');
+            }
+          };
+        });
+        fbSec.querySelectorAll('[data-fb-shot]').forEach((btn) => {
+          btn.onclick = () => {
+            const item = fbItems[Number(btn.dataset.fbShot)];
+            if (!item?.screenshotData) return;
+            const lb = document.getElementById('img-lightbox');
+            const lbImg = document.getElementById('img-lightbox-img');
+            const lbCap = document.getElementById('img-lightbox-caption');
+            if (lb && lbImg) {
+              lbImg.src = item.screenshotData;
+              if (lbCap) lbCap.textContent = `${item.nickname || 'Student'}: ${item.message || ''}`;
+              lb.hidden = false;
+            } else {
+              window.open(item.screenshotData, '_blank', 'noopener');
+            }
+          };
+        });
         fbSec.querySelectorAll('[data-fb-act]').forEach((btn) => {
           btn.onclick = async () => {
             btn.disabled = true;
@@ -2198,6 +2259,21 @@ window.StudyCommunity = (() => {
       } finally {
         if (btn) btn.disabled = false;
       }
+    });
+  }
+
+  async function submitFeedback({ category = 'bug', message = '', page = '', meta = null, screenshot = '' } = {}) {
+    if (!api) throw new Error('Feedback requires the hosted Study-OS site.');
+    if (!token) {
+      const ok = await requireProfile({ allowDemo: true, forcePrompt: true });
+      if (!ok) throw new Error('Sign in to send a report.');
+    }
+    return request('/feedback', {
+      category,
+      message: String(message || '').trim(),
+      page: String(page || '').trim(),
+      ...(meta && typeof meta === 'object' ? { meta } : {}),
+      ...(screenshot ? { screenshot } : {}),
     });
   }
 
@@ -3535,6 +3611,7 @@ window.StudyCommunity = (() => {
     approvedCourses,
     proposeCourses,
     openFeedbackDialog,
+    submitFeedback,
     listMaterials,
     uploadMaterial,
     deleteMaterial,

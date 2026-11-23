@@ -283,6 +283,8 @@ CREATE TABLE IF NOT EXISTS user_feedback (
   category TEXT NOT NULL DEFAULT 'idea',
   message TEXT NOT NULL,
   page_context TEXT NOT NULL DEFAULT '',
+  screenshot_data TEXT NOT NULL DEFAULT '',
+  meta_json TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'open',
   created_at INTEGER NOT NULL
 );
