@@ -4170,7 +4170,8 @@ window.StudyApp = (() => {
       let slotLeft = '';
       let slotRight = '';
       if (prog.isGradeA) {
-        slotLeft = `<strong>★ Grade A · ${prog.bestPct}%</strong><span>${prog.total ? `${prog.done}/${prog.total} done` : 'Mastered'}</span>`;
+        const countDone = Math.min(prog.total, Math.max(prog.done, Number(prog.savedResult?.gradedCount || 0)));
+        slotLeft = `<strong>★ Grade A · ${prog.bestPct}%</strong><span>${prog.total ? `${countDone}/${prog.total} ${prog.done >= countDone ? 'done' : 'graded'}` : 'Mastered'}</span>`;
         slotRight = 'Retake ↻';
       } else if (isOfficialOrFullGrade) {
         slotLeft = `<strong>Grade ${g.letter} · ${prog.bestPct}%</strong><span>+${g.toA}% to A</span>`;
