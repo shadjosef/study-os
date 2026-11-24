@@ -126,6 +126,41 @@ function cleanCustomSets(raw) {
   return out;
 }
 
+function cleanScreenHistory(raw) {
+  if (!isObj(raw)) return {};
+  const entries = [];
+  for (const [k, v] of Object.entries(raw)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !isObj(v)) continue;
+    const screenSec = Math.min(86400, Math.max(0, Math.round(Number(v.screenSec) || 0)));
+    const offScreenSec = Math.min(86400, Math.max(0, Math.round(Number(v.offScreenSec) || 0)));
+    const activeSec = Math.min(86400, Math.max(0, Math.round(Number(v.activeSec) || 0)));
+    const breaks = Math.min(200, Math.max(0, Math.round(Number(v.breaks) || 0)));
+    if (screenSec === 0 && offScreenSec === 0 && activeSec === 0 && breaks === 0) continue;
+    entries.push([k, { screenSec: Math.max(screenSec, activeSec), offScreenSec, activeSec, breaks }]);
+  }
+  entries.sort((a, b) => a[0].localeCompare(b[0]));
+  return Object.fromEntries(entries.slice(-60));
+}
+
+function mergeScreenHistories(existingRaw, incomingRaw) {
+  const base = cleanScreenHistory(existingRaw);
+  const inc = cleanScreenHistory(incomingRaw);
+  const keys = [...new Set([...Object.keys(base), ...Object.keys(inc)])].sort().slice(-60);
+  const merged = {};
+  for (const k of keys) {
+    const a = base[k] || { screenSec: 0, offScreenSec: 0, activeSec: 0, breaks: 0 };
+    const b = inc[k] || { screenSec: 0, offScreenSec: 0, activeSec: 0, breaks: 0 };
+    const activeSec = Math.max(a.activeSec, b.activeSec);
+    merged[k] = {
+      screenSec: Math.max(a.screenSec, b.screenSec, activeSec),
+      offScreenSec: Math.max(a.offScreenSec, b.offScreenSec),
+      activeSec,
+      breaks: Math.max(a.breaks, b.breaks),
+    };
+  }
+  return merged;
+}
+
 export async function handleSync({ request, db, me, now, data, reply }) {
   if (request.method === 'GET') {
     const row = await db.prepare(
@@ -177,6 +212,15 @@ export async function handleSync({ request, db, me, now, data, reply }) {
         }
       : { enabled: false, prefs: {}, blocks: [], completedEvents: {}, dismissedEvents: {} };
 
+    const prevScreenRow = await db.prepare(
+      "SELECT json_extract(payload, '$.screenHistory') AS sh FROM study_backups WHERE profile_id = ?"
+    ).bind(me.id).first();
+    let existingScreenHistory = {};
+    if (prevScreenRow?.sh) {
+      try { existingScreenHistory = JSON.parse(prevScreenRow.sh); } catch {}
+    }
+    const screenHistory = mergeScreenHistories(existingScreenHistory, data.screenHistory);
+
     const cleanPayload = {
       format: 'study-os-backup-v1',
       syncedAt: new Date(now).toISOString(),
@@ -187,6 +231,7 @@ export async function handleSync({ request, db, me, now, data, reply }) {
       canvasSnapshot: canvasForSync(data.canvasSnapshot),
       edSnapshot: cleanEdSnapshot(data.edSnapshot),
       customSets: cleanCustomSets(data.customSets),
+      screenHistory,
     };
 
     const serialized = JSON.stringify(cleanPayload);

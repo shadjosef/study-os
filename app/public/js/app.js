@@ -423,6 +423,9 @@ window.StudyApp = (() => {
     const addedSets = Array.isArray(data.customSets)
       ? (window.StudySets?.mergeFromCloud?.(data.customSets) || 0)
       : 0;
+    const screenMerged = isRecord(data.screenHistory)
+      ? (window.StudyUI?.workClock?.mergeScreenHistory?.(data.screenHistory) || 0)
+      : 0;
     if (!saveWebState(ws)) return '';
 
     const restored = [
@@ -433,6 +436,7 @@ window.StudyApp = (() => {
       canvasChanged ? 'Canvas deadlines' : '',
       edChanged ? 'Ed Discussion posts' : '',
       addedSets ? `${addedSets} study set${addedSets === 1 ? '' : 's'}` : '',
+      screenMerged ? 'Oslo screen-time history' : '',
     ].filter(Boolean);
     return restored.length ? `Restored ${restored.join(', ')}.` : 'This backup contains no newer study data.';
   }
@@ -832,8 +836,8 @@ window.StudyApp = (() => {
         const tk = `${c.courseId}::${tid}`;
         const tAtts = topicAttempts[tk] || [];
         const workedMin = Math.round(((topicAttemptSec[tk] || 0) / 60 + recordCreditMin) * 10) / 10;
-        // Recommended AI-Par hours before exam: 1.0x clean pass + 0.25x spaced-rep/review buffer
-        const recommendedMin = Math.max(15, Math.round((Number(ts.parMinutes) || 20) * 1.25));
+        // Exact 1.0x AI-Par target summed across this topic's exercises
+        const recommendedMin = Math.max(15, Math.round(Number(ts.parMinutes) || 20));
         const ratioToPar = recommendedMin > 0 ? workedMin / recommendedMin : 0;
         const totalCount = Math.max(1, Number(ts.questionCount) || qIds.length || 1);
         const coveragePct = Math.min(100, Math.round((doneCount / totalCount) * 100));
@@ -1601,6 +1605,16 @@ window.StudyApp = (() => {
   let cloudSyncInFlight = false;
   let cloudSyncMeta = { status: '', updatedAt: 0, recordCount: 0 };
 
+  function screenHistoryTotalSec(hist) {
+    if (!isRecord(hist)) return 0;
+    let total = 0;
+    for (const v of Object.values(hist)) {
+      if (!isRecord(v)) continue;
+      total += Math.max(0, Number(v.screenSec) || 0) + Math.max(0, Number(v.activeSec) || 0);
+    }
+    return Math.round(total);
+  }
+
   function buildWebBackupPayload() {
     flushPendingDrafts();
     const ws = loadWebState();
@@ -1617,6 +1631,7 @@ window.StudyApp = (() => {
       canvasSnapshot: ws.canvasSnapshot,
       edSnapshot: ws.edSnapshot,
       customSets: window.StudySets?.exportForSync?.() || [],
+      screenHistory: window.StudyUI?.workClock?.getScreenHistory?.() || {},
     };
   }
 
@@ -1641,6 +1656,7 @@ window.StudyApp = (() => {
       let cloudCanvasAt = 0;
       let cloudEdAt = 0;
       let cloudSetCount = 0;
+      let cloudScreenTotal = 0;
       if (!pushOnly) {
         const remote = await window.StudyCommunity.fetchCloudBackup();
         if (remote?.hasBackup && remote.data) {
@@ -1651,6 +1667,7 @@ window.StudyApp = (() => {
           cloudCanvasAt = backupTime(remote.data.canvasSnapshot?.syncedAt);
           cloudEdAt = backupTime(remote.data.edSnapshot?.syncedAt);
           cloudSetCount = Array.isArray(remote.data.customSets) ? remote.data.customSets.length : 0;
+          cloudScreenTotal = screenHistoryTotalSec(remote.data.screenHistory);
           const msg = restoreWebBackup(remote.data);
           if (msg && msg.startsWith('Restored ')) {
             mergedFromCloud = true;
@@ -1667,13 +1684,14 @@ window.StudyApp = (() => {
       const localAttemptCount = (payload.attempts || []).length;
       const localSessionCount = (payload.sessions || []).length;
       const localSetCount = (payload.customSets || []).length;
+      const localScreenTotal = screenHistoryTotalSec(payload.screenHistory);
       const scheduleAt = backupTime(payload.customSchedule.updatedAt);
       const canvasAt = backupTime(payload.canvasSnapshot?.syncedAt);
       const edAt = backupTime(payload.edSnapshot?.syncedAt);
-      const hasLocalData = localRecCount > 0 || localAttemptCount > 0 || localSessionCount > 0 || localSetCount > 0 || scheduleAt > 0 || canvasAt > 0 || edAt > 0;
+      const hasLocalData = localRecCount > 0 || localAttemptCount > 0 || localSessionCount > 0 || localSetCount > 0 || localScreenTotal > 60 || scheduleAt > 0 || canvasAt > 0 || edAt > 0;
       const shouldPush = pushOnly || interactive || (hasLocalData && (
         localRecCount !== cloudRecCount || localAttemptCount !== cloudAttemptCount || localSessionCount !== cloudSessionCount ||
-        localSetCount !== cloudSetCount || scheduleAt > cloudScheduleAt || canvasAt > cloudCanvasAt || edAt > cloudEdAt || mergedFromCloud
+        localSetCount !== cloudSetCount || localScreenTotal > cloudScreenTotal + 60 || scheduleAt > cloudScheduleAt || canvasAt > cloudCanvasAt || edAt > cloudEdAt || mergedFromCloud
       ));
       if (shouldPush) {
         const res = await window.StudyCommunity.pushCloudBackup(payload);
@@ -5457,7 +5475,44 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   function renderAnalytics() {
     const root = document.getElementById('analytics-root');
-    if (isStaticWeb) recomputeWebAnalytics();
+    if (isStaticWeb) {
+      recomputeWebAnalytics();
+    } else if (boot.analytics) {
+      // Fold live browser Oslo screen-time history into local Python server analytics
+      const screenHist = window.StudyUI?.workClock?.getScreenHistory?.() || {};
+      const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
+      const todayKey = dayFmt.format(new Date());
+      const byDay = new Map((Array.isArray(boot.analytics.dailySeries) ? boot.analytics.dailySeries : []).map((d) => [d.day, { ...d }]));
+      for (let i = 13; i >= 0; i--) {
+        const dk = dayFmt.format(new Date(Date.now() - i * 86_400_000));
+        if (!byDay.has(dk)) {
+          byDay.set(dk, {
+            day: dk,
+            isToday: dk === todayKey,
+            activeMin: 0, highMin: 0, medMin: 0, lowMin: 0,
+            screenMin: 0, offScreenMin: 0, efficiencyPct: null,
+            attempts: 0, adjustedUnits: 0, avgPaceRatio: null, upi: null, accuracyPct: null, byCourseMin: {},
+          });
+        }
+      }
+      for (const [dk, sh] of Object.entries(screenHist)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dk)) continue;
+        const row = byDay.get(dk) || {
+          day: dk, isToday: dk === todayKey, activeMin: 0, highMin: 0, medMin: 0, lowMin: 0,
+          screenMin: 0, offScreenMin: 0, efficiencyPct: null,
+          attempts: 0, adjustedUnits: 0, avgPaceRatio: null, upi: null, accuracyPct: null, byCourseMin: {},
+        };
+        const shActMin = Math.round(((Number(sh?.activeSec) || 0) / 60) * 10) / 10;
+        if (dk === todayKey) row.activeMin = Math.max(row.activeMin, shActMin);
+        row.screenMin = Math.max(row.screenMin, row.activeMin, Math.round(((Number(sh?.screenSec) || 0) / 60) * 10) / 10);
+        row.offScreenMin = Math.max(row.offScreenMin, Math.round(((Number(sh?.offScreenSec) || 0) / 60) * 10) / 10);
+        row.efficiencyPct = row.screenMin > 0.5 ? Math.min(100, Math.round((row.activeMin / row.screenMin) * 100)) : null;
+        byDay.set(dk, row);
+      }
+      boot.analytics.dailySeries = [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
+      const liveTodaySec = Number(screenHist[todayKey]?.activeSec || 0);
+      if (boot.analytics.today) boot.analytics.today.liveActiveSec = liveTodaySec;
+    }
     const aiBriefText = buildAiCoachBrief();
     if (window.StudyMetrics?.renderDashboard) {
       window.StudyMetrics.renderDashboard(root, {

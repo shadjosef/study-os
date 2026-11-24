@@ -25,6 +25,8 @@ window.StudyMetrics = (() => {
   };
 
   let lastCtx = null;
+  let liveChartRepainters = null;
+  let lastLiveChartState = { activeMin: -1, screenMin: -1, refreshedAtMs: 0 };
 
   const fmtHours = (min) => {
     const m = Math.max(0, Number(min) || 0);
@@ -718,7 +720,7 @@ window.StudyMetrics = (() => {
           <div class="mc-kpi-label">Hours Worked (Oslo)</div>
           <div class="mc-kpi-val-row">
             <b id="mc-live-hours-today">${esc(fmtHours(liveActiveMin))}</b>
-            <span class="mc-delta is-neutral">Wk ${esc(fmtHours(l7.totalActiveMinutes || 0))}</span>
+            <span class="mc-delta is-neutral" id="mc-live-hours-week">Wk ${esc(fmtHours(l7.totalActiveMinutes || 0))}</span>
           </div>
           <small class="muted">Deep (Hard) today: ${esc(((db.todayHighMinutes || 0) / 60).toFixed(1))}h / 4.5h cap</small>
         </div>
@@ -1059,6 +1061,14 @@ window.StudyMetrics = (() => {
     paintScreen();
     paintStack();
     renderTopicMatrix(root.querySelector('#mc-topics-card'), ctx);
+    liveChartRepainters = { paintHero, paintScreen, paintStack };
+    lastLiveChartState = {
+      activeMin: liveActiveMin,
+      screenMin,
+      refreshedAtMs: Date.now(),
+      baseWeekMin: Number(l7.totalActiveMinutes || 0),
+      baseTodayMin: liveActiveMin,
+    };
 
     // Bind chart controls
     root.querySelector('#mc-hero-metric')?.addEventListener('change', (ev) => {
@@ -1112,9 +1122,10 @@ window.StudyMetrics = (() => {
     });
   }
 
-  // Lightweight 1s live ticker (updates KPI tiles in-place without disturbing chart hover state)
+  // Lightweight 1s live ticker (updates KPI tiles in-place + periodically refreshes Today's chart bar without disturbing hover tooltips)
   function updateLiveTiles(scr, liveActiveSec) {
     const hrsEl = document.getElementById('mc-live-hours-today');
+    const wkEl = document.getElementById('mc-live-hours-week');
     const scrEl = document.getElementById('mc-live-screen-today');
     const effBadge = document.getElementById('mc-live-eff-badge');
     const scrSub = document.getElementById('mc-live-screen-sub');
@@ -1122,10 +1133,17 @@ window.StudyMetrics = (() => {
 
     const baseActiveMin = Number(lastCtx?.analytics?.today?.totalActiveMinutes || 0);
     const activeMin = Math.max(baseActiveMin, Math.round((Number(liveActiveSec) || 0) / 60));
-    const screenMin = Math.max(activeMin, Math.round((Number(scr?.screenSec) || 0) / 60));
+    const scrSec = Number(scr?.screenSec) || 0;
+    const screenMin = Math.max(activeMin, Math.round(scrSec / 60));
 
     if (hrsEl) hrsEl.textContent = fmtHours(activeMin);
-    if (scrEl && scr?.screenLabel) scrEl.textContent = scr.screenLabel;
+    if (wkEl && Number.isFinite(lastLiveChartState.baseWeekMin)) {
+      const deltaToday = Math.max(0, activeMin - (lastLiveChartState.baseTodayMin || 0));
+      wkEl.textContent = `Wk ${fmtHours(lastLiveChartState.baseWeekMin + deltaToday)}`;
+    }
+    if (scrEl) {
+      scrEl.textContent = scrSec >= activeMin * 60 && scr?.screenLabel ? scr.screenLabel : fmtHours(screenMin);
+    }
     if (effBadge) {
       if (screenMin > 0) {
         const eff = Math.min(100, Math.round((activeMin / screenMin) * 100));
@@ -1134,6 +1152,34 @@ window.StudyMetrics = (() => {
         if (scrSub) {
           const verdict = eff >= 72 ? `${eff}% focused` : eff >= 48 ? `${eff}% active · moderate drift` : `${eff}% active · high idle screen time`;
           scrSub.textContent = `${verdict} · ${scr?.offScreenLabel || '0m'} off-screen`;
+        }
+      }
+    }
+
+    // Live-refresh Today's bar across SVG charts whenever Today ticks up by ≥1 min (throttled ≥15s) or on a 60s heartbeat
+    const nowMs = Date.now();
+    const minutesChanged = activeMin !== lastLiveChartState.activeMin || screenMin !== lastLiveChartState.screenMin;
+    const elapsedMs = nowMs - (lastLiveChartState.refreshedAtMs || 0);
+    const shouldRepaint = liveChartRepainters && Array.isArray(lastCtx?.analytics?.dailySeries) && (
+      (minutesChanged && elapsedMs >= 15000) || elapsedMs >= 60000
+    );
+    if (shouldRepaint) {
+      const anyTooltipOpen = Boolean(document.querySelector('#analytics-root .mc-tooltip:not([hidden])'));
+      if (!anyTooltipOpen) {
+        const todayRow = lastCtx.analytics.dailySeries.find((d) => d.isToday);
+        if (todayRow) {
+          todayRow.activeMin = Math.max(Number(todayRow.activeMin || 0), activeMin);
+          todayRow.screenMin = Math.max(Number(todayRow.screenMin || 0), screenMin, todayRow.activeMin);
+          todayRow.offScreenMin = Math.max(Number(todayRow.offScreenMin || 0), Math.round(((Number(scr?.offScreenSec) || 0) / 60) * 10) / 10);
+          todayRow.efficiencyPct = todayRow.screenMin > 0.5
+            ? Math.min(100, Math.round((todayRow.activeMin / todayRow.screenMin) * 100))
+            : null;
+          lastLiveChartState.activeMin = activeMin;
+          lastLiveChartState.screenMin = screenMin;
+          lastLiveChartState.refreshedAtMs = nowMs;
+          liveChartRepainters.paintHero();
+          liveChartRepainters.paintScreen();
+          liveChartRepainters.paintStack();
         }
       }
     }

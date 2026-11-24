@@ -507,6 +507,190 @@ def build_full_analytics(
 
     correlations = compute_correlations(sessions)
 
+    def _oslo_day(ts_val: Any) -> str:
+        raw = str(ts_val or "")
+        if not raw:
+            return ""
+        try:
+            return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(OSLO_TZ).strftime("%Y-%m-%d")
+        except Exception:
+            return raw[:10] if len(raw) >= 10 else ""
+
+    def _attempt_tier(a_item: dict[str, Any]) -> int:
+        raw_t = a_item.get("dlpfcTier")
+        if raw_t in (1, 2, 3):
+            return int(raw_t)
+        q_o = q_lookup.get(str(a_item.get("questionId") or ""))
+        return classify_intrinsic_dlpfc(q_o)[0] if q_o else (1 if a_item.get("kind") == "mcq" else 2)
+
+    def _adj_units(a_item: dict[str, Any]) -> float:
+        tier = _attempt_tier(a_item)
+        tier_w = 1.35 if tier == 3 else (0.75 if tier == 1 else 1.0)
+        par_sec = max(45.0, float(a_item.get("aiParSec") or a_item.get("parSec") or (90 if a_item.get("kind") == "mcq" else 300)))
+        q_acc = clamp(float(a_item.get("qualityAccuracy", 0.8)), 0.3, 1.0)
+        return (par_sec / 180.0) * tier_w * q_acc
+
+    last7_days_set = {(now.date() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)}
+    prev7_days_set = {(now.date() - timedelta(days=i + 7)).strftime("%Y-%m-%d") for i in range(7)}
+    last7_atts = [a for a in attempts if _oslo_day(a.get("timestamp")) in last7_days_set]
+    prev7_atts = [a for a in attempts if _oslo_day(a.get("timestamp")) in prev7_days_set]
+    prev_7d = aggregate_attempt_group(prev7_atts, avg_focus_density)
+    last_7d = {
+        **last_7d,
+        "prev7Upi": prev_7d.get("upi"),
+        "attempts": len(last7_atts),
+        "adjustedUnits": round(sum(_adj_units(a) for a in last7_atts), 1),
+        "prevAdjustedUnits": round(sum(_adj_units(a) for a in prev7_atts), 1),
+    }
+
+    # Oslo daily series (last 14+ days)
+    day_buckets: dict[str, dict[str, Any]] = {}
+
+    def _ensure_day(dk: str) -> dict[str, Any]:
+        row = day_buckets.get(dk)
+        if row is None:
+            row = {
+                "day": dk,
+                "isToday": dk == today_str,
+                "activeSec": 0.0,
+                "highSec": 0.0,
+                "medSec": 0.0,
+                "lowSec": 0.0,
+                "awaySec": 0.0,
+                "sessActiveSec": 0.0,
+                "attempts": [],
+                "adjustedUnits": 0.0,
+                "byCourseSec": {},
+            }
+            day_buckets[dk] = row
+        return row
+
+    for i in range(13, -1, -1):
+        _ensure_day((now.date() - timedelta(days=i)).strftime("%Y-%m-%d"))
+
+    for a in attempts:
+        dk = _oslo_day(a.get("timestamp"))
+        if not dk:
+            continue
+        dr = _ensure_day(dk)
+        sec = max(0.0, float(a.get("activeSec") or 0.0))
+        tier = _attempt_tier(a)
+        cid = str(a.get("courseId") or "")
+        dr["attempts"].append(a)
+        dr["activeSec"] += sec
+        if tier == 3:
+            dr["highSec"] += sec
+        elif tier == 1:
+            dr["lowSec"] += sec
+        else:
+            dr["medSec"] += sec
+        dr["adjustedUnits"] += _adj_units(a)
+        if cid:
+            dr["byCourseSec"][cid] = dr["byCourseSec"].get(cid, 0.0) + sec
+
+    for s in sessions:
+        dk = _oslo_day(s.get("endedAt") or s.get("startedAt"))
+        if not dk:
+            continue
+        dr = _ensure_day(dk)
+        dr["sessActiveSec"] += max(0.0, float(s.get("activeSec") or 0.0))
+        dr["awaySec"] += max(0.0, float(s.get("awaySec") or 0.0))
+
+    daily_series: list[dict[str, Any]] = []
+    for dk in sorted(day_buckets.keys())[-60:]:
+        dr = day_buckets[dk]
+        eff_active = max(dr["activeSec"], min(dr["sessActiveSec"], dr["activeSec"] + 1800.0))
+        active_min = round(eff_active / 60.0, 1)
+        off_min = round(dr["awaySec"] / 60.0, 1)
+        screen_min = round((eff_active + dr["awaySec"]) / 60.0, 1)
+        eff_pct = min(100, round((active_min / screen_min) * 100)) if screen_min > 0.5 else None
+        arr = dr["attempts"]
+        grp = aggregate_attempt_group(arr, avg_focus_density) if arr else {}
+        daily_series.append(
+            {
+                "day": dk,
+                "isToday": dr["isToday"],
+                "activeMin": active_min,
+                "highMin": round(dr["highSec"] / 60.0, 1),
+                "medMin": round(dr["medSec"] / 60.0, 1),
+                "lowMin": round(dr["lowSec"] / 60.0, 1),
+                "screenMin": screen_min,
+                "offScreenMin": off_min,
+                "efficiencyPct": eff_pct,
+                "attempts": len(arr),
+                "adjustedUnits": round(dr["adjustedUnits"], 1),
+                "avgPaceRatio": grp.get("avgPaceRatio"),
+                "upi": grp.get("upi"),
+                "accuracyPct": round(grp["avgAccuracy"] * 100) if grp.get("avgAccuracy") is not None else None,
+                "byCourseMin": {k: round(v / 60.0, 1) for k, v in dr["byCourseSec"].items()},
+            }
+        )
+
+    # Topic coverage & Hours Worked vs Exact 1.0x AI-Par Exam Target
+    topic_matrix: dict[str, list[dict[str, Any]]] = {}
+    for cid, bank in courses_by_id.items():
+        qs = [q for q in bank.get("questions", []) if q.get("available", True)]
+        by_tid_qs: dict[str, list[dict[str, Any]]] = {}
+        for q in qs:
+            by_tid_qs.setdefault(str(q.get("topicId") or "general"), []).append(q)
+        rows_for_course: list[dict[str, Any]] = []
+        for idx_t, t in enumerate(bank.get("topics") or []):
+            tid = str(t.get("id") or "")
+            t_qs = by_tid_qs.get(tid) or []
+            if not t_qs:
+                continue
+            par_min_sum = 0.0
+            for q in t_qs:
+                pacing = q.get("pacing") or {}
+                learn_t = (pacing.get("learning") or {}).get("target")
+                par_min_sum += float(learn_t) if isinstance(learn_t, (int, float)) and learn_t > 0 else (2.0 if q.get("kind") == "mcq" else 6.0)
+            recommended_min = max(15, round(par_min_sum))
+            t_atts = g_topic.get(f"{cid}:{tid}") or []
+            att_qids = {str(a.get("questionId") or "") for a in t_atts}
+            att_sec = sum(max(0.0, float(a.get("activeSec") or 0.0)) for a in t_atts)
+            done_n = 0
+            rev_n = 0
+            credit_min = 0.0
+            avg_q_par = par_min_sum / max(1, len(t_qs))
+            for q in t_qs:
+                rec = records.get(q["id"]) or {}
+                st = rec.get("status") or ""
+                if st == "done":
+                    done_n += 1
+                    if q["id"] not in att_qids:
+                        credit_min += avg_q_par * 0.85
+                elif st == "revisit":
+                    rev_n += 1
+            worked_min = round(att_sec / 60.0 + credit_min, 1)
+            ratio = worked_min / recommended_min if recommended_min > 0 else 0.0
+            cov_pct = min(100, round((done_n / max(1, len(t_qs))) * 100))
+            tm = by_topic.get(f"{cid}:{tid}") or {}
+            avg_acc = tm.get("avgAccuracy")
+            status = (
+                "ready"
+                if (ratio >= 0.72 or cov_pct >= 75) and (avg_acc is None or avg_acc >= 0.72) and rev_n <= 1
+                else ("building" if (ratio >= 0.30 or cov_pct >= 30) else "lacking")
+            )
+            rows_for_course.append(
+                {
+                    "id": tid,
+                    "order": idx_t,
+                    "title": t.get("title") or f"Topic {tid}",
+                    "workedMin": worked_min,
+                    "recommendedMin": recommended_min,
+                    "ratioToPar": round(ratio, 3),
+                    "doneCount": done_n,
+                    "totalCount": len(t_qs),
+                    "revisitCount": rev_n,
+                    "coveragePct": cov_pct,
+                    "avgPaceRatio": tm.get("avgPaceRatio"),
+                    "avgAccuracy": avg_acc,
+                    "status": status,
+                }
+            )
+        if rows_for_course:
+            topic_matrix[cid] = rows_for_course
+
     summary = {
         "generatedAt": now_iso,
         "streakDays": streak,
@@ -527,6 +711,8 @@ def build_full_analytics(
             "byTimeSlot": by_time_slot,
             "byDlpfcTier": by_dlpfc,
         },
+        "dailySeries": daily_series,
+        "topicMatrix": topic_matrix,
         "weakTopics": weak_topics[:12],
         "correlations": correlations,
     }

@@ -1583,6 +1583,63 @@ window.StudyUI = (() => {
       };
       return hist;
     },
+    mergeScreenHistory(incoming) {
+      if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return 0;
+      if (!workState.dayHistory || typeof workState.dayHistory !== 'object') workState.dayHistory = {};
+      const todayKey = localDayKey();
+      let changed = 0;
+      for (const [dayKey, entry] of Object.entries(incoming)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey) || !entry || typeof entry !== 'object') continue;
+        const incScreen = Math.min(86400, Math.max(0, Math.round(Number(entry.screenSec) || 0)));
+        const incOff = Math.min(86400, Math.max(0, Math.round(Number(entry.offScreenSec) || 0)));
+        const incAct = Math.min(86400, Math.max(0, Math.round(Number(entry.activeSec) || 0)));
+        const incBreaks = Math.min(200, Math.max(0, Math.round(Number(entry.breaks) || 0)));
+        if (incScreen === 0 && incOff === 0 && incAct === 0 && incBreaks === 0) continue;
+
+        const cur = workState.dayHistory[dayKey] || { screenSec: 0, offScreenSec: 0, activeSec: 0, breaks: 0 };
+        const next = {
+          screenSec: Math.max(Number(cur.screenSec) || 0, incScreen, incAct),
+          offScreenSec: Math.max(Number(cur.offScreenSec) || 0, incOff),
+          activeSec: Math.max(Number(cur.activeSec) || 0, incAct),
+          breaks: Math.max(Number(cur.breaks) || 0, incBreaks),
+        };
+        if (
+          next.screenSec !== (Number(cur.screenSec) || 0) ||
+          next.offScreenSec !== (Number(cur.offScreenSec) || 0) ||
+          next.activeSec !== (Number(cur.activeSec) || 0) ||
+          next.breaks !== (Number(cur.breaks) || 0)
+        ) {
+          workState.dayHistory[dayKey] = next;
+          changed++;
+        }
+
+        if (dayKey === todayKey && workState.dayKey === todayKey && !devModeActive && !workState.devPausedAtMs) {
+          if (incScreen > (Number(workState.dayScreenSec) || 0)) {
+            workState.dayScreenSec = incScreen;
+            changed++;
+          }
+          if (incOff > (Number(workState.dayOffScreenSec) || 0)) {
+            workState.dayOffScreenSec = incOff;
+            changed++;
+          }
+          if (incAct > (Number(workState.backendActiveFloorSec) || 0)) {
+            workState.backendActiveFloorSec = incAct;
+            changed++;
+          }
+          if (incBreaks > (Number(workState.dayBreaks) || 0)) {
+            workState.dayBreaks = incBreaks;
+            changed++;
+          }
+        }
+      }
+      const keys = Object.keys(workState.dayHistory).sort();
+      while (keys.length > 60) delete workState.dayHistory[keys.shift()];
+      if (changed > 0) {
+        saveWorkState();
+        renderWorkClockDom();
+      }
+      return changed;
+    },
     getBreakStats() {
       return computeBreakStats();
     },
