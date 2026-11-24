@@ -7,6 +7,8 @@ const autoSyncWrap = document.getElementById('autosync-wrap');
 const autoSyncCheckbox = document.getElementById('auto-sync');
 const shareWrap = document.getElementById('share-wrap');
 const shareCheckbox = document.getElementById('share-public');
+const telemetryWrap = document.getElementById('telemetry-wrap');
+const telemetryCheckbox = document.getElementById('focus-telemetry');
 const syncBtn = document.getElementById('sync-btn');
 const disconnectBtn = document.getElementById('disconnect-btn');
 
@@ -74,6 +76,7 @@ function showPair(message = 'Paste a 6-character code from studyos.no → Sync C
   pairForm.hidden = false;
   autoSyncWrap.hidden = true;
   shareWrap.hidden = true;
+  if (telemetryWrap) telemetryWrap.hidden = true;
   syncBtn.hidden = true;
   disconnectBtn.hidden = true;
 }
@@ -109,6 +112,7 @@ async function refreshState(autoSync = false) {
   });
   autoSyncCheckbox.checked = info.autoSyncEnabled !== false;
   shareCheckbox.checked = info.sharePublic !== false;
+  if (telemetryCheckbox) telemetryCheckbox.checked = Boolean(info.focusTelemetryEnabled);
 
   if (!info.connectedCloud && !info.connectedDesktop) {
     showPair();
@@ -119,6 +123,7 @@ async function refreshState(autoSync = false) {
   disconnectBtn.hidden = false;
   autoSyncWrap.hidden = false;
   shareWrap.hidden = false;
+  if (telemetryWrap) telemetryWrap.hidden = false;
 
   if (openCount === 0) {
     const who = info.nickname ? `Connected as ${info.nickname}. ` : 'Connected to Study-OS. ';
@@ -201,6 +206,18 @@ autoSyncCheckbox.addEventListener('change', () => {
 
 shareCheckbox.addEventListener('change', () => {
   chrome.runtime.sendMessage({ action: 'setSharePublic', sharePublic: shareCheckbox.checked });
+});
+
+telemetryCheckbox?.addEventListener('change', async () => {
+  const want = Boolean(telemetryCheckbox.checked);
+  if (want) {
+    const granted = await chrome.permissions.request({ permissions: ['tabs'] }).catch(() => false);
+    if (!granted) {
+      telemetryCheckbox.checked = false;
+      return;
+    }
+  }
+  chrome.runtime.sendMessage({ action: 'setFocusTelemetry', enabled: want });
 });
 
 syncBtn.addEventListener('click', runSync);

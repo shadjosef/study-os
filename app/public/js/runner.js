@@ -197,6 +197,93 @@ window.StudyRunner = (() => {
     floatingParWin = null;
   }
 
+  function parsePromptSubparts(promptMarkdown) {
+    const raw = String(promptMarkdown || '').replace(/\r\n/g, '\n').trim();
+    if (!raw) return { intro: '', subparts: [], dataset: '', datasetCols: '' };
+    const subpartRe = /^(?:[-*]\s+)?(?:\*\*)?(?:\((\d+\.[a-z]|[a-z]|\d+)\)|([a-z])\.)(?:\*\*)?\s+(.*)$/i;
+    const lines = raw.split('\n');
+    const introLines = [];
+    const subparts = [];
+    let activeSub = null;
+    for (const line of lines) {
+      const m = line.match(subpartRe);
+      if (m) {
+        const tag = m[1] ? m[1] : m[2];
+        activeSub = { label: tag, display: `(${tag})`, body: [m[3]] };
+        subparts.push(activeSub);
+      } else if (activeSub) {
+        activeSub.body.push(line);
+      } else {
+        introLines.push(line);
+      }
+    }
+    const intro = introLines.join('\n').trim();
+    let dataset = '';
+    let datasetCols = '';
+    const dsMatch = intro.match(/`?([a-z0-9_.-]+\.(?:csv|xlsx|json))`?(?:\s*\(([^)]+)\))?/i)
+      || raw.match(/`?([a-z0-9_.-]+\.(?:csv|xlsx|json))`?/i);
+    if (dsMatch) {
+      dataset = dsMatch[1];
+      datasetCols = dsMatch[2] || '';
+    }
+    return { intro, subparts, dataset, datasetCols };
+  }
+
+  function renderStructuredCodingPrompt(q, st) {
+    const parsed = parsePromptSubparts(q.promptMarkdown);
+    if (parsed.subparts.length < 2) {
+      return q.promptMarkdown
+        ? `<div class="markdown-body" style="font-size:15.5px">${renderMarkdownWithMath(q.promptMarkdown)}</div>`
+        : '';
+    }
+    if (!Array.isArray(st.checkedSubparts)) st.checkedSubparts = [];
+    const totalSub = parsed.subparts.length;
+    const doneSub = st.checkedSubparts.length;
+    const perPartMin = Math.max(1, Math.round((Number(st.targetSec) || 900) / 60 / totalSub));
+
+    const dsBarHtml = parsed.dataset
+      ? `<div class="coding-ds-banner">
+           <span class="coding-ds-pill">📊 ${esc(parsed.dataset)}</span>
+           ${parsed.datasetCols ? `<span class="coding-ds-cols">${esc(parsed.datasetCols)}</span>` : ''}
+         </div>`
+      : '';
+    const cleanIntro = parsed.intro
+      ? parsed.intro.replace(/Dataset\s+`?[a-z0-9_.-]+\.(?:csv|xlsx|json)`?(?:\s*\([^)]+\))?\s*:?/i, '').trim()
+      : '';
+    const introHtml = cleanIntro
+      ? `<div class="markdown-body coding-intro-md">${renderMarkdownWithMath(cleanIntro)}</div>`
+      : '';
+
+    const cardsHtml = parsed.subparts.map((sp, idx) => {
+      const checked = st.checkedSubparts.includes(idx);
+      const isNext = !checked && idx === parsed.subparts.findIndex((_, i) => !st.checkedSubparts.includes(i));
+      const bodyMd = sp.body.join('\n').trim();
+      return `<div class="coding-subpart-card ${checked ? 'is-checked' : ''} ${isNext ? 'is-active' : ''}" data-subpart-idx="${idx}">
+        <button type="button" class="coding-subpart-chk" data-toggle-subpart="${idx}" aria-pressed="${checked}" title="Mark ${esc(sp.display)} complete">
+          ${checked ? '✓' : ''}
+        </button>
+        <div class="coding-subpart-main">
+          <div class="coding-subpart-head">
+            <span class="coding-subpart-tag">${esc(sp.label)}</span>
+            <span class="coding-subpart-par">~${perPartMin}m par</span>
+          </div>
+          <div class="markdown-body coding-subpart-body">${renderMarkdownWithMath(bodyMd)}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+      <div class="coding-structured-prompt">
+        <div class="coding-prompt-meta-bar">
+          ${dsBarHtml || '<span class="coding-ds-pill">🐍 Python / Jupyter Task</span>'}
+          <span class="coding-subpart-counter" id="coding-subpart-counter"><strong>${doneSub}/${totalSub}</strong> subparts checked · ~${perPartMin}m each</span>
+        </div>
+        ${introHtml}
+        <div class="coding-subpart-list">${cardsHtml}</div>
+      </div>
+    `;
+  }
+
   function syncFloatingParBar(q, st, activeSec, finished) {
     if (!floatingParWin || floatingParWin.closed || !q || !st) return;
     const doc = floatingParWin.document;
@@ -210,6 +297,7 @@ window.StudyRunner = (() => {
     const solBtn = doc.getElementById('pip-sol');
     const revBtn = doc.getElementById('pip-revisit');
     const barEl = doc.getElementById('pip-bar');
+    const subRowEl = doc.getElementById('pip-subparts');
     if (!titleEl || !fillEl) return;
 
     const hintTime = st.hintsUsed * st.handicapPerHintSec;
@@ -235,7 +323,7 @@ window.StudyRunner = (() => {
     }
     if (paused) msg = `Paused · ${msg}`;
 
-    const shortTitle = String(q.title || q.id || 'Exercise').replace(/^[^·]+·\s*/, (m) => m);
+    const shortTitle = String(q.title || q.id || 'Exercise');
     if (titleEl.textContent !== shortTitle) titleEl.textContent = shortTitle;
     if (youEl) youEl.textContent = `You ${clockSec(Math.floor(elapsed))}`;
     if (statusEl) statusEl.textContent = msg;
@@ -244,13 +332,44 @@ window.StudyRunner = (() => {
     const pct = Math.min(100, Math.max(0, (elapsed / Math.max(1, st.targetSec)) * 100));
     fillEl.style.width = `${pct.toFixed(1)}%`;
 
+    if (subRowEl) {
+      const parsed = parsePromptSubparts(q.promptMarkdown);
+      if (parsed.subparts.length >= 2) {
+        if (!Array.isArray(st.checkedSubparts)) st.checkedSubparts = [];
+        const sig = `${q.id}:${st.checkedSubparts.join(',')}`;
+        if (subRowEl.dataset.sig !== sig) {
+          subRowEl.dataset.sig = sig;
+          const nextIdx = parsed.subparts.findIndex((_, i) => !st.checkedSubparts.includes(i));
+          subRowEl.innerHTML = parsed.subparts.map((sp, i) => {
+            const done = st.checkedSubparts.includes(i);
+            const cur = i === nextIdx;
+            return `<button type="button" class="pip-sub-chip ${done ? 'is-done' : cur ? 'is-cur' : ''}" data-pip-sub="${i}" title="Toggle ${esc(sp.display)}">${done ? '✓ ' : ''}${esc(sp.label)}</button>`;
+          }).join('');
+          subRowEl.querySelectorAll('[data-pip-sub]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const idx = Number(btn.dataset.pipSub);
+              if (!Array.isArray(st.checkedSubparts)) st.checkedSubparts = [];
+              if (st.checkedSubparts.includes(idx)) st.checkedSubparts = st.checkedSubparts.filter((x) => x !== idx);
+              else st.checkedSubparts.push(idx);
+              syncFloatingParBar(q, st, itemActiveSec(st), Boolean(st.revealed));
+              const cardEl = document.querySelector(`.coding-subpart-card[data-subpart-idx="${idx}"]`);
+              if (cardEl) renderRunner();
+            });
+          });
+        }
+        subRowEl.hidden = false;
+      } else {
+        subRowEl.hidden = true;
+      }
+    }
+
     if (pauseBtn) {
       pauseBtn.textContent = paused ? 'Resume' : 'Pause';
       pauseBtn.disabled = finished;
     }
     if (solBtn) solBtn.hidden = Boolean(st.revealed);
     if (doneBtn) {
-      doneBtn.textContent = st.revealed ? '✓ Got It & Next' : '✓ Done';
+      doneBtn.textContent = st.revealed ? '✓ Got It & Next' : '✓ Finish';
     }
     if (revBtn) revBtn.hidden = !st.revealed;
   }
@@ -266,18 +385,27 @@ window.StudyRunner = (() => {
       return true;
     }
     if (!('documentPictureInPicture' in window) || typeof window.documentPictureInPicture?.requestWindow !== 'function') {
-      toast('Always-on-top bar needs Chrome or Edge — your IDE Companion status bar timer still works!');
+      toast('Always-on-top bar needs Chrome or Edge — your IDE Companion CodeLens & status bar timers still work!');
       return false;
     }
     try {
+      const hasSubparts = parsePromptSubparts(q.promptMarkdown).subparts.length >= 2;
+      const winW = 600;
+      const winH = hasSubparts ? 114 : 92;
       const pip = await window.documentPictureInPicture.requestWindow({
-        width: 640,
-        height: 86,
-        disallowReturnToOpener: false,
+        width: winW,
+        height: winH,
+        disallowReturnToOpener: true,
       });
       floatingParWin = pip;
+      // Reposition cleanly to TOP-CENTER of the user's screen (instead of Chrome's default bottom-right corner)
+      try {
+        const targetX = Math.max(20, Math.round((window.screen.availLeft || 0) + ((window.screen.availWidth || 1440) - winW) / 2));
+        const targetY = Math.max(8, Math.round((window.screen.availTop || 0) + 12));
+        pip.moveTo(targetX, targetY);
+      } catch {}
       const isDark = document.documentElement.dataset.theme === 'dark';
-      pip.document.title = 'Study-OS · AI-Par Bar';
+      pip.document.title = '⠿ Drag to move · Study-OS AI Par';
       pip.document.head.innerHTML = `
         <meta charset="utf-8">
         <style>
@@ -292,10 +420,10 @@ window.StudyRunner = (() => {
           }
           #pip-bar { display: flex; flex-direction: column; gap: 6px; }
           .pip-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; font-variant-numeric: tabular-nums; }
-          .pip-title { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+          .pip-title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 245px; }
           .pip-mid { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-          .pip-you { font-weight: 700; }
-          .pip-status { font-weight: 650; padding: 1px 7px; border-radius: 999px; font-size: 11px; background: ${isDark ? '#13312d' : '#e6f5f2'}; color: ${isDark ? '#34d399' : '#0f766e'}; }
+          .pip-you { font-weight: 750; }
+          .pip-status { font-weight: 700; padding: 1px 7px; border-radius: 999px; font-size: 11px; background: ${isDark ? '#13312d' : '#e6f5f2'}; color: ${isDark ? '#34d399' : '#0f766e'}; }
           #pip-bar[data-tone="near"] .pip-status { background: ${isDark ? '#3a2b0d' : '#fef3c7'}; color: ${isDark ? '#fbbf24' : '#b45309'}; }
           #pip-bar[data-tone="urgent"] .pip-status, #pip-bar[data-tone="overtime"] .pip-status { background: ${isDark ? '#3f1515' : '#fee2e2'}; color: ${isDark ? '#f87171' : '#dc2626'}; }
           .pip-par { color: ${isDark ? '#94a3b8' : '#64748b'}; font-size: 11.5px; }
@@ -303,6 +431,11 @@ window.StudyRunner = (() => {
           .pip-fill { height: 100%; width: 0%; background: #0f766e; transition: width 0.35s linear, background-color 0.25s ease; border-radius: 999px; }
           #pip-bar[data-tone="near"] .pip-fill { background: #f59e0b; }
           #pip-bar[data-tone="urgent"] .pip-fill, #pip-bar[data-tone="overtime"] .pip-fill { background: #ef4444; }
+          .pip-subparts { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+          .pip-subparts::-webkit-scrollbar { display: none; }
+          .pip-sub-chip { font: 700 10.5px/1 -apple-system, BlinkMacSystemFont, sans-serif; padding: 3px 7px; border-radius: 999px; border: 1px solid ${isDark ? '#334155' : '#cbd5e1'}; background: ${isDark ? '#1e293b' : '#f8fafc'}; color: ${isDark ? '#cbd5e1' : '#475569'}; cursor: pointer; flex-shrink: 0; }
+          .pip-sub-chip.is-cur { border-color: #0f766e; background: ${isDark ? '#13312d' : '#e6f5f2'}; color: ${isDark ? '#34d399' : '#0f766e'}; }
+          .pip-sub-chip.is-done { border-color: #10b981; background: #10b981; color: #fff; }
           .pip-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
           .pip-btn-grp { display: flex; align-items: center; gap: 5px; }
           button {
@@ -318,7 +451,7 @@ window.StudyRunner = (() => {
           button:disabled { opacity: 0.45; cursor: default; }
           button.primary { background: #0f766e; border-color: #0f766e; color: #ffffff; }
           button.primary:hover:not(:disabled) { background: #0d625b; }
-          .pip-brand { font-size: 11px; color: ${isDark ? '#64748b' : '#94a3b8'}; font-weight: 600; }
+          .pip-brand { font-size: 10.5px; color: ${isDark ? '#64748b' : '#94a3b8'}; font-weight: 600; }
         </style>
       `;
       pip.document.body.innerHTML = `
@@ -332,13 +465,14 @@ window.StudyRunner = (() => {
             </div>
           </div>
           <div class="pip-track"><div class="pip-fill" id="pip-fill"></div></div>
+          <div class="pip-subparts" id="pip-subparts" hidden></div>
           <div class="pip-actions">
-            <span class="pip-brand">StudyOS.no · Live IDE Sync</span>
+            <span class="pip-brand">⠿ Drag title bar · StudyOS.no Live Sync</span>
             <div class="pip-btn-grp">
               <button type="button" id="pip-pause">Pause</button>
               <button type="button" id="pip-sol">Solution</button>
               <button type="button" id="pip-revisit" hidden>Revisit</button>
-              <button type="button" class="primary" id="pip-done">✓ Done</button>
+              <button type="button" class="primary" id="pip-done">✓ Finish</button>
             </div>
           </div>
         </div>
@@ -2133,7 +2267,9 @@ window.StudyRunner = (() => {
       asset.sourceId === source.sourceId && (asset.page || 1) === source.page));
     const promptAssetsHtml = renderAssets(promptAssets, q.courseId, sourcesMap, isBlindUnfinished);
     const svgHtml = q.svgDiagram ? `<div class="diagram-wrap" style="margin:14px 0">${q.svgDiagram}</div>` : '';
-    const promptMdHtml = q.promptMarkdown
+    const promptMdHtml = q.kind === 'coding' && q.promptMarkdown
+      ? renderStructuredCodingPrompt(q, st)
+      : q.promptMarkdown
       ? `<div class="markdown-body" style="font-size:16px">${renderMarkdownWithMath(q.promptMarkdown)}</div>`
       : '';
 
@@ -2335,20 +2471,21 @@ window.StudyRunner = (() => {
 
           <div class="coding-ide-actions">
             <button type="button" class="primary-btn" id="btn-coding-open-ide">
-              ${ideSynced ? `Re-open in ${esc(ideLabel)}` : `Open in ${esc(ideLabel)}${pipSupported ? ' + Top AI-Par Bar' : ''}`}
+              ${ideSynced ? `Re-open in ${esc(ideLabel)}` : `Open in ${esc(ideLabel)}${pipSupported ? ' + Top Bar' : ''}`}
             </button>
-            ${pipSupported ? `<button type="button" class="ghost-btn" id="btn-coding-float-bar" title="Pin a slim live AI-Par timer strip above VS Code / Antigravity">Float AI-Par Bar</button>` : ''}
+            ${pipSupported ? `<button type="button" class="ghost-btn" id="btn-coding-float-bar" title="Pin a draggable AI-Par timer bar at the top of your screen">Top AI-Par Bar</button>` : ''}
+            <button type="button" class="ghost-btn" id="btn-coding-open-ref" title="Open EBA 3400 Programming Reference & 7-Package Cheat Sheet (O)">📖 Reference Book</button>
             <button type="button" class="ghost-btn" id="btn-coding-download-ipynb" title="Download an exam-format Jupyter notebook (.ipynb) with Markdown prompt cells and Python code cells">Download .ipynb</button>
           </div>
 
           <div class="coding-ide-foot">
             <span class="badge live" id="coding-ide-live-pill" ${ideSynced ? '' : 'hidden'}>● IDE timer active — switching to ${esc(ideLabel)} won't pause</span>
             <details class="coding-ide-setup">
-              <summary>1-time IDE Companion v0.2 setup (auto-detects active notebook + 1-click Sync)</summary>
+              <summary>1-time IDE Companion v0.3 setup (per-subpart CodeLens HUD + 1-click Sync)</summary>
               <div class="coding-ide-setup-body">
-                <p>Install the tiny Study-OS Companion extension once: clicking <em>Open in ${esc(ideLabel)}</em> creates the exam <code>.ipynb</code>, auto-links BI CSVs (<code>hotel.csv</code>, <code>citybike.csv</code>…), drops your cursor into Cell 1, auto-detects notebook tab switches, tracks executed cells, and lets you click <strong>Sync to Study-OS</strong> right from the IDE status bar.</p>
+                <p>Install Study-OS Companion v0.3 once: clicking <em>Open in ${esc(ideLabel)}</em> builds the exam <code>.ipynb</code>, links BI CSVs, drops your cursor into Cell 1, renders a <strong>live per-subpart AI-Par CodeLens HUD right above each code cell</strong>, and adds <strong>✓ Sync to Study-OS</strong>.</p>
                 <div class="row-actions" style="gap:8px;margin-top:6px">
-                  <a class="ghost-btn" href="${esc(vsixHref)}" download="study-os-companion.vsix" style="text-decoration:none">Download .vsix (v0.2)</a>
+                  <a class="ghost-btn" href="${esc(vsixHref)}" download="study-os-companion.vsix" style="text-decoration:none">Download .vsix (v0.3)</a>
                   <span class="muted" style="font-size:11.5px">In ${esc(ideLabel)}: <kbd>⌘⇧P</kbd> → <em>Extensions: Install from VSIX…</em></span>
                 </div>
               </div>
@@ -3335,6 +3472,19 @@ window.StudyRunner = (() => {
       document.querySelectorAll('[data-coding-ide]').forEach((btn) => {
         btn.addEventListener('click', () => {
           setPreferredCodingIde(btn.dataset.codingIde);
+          renderRunner();
+        });
+      });
+      document.getElementById('btn-coding-open-ref')?.addEventListener('click', () => {
+        openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '', { question: q, bank: activeRun.bank });
+      });
+      document.querySelectorAll('[data-toggle-subpart]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.dataset.toggleSubpart);
+          if (!Array.isArray(st.checkedSubparts)) st.checkedSubparts = [];
+          if (st.checkedSubparts.includes(idx)) st.checkedSubparts = st.checkedSubparts.filter((x) => x !== idx);
+          else st.checkedSubparts.push(idx);
+          syncFloatingParBar(q, st, itemActiveSec(st), Boolean(st.revealed));
           renderRunner();
         });
       });
@@ -4518,6 +4668,8 @@ window.StudyRunner = (() => {
 
   return {
     getRun,
+    getActiveCourseId: () => activeRun?.courseMeta?.courseId || '',
+    isIdeCodingFocusExempt,
     startRun,
     pauseIfRunning,
     resumePausedRun,

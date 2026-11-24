@@ -931,12 +931,25 @@ async function handle(message) {
       canvasOrigin,
       canvasSchool,
       timeeditUrl: openTabs.timeedit?.url || stored.lastTimeEditUrl || defaultTimetableUrl,
+      focusTelemetryEnabled: Boolean(stored.focusTelemetryEnabled),
       openSites: {
         canvas: Boolean(openTabs.canvas),
         timeedit: Boolean(openTabs.timeedit),
         ed: Boolean(openTabs.ed),
       },
     };
+  }
+
+  if (message.action === 'setFocusTelemetry') {
+    const enabled = Boolean(message.enabled);
+    await chrome.storage.local.set({ focusTelemetryEnabled: enabled });
+    if (enabled) {
+      chrome.alarms.create('studyOsFocusSample', { periodInMinutes: 0.5 });
+      sampleActiveTabCategory().catch(() => {});
+    } else {
+      chrome.alarms.clear('studyOsFocusSample');
+    }
+    return { ok: true, enabled };
   }
 
   if (message.action === 'setSharePublic') {
@@ -1004,7 +1017,61 @@ function isTrustedBridgeSender(sender) {
   }
 }
 
+// Tier 2 Opt-In On-Device Browser Focus Telemetry (strictly domain category totals — zero URLs/titles stored)
+const STUDY_HOST_RE = /(?:^|\.)(?:studyos\.no|canvas\.|instructure\.com|wiseflow\.net|bi\.no|edstem\.org|timeedit\.net|tp\.educloud\.no|colab\.research\.google\.com|github\.com|docs\.python\.org|pandas\.pydata\.org|matplotlib\.org|seaborn\.pydata\.org|dr-eriksen\.no|core-econ\.org|localhost|127\.0\.0\.1)$/i;
+const DISTRACT_HOST_RE = /(?:^|\.)(?:youtube\.com|youtu\.be|tiktok\.com|instagram\.com|x\.com|twitter\.com|reddit\.com|twitch\.tv|netflix\.com|facebook\.com|snapchat\.com|9gag\.com|vg\.no|dagbladet\.no)$/i;
+
+function osloDateKeyExt(now = Date.now()) {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date(now));
+  } catch {
+    return new Date(now).toISOString().slice(0, 10);
+  }
+}
+
+async function sampleActiveTabCategory() {
+  const { focusTelemetryEnabled, focusTelemetryDaily } = await chrome.storage.local.get([
+    'focusTelemetryEnabled',
+    'focusTelemetryDaily',
+  ]);
+  if (!focusTelemetryEnabled) return;
+  const hasTabsPerm = await chrome.permissions.contains({ permissions: ['tabs'] }).catch(() => false);
+  if (!hasTabsPerm) return;
+  const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true }).catch(() => []);
+  const urlStr = tabs?.[0]?.url || '';
+  if (!/^https?:/i.test(urlStr)) return;
+  let host = '';
+  try { host = new URL(urlStr).hostname.toLowerCase(); } catch { return; }
+  const bucket = STUDY_HOST_RE.test(host) ? 'studySec' : DISTRACT_HOST_RE.test(host) ? 'distractSec' : 'otherSec';
+  const day = osloDateKeyExt();
+  const daily = (focusTelemetryDaily && typeof focusTelemetryDaily === 'object') ? { ...focusTelemetryDaily } : {};
+  const row = daily[day] ? { ...daily[day] } : { studySec: 0, distractSec: 0, otherSec: 0 };
+  row[bucket] = Math.min(86400, (Number(row[bucket]) || 0) + 30);
+  daily[day] = row;
+  const keys = Object.keys(daily).sort();
+  while (keys.length > 30) delete daily[keys.shift()];
+  await chrome.storage.local.set({ focusTelemetryDaily: daily });
+}
+
+chrome.alarms?.onAlarm?.addListener((alarm) => {
+  if (alarm?.name === 'studyOsFocusSample') {
+    sampleActiveTabCategory().catch(() => {});
+  }
+});
+
+chrome.storage.local.get(['focusTelemetryEnabled']).then(({ focusTelemetryEnabled }) => {
+  if (focusTelemetryEnabled) {
+    chrome.alarms?.create?.('studyOsFocusSample', { periodInMinutes: 0.5 });
+  }
+}).catch(() => {});
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
+  if (message?.action === 'getFocusTelemetry' && isTrustedBridgeSender(sender)) {
+    chrome.storage.local.get(['focusTelemetryEnabled', 'focusTelemetryDaily']).then((d) => {
+      respond({ ok: true, enabled: Boolean(d.focusTelemetryEnabled), daily: d.focusTelemetryDaily || {} });
+    }, () => respond({ ok: false, daily: {} }));
+    return true;
+  }
   if (message?.action === 'fetchCanvasFile' && isTrustedBridgeSender(sender)) {
     fetchCanvasFileDirect(message.courseId, message.fileId, message.canvasOrigin || '').then(respond, (error) => {
       respond({ ok: false, error: error?.message || 'Could not load PDF from Canvas.' });

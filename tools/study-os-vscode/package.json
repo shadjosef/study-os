@@ -1,10 +1,23 @@
 {
   "name": "companion",
   "displayName": "Study-OS Companion",
-  "description": "Seamless Study-OS Jupyter workflow for VS Code, Antigravity & Cursor: 1-click open with cursor in code cell, automatic BI CSV dataset linking, active-notebook auto-detection, cell execution tracking, live AI-Par status bar timer & 1-click completion sync to Study-OS.",
-  "version": "0.2.0",
+  "description": "Seamless Study-OS Jupyter workflow for VS Code, Antigravity & Cursor: 1-click open with cursor in code cell, automatic BI CSV dataset linking, per-subpart AI-Par timers, top-of-cell CodeLens HUD, cell execution tracking & 1-click completion sync to Study-OS.",
+  "version": "0.3.0",
   "publisher": "study-os",
   "license": "MIT",
+  "homepage": "https://studyos.no",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shadjosef/study-os.git"
+  },
+  "keywords": [
+    "jupyter",
+    "python",
+    "study-os",
+    "timer",
+    "education",
+    "pandas"
+  ],
   "engines": {
     "vscode": "^1.80.0"
   },

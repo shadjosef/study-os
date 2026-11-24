@@ -234,6 +234,79 @@ function mergeExamResults(existingRaw, incomingRaw) {
   return merged;
 }
 
+const TELEM_FIELDS = ['solvingSec', 'readingSec', 'appBrowseSec', 'afkIdleSec', 'awaySec', 'breakSec', 'extStudySec', 'extDistractSec', 'extOtherSec'];
+
+function cleanTelemetryByDevice(raw) {
+  if (!isObj(raw)) return {};
+  const out = {};
+  let devCount = 0;
+  for (const [dev, dMap] of Object.entries(raw)) {
+    if (typeof dev !== 'string' || !/^dev_[a-z0-9_-]{4,24}$/i.test(dev) || !isObj(dMap)) continue;
+    const entries = [];
+    for (const [dayKey, vals] of Object.entries(dMap)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey) || !isObj(vals)) continue;
+      const cleanDay = {};
+      let sum = 0;
+      for (const f of TELEM_FIELDS) {
+        const n = Math.min(86400, Math.max(0, Math.round(Number(vals[f]) || 0)));
+        cleanDay[f] = n;
+        sum += n;
+      }
+      const courseSec = {};
+      if (isObj(vals.courseSec)) {
+        let cc = 0;
+        for (const [cid, sec] of Object.entries(vals.courseSec)) {
+          if (typeof cid !== 'string' || !cid || cid.length > 48) continue;
+          const n = Math.min(86400, Math.max(0, Math.round(Number(sec) || 0)));
+          if (n > 0) {
+            courseSec[cid] = n;
+            if (++cc >= 20) break;
+          }
+        }
+      }
+      if (sum > 0 || Object.keys(courseSec).length > 0) {
+        cleanDay.courseSec = courseSec;
+        entries.push([dayKey, cleanDay]);
+      }
+    }
+    if (!entries.length) continue;
+    entries.sort((a, b) => a[0].localeCompare(b[0]));
+    out[dev] = Object.fromEntries(entries.slice(-45));
+    if (++devCount >= 8) break;
+  }
+  return out;
+}
+
+function mergeTelemetryByDevice(existingRaw, incomingRaw) {
+  const base = cleanTelemetryByDevice(existingRaw);
+  const inc = cleanTelemetryByDevice(incomingRaw);
+  const devs = [...new Set([...Object.keys(base), ...Object.keys(inc)])].slice(0, 8);
+  const merged = {};
+  for (const dev of devs) {
+    const aMap = base[dev] || {};
+    const bMap = inc[dev] || {};
+    const days = [...new Set([...Object.keys(aMap), ...Object.keys(bMap)])].sort().slice(-45);
+    const outDays = {};
+    for (const d of days) {
+      const a = aMap[d] || {};
+      const b = bMap[d] || {};
+      const row = {};
+      for (const f of TELEM_FIELDS) {
+        row[f] = Math.max(Number(a[f]) || 0, Number(b[f]) || 0);
+      }
+      const cKeys = [...new Set([...Object.keys(a.courseSec || {}), ...Object.keys(b.courseSec || {})])].slice(0, 20);
+      const cSec = {};
+      for (const cid of cKeys) {
+        cSec[cid] = Math.max(Number(a.courseSec?.[cid]) || 0, Number(b.courseSec?.[cid]) || 0);
+      }
+      row.courseSec = cSec;
+      outDays[d] = row;
+    }
+    if (Object.keys(outDays).length) merged[dev] = outDays;
+  }
+  return merged;
+}
+
 export async function handleSync({ request, db, me, now, data, reply }) {
   if (request.method === 'GET') {
     const row = await db.prepare(
@@ -286,7 +359,7 @@ export async function handleSync({ request, db, me, now, data, reply }) {
       : { enabled: false, prefs: {}, blocks: [], completedEvents: {}, dismissedEvents: {} };
 
     const prevRow = await db.prepare(
-      "SELECT json_extract(payload, '$.screenHistory') AS sh, json_extract(payload, '$.examResults') AS er FROM study_backups WHERE profile_id = ?"
+      "SELECT json_extract(payload, '$.screenHistory') AS sh, json_extract(payload, '$.examResults') AS er, json_extract(payload, '$.telemetryByDevice') AS tb FROM study_backups WHERE profile_id = ?"
     ).bind(me.id).first();
     let existingScreenHistory = {};
     if (prevRow?.sh) {
@@ -296,8 +369,13 @@ export async function handleSync({ request, db, me, now, data, reply }) {
     if (prevRow?.er) {
       try { existingExamResults = JSON.parse(prevRow.er); } catch {}
     }
+    let existingTelemetryByDevice = {};
+    if (prevRow?.tb) {
+      try { existingTelemetryByDevice = JSON.parse(prevRow.tb); } catch {}
+    }
     const screenHistory = mergeScreenHistories(existingScreenHistory, data.screenHistory);
     const examResults = mergeExamResults(existingExamResults, data.examResults);
+    const telemetryByDevice = mergeTelemetryByDevice(existingTelemetryByDevice, data.telemetryByDevice);
 
     const cleanPayload = {
       format: 'study-os-backup-v1',
@@ -311,6 +389,7 @@ export async function handleSync({ request, db, me, now, data, reply }) {
       customSets: cleanCustomSets(data.customSets),
       screenHistory,
       examResults,
+      telemetryByDevice,
     };
 
     const serialized = JSON.stringify(cleanPayload);

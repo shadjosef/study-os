@@ -26,14 +26,8 @@ window.StudyApp = (() => {
   const members = window.StudyMembers;
   const WEB_STATE_KEY = 'study-os-web-state-v1';
 
-  const MAINTENANCE_COURSES = {
-    'prog-3021': {
-      badge: 'Under maintenance',
-      eta: 'Reworking in December',
-      shortNote: 'Reworking in December — upgraded Python exercises & past exam drills coming soon.',
-      detail: 'EBA 3400 Programming is currently under maintenance while we rework the exercises and mock exams for the December exam. Check back soon — Economics, Accounting, Mathematics, and OB & Leadership are all live.',
-    },
-  };
+  // EBA 3400 Programming reopened with VS Code / Antigravity Companion v0.3 + Subpart Cards + Top-Center AI-Par Bar
+  const MAINTENANCE_COURSES = {};
   function getCourseMaintenance(courseId) {
     return MAINTENANCE_COURSES[String(courseId || '')] || null;
   }
@@ -534,6 +528,9 @@ window.StudyApp = (() => {
     const screenMerged = isRecord(data.screenHistory)
       ? (window.StudyUI?.workClock?.mergeScreenHistory?.(data.screenHistory) || 0)
       : 0;
+    const telemetryMerged = isRecord(data.telemetryByDevice)
+      ? (window.StudyUI?.workClock?.mergeTelemetryByDevice?.(data.telemetryByDevice) || 0)
+      : 0;
     const examResMerge = isRecord(data.examResults)
       ? mergeExamResultsMaps(ws.examResults, data.examResults)
       : { merged: ws.examResults || {}, changed: 0 };
@@ -548,7 +545,7 @@ window.StudyApp = (() => {
       canvasChanged ? 'Canvas deadlines' : '',
       edChanged ? 'Ed Discussion posts' : '',
       addedSets ? `${addedSets} study set${addedSets === 1 ? '' : 's'}` : '',
-      screenMerged ? 'Oslo screen-time history' : '',
+      (screenMerged || telemetryMerged) ? 'Oslo telemetry history' : '',
       examResMerge.changed ? `${examResMerge.changed} exam grade${examResMerge.changed === 1 ? '' : 's'}` : '',
     ].filter(Boolean);
     return restored.length ? `Restored ${restored.join(', ')}.` : 'This backup contains no newer study data.';
@@ -797,15 +794,41 @@ window.StudyApp = (() => {
       ensureDay(dk);
     }
 
-    // Fold live & historical Oslo screen time from workClock
+    // Fold live & historical Oslo screen time + multi-device additive Telemetry Ledger from workClock
     const screenHist = window.StudyUI?.workClock?.getScreenHistory?.() || {};
+    const telSummary = window.StudyUI?.workClock?.getTelemetrySummary?.() || null;
+    const telByDay = telSummary?.byDay || {};
     for (const [dk, sh] of Object.entries(screenHist)) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dk)) continue;
       const dr = ensureDay(dk);
       dr.screenSec = Math.max(dr.screenSec, Number(sh?.screenSec || 0));
       dr.offScreenSec = Math.max(dr.offScreenSec, Number(sh?.offScreenSec || 0));
+      dr.hasScreenLog = dr.hasScreenLog || Number(sh?.screenSec || 0) >= 60;
       if (Number(sh?.activeSec || 0) > dr.activeSec && dk === today) {
         dr.liveActiveSec = Number(sh.activeSec);
+      }
+    }
+    for (const [dk, td] of Object.entries(telByDay)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dk) || !td) continue;
+      const dr = ensureDay(dk);
+      dr.telemetry = td;
+      const telTracked = (td.solvingSec || 0) + (td.readingSec || 0) + (td.appBrowseSec || 0) + (td.afkIdleSec || 0) + (td.extStudySec || 0) + (td.extDistractSec || 0);
+      const telProd = (td.solvingSec || 0) + (td.readingSec || 0) + (td.extStudySec || 0);
+      if (telTracked >= 60) {
+        dr.hasScreenLog = true;
+        dr.screenSec = Math.max(dr.screenSec, telTracked);
+        dr.offScreenSec = Math.max(dr.offScreenSec, (td.awaySec || 0) + (td.breakSec || 0));
+      }
+      if (telProd > (dr.liveActiveSec || 0) && dk === today) {
+        dr.liveActiveSec = Math.max(dr.liveActiveSec || 0, telProd);
+      }
+      // Sync live per-course seconds so Today's Hours Worked Breakdown matches KPIs
+      if (td.courseSec && typeof td.courseSec === 'object') {
+        for (const [cid, cSec] of Object.entries(td.courseSec)) {
+          if (Number(cSec) > (dr.byCourseSec[cid] || 0)) {
+            dr.byCourseSec[cid] = Number(cSec);
+          }
+        }
       }
     }
 
@@ -816,10 +839,21 @@ window.StudyApp = (() => {
         const sessAway = sessionDayAway[dr.day] || 0;
         const effActiveSec = Math.max(dr.activeSec, dr.liveActiveSec || 0, Math.min(sessAct, dr.activeSec + 1800));
         const activeMin = Math.round((effActiveSec / 60) * 10) / 10;
-        const screenSecFinal = Math.max(dr.screenSec, effActiveSec + (dr.screenSec === 0 ? sessAway : 0));
+        const td = dr.telemetry || null;
+        const telTracked = td ? ((td.solvingSec || 0) + (td.readingSec || 0) + (td.appBrowseSec || 0) + (td.afkIdleSec || 0) + (td.extStudySec || 0) + (td.extDistractSec || 0)) : 0;
+        const telProd = td ? ((td.solvingSec || 0) + (td.readingSec || 0) + (td.extStudySec || 0)) : 0;
+        const hasRealScreen = Boolean(dr.hasScreenLog || sessAway > 0 || telTracked >= 60);
+        const screenSecFinal = hasRealScreen
+          ? Math.max(dr.screenSec, telTracked, effActiveSec + (dr.screenSec === 0 ? sessAway : 0))
+          : effActiveSec;
         const screenMin = Math.round((screenSecFinal / 60) * 10) / 10;
         const offScreenMin = Math.round((Math.max(dr.offScreenSec, sessAway) / 60) * 10) / 10;
-        const efficiencyPct = screenMin > 0.5 ? Math.min(100, Math.round((activeMin / screenMin) * 100)) : null;
+        // Honest Focus Efficiency: NEVER fabricate 100% on past days without real screen/telemetry logs!
+        const efficiencyPct = telTracked >= 60
+          ? Math.min(100, Math.round((telProd / telTracked) * 100))
+          : (hasRealScreen && screenMin > 0.5)
+          ? Math.min(100, Math.round((activeMin / screenMin) * 100))
+          : null;
         const arr = dr.attempts;
         const pArr = arr.filter((a) => Number.isFinite(Number(a.paceRatio)) && Number(a.paceRatio) > 0);
         const byCourseMin = Object.fromEntries(
@@ -834,7 +868,9 @@ window.StudyApp = (() => {
           lowMin: Math.round((dr.lowSec / 60) * 10) / 10,
           screenMin,
           offScreenMin,
+          hasScreenLog: hasRealScreen,
           efficiencyPct,
+          telemetry: td,
           attempts: arr.length,
           adjustedUnits: Math.round(dr.adjustedUnits * 10) / 10,
           avgPaceRatio: pArr.length ? Math.round((pArr.reduce((s, a) => s + Number(a.paceRatio), 0) / pArr.length) * 100) / 100 : null,
@@ -984,6 +1020,20 @@ window.StudyApp = (() => {
       });
     }
 
+    const verification = { auto_graded: 0, ide_verified: 0, self_verified: 0, fast_flag: 0 };
+    for (const a of attempts) {
+      const vt = a.verificationTier || (
+        isAutoGradedAttempt(a)
+          ? 'auto_graded'
+          : a.source === 'ide_companion'
+          ? 'ide_verified'
+          : (Number(a.activeSec || 0) > 0 && Number(a.aiParSec || 0) >= 120 && Number(a.activeSec) < Number(a.aiParSec) * 0.12)
+          ? 'fast_flag'
+          : 'self_verified'
+      );
+      verification[vt] = (verification[vt] || 0) + 1;
+    }
+
     boot.progress = { records };
     boot.recentSessions = (ws.sessions || []).slice(-25).reverse();
     boot.analytics = {
@@ -991,6 +1041,8 @@ window.StudyApp = (() => {
       totalSessions: (ws.sessions || []).length,
       totalXp: n * 20,
       streakDays,
+      verification,
+      telemetrySummary: telSummary,
       overall: { count: n, avgAccuracy: avgAcc, beatAiRate: beatRate, avgPaceRatio, upi },
       last7Days: {
         upi: last7Attempts.length ? computeWeightedUpi(last7Attempts, 0.9) : null,
@@ -1778,6 +1830,7 @@ window.StudyApp = (() => {
       edSnapshot: ws.edSnapshot,
       customSets: window.StudySets?.exportForSync?.() || [],
       screenHistory: window.StudyUI?.workClock?.getScreenHistory?.() || {},
+      telemetryByDevice: window.StudyUI?.workClock?.getTelemetryByDevice?.() || {},
       examResults: isRecord(ws.examResults) ? ws.examResults : {},
     };
   }
@@ -7923,6 +7976,15 @@ window.StudyApp = (() => {
       const autoGraded = isAutoGradedAttempt(payload);
       const maxPr = autoGraded ? 1.5 : 1.0;
       const paceRatio = qAcc < 0.6 ? 0.35 : Math.min(maxPr, aiSec / Math.max(1, effSec));
+      const verificationTier = payload.verificationTier || (
+        autoGraded
+          ? 'auto_graded'
+          : (payload.source === 'ide_companion' || payload.ideVerified)
+          ? 'ide_verified'
+          : (aiSec >= 120 && effSec < aiSec * 0.12)
+          ? 'fast_flag'
+          : 'self_verified'
+      );
       const rec = (ws.records[payload.questionId] = ws.records[payload.questionId] || {});
       const timestamp = new Date().toISOString();
       rec.status = payload.explicitStatus || (qAcc >= 0.75 ? 'done' : 'revisit');
@@ -7941,7 +8003,7 @@ window.StudyApp = (() => {
         lastGrade: qAcc >= 0.85 ? 3 : 1,
         due: new Date(Date.now() + daysOut * 86400000).toISOString(),
       };
-      const attempt = { ...payload, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio };
+      const attempt = { ...payload, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio, verificationTier };
       ws.attempts.push(attempt);
       const saved = saveWebState(ws);
       if (saved) {
@@ -8854,6 +8916,8 @@ window.StudyApp = (() => {
                 focusSwitchCount: 0,
                 awayElapsedSec: 0,
                 source: 'ide_companion',
+                ideVerified: true,
+                verificationTier: 'ide_verified',
               });
               const beatTxt = res?.attempt?.beatAi ? ' · Beat AI Par!' : '';
               const cellTxt = ideCells ? ` · ${ideCells} cells` : '';

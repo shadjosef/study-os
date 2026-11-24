@@ -2,10 +2,19 @@
 // Never sends copyrighted files to any remote server: Canvas PDF fetches stay strictly
 // inside the user's own browser between their authenticated Canvas tab and IndexedDB.
 (() => {
-  const EXT_VERSION = '1.6.0';
+  const EXT_VERSION = '1.7.0';
+  function pushTelemetryToPage() {
+    try {
+      chrome.runtime.sendMessage({ action: 'getFocusTelemetry' }, (resp) => {
+        if (chrome.runtime.lastError || !resp?.ok || !resp.daily) return;
+        window.postMessage({ type: 'STUDY_OS_EXT_TELEMETRY', daily: resp.daily, enabled: Boolean(resp.enabled) }, window.location.origin);
+      });
+    } catch {}
+  }
   try {
     document.documentElement.dataset.studyOsSyncExt = EXT_VERSION;
     window.postMessage({ type: 'STUDY_OS_EXT_READY', version: EXT_VERSION }, window.location.origin);
+    pushTelemetryToPage();
   } catch {}
 
   window.addEventListener('message', (event) => {

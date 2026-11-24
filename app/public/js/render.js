@@ -1280,6 +1280,245 @@ window.StudyUI = (() => {
   let lastScreenTickMs = Date.now();
   let lastScreenSaveMs = 0;
 
+  // ---------------------------------------------------------------------------
+  // TIER 1 VERIFIABLE TELEMETRY LEDGER (Multi-Tab Leader Lock + 5m Oslo Buckets + Device Rollup)
+  // ---------------------------------------------------------------------------
+  const DEVICE_ID_KEY = 'study-os-device-id-v1';
+  const TELEMETRY_LEDGER_KEY = 'study-os-telemetry-ledger-v1';
+  const LEADER_LEASE_KEY = 'study-os-leader-lease-v1';
+  const TAB_ID = `tab_${Math.random().toString(36).slice(2, 10)}`;
+  const AFK_IDLE_THRESHOLD_MS = 180_000; // 3 minutes without interaction when not in Paper/IDE mode
+  let lastUserInteractionMs = Date.now();
+  let paperModeActive = false;
+  let lastTelemetrySaveMs = 0;
+
+  const deviceId = (() => {
+    try {
+      let existing = localStorage.getItem(DEVICE_ID_KEY);
+      if (existing && /^dev_[a-z0-9]{6,16}$/.test(existing)) return existing;
+      const ua = /iphone|ipad|android/i.test(navigator.userAgent || '') ? 'm' : 'd';
+      existing = `dev_${ua}${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36).slice(-3)}`;
+      localStorage.setItem(DEVICE_ID_KEY, existing);
+      return existing;
+    } catch {
+      return `dev_ephem${Math.random().toString(36).slice(2, 7)}`;
+    }
+  })();
+
+  const osloBucketFmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Oslo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  });
+
+  function currentOslo5mBucketKey(now = Date.now()) {
+    try {
+      const parts = osloBucketFmt.formatToParts(new Date(now));
+      const get = (t) => parts.find((p) => p.type === t)?.value || '00';
+      const minNum = Math.floor(Number(get('minute')) / 5) * 5;
+      return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${String(minNum).padStart(2, '0')}`;
+    } catch {
+      return new Date(now).toISOString().slice(0, 16);
+    }
+  }
+
+  function emptyDayTelemetry() {
+    return {
+      solvingSec: 0,
+      readingSec: 0,
+      appBrowseSec: 0,
+      afkIdleSec: 0,
+      awaySec: 0,
+      breakSec: 0,
+      extStudySec: 0,
+      extDistractSec: 0,
+      extOtherSec: 0,
+      courseSec: {},
+    };
+  }
+
+  function loadTelemetryLedger() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(TELEMETRY_LEDGER_KEY) || '{}');
+      return {
+        version: 1,
+        byDevice: raw.byDevice && typeof raw.byDevice === 'object' ? raw.byDevice : {},
+        buckets: raw.buckets && typeof raw.buckets === 'object' ? raw.buckets : {},
+      };
+    } catch {
+      return { version: 1, byDevice: {}, buckets: {} };
+    }
+  }
+
+  let telemetryLedger = loadTelemetryLedger();
+
+  function saveTelemetryLedger() {
+    if (devModeActive) return;
+    try {
+      // Prune 5m buckets to rolling 48h (576 buckets) & daily rollups to 60 days per device
+      const bKeys = Object.keys(telemetryLedger.buckets).sort();
+      while (bKeys.length > 576) delete telemetryLedger.buckets[bKeys.shift()];
+      for (const dev of Object.keys(telemetryLedger.byDevice)) {
+        const dMap = telemetryLedger.byDevice[dev];
+        if (!dMap || typeof dMap !== 'object') continue;
+        const dKeys = Object.keys(dMap).sort();
+        while (dKeys.length > 60) delete dMap[dKeys.shift()];
+      }
+      localStorage.setItem(TELEMETRY_LEDGER_KEY, JSON.stringify(telemetryLedger));
+      lastTelemetrySaveMs = Date.now();
+    } catch {}
+  }
+
+  // Multi-tab Leader Election (BroadcastChannel + localStorage lease) so open tabs never double-count
+  let leaderChan = null;
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      leaderChan = new BroadcastChannel('study-os-telemetry-leader-v1');
+    }
+  } catch {}
+
+  function claimOrVerifyLeader(now = Date.now()) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LEADER_LEASE_KEY) || 'null');
+      const focused = !document.hidden && document.hasFocus();
+      const expired = !raw || !raw.tabId || now - Number(raw.ts || 0) > 5500;
+      if (raw?.tabId === TAB_ID || expired || (focused && !raw?.focused)) {
+        localStorage.setItem(LEADER_LEASE_KEY, JSON.stringify({ tabId: TAB_ID, ts: now, focused }));
+        return true;
+      }
+      return false;
+    } catch {
+      return true;
+    }
+  }
+
+  window.addEventListener('beforeunload', () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LEADER_LEASE_KEY) || 'null');
+      if (raw?.tabId === TAB_ID) localStorage.removeItem(LEADER_LEASE_KEY);
+      saveTelemetryLedger();
+    } catch {}
+  });
+
+  // Track real human input passively (throttled) to distinguish genuine reading/solving vs AFK idle
+  let lastTouchStamp = 0;
+  const markUserActivity = () => {
+    const now = Date.now();
+    if (now - lastTouchStamp < 1000) return;
+    lastTouchStamp = now;
+    lastUserInteractionMs = now;
+  };
+  ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll'].forEach((evName) => {
+    window.addEventListener(evName, markUserActivity, { passive: true, capture: true });
+  });
+
+  // Ingest opt-in Tier 2 Chrome Extension category telemetry (Study / Distract / Other)
+  window.addEventListener('message', (event) => {
+    if (event.source !== window || event.origin !== window.location.origin) return;
+    const msg = event.data;
+    if (msg?.type !== 'STUDY_OS_EXT_TELEMETRY' || !msg.daily || typeof msg.daily !== 'object') return;
+    if (devModeActive) return;
+    if (!telemetryLedger.byDevice[deviceId]) telemetryLedger.byDevice[deviceId] = {};
+    let updated = false;
+    for (const [dayKey, vals] of Object.entries(msg.daily)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey) || !vals || typeof vals !== 'object') continue;
+      const cur = telemetryLedger.byDevice[deviceId][dayKey] || emptyDayTelemetry();
+      const nStudy = Math.min(86400, Math.max(Number(cur.extStudySec) || 0, Math.round(Number(vals.studySec) || 0)));
+      const nDist = Math.min(86400, Math.max(Number(cur.extDistractSec) || 0, Math.round(Number(vals.distractSec) || 0)));
+      const nOther = Math.min(86400, Math.max(Number(cur.extOtherSec) || 0, Math.round(Number(vals.otherSec) || 0)));
+      if (nStudy !== cur.extStudySec || nDist !== cur.extDistractSec || nOther !== cur.extOtherSec) {
+        cur.extStudySec = nStudy;
+        cur.extDistractSec = nDist;
+        cur.extOtherSec = nOther;
+        telemetryLedger.byDevice[deviceId][dayKey] = cur;
+        updated = true;
+      }
+    }
+    if (updated) saveTelemetryLedger();
+  });
+
+  function classifyTelemetryState(now = Date.now()) {
+    if (workState.mode === 'break') return { state: 'breakSec', courseId: '' };
+    const inRunner = !document.getElementById('view-runner')?.hidden;
+    const activeCourseId = inRunner ? (window.StudyRunner?.getActiveCourseId?.() || '') : '';
+    const ideExempt = Boolean(window.StudyRunner?.isIdeCodingFocusExempt?.());
+    const docVisible = !document.hidden;
+    const docFocused = docVisible && (document.hasFocus() || document.activeElement?.tagName === 'IFRAME');
+
+    if (ideExempt || (paperModeActive && (inRunner || workState.mode === 'working'))) {
+      return { state: 'solvingSec', courseId: activeCourseId };
+    }
+    if (!docFocused) {
+      return workState.mode === 'working' ? { state: 'awaySec', courseId: '' } : { state: '', courseId: '' };
+    }
+    if (now - lastUserInteractionMs >= AFK_IDLE_THRESHOLD_MS) {
+      return { state: 'afkIdleSec', courseId: '' };
+    }
+    if (inRunner) {
+      return { state: 'solvingSec', courseId: activeCourseId };
+    }
+    const inNotes = !document.getElementById('view-references')?.hidden
+      || Boolean(document.getElementById('ref-drawer') && !document.getElementById('ref-drawer').hidden);
+    if (inNotes) {
+      return { state: 'readingSec', courseId: '' };
+    }
+    return { state: 'appBrowseSec', courseId: '' };
+  }
+
+  function recordTelemetryTick(dtSec, now = Date.now()) {
+    if (dtSec <= 0 || dtSec > 60 || devModeActive) return;
+    const { state, courseId } = classifyTelemetryState(now);
+    if (!state) return;
+    const todayKey = localDayKey(now);
+    if (!telemetryLedger.byDevice[deviceId]) telemetryLedger.byDevice[deviceId] = {};
+    const dayEntry = telemetryLedger.byDevice[deviceId][todayKey] || emptyDayTelemetry();
+    dayEntry[state] = Math.min(86400, (Number(dayEntry[state]) || 0) + dtSec);
+    if (state === 'solvingSec' && courseId) {
+      if (!dayEntry.courseSec || typeof dayEntry.courseSec !== 'object') dayEntry.courseSec = {};
+      dayEntry.courseSec[courseId] = Math.min(86400, (Number(dayEntry.courseSec[courseId]) || 0) + dtSec);
+    }
+    telemetryLedger.byDevice[deviceId][todayKey] = dayEntry;
+
+    // Immutable 5-minute Oslo bucket log
+    const bKey = currentOslo5mBucketKey(now);
+    const bEntry = telemetryLedger.buckets[bKey] || { s: 0, r: 0, a: 0, i: 0, w: 0, b: 0 };
+    const shortMap = { solvingSec: 's', readingSec: 'r', appBrowseSec: 'a', afkIdleSec: 'i', awaySec: 'w', breakSec: 'b' };
+    const bk = shortMap[state];
+    if (bk) bEntry[bk] = Math.min(300, Math.round(((Number(bEntry[bk]) || 0) + dtSec) * 10) / 10);
+    telemetryLedger.buckets[bKey] = bEntry;
+  }
+
+  function aggregateTelemetryByDay() {
+    const out = {};
+    for (const dMap of Object.values(telemetryLedger.byDevice || {})) {
+      if (!dMap || typeof dMap !== 'object') continue;
+      for (const [dayKey, entry] of Object.entries(dMap)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey) || !entry || typeof entry !== 'object') continue;
+        const acc = out[dayKey] || emptyDayTelemetry();
+        acc.solvingSec += Math.round(Number(entry.solvingSec) || 0);
+        acc.readingSec += Math.round(Number(entry.readingSec) || 0);
+        acc.appBrowseSec += Math.round(Number(entry.appBrowseSec) || 0);
+        acc.afkIdleSec += Math.round(Number(entry.afkIdleSec) || 0);
+        acc.awaySec += Math.round(Number(entry.awaySec) || 0);
+        acc.breakSec += Math.round(Number(entry.breakSec) || 0);
+        acc.extStudySec += Math.round(Number(entry.extStudySec) || 0);
+        acc.extDistractSec += Math.round(Number(entry.extDistractSec) || 0);
+        acc.extOtherSec += Math.round(Number(entry.extOtherSec) || 0);
+        if (entry.courseSec && typeof entry.courseSec === 'object') {
+          for (const [cid, sec] of Object.entries(entry.courseSec)) {
+            acc.courseSec[cid] = (acc.courseSec[cid] || 0) + Math.round(Number(sec) || 0);
+          }
+        }
+        out[dayKey] = acc;
+      }
+    }
+    return out;
+  }
+
   function saveWorkState(allowDevPause = false) {
     if (devModeActive && !allowDevPause) return;
     try {
@@ -1643,6 +1882,88 @@ window.StudyUI = (() => {
     getBreakStats() {
       return computeBreakStats();
     },
+    getDeviceId() {
+      return deviceId;
+    },
+    isPaperMode() {
+      return paperModeActive;
+    },
+    setPaperMode(enabled) {
+      paperModeActive = Boolean(enabled);
+      lastUserInteractionMs = Date.now();
+      toast(paperModeActive ? 'Paper / IDE Mode ON — off-screen solving counts as active study.' : 'Paper / IDE Mode OFF.');
+      return paperModeActive;
+    },
+    getTelemetryByDevice() {
+      return telemetryLedger.byDevice || {};
+    },
+    getTelemetrySummary() {
+      const byDay = aggregateTelemetryByDay();
+      const todayKey = localDayKey();
+      const today = byDay[todayKey] || emptyDayTelemetry();
+      const productiveSec = today.solvingSec + today.readingSec + today.extStudySec;
+      const trackedSec = today.solvingSec + today.readingSec + today.appBrowseSec + today.afkIdleSec + today.extStudySec + today.extDistractSec;
+      const honestEfficiencyPct = trackedSec >= 60 ? Math.min(100, Math.round((productiveSec / trackedSec) * 100)) : null;
+      return {
+        deviceId,
+        deviceCount: Object.keys(telemetryLedger.byDevice || {}).length || 1,
+        paperMode: paperModeActive,
+        todayKey,
+        today,
+        honestEfficiencyPct,
+        byDay,
+        bucketCount: Object.keys(telemetryLedger.buckets || {}).length,
+      };
+    },
+    mergeTelemetryByDevice(incoming) {
+      if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) return 0;
+      let changed = 0;
+      for (const [dev, dMap] of Object.entries(incoming)) {
+        if (typeof dev !== 'string' || !/^dev_[a-z0-9_-]{4,24}$/i.test(dev) || !dMap || typeof dMap !== 'object') continue;
+        if (!telemetryLedger.byDevice[dev]) telemetryLedger.byDevice[dev] = {};
+        for (const [dayKey, inc] of Object.entries(dMap)) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey) || !inc || typeof inc !== 'object') continue;
+          const cur = telemetryLedger.byDevice[dev][dayKey] || emptyDayTelemetry();
+          const fields = ['solvingSec', 'readingSec', 'appBrowseSec', 'afkIdleSec', 'awaySec', 'breakSec', 'extStudySec', 'extDistractSec', 'extOtherSec'];
+          let rowChanged = false;
+          for (const f of fields) {
+            const val = Math.min(86400, Math.max(0, Math.round(Number(inc[f]) || 0)));
+            if (val > (Number(cur[f]) || 0)) {
+              cur[f] = val;
+              rowChanged = true;
+            }
+          }
+          if (inc.courseSec && typeof inc.courseSec === 'object') {
+            if (!cur.courseSec || typeof cur.courseSec !== 'object') cur.courseSec = {};
+            for (const [cid, sec] of Object.entries(inc.courseSec)) {
+              const v = Math.min(86400, Math.max(0, Math.round(Number(sec) || 0)));
+              if (v > (Number(cur.courseSec[cid]) || 0)) {
+                cur.courseSec[cid] = v;
+                rowChanged = true;
+              }
+            }
+          }
+          if (rowChanged) {
+            telemetryLedger.byDevice[dev][dayKey] = cur;
+            changed++;
+          }
+        }
+      }
+      if (changed > 0) saveTelemetryLedger();
+      return changed;
+    },
+    exportTelemetryJson() {
+      return {
+        format: 'study-os-telemetry-v1',
+        exportedAt: new Date().toISOString(),
+        timezone: 'Europe/Oslo',
+        deviceId,
+        byDevice: telemetryLedger.byDevice || {},
+        aggregatedByDay: aggregateTelemetryByDay(),
+        buckets5m: telemetryLedger.buckets || {},
+        screenHistory: this.getScreenHistory(),
+      };
+    },
   };
 
   function renderWorkClockDom() {
@@ -1690,18 +2011,24 @@ window.StudyUI = (() => {
 
     const dtMs = Math.max(0, now - lastScreenTickMs);
     lastScreenTickMs = now;
-    if (dtMs > 0 && dtMs <= 60000) {
+    const isLeader = claimOrVerifyLeader(now);
+    if (isLeader && dtMs > 0 && dtMs <= 60000) {
+      const dtSec = dtMs / 1000;
       const docFocused =
         !document.hidden && (document.hasFocus() || document.activeElement?.tagName === 'IFRAME');
       const inBreak = workState.mode === 'break';
       const isWavePaused = Boolean(workState.wavePausedSinceMs);
       if ((workState.mode === 'working' && !isWavePaused) || (docFocused && !inBreak && !isWavePaused)) {
-        workState.dayScreenSec = (Number(workState.dayScreenSec) || 0) + dtMs / 1000;
+        workState.dayScreenSec = (Number(workState.dayScreenSec) || 0) + dtSec;
       } else if (inBreak || (workState.mode === 'working' && isWavePaused)) {
-        workState.dayOffScreenSec = (Number(workState.dayOffScreenSec) || 0) + dtMs / 1000;
+        workState.dayOffScreenSec = (Number(workState.dayOffScreenSec) || 0) + dtSec;
       }
+      recordTelemetryTick(dtSec, now);
       if (now - lastScreenSaveMs >= 10000) {
         saveWorkState();
+      }
+      if (now - lastTelemetrySaveMs >= 15000) {
+        saveTelemetryLedger();
       }
     }
 

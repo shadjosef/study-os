@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Study-OS Sync",
-  "version": "1.6.1",
-  "description": "One-click & auto-sync for Canvas LMS (BI, UiA, NHH, UiO, NTNU & any Instructure school), TimeEdit/TP timetables, and Ed Discussion.",
+  "version": "1.7.0",
+  "description": "One-click & auto-sync for Canvas LMS (BI, UiA, NHH, UiO, NTNU & any Instructure school), TimeEdit/TP timetables, Ed Discussion, and opt-in on-device browser focus categories.",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["scripting", "storage"],
+  "permissions": ["scripting", "storage", "alarms"],
+  "optional_permissions": ["tabs"],
   "host_permissions": [
     "https://canvas.bi.no/*",
     "https://*.instructure.com/*",

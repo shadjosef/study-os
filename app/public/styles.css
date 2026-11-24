@@ -12208,6 +12208,190 @@ html[data-theme="dark"] .exam-stat-chip.is-gold b {
   display: none;
 }
 
+/* Scannable Coding / Multi-Subpart Exam Cards (replaces dense text walls) */
+.coding-structured-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.coding-prompt-meta-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel-alt));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+}
+.coding-ds-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.coding-ds-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.coding-ds-cols {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.coding-subpart-counter {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.coding-subpart-counter strong {
+  color: var(--ink);
+}
+.coding-intro-md {
+  font-size: 14.5px;
+  margin: 2px 0;
+}
+.coding-subpart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.coding-subpart-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  transition: border-color 140ms ease, background 140ms ease, opacity 140ms ease;
+}
+.coding-subpart-card.is-active {
+  border-color: color-mix(in srgb, var(--accent) 52%, var(--line));
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel));
+}
+.coding-subpart-card.is-checked {
+  background: color-mix(in srgb, #10b981 6%, var(--panel-alt));
+  border-color: color-mix(in srgb, #10b981 36%, var(--line));
+  opacity: 0.78;
+}
+.coding-subpart-chk {
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  border: 1.5px solid color-mix(in srgb, var(--muted) 45%, var(--line));
+  background: var(--panel-alt);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+.coding-subpart-card.is-checked .coding-subpart-chk {
+  background: #10b981;
+  border-color: #10b981;
+}
+.coding-subpart-main {
+  flex: 1;
+  min-width: 0;
+}
+.coding-subpart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.coding-subpart-tag {
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel-alt));
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.coding-subpart-par {
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.coding-subpart-body {
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+.coding-subpart-body p:first-child { margin-top: 0; }
+.coding-subpart-body p:last-child { margin-bottom: 0; }
+
+/* Metrics Tier 1 Telemetry Breakdown & Controls */
+.mc-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mc-telemetry-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.mc-tel-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.mc-tel-lbl {
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-right: 4px;
+}
+.mc-tel-chip {
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.mc-tel-chip b {
+  color: var(--ink);
+  font-weight: 750;
+  margin-left: 3px;
+}
+.mc-tel-chip.is-solve { border-color: color-mix(in srgb, #10b981 36%, var(--line)); }
+.mc-tel-chip.is-read { border-color: color-mix(in srgb, #0ea5e9 34%, var(--line)); }
+.mc-tel-chip.is-afk { border-color: color-mix(in srgb, #f59e0b 38%, var(--line)); }
+
 
 
 

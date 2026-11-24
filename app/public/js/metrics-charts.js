@@ -329,7 +329,7 @@ window.StudyMetrics = (() => {
 
     const W = 520;
     const H = 215;
-    const pad = { top: 12, right: 14, bottom: 28, left: 40 };
+    const pad = { top: 14, right: 20, bottom: 28, left: 40 };
     const plotW = W - pad.left - pad.right;
     const plotH = H - pad.top - pad.bottom;
     const n = buckets.length;
@@ -361,9 +361,9 @@ window.StudyMetrics = (() => {
 
     const avgSvg = avgVal > 0.05 && !opts.overlayBg
       ? (() => {
-          const ay = yOf(avgVal);
+          const ay = Math.max(pad.top + 12, yOf(avgVal));
           return `<line x1="${pad.left}" y1="${ay.toFixed(1)}" x2="${W - pad.right}" y2="${ay.toFixed(1)}" class="mc-target-line" />
-                  <text x="${W - pad.right - 2}" y="${(ay - 4).toFixed(1)}" text-anchor="end" class="mc-target-lbl">Avg ${esc(fmtHrsShort(avgVal))}</text>`;
+                  <text x="${W - pad.right - 6}" y="${(ay - 4).toFixed(1)}" text-anchor="end" class="mc-target-lbl" style="paint-order:stroke;stroke:var(--panel);stroke-width:3px;stroke-linejoin:round">Avg ${esc(fmtHrsShort(avgVal))}</text>`;
         })()
       : '';
 
@@ -706,13 +706,40 @@ window.StudyMetrics = (() => {
       )
       .join('');
 
+    const tel = window.StudyUI?.workClock?.getTelemetrySummary?.() || a.telemetrySummary || null;
+    const telToday = tel?.today || {};
+    const paperOn = Boolean(window.StudyUI?.workClock?.isPaperMode?.());
+    const ver = a.verification || { auto_graded: 0, ide_verified: 0, self_verified: 0, fast_flag: 0 };
+    const fmtSecMin = (s) => {
+      const m = Math.round((Number(s) || 0) / 60);
+      return m >= 60 ? `${(m / 60).toFixed(1)}h` : `${m}m`;
+    };
+    const hasExtTel = (Number(telToday.extStudySec) || 0) + (Number(telToday.extDistractSec) || 0) > 0;
+    const honestEff = tel?.honestEfficiencyPct ?? effToday;
+    const effToneHonest = honestEff == null ? '' : honestEff >= 70 ? 'good' : honestEff >= 45 ? 'gold' : 'debt';
+    const effVerdictHonest = honestEff == null
+      ? 'Start a run to measure'
+      : honestEff >= 72
+      ? `${honestEff}% focused`
+      : honestEff >= 48
+      ? `${honestEff}% active · moderate drift`
+      : `${honestEff}% active · high idle / browse time`;
+
     root.innerHTML = `
       <div class="mc-top-head">
         <div>
           <h1 class="sch-page-title">Metrics &amp; Telemetry</h1>
-          <small class="muted">Oslo time (Europe/Oslo) · Live productivity, screen efficiency, AI-Par pace &amp; topic mastery</small>
+          <small class="muted">Oslo time (Europe/Oslo) · Multi-tab locked · ${tel?.deviceCount || 1} device${(tel?.deviceCount || 1) === 1 ? '' : 's'} · ${tel?.bucketCount || 0} verifiable 5m buckets</small>
         </div>
-        <span class="mc-live-pill"><i aria-hidden="true"></i>LIVE · Oslo</span>
+        <div class="mc-top-actions">
+          <button type="button" class="mini-tool-btn ${paperOn ? 'active' : ''}" id="btn-mc-paper-mode" title="Keep active solving time running while working on paper or in an IDE without counting as AFK">
+            ${paperOn ? '📝 Paper / IDE Mode: ON' : '📝 Paper / IDE Mode'}
+          </button>
+          <button type="button" class="mini-tool-btn" id="btn-mc-export-telemetry" title="Download raw immutable 5m telemetry buckets + per-device daily ledger as JSON">
+            Export Telemetry JSON
+          </button>
+          <span class="mc-live-pill"><i aria-hidden="true"></i>LIVE · Oslo</span>
+        </div>
       </div>
 
       <div class="mc-kpi-grid">
@@ -729,9 +756,9 @@ window.StudyMetrics = (() => {
           <div class="mc-kpi-label">Screen Time vs Work</div>
           <div class="mc-kpi-val-row">
             <b id="mc-live-screen-today">${esc(screenSec >= liveActiveMin * 60 && scr.screenLabel ? scr.screenLabel : fmtHours(screenMin))}</b>
-            <span class="badge ${effTone}" id="mc-live-eff-badge">${effToday != null ? `${effToday}% active` : 'Idle'}</span>
+            <span class="badge ${effToneHonest}" id="mc-live-eff-badge">${honestEff != null ? `${honestEff}% active` : 'Idle'}</span>
           </div>
-          <small class="muted" id="mc-live-screen-sub">${esc(effVerdict)} · ${esc(scr.offScreenLabel || fmtHours(db.todayAwayMinutes || 0))} off-screen</small>
+          <small class="muted" id="mc-live-screen-sub">${esc(effVerdictHonest)} · ${esc(scr.offScreenLabel || fmtHours(db.todayAwayMinutes || 0))} off-screen</small>
         </div>
 
         <div class="mc-kpi-card">
@@ -759,6 +786,25 @@ window.StudyMetrics = (() => {
             ${outDeltaPill}
           </div>
           <small class="muted">${l7.attempts || 0} Qs weighted by difficulty × AI Par</small>
+        </div>
+      </div>
+
+      <div class="mc-telemetry-strip">
+        <div class="mc-tel-group">
+          <span class="mc-tel-lbl">Today Breakdown</span>
+          <span class="mc-tel-chip is-solve">Solving <b>${esc(fmtSecMin(telToday.solvingSec))}</b></span>
+          <span class="mc-tel-chip is-read">Reading <b>${esc(fmtSecMin(telToday.readingSec))}</b></span>
+          <span class="mc-tel-chip is-browse">App Browse <b>${esc(fmtSecMin(telToday.appBrowseSec))}</b></span>
+          <span class="mc-tel-chip is-afk">AFK Idle <b>${esc(fmtSecMin(telToday.afkIdleSec))}</b></span>
+          <span class="mc-tel-chip is-break">Breaks <b>${esc(fmtSecMin(telToday.breakSec))}</b></span>
+          ${hasExtTel ? `<span class="mc-tel-chip is-solve">Browser Study <b>${esc(fmtSecMin(telToday.extStudySec))}</b></span><span class="mc-tel-chip is-afk">Browser Distract <b>${esc(fmtSecMin(telToday.extDistractSec))}</b></span>` : ''}
+        </div>
+        <div class="mc-tel-group">
+          <span class="mc-tel-lbl">Verification</span>
+          <span class="mc-tel-chip is-solve">Auto-graded <b>${ver.auto_graded || 0}</b></span>
+          <span class="mc-tel-chip is-read">IDE Verified <b>${ver.ide_verified || 0}</b></span>
+          <span class="mc-tel-chip is-browse">Self-check <b>${ver.self_verified || 0}</b></span>
+          ${ver.fast_flag > 0 ? `<span class="mc-tel-chip is-afk">Fast-flagged <b>${ver.fast_flag}</b></span>` : ''}
         </div>
       </div>
 
@@ -1106,6 +1152,28 @@ window.StudyMetrics = (() => {
         root.querySelectorAll('[data-stack-gran]').forEach((b) => b.classList.toggle('active', b === btn));
         paintStack();
       });
+    });
+
+    root.querySelector('#btn-mc-paper-mode')?.addEventListener('click', (ev) => {
+      const next = !window.StudyUI?.workClock?.isPaperMode?.();
+      window.StudyUI?.workClock?.setPaperMode?.(next);
+      ev.currentTarget.classList.toggle('active', next);
+      ev.currentTarget.textContent = next ? '📝 Paper / IDE Mode: ON' : '📝 Paper / IDE Mode';
+    });
+
+    root.querySelector('#btn-mc-export-telemetry')?.addEventListener('click', () => {
+      const payload = window.StudyUI?.workClock?.exportTelemetryJson?.();
+      if (!payload) return;
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `study-os-telemetry-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      window.StudyUI?.toast?.('Exported raw verifiable Telemetry Ledger JSON!');
     });
 
     root.querySelector('#btn-copy-ai-brief')?.addEventListener('click', async () => {
