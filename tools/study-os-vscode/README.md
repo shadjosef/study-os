@@ -1,14 +1,13 @@
-# Study-OS Companion (VS Code / Antigravity / Cursor)
+# Study-OS Companion v0.2 (VS Code / Antigravity / Cursor)
 
-Opens any Study-OS Python/Jupyter exercise straight into VS Code, Antigravity IDE, or Cursor in real exam Jupyter Notebook format (`.ipynb`):
+Full two-way Study-OS Jupyter workflow right inside Antigravity IDE, VS Code, or Cursor:
 
-- **1-click deep link** from Study-OS (`antigravity://`, `vscode://`, or `cursor://`)
-- **Cursor drops straight inside the first Python code cell** ready to type & run
-- **Automatic BI dataset linking** (`hotel.csv`, `citybike.csv`, `london_bike.csv`, `parks.csv`, etc. — strips numeric Canvas prefixes like `155342--` so `pd.read_csv("hotel.csv")` runs on the first try)
-- **Live AI-Par status bar urgency timer** right inside your IDE (turns yellow near par, red over par; click to pause/resume)
+- **1-click deep link from Study-OS** (`antigravity://`, `vscode://`, or `cursor://`) → builds or re-opens an exam-format `.ipynb` notebook with per-subpart Markdown + Python cells and drops your cursor straight into the first code cell.
+- **Automatic BI CSV dataset linking** (`hotel.csv → 155342--hotel.csv`, `citybike.csv → 155349--citybike.csv`, `parks.csv → 183960--parks.csv`, etc.) so `pd.read_csv("hotel.csv")` runs on the first try.
+- **Active-notebook auto-detection & persistence:** Switching between `.ipynb` tabs automatically pauses the previous task, resumes the active notebook's elapsed time, auto-pauses after 3 min idle, and tracks live cell executions (`3/6 cells`).
+- **1-click `Sync to Study-OS` in the Status Bar:** Log `Got It (100%)`, `Mostly Right (75%)`, `Needs Revisit`, or open the Worked Solution back in Study-OS — updating AI-Par pace, UPI, FSRS, Oslo Metrics, and Cloud Sync automatically.
 
 ## Install (10 seconds)
-1. Download `study-os-companion.vsix` from Study-OS (or run `python3 tools/study-os-vscode/build_vsix.py`).
-2. In **Antigravity IDE** or **VS Code**: open Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) → **Extensions: Install from VSIX…** → pick `study-os-companion.vsix`.
-   - Or in Terminal for VS Code: `code --install-extension study-os-companion.vsix`
-3. Back in Study-OS, open any EBA 3400 coding exercise and click **Open in Antigravity / VS Code + Top AI-Par Bar**.
+1. In **Antigravity IDE** or **VS Code**, press `Cmd+Shift+P` (`Ctrl+Shift+P` on Windows) → **Extensions: Install from VSIX…** → select `study-os-companion.vsix`.
+   - Or via VS Code CLI: `code --install-extension study-os-companion.vsix`
+2. Open any EBA 3400 coding exercise on `https://studyos.no/` and click **Open in Antigravity / VS Code + Top AI-Par Bar**.

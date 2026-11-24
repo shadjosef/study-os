@@ -170,6 +170,7 @@ window.StudyRunner = (() => {
     const cfg = IDE_CONFIGS[ide] || IDE_CONFIGS.vscode;
     const payload = {
       qid: String(q?.id || 'exercise'),
+      courseId: String(q?.courseId || activeRun?.courseMeta?.courseId || ''),
       title: String(q?.title || q?.id || 'Exercise').slice(0, 140),
       parSec: Math.max(60, Math.round(Number(st?.targetSec) || 900)),
       elapsedSec: Math.max(0, Math.floor(itemActiveSec(st))),
@@ -2239,11 +2240,11 @@ window.StudyRunner = (() => {
           <div class="coding-ide-foot">
             <span class="badge live" id="coding-ide-live-pill" ${ideSynced ? '' : 'hidden'}>● IDE timer active — switching to ${esc(ideLabel)} won't pause</span>
             <details class="coding-ide-setup">
-              <summary>1-time IDE Companion setup (cursor straight in code cell + CSV links)</summary>
+              <summary>1-time IDE Companion v0.2 setup (auto-detects active notebook + 1-click Sync)</summary>
               <div class="coding-ide-setup-body">
-                <p>Install the tiny <strong>7 KB</strong> Study-OS Companion extension once so clicking <em>Open in ${esc(ideLabel)}</em> creates the exam <code>.ipynb</code>, auto-links BI CSV datasets (<code>hotel.csv</code>, <code>citybike.csv</code>…), drops your cursor right into Cell 1, and shows an AI-Par timer in the IDE status bar.</p>
+                <p>Install the tiny Study-OS Companion extension once: clicking <em>Open in ${esc(ideLabel)}</em> creates the exam <code>.ipynb</code>, auto-links BI CSVs (<code>hotel.csv</code>, <code>citybike.csv</code>…), drops your cursor into Cell 1, auto-detects notebook tab switches, tracks executed cells, and lets you click <strong>Sync to Study-OS</strong> right from the IDE status bar.</p>
                 <div class="row-actions" style="gap:8px;margin-top:6px">
-                  <a class="ghost-btn" href="${esc(vsixHref)}" download="study-os-companion.vsix" style="text-decoration:none">Download .vsix (7 KB)</a>
+                  <a class="ghost-btn" href="${esc(vsixHref)}" download="study-os-companion.vsix" style="text-decoration:none">Download .vsix (v0.2)</a>
                   <span class="muted" style="font-size:11.5px">In ${esc(ideLabel)}: <kbd>⌘⇧P</kbd> → <em>Extensions: Install from VSIX…</em></span>
                 </div>
               </div>

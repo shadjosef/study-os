@@ -8526,6 +8526,74 @@ window.StudyApp = (() => {
       return;
     }
 
+    // Two-way sync callback from Study-OS Companion IDE extension (`?ide_complete=1&qid=...&sec=...&acc=...`)
+    if (params.get('ide_complete') === '1' && params.get('qid')) {
+      const ideQid = String(params.get('qid') || '').trim();
+      const ideSec = Math.max(1, Math.min(18000, Math.round(Number(params.get('sec')) || 60)));
+      const ideReview = params.get('review') === '1';
+      const ideAccRaw = params.get('acc');
+      const ideCells = String(params.get('cells') || '').trim();
+      const ideTs = String(params.get('ts') || '').trim();
+      window.history.replaceState({}, '', window.location.pathname);
+
+      const courseIdFromQid = ideQid.includes(':') ? ideQid.split(':')[0] : 'prog-3021';
+      const cMeta = (boot.catalog || []).find((c) => c.courseId === courseIdFromQid);
+      if (cMeta) {
+        try {
+          const bank = await ensureCourseBank(cMeta.courseId);
+          const qObj = (bank?.questions || []).find((q) => q.id === ideQid);
+          if (qObj) {
+            if (ideReview) {
+              window.StudyRunner.startRun({
+                courseMeta: cMeta,
+                bank,
+                questionIds: [qObj.id],
+                mode: 'practice',
+                profile: 'learning',
+              });
+              toast(`Opened ${qObj.title.slice(0, 48)} — click Reveal Solution to check your IDE output.`);
+              return;
+            }
+            const nonceKey = 'study-os-ide-sync-nonces-v1';
+            let seen = [];
+            try { seen = JSON.parse(localStorage.getItem(nonceKey) || '[]'); } catch {}
+            const dedupeId = ideTs ? `${ideQid}:${ideTs}` : '';
+            if (!dedupeId || !seen.includes(dedupeId)) {
+              if (dedupeId) {
+                seen = [...seen.slice(-30), dedupeId];
+                try { localStorage.setItem(nonceKey, JSON.stringify(seen)); } catch {}
+              }
+              const qAcc = Math.max(0, Math.min(1, Number(ideAccRaw ?? 1)));
+              const aiParSec = calibratedParSec(qObj, 'learning');
+              const dlpfcTier = effectiveDlpfc(qObj).tier;
+              const res = await logAttempt({
+                questionId: qObj.id,
+                courseId: cMeta.courseId,
+                topicId: qObj.topicId,
+                kind: qObj.kind || 'coding',
+                profile: 'learning',
+                dlpfcTier,
+                activeSec: ideSec,
+                wallSec: ideSec,
+                aiParSec,
+                hintsUsed: 0,
+                hintHandicapSec: 30,
+                qualityAccuracy: qAcc,
+                focusSwitchCount: 0,
+                awayElapsedSec: 0,
+                source: 'ide_companion',
+              });
+              const beatTxt = res?.attempt?.beatAi ? ' · Beat AI Par!' : '';
+              const cellTxt = ideCells ? ` · ${ideCells} cells` : '';
+              toast(`Synced ${ideQid.split(':')[1] || ideQid} from IDE (${window.StudyUI.clockSec(ideSec)}${cellTxt}${beatTxt})`);
+            }
+            navigate('course', { courseId: cMeta.courseId });
+            return;
+          }
+        } catch {}
+      }
+    }
+
     if (qView === 'playbook') {
       window.history.replaceState({}, '', window.location.pathname);
       window.StudyPlaybook?.open?.();

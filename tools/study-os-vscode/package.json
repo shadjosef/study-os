@@ -1,8 +1,8 @@
 {
   "name": "companion",
   "displayName": "Study-OS Companion",
-  "description": "Open Study-OS Python/Jupyter exercises straight into VS Code / Antigravity with cursor in the code cell, automatic BI dataset linking, and a live AI-Par status bar timer.",
-  "version": "0.1.0",
+  "description": "Seamless Study-OS Jupyter workflow for VS Code, Antigravity & Cursor: 1-click open with cursor in code cell, automatic BI CSV dataset linking, active-notebook auto-detection, cell execution tracking, live AI-Par status bar timer & 1-click completion sync to Study-OS.",
+  "version": "0.2.0",
   "publisher": "study-os",
   "license": "MIT",
   "engines": {
@@ -15,7 +15,10 @@
   ],
   "activationEvents": [
     "onUri",
+    "onNotebook:jupyter-notebook",
     "onCommand:studyOs.toggleTimer",
+    "onCommand:studyOs.finishExercise",
+    "onCommand:studyOs.startNotebookTimer",
     "onCommand:studyOs.stopTimer"
   ],
   "main": "./extension.js",
@@ -26,8 +29,16 @@
         "title": "Study-OS: Pause / Resume AI-Par Timer"
       },
       {
+        "command": "studyOs.finishExercise",
+        "title": "Study-OS: Finish Exercise & Sync to Study-OS"
+      },
+      {
+        "command": "studyOs.startNotebookTimer",
+        "title": "Study-OS: Start AI-Par Timer for Active Notebook"
+      },
+      {
         "command": "studyOs.stopTimer",
-        "title": "Study-OS: Clear AI-Par Timer"
+        "title": "Study-OS: Clear Active AI-Par Timer"
       }
     ],
     "configuration": {
@@ -37,6 +48,16 @@
           "type": "string",
           "default": "",
           "description": "Optional custom folder for Study-OS Jupyter practice notebooks (.ipynb). Leave empty to auto-detect your active workspace or BI Canvas-Archive Files folder."
+        },
+        "studyOs.webUrl": {
+          "type": "string",
+          "default": "https://studyos.no",
+          "description": "Study-OS web URL used when syncing completed exercises back to Study-OS."
+        },
+        "studyOs.idlePauseMinutes": {
+          "type": "number",
+          "default": 3,
+          "description": "Automatically pause the AI-Par timer after this many minutes without typing or executing cells (0 to disable)."
         }
       }
     }
