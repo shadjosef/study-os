@@ -556,37 +556,316 @@ window.StudyApp = (() => {
     const n = attempts.length;
     const avgAcc = n ? attempts.reduce((s, a) => s + Number(a.qualityAccuracy || 0), 0) / n : null;
     const beatRate = n ? attempts.filter((a) => a.beatAi).length / n : null;
+    const paceList = attempts.filter((a) => Number.isFinite(Number(a.paceRatio)) && Number(a.paceRatio) > 0);
+    const avgPaceRatio = paceList.length
+      ? Math.round((paceList.reduce((s, a) => s + Number(a.paceRatio), 0) / paceList.length) * 100) / 100
+      : null;
     const upi = computeWeightedUpi(attempts, 0.9);
+
+    const dayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
+    const osloHourFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', hour: '2-digit', hourCycle: 'h23' });
+    const today = dayFormat.format(new Date());
+    const toOsloDay = (ts) => {
+      const d = new Date(ts);
+      return Number.isNaN(d.getTime()) ? '' : dayFormat.format(d);
+    };
+    const toOsloSlot = (ts) => {
+      const d = new Date(ts);
+      if (Number.isNaN(d.getTime())) return '';
+      const h = Number(osloHourFmt.format(d));
+      if (h >= 6 && h < 12) return 'morning_06_12';
+      if (h >= 12 && h < 17) return 'afternoon_12_17';
+      if (h >= 17 && h < 23) return 'evening_17_23';
+      return 'night_23_06';
+    };
+    const attemptTier = (a) => {
+      const raw = Number(a.dlpfcTier || qTierLookup[a.questionId] || (a.kind === 'mcq' ? 1 : 2));
+      return Math.min(3, Math.max(1, Number.isFinite(raw) ? raw : 2));
+    };
+    const attemptAdjUnits = (a) => {
+      const tier = attemptTier(a);
+      const tierW = tier === 3 ? 1.35 : tier === 1 ? 0.75 : 1.0;
+      const parSec = Math.max(45, Number(a.aiParSec || a.parSec || (a.kind === 'mcq' ? 90 : 300)));
+      const qAcc = Math.max(0.3, Math.min(1, Number(a.qualityAccuracy ?? 0.8)));
+      return (parSec / 180) * tierW * qAcc;
+    };
+
     const byCourseBuckets = {};
     const byCourseTierBuckets = {};
+    const byDlpfcBuckets = {};
+    const byKindBuckets = {};
+    const bySlotBuckets = {};
+    const dayMap = new Map();
+    const ensureDay = (dayKey) => {
+      let row = dayMap.get(dayKey);
+      if (!row) {
+        row = {
+          day: dayKey,
+          isToday: dayKey === today,
+          activeSec: 0,
+          highSec: 0,
+          medSec: 0,
+          lowSec: 0,
+          screenSec: 0,
+          offScreenSec: 0,
+          attempts: [],
+          adjustedUnits: 0,
+          byCourseSec: {},
+        };
+        dayMap.set(dayKey, row);
+      }
+      return row;
+    };
+
+    // Ensure at least the last 14 Oslo days exist on the timeline
+    for (let i = 13; i >= 0; i--) {
+      ensureDay(dayFormat.format(new Date(Date.now() - i * 86_400_000)));
+    }
+
+    const qTopicLookup = {};
+    for (const c of boot.catalog || []) {
+      for (const ts of c.topicStats || []) {
+        for (const qid of ts.questionIds || []) {
+          qTopicLookup[qid] = { courseId: c.courseId, topicId: String(ts.id) };
+        }
+      }
+    }
+    const topicAttemptSec = {};
+    const topicAttempts = {};
+
     for (const a of attempts) {
       const cid = a.courseId || String(a.questionId || '').split(':')[0];
-      if (!cid) continue;
-      (byCourseBuckets[cid] = byCourseBuckets[cid] || []).push(a);
-      const t = String(a.dlpfcTier || qTierLookup[a.questionId] || (a.kind === 'mcq' ? 1 : 2));
-      const ctKey = `${cid}:${t}`;
-      (byCourseTierBuckets[ctKey] = byCourseTierBuckets[ctKey] || []).push(a);
+      const tier = attemptTier(a);
+      const kind = String(a.kind || 'written').toLowerCase();
+      const slot = toOsloSlot(a.timestamp);
+      const dk = toOsloDay(a.timestamp);
+      if (cid) {
+        (byCourseBuckets[cid] = byCourseBuckets[cid] || []).push(a);
+        const ctKey = `${cid}:${tier}`;
+        (byCourseTierBuckets[ctKey] = byCourseTierBuckets[ctKey] || []).push(a);
+      }
+      const tierKey = tier === 3 ? 'high_3' : tier === 1 ? 'low_1' : 'med_2';
+      (byDlpfcBuckets[tierKey] = byDlpfcBuckets[tierKey] || []).push(a);
+      (byKindBuckets[kind] = byKindBuckets[kind] || []).push(a);
+      if (slot) (bySlotBuckets[slot] = bySlotBuckets[slot] || []).push(a);
+
+      const sec = Math.max(0, Number(a.activeSec || 0));
+      const tInfo = qTopicLookup[a.questionId] || (cid && a.topicId != null ? { courseId: cid, topicId: String(a.topicId) } : null);
+      if (tInfo) {
+        const tk = `${tInfo.courseId}::${tInfo.topicId}`;
+        topicAttemptSec[tk] = (topicAttemptSec[tk] || 0) + sec;
+        (topicAttempts[tk] = topicAttempts[tk] || []).push(a);
+      }
+
+      if (dk) {
+        const dr = ensureDay(dk);
+        dr.attempts.push(a);
+        dr.activeSec += sec;
+        if (tier === 3) dr.highSec += sec;
+        else if (tier === 1) dr.lowSec += sec;
+        else dr.medSec += sec;
+        dr.adjustedUnits += attemptAdjUnits(a);
+        if (cid) dr.byCourseSec[cid] = (dr.byCourseSec[cid] || 0) + sec;
+      }
     }
-    const summarizeBucket = (arr) => ({
-      count: arr.length,
-      avgAccuracy: arr.reduce((s, a) => s + Number(a.qualityAccuracy || 0), 0) / arr.length,
-      beatAiRate: arr.filter((a) => a.beatAi).length / arr.length,
-      upi: computeWeightedUpi(arr, 0.9),
-    });
+
+    // Fold session timing & away time into Oslo days
+    const sessionDayActive = {};
+    const sessionDayAway = {};
+    for (const sess of ws.sessions || []) {
+      const dk = toOsloDay(sess.endedAt || sess.startedAt);
+      if (!dk) continue;
+      sessionDayActive[dk] = (sessionDayActive[dk] || 0) + Math.max(0, Number(sess.activeSec || 0));
+      sessionDayAway[dk] = (sessionDayAway[dk] || 0) + Math.max(0, Number(sess.awaySec || 0));
+      ensureDay(dk);
+    }
+
+    // Fold live & historical Oslo screen time from workClock
+    const screenHist = window.StudyUI?.workClock?.getScreenHistory?.() || {};
+    for (const [dk, sh] of Object.entries(screenHist)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dk)) continue;
+      const dr = ensureDay(dk);
+      dr.screenSec = Math.max(dr.screenSec, Number(sh?.screenSec || 0));
+      dr.offScreenSec = Math.max(dr.offScreenSec, Number(sh?.offScreenSec || 0));
+      if (Number(sh?.activeSec || 0) > dr.activeSec && dk === today) {
+        dr.liveActiveSec = Number(sh.activeSec);
+      }
+    }
+
+    const dailySeries = [...dayMap.values()]
+      .sort((a, b) => a.day.localeCompare(b.day))
+      .map((dr) => {
+        const sessAct = sessionDayActive[dr.day] || 0;
+        const sessAway = sessionDayAway[dr.day] || 0;
+        const effActiveSec = Math.max(dr.activeSec, dr.liveActiveSec || 0, Math.min(sessAct, dr.activeSec + 1800));
+        const activeMin = Math.round((effActiveSec / 60) * 10) / 10;
+        const screenSecFinal = Math.max(dr.screenSec, effActiveSec + (dr.screenSec === 0 ? sessAway : 0));
+        const screenMin = Math.round((screenSecFinal / 60) * 10) / 10;
+        const offScreenMin = Math.round((Math.max(dr.offScreenSec, sessAway) / 60) * 10) / 10;
+        const efficiencyPct = screenMin > 0.5 ? Math.min(100, Math.round((activeMin / screenMin) * 100)) : null;
+        const arr = dr.attempts;
+        const pArr = arr.filter((a) => Number.isFinite(Number(a.paceRatio)) && Number(a.paceRatio) > 0);
+        const byCourseMin = Object.fromEntries(
+          Object.entries(dr.byCourseSec).map(([cid, s]) => [cid, Math.round((s / 60) * 10) / 10])
+        );
+        return {
+          day: dr.day,
+          isToday: dr.isToday,
+          activeMin,
+          highMin: Math.round((dr.highSec / 60) * 10) / 10,
+          medMin: Math.round((dr.medSec / 60) * 10) / 10,
+          lowMin: Math.round((dr.lowSec / 60) * 10) / 10,
+          screenMin,
+          offScreenMin,
+          efficiencyPct,
+          attempts: arr.length,
+          adjustedUnits: Math.round(dr.adjustedUnits * 10) / 10,
+          avgPaceRatio: pArr.length ? Math.round((pArr.reduce((s, a) => s + Number(a.paceRatio), 0) / pArr.length) * 100) / 100 : null,
+          upi: arr.length ? computeWeightedUpi(arr, 0.9) : null,
+          accuracyPct: arr.length ? Math.round((arr.reduce((s, a) => s + Number(a.qualityAccuracy || 0), 0) / arr.length) * 100) : null,
+          byCourseMin,
+        };
+      });
+
+    const summarizeBucket = (arr) => {
+      const totalSec = arr.reduce((s, a) => s + Math.max(0, Number(a.activeSec || 0)), 0);
+      const pArr = arr.filter((a) => Number.isFinite(Number(a.paceRatio)) && Number(a.paceRatio) > 0);
+      return {
+        count: arr.length,
+        avgAccuracy: arr.reduce((s, a) => s + Number(a.qualityAccuracy || 0), 0) / arr.length,
+        beatAiRate: arr.filter((a) => a.beatAi).length / arr.length,
+        avgPaceRatio: pArr.length ? Math.round((pArr.reduce((s, a) => s + Number(a.paceRatio), 0) / pArr.length) * 100) / 100 : null,
+        totalActiveMinutes: Math.round(totalSec / 60),
+        adjustedUnits: Math.round(arr.reduce((s, a) => s + attemptAdjUnits(a), 0) * 10) / 10,
+        upi: computeWeightedUpi(arr, 0.9),
+      };
+    };
     const byCourse = Object.fromEntries(Object.entries(byCourseBuckets).map(([k, arr]) => [k, summarizeBucket(arr)]));
     const byCourseTier = Object.fromEntries(Object.entries(byCourseTierBuckets).map(([k, arr]) => [k, summarizeBucket(arr)]));
-    const dayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
-    const today = dayFormat.format(new Date());
-    const isToday = (timestamp) => {
-      const date = new Date(timestamp);
-      return !Number.isNaN(date.getTime()) && dayFormat.format(date) === today;
-    };
-    const todayAttempts = attempts.filter((a) => isToday(a.timestamp));
-    const todayMin = Math.round(todayAttempts.reduce((s, a) => s + Number(a.activeSec || 0), 0) / 60);
-    const minutesAtTier = (tier) => todayAttempts.reduce((sum, attempt) =>
-      sum + (Number(attempt.dlpfcTier) === tier ? Number(attempt.activeSec || 0) : 0), 0) / 60;
-    const todayHighMinutes = minutesAtTier(3);
-    const todaySessions = ws.sessions.filter((session) => isToday(session.endedAt));
+    const byDlpfcTier = Object.fromEntries(Object.entries(byDlpfcBuckets).map(([k, arr]) => [k, summarizeBucket(arr)]));
+    const byKind = Object.fromEntries(Object.entries(byKindBuckets).map(([k, arr]) => [k, summarizeBucket(arr)]));
+    const byTimeSlot = Object.fromEntries(Object.entries(bySlotBuckets).map(([k, arr]) => [k, summarizeBucket(arr)]));
+
+    const last7Set = new Set();
+    const prev7Set = new Set();
+    for (let i = 0; i < 7; i++) {
+      last7Set.add(dayFormat.format(new Date(Date.now() - i * 86_400_000)));
+      prev7Set.add(dayFormat.format(new Date(Date.now() - (i + 7) * 86_400_000)));
+    }
+    const last7Attempts = attempts.filter((a) => last7Set.has(toOsloDay(a.timestamp)));
+    const prev7Attempts = attempts.filter((a) => prev7Set.has(toOsloDay(a.timestamp)));
+    const last7ActiveMin = Math.round(
+      dailySeries.filter((d) => last7Set.has(d.day)).reduce((s, d) => s + d.activeMin, 0)
+    );
+    const last7Adj = Math.round(last7Attempts.reduce((s, a) => s + attemptAdjUnits(a), 0) * 10) / 10;
+    const prev7Adj = Math.round(prev7Attempts.reduce((s, a) => s + attemptAdjUnits(a), 0) * 10) / 10;
+
+    // Streak in Oslo days
+    let streakDays = 0;
+    for (let i = 0; i < 60; i++) {
+      const dk = dayFormat.format(new Date(Date.now() - i * 86_400_000));
+      const dr = dayMap.get(dk);
+      if (dr && (dr.attempts.length > 0 || dr.activeSec >= 180)) {
+        streakDays++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+
+    const todayRow = dayMap.get(today);
+    const todayAttempts = todayRow ? todayRow.attempts : [];
+    const todayMin = Math.round((todayRow?.activeSec || 0) / 60);
+    const todayHighMinutes = (todayRow?.highSec || 0) / 60;
+    const todayMedMinutes = (todayRow?.medSec || 0) / 60;
+    const todayLowMinutes = (todayRow?.lowSec || 0) / 60;
+    const todaySessions = (ws.sessions || []).filter((session) => toOsloDay(session.endedAt) === today);
+
+    // Check-in subjective-to-UPI correlations (when 3+ check-in sessions exist)
+    const checkedSessions = (ws.sessions || []).filter((s) => s?.checkIn && Number.isFinite(Number(s.upi)));
+    const correlations = [];
+    if (checkedSessions.length >= 3) {
+      for (const [field, label] of [['focus', 'Focus Rating ↔ Session UPI'], ['energy', 'Energy Level ↔ Session UPI'], ['startInertia', 'Start Inertia ↔ Session UPI']]) {
+        const hi = checkedSessions.filter((s) => Number(s.checkIn[field] || 0) >= 4);
+        const lo = checkedSessions.filter((s) => Number(s.checkIn[field] || 0) > 0 && Number(s.checkIn[field]) <= 2);
+        if (hi.length && lo.length) {
+          const avgHi = Math.round(hi.reduce((sum, s) => sum + Number(s.upi), 0) / hi.length);
+          const avgLo = Math.round(lo.reduce((sum, s) => sum + Number(s.upi), 0) / lo.length);
+          const diff = avgHi - avgLo;
+          correlations.push({
+            label,
+            summary: `High (${avgHi} UPI) vs Low (${avgLo} UPI) → ${diff >= 0 ? '+' : ''}${diff} UPI impact across ${hi.length + lo.length} sessions.`,
+          });
+        }
+      }
+    }
+
+    // Topic Coverage & Hours Worked vs AI-Par Recommended Hours Before Exam
+    const topicMatrix = {};
+    for (const c of boot.catalog || []) {
+      const statsList = Array.isArray(c.topicStats) && c.topicStats.length
+        ? c.topicStats
+        : (c.topics || []).map((t) => ({
+            id: String(t.id),
+            title: t.title || `Topic ${t.id}`,
+            questionCount: Math.max(1, Math.round((c.questionCount || 10) / Math.max(1, (c.topics || []).length))),
+            parMinutes: Math.max(20, Math.round(((c.questionCount || 10) * 3.5) / Math.max(1, (c.topics || []).length))),
+            questionIds: [],
+          }));
+      topicMatrix[c.courseId] = statsList.map((ts, orderIdx) => {
+        const tid = String(ts.id);
+        const qIds = Array.isArray(ts.questionIds) ? ts.questionIds : [];
+        let doneCount = 0;
+        let revisitCount = 0;
+        let recordCreditMin = 0;
+        const avgQParMin = ts.questionCount > 0 ? (Number(ts.parMinutes) || 20) / ts.questionCount : 3;
+        const attemptedQids = new Set((topicAttempts[`${c.courseId}::${tid}`] || []).map((a) => a.questionId));
+        for (const qid of qIds) {
+          const rec = records[qid];
+          if (!rec) continue;
+          if (rec.status === 'done') {
+            doneCount++;
+            if (!attemptedQids.has(qid)) recordCreditMin += avgQParMin * 0.85;
+          } else if (rec.status === 'revisit') {
+            revisitCount++;
+          }
+        }
+        const tk = `${c.courseId}::${tid}`;
+        const tAtts = topicAttempts[tk] || [];
+        const workedMin = Math.round(((topicAttemptSec[tk] || 0) / 60 + recordCreditMin) * 10) / 10;
+        // Recommended AI-Par hours before exam: 1.0x clean pass + 0.25x spaced-rep/review buffer
+        const recommendedMin = Math.max(15, Math.round((Number(ts.parMinutes) || 20) * 1.25));
+        const ratioToPar = recommendedMin > 0 ? workedMin / recommendedMin : 0;
+        const totalCount = Math.max(1, Number(ts.questionCount) || qIds.length || 1);
+        const coveragePct = Math.min(100, Math.round((doneCount / totalCount) * 100));
+        const tPaceArr = tAtts.filter((a) => Number.isFinite(Number(a.paceRatio)) && Number(a.paceRatio) > 0);
+        const avgTopicPace = tPaceArr.length
+          ? Math.round((tPaceArr.reduce((s, a) => s + Number(a.paceRatio), 0) / tPaceArr.length) * 100) / 100
+          : null;
+        const avgTopicAcc = tAtts.length
+          ? tAtts.reduce((s, a) => s + Number(a.qualityAccuracy || 0), 0) / tAtts.length
+          : null;
+        const status = (ratioToPar >= 0.72 || coveragePct >= 75) && (avgTopicAcc == null || avgTopicAcc >= 0.72) && revisitCount <= 1
+          ? 'ready'
+          : (ratioToPar >= 0.3 || coveragePct >= 30)
+          ? 'building'
+          : 'lacking';
+        return {
+          id: tid,
+          order: orderIdx,
+          title: ts.title || `Topic ${tid}`,
+          workedMin,
+          recommendedMin,
+          ratioToPar,
+          doneCount,
+          totalCount,
+          revisitCount,
+          coveragePct,
+          avgPaceRatio: avgTopicPace,
+          avgAccuracy: avgTopicAcc,
+          status,
+        };
+      });
+    }
 
     boot.progress = { records };
     boot.recentSessions = (ws.sessions || []).slice(-25).reverse();
@@ -594,19 +873,34 @@ window.StudyApp = (() => {
       totalAttempts: n,
       totalSessions: (ws.sessions || []).length,
       totalXp: n * 20,
-      streakDays: todayAttempts.length ? 1 : 0,
-      overall: { count: n, avgAccuracy: avgAcc, beatAiRate: beatRate, upi },
-      last7Days: { upi, totalActiveMinutes: todayMin },
-      today: { count: todayAttempts.length, totalActiveMinutes: todayMin },
+      streakDays,
+      overall: { count: n, avgAccuracy: avgAcc, beatAiRate: beatRate, avgPaceRatio, upi },
+      last7Days: {
+        upi: last7Attempts.length ? computeWeightedUpi(last7Attempts, 0.9) : null,
+        prev7Upi: prev7Attempts.length ? computeWeightedUpi(prev7Attempts, 0.9) : null,
+        totalActiveMinutes: last7ActiveMin,
+        attempts: last7Attempts.length,
+        adjustedUnits: last7Adj,
+        prevAdjustedUnits: prev7Adj,
+      },
+      today: {
+        count: todayAttempts.length,
+        totalActiveMinutes: todayMin,
+        liveActiveSec: todayRow?.liveActiveSec || 0,
+      },
       dlpfcBudget: {
         todayHighMinutes,
-        todayMedMinutes: minutesAtTier(2),
+        todayMedMinutes,
+        todayLowMinutes,
         remainingHighMinutes: Math.max(0, 270 - todayHighMinutes),
         todayAwayMinutes: todaySessions.reduce((sum, session) => sum + Number(session.awaySec || 0), 0) / 60,
         todayFocusSwitches: todaySessions.reduce((sum, session) => sum + Number(session.focusSwitchCount || 0), 0),
       },
       courseProgress,
-      subgroups: { byCourse, byCourseTier, byDlpfcTier: {}, byKind: {}, byTimeSlot: {} },
+      subgroups: { byCourse, byCourseTier, byDlpfcTier, byKind, byTimeSlot },
+      correlations,
+      dailySeries,
+      topicMatrix,
     };
     if (ws.customSchedule?.enabled && ws.customSchedule.blocks?.length) {
       const completedFromSessions = new Map();
@@ -5159,127 +5453,24 @@ window.StudyApp = (() => {
   }
 
   // ---------------------------------------------------------------------------
-  // VIEW 4: METRICS, SUBGROUPS, CORRELATIONS & COPYABLE AI BRIEF
+  // VIEW 4: METRICS, SUBGROUPS, INTERACTIVE CHARTS & COPYABLE AI BRIEF
   // ---------------------------------------------------------------------------
   function renderAnalytics() {
     const root = document.getElementById('analytics-root');
-    const a = boot.analytics || {};
-    const ov = a.overall || {};
-    const sub = a.subgroups || {};
-
-    const subgroupRows = (obj, labelFn) => {
-      const entries = Object.entries(obj || {});
-      if (!entries.length) return '<tr><td colspan="6" class="muted">No timed attempts recorded yet.</td></tr>';
-      return entries
-        .map(
-          ([k, v]) => `<tr>
-          <td><strong>${esc(labelFn(k))}</strong></td>
-          <td>${v.count}</td>
-          <td><b>${v.upi ?? '—'}</b></td>
-          <td>${v.avgAccuracy != null ? Math.round(v.avgAccuracy * 100) + '%' : '—'}</td>
-          <td>${v.beatAiRate != null ? Math.round(v.beatAiRate * 100) + '%' : '—'}</td>
-          <td>${v.totalActiveMinutes}m</td>
-        </tr>`
-        )
-        .join('');
-    };
-
-    const courseNameMap = Object.fromEntries(boot.catalog.map((c) => [c.courseId, `${c.code} · ${c.shortTitle}`]));
-    const slotNames = {
-      morning_06_12: 'Morning (06:00–12:00)',
-      afternoon_12_17: 'Afternoon (12:00–17:00)',
-      evening_17_23: 'Evening (17:00–23:00)',
-      night_23_06: 'Night (23:00–06:00)',
-    };
-    const dlpfcNames = {
-      high_3: 'Hard',
-      med_2: 'Medium',
-      low_1: 'Easy',
-    };
-    const db = a.dlpfcBudget || {};
-
-    const corrHtml = (a.correlations || [])
-      .map(
-        (c) => `<div class="metric-tile">
-          <small>${esc(c.label)}</small>
-          <p style="margin:6px 0 0;font-weight:600;font-size:14px">${esc(c.summary)}</p>
-        </div>`
-      )
-      .join('');
-
+    if (isStaticWeb) recomputeWebAnalytics();
     const aiBriefText = buildAiCoachBrief();
-
-    root.innerHTML = `
-      <div class="section-heading" style="margin-top:0">
-        <div>
-          <span class="eyebrow">Universal &amp; Subgroup Telemetry</span>
-          <h2>Productivity Index, Study time &amp; Focus Telemetry</h2>
-        </div>
-      </div>
-
-      <div class="metrics-grid">
-        <div class="metric-tile"><small>All-Time UPI</small><b>${ov.upi ?? '—'}</b><small>${a.totalAttempts || 0} verified attempts</small></div>
-        <div class="metric-tile"><small>Last 7 Days UPI</small><b>${a.last7Days?.upi ?? '—'}</b><small>${a.last7Days?.totalActiveMinutes || 0}m active</small></div>
-        <div class="metric-tile"><small>Hard Today</small><b>${((db.todayHighMinutes || 0) / 60).toFixed(1)}h / 4.5h</b><small>${Math.round(db.remainingHighMinutes ?? 270)}m novel budget left</small></div>
-        <div class="metric-tile"><small>Screen Time Today</small><b>${esc(window.StudyUI.workClock?.getScreenStats?.()?.screenLabel || `${a.today?.totalActiveMinutes || 0}m`)}</b><small>${esc(window.StudyUI.workClock?.getScreenStats?.()?.offScreenLabel || `${db.todayAwayMinutes || 0}m`)} off-screen · ${db.todayFocusSwitches || 0} focus sw.</small></div>
-      </div>
-
-      <div class="panel">
-        <span class="eyebrow">Subjective Check-In ↔ Objective UPI</span>
-        <h3>Personal Performance Correlations</h3>
-        <div class="metrics-grid" style="margin-top:12px">${corrHtml || '<p class="muted">Log 3+ check-in sessions to unlock automatic state-to-UPI correlations.</p>'}</div>
-      </div>
-
-      <div class="courses-grid" style="margin-bottom:18px">
-        <div class="panel" style="margin:0">
-          <h3>UPI by Course</h3>
-          <div class="task-table-wrap">
-            <table class="task-table">
-              <thead><tr><th>Course</th><th>Qs</th><th>UPI</th><th>Acc</th><th>Beat Al</th><th>Time</th></tr></thead>
-              <tbody>${subgroupRows(sub.byCourse, (k) => courseNameMap[k] || k)}</tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="panel" style="margin:0">
-          <h3>UPI by difficulty, Format &amp; Time</h3>
-          <div class="task-table-wrap">
-            <table class="task-table">
-              <thead><tr><th>Subgroup</th><th>Qs</th><th>UPI</th><th>Acc</th><th>Beat Al</th><th>Time</th></tr></thead>
-              <tbody>
-                ${subgroupRows(sub.byDlpfcTier, (k) => dlpfcNames[k] || k)}
-                ${subgroupRows(sub.byKind, (k) => `Format: ${k.toUpperCase()}`)}
-                ${subgroupRows(sub.byTimeSlot, (k) => slotNames[k] || k)}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="row-between" style="margin-top:0">
-          <div>
-            <span class="eyebrow">Instant LLM Context</span>
-            <h3>Al Coach &amp; Session Brief</h3>
-            <small class="muted">Local agents (Antigravity / Codex / Claude) automatically read <code>Study-OS/data/logs/ai_context_snapshot.json</code>. Or copy this brief into any chat:</small>
-          </div>
-          <button type="button" class="primary-btn" id="btn-copy-ai-brief">Copy Al Brief</button>
-        </div>
-        <textarea id="txt-ai-brief" readonly style="font-family:ui-monospace,monospace;font-size:12.5px;min-height:220px;margin-top:10px">${esc(aiBriefText)}</textarea>
-      </div>
-    `;
-
-    document.getElementById('btn-copy-ai-brief')?.addEventListener('click', async () => {
-      const txt = document.getElementById('txt-ai-brief').value;
-      try {
-        await navigator.clipboard.writeText(txt);
-        toast('Copied Al Coach Brief to clipboard!');
-      } catch {
-        document.getElementById('txt-ai-brief').select();
-        document.execCommand('copy');
-        toast('Copied Al Coach Brief!');
-      }
-    });
+    if (window.StudyMetrics?.renderDashboard) {
+      window.StudyMetrics.renderDashboard(root, {
+        analytics: boot.analytics || {},
+        catalog: boot.catalog || [],
+        aiBriefText,
+        onPracticeTopic: (courseId, topicId) => {
+          launchSmartCourseRun(courseId, 45, 'learning', String(topicId), 'auto', false, 0);
+        },
+      });
+      return;
+    }
+    root.innerHTML = `<div class="panel"><p class="muted">Loading metrics…</p></div>`;
   }
 
   function buildAiCoachBrief() {
@@ -7083,9 +7274,11 @@ window.StudyApp = (() => {
       if (beatAi) rec.beatAiCount = (rec.beatAiCount || 0) + 1;
       if (qAcc >= 0.85 && (!rec.pbEffectiveSec || effSec < rec.pbEffectiveSec)) rec.pbEffectiveSec = effSec;
       const daysOut = qAcc >= 0.85 ? 4 : 1;
+      delete rec.lastUserGrade;
       rec.fsrs = {
         reps: (rec.fsrs?.reps || 0) + 1,
         stability: daysOut,
+        scheduledDays: daysOut,
         lastGrade: qAcc >= 0.85 ? 3 : 1,
         due: new Date(Date.now() + daysOut * 86400000).toISOString(),
       };
@@ -7119,11 +7312,35 @@ window.StudyApp = (() => {
     if (isStaticWeb) {
       const ws = loadWebState();
       const rec = (ws.records[questionId] = ws.records[questionId] || {});
-      rec.personalDifficulty = fsrsGrade <= 2 ? 3 : fsrsGrade === 4 ? 1 : 2;
+      const grade = Math.max(1, Math.min(4, Math.round(Number(fsrsGrade) || 3)));
+      const prevStab = Math.max(1, Number(rec.fsrs?.stability) || 1);
+      const scheduledDays = grade === 1
+        ? 1
+        : grade === 2
+        ? Math.max(1, Math.min(3, Math.round(prevStab * 0.6) || 2))
+        : grade === 3
+        ? Math.max(3, Math.round(prevStab * 1.5))
+        : Math.max(7, Math.round(prevStab * 2.5));
+      rec.lastUserGrade = grade;
+      rec.personalDifficulty = grade <= 2 ? 3 : grade === 4 ? 1 : 2;
+      if (grade === 1) {
+        rec.status = 'revisit';
+      } else if (!rec.status || rec.status === 'not_started' || rec.status === 'revisit') {
+        rec.status = 'done';
+      }
+      rec.fsrs = {
+        ...(rec.fsrs || {}),
+        reps: Math.max(1, Number(rec.fsrs?.reps || 0)),
+        lastGrade: grade,
+        scheduledDays,
+        stability: scheduledDays,
+        due: new Date(Date.now() + scheduledDays * 86_400_000).toISOString(),
+      };
       rec.updatedAt = new Date().toISOString();
       saveWebState(ws);
       queueCloudSync();
       recomputeWebAnalytics();
+      updateHeaderStats();
       return { ok: true, record: rec, analytics: boot.analytics };
     }
     const res = await apiPost('/api/progress/difficulty', { questionId, fsrsGrade });

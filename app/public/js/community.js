@@ -1853,11 +1853,10 @@ window.StudyCommunity = (() => {
             const item = fbItems[Number(btn.dataset.fbShot)];
             if (!item?.screenshotData) return;
             const lb = document.getElementById('img-lightbox');
-            const lbImg = document.getElementById('img-lightbox-img');
-            const lbCap = document.getElementById('img-lightbox-caption');
+            const lbImg = document.getElementById('img-lightbox-target');
             if (lb && lbImg) {
               lbImg.src = item.screenshotData;
-              if (lbCap) lbCap.textContent = `${item.nickname || 'Student'}: ${item.message || ''}`;
+              lbImg.alt = `${item.nickname || 'Student'}: ${item.message || 'Attached screenshot'}`;
               lb.hidden = false;
             } else {
               window.open(item.screenshotData, '_blank', 'noopener');

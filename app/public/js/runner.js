@@ -1651,9 +1651,10 @@ window.StudyRunner = (() => {
     document.getElementById('run-pace-par').textContent = clockSec(st.targetSec);
 
     // Question Body / Left Reader Content
+    const contextAssetsHtml = renderAssets(q.contextAssets, q.courseId, sourcesMap, isBlindUnfinished);
     const contextHtml =
       (q.contextMarkdown ? `<div class="markdown-body">${renderMarkdownWithMath(q.contextMarkdown)}</div>` : '') +
-      renderAssets(q.contextAssets, q.courseId, sourcesMap, isBlindUnfinished);
+      contextAssetsHtml;
 
     const croppedArchivePdfs = sourcePdfs.filter(source => source.memberAsset && !source.isSolution &&
       window.StudyPdf.hasSavedExcerpt(source) &&
@@ -1721,8 +1722,14 @@ window.StudyRunner = (() => {
         : `<h2 style="margin-top:0">${esc(q.title)}</h2>`;
       const inlineGateRefs = lockedSourceRefs.filter((r) => r.role !== 'solution');
       const taskGateHtml = inlineGateRefs.length ? renderSourceContextGate(q, inlineGateRefs, true) : '';
-      const promptPdfs = sourcePdfs.filter(source => croppedArchivePdfs.includes(source) ||
-        (!promptAssetsHtml && source.isPdf && !source.isSolution));
+      const renderedAssetPageKeys = new Set([
+        ...(contextAssetsHtml ? (q.contextAssets || []).filter((a) => a && a.sourceId).map((a) => `${a.sourceId}:${a.page || 1}`) : []),
+        ...(promptAssetsHtml ? (promptAssets || []).filter((a) => a && a.sourceId).map((a) => `${a.sourceId}:${a.page || 1}`) : []),
+      ]);
+      const promptPdfs = sourcePdfs.filter((source) => {
+        if (source.sourceId && renderedAssetPageKeys.has(`${source.sourceId}:${source.page || 1}`)) return false;
+        return croppedArchivePdfs.includes(source) || (!promptAssetsHtml && !contextAssetsHtml && source.isPdf && !source.isSolution);
+      });
       // The H10 handout only lists the assigned exercises, which are already shown below.
       const hasTextbookPages = q.id === 'acct-2527:H10' && promptPdfs.some(source => source.sourceId === 'textbook-12e');
       const filteredPromptPdfs = (hasTextbookPages
@@ -1886,7 +1893,7 @@ window.StudyRunner = (() => {
     if (st.revealed && !isBlindUnfinished) {
       const solAssets = renderAssets(q.solutionAssets, q.courseId, sourcesMap);
       const pitfallHtml = q.pitfall
-        ? `<p style="margin-top:10px;color:var(--warn)"><strong>Exam Pitfall:</strong> ${esc(q.pitfall)}</p>`
+        ? `<div class="markdown-body" style="margin-top:10px;color:var(--warn)">${renderMarkdownWithMath(`**Exam Pitfall:** ${q.pitfall}`)}</div>`
         : '';
 
       const isSelfVerified = q.kind !== 'mcq' && !hasWf;

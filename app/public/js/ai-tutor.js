@@ -741,12 +741,9 @@ window.StudyAiTutor = (() => {
         if (rawW < AI_COLLAPSE_THRESHOLD) {
           willCollapse = true;
           pane.classList.add('is-collapsing');
-          // Keep visual pane at min width while dimmed/nudged toward the edge so user gets a crisp collapse snap
-          document.documentElement.style.setProperty('--ai-pane-w', `${AI_PANE_MIN_W}px`);
-          updatePaneNarrowClass(pane);
-          if (rawW < 52) {
-            cleanup(true);
-          }
+          // Visually collapse flush to the edge while keeping pointer capture alive so
+          // dragging back out before releasing smoothly reopens the pane (VS Code style)
+          document.documentElement.style.setProperty('--ai-pane-w', '0px');
           return;
         }
         willCollapse = false;
@@ -755,18 +752,18 @@ window.StudyAiTutor = (() => {
         applyPaneWidth(clamped);
         updatePaneNarrowClass(pane);
       };
-      const cleanup = (forceClose) => {
+      const cleanup = () => {
         document.body.classList.remove('ai-pane-resizing');
         pane.classList.remove('is-resizing', 'is-collapsing');
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
-        if (forceClose || willCollapse) {
+        if (willCollapse) {
           applyPaneWidth(restoreW);
           close();
         }
       };
-      const onUp = () => cleanup(false);
+      const onUp = () => cleanup();
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);

@@ -1083,11 +1083,37 @@ window.StudyUI = (() => {
   const WORK_WAVE_KEY = 'study-os-work-wave-v1';
   let workTickHandle = null;
 
+  const osloDayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
+
   function localDayKey(d = new Date()) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+    try {
+      return osloDayFmt.format(d);
+    } catch {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+  }
+
+  function snapshotDayToHistory(st) {
+    if (!st || !st.dayKey || !/^\d{4}-\d{2}-\d{2}$/.test(st.dayKey)) return;
+    if (!st.dayHistory || typeof st.dayHistory !== 'object') st.dayHistory = {};
+    const activeSec = Math.round(Math.max(Number(st.backendActiveFloorSec) || 0, Number(st.dayBankedSec) || 0));
+    const screenSec = Math.round(Math.max(Number(st.dayScreenSec) || 0, activeSec));
+    const offScreenSec = Math.round(Math.max(Number(st.dayOffScreenSec) || 0, Number(st.backendAwayFloorSec) || 0));
+    if (screenSec > 0 || activeSec > 0 || offScreenSec > 0) {
+      st.dayHistory[st.dayKey] = {
+        screenSec,
+        offScreenSec,
+        activeSec,
+        breaks: Math.max(0, Number(st.dayBreaks) || 0),
+      };
+    }
+    const keys = Object.keys(st.dayHistory).sort();
+    while (keys.length > 60) {
+      delete st.dayHistory[keys.shift()];
+    }
   }
 
   function formatDurationShort(sec) {
@@ -1125,13 +1151,15 @@ window.StudyUI = (() => {
       lastBreakAtMs: 0,
       backendActiveFloorSec: 0,
       backendAwayFloorSec: 0,
+      dayHistory: {},
     };
     try {
       const raw = JSON.parse(localStorage.getItem(WORK_WAVE_KEY));
       if (!raw || typeof raw !== 'object') return fallback;
-      const st = { ...fallback, ...raw };
+      const st = { ...fallback, ...raw, dayHistory: raw.dayHistory && typeof raw.dayHistory === 'object' ? { ...raw.dayHistory } : {} };
       const now = st.devPausedAtMs || Date.now();
       if (st.dayKey !== today) {
+        snapshotDayToHistory(st);
         st.dayKey = today;
         st.dayBankedSec = 0;
         st.dayWaves = 0;
@@ -1255,6 +1283,7 @@ window.StudyUI = (() => {
   function saveWorkState(allowDevPause = false) {
     if (devModeActive && !allowDevPause) return;
     try {
+      snapshotDayToHistory(workState);
       localStorage.setItem(WORK_WAVE_KEY, JSON.stringify(workState));
       lastScreenSaveMs = Date.now();
     } catch {}
@@ -1536,6 +1565,24 @@ window.StudyUI = (() => {
     getScreenStats() {
       return computeScreenStats();
     },
+    getScreenHistory() {
+      const hist = workState.dayHistory && typeof workState.dayHistory === 'object'
+        ? { ...workState.dayHistory }
+        : {};
+      const todayKey = localDayKey();
+      const live = computeScreenStats();
+      const liveActiveSec = Math.round(Math.max(
+        Number(workState.backendActiveFloorSec) || 0,
+        (Number(workState.dayBankedSec) || 0) + currentWaveElapsedSec()
+      ));
+      hist[todayKey] = {
+        screenSec: live.screenSec,
+        offScreenSec: live.offScreenSec,
+        activeSec: liveActiveSec,
+        breaks: Math.max(0, Number(workState.dayBreaks) || 0),
+      };
+      return hist;
+    },
     getBreakStats() {
       return computeBreakStats();
     },
@@ -1571,6 +1618,7 @@ window.StudyUI = (() => {
     }
     const todayKey = localDayKey();
     if (workState.dayKey !== todayKey) {
+      snapshotDayToHistory(workState);
       workState.dayKey = todayKey;
       workState.dayBankedSec = 0;
       workState.dayWaves = 0;
@@ -1621,6 +1669,14 @@ window.StudyUI = (() => {
     if (homeOffEl) homeOffEl.textContent = scr.offScreenLabel;
     const setScrEl = document.getElementById('settings-screen-val');
     if (setScrEl) setScrEl.textContent = scr.screenLabel;
+    const analyticsView = document.getElementById('view-analytics');
+    if (analyticsView && !analyticsView.hidden && window.StudyMetrics?.updateLiveTiles) {
+      const liveActiveSec = Math.round(Math.max(
+        Number(workState.backendActiveFloorSec) || 0,
+        (Number(workState.dayBankedSec) || 0) + currentWaveElapsedSec(now)
+      ));
+      window.StudyMetrics.updateLiveTiles(scr, liveActiveSec);
+    }
 
     if (workState.mode === 'working') {
       const elSec = currentWaveElapsedSec(now);

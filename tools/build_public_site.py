@@ -1712,13 +1712,50 @@ def finalize_site(
         cbank = json.loads(cfile.read_text(encoding="utf-8"))
         cqs = [q for q in cbank.get("questions", []) if q.get("available", True)]
         tier_ids = {"1": [], "2": [], "3": []}
+        topic_map = {}
+        for t_item in course_entry.get("topics", []):
+            tid = str(t_item.get("id", ""))
+            if tid:
+                topic_map[tid] = {
+                    "id": tid,
+                    "title": t_item.get("title", f"Topic {tid}"),
+                    "questionCount": 0,
+                    "parMinutes": 0.0,
+                    "questionIds": [],
+                }
         for q in cqs:
             t = int(q.get("dlpfcBase") or classify_intrinsic_dlpfc(q)[0])
-            tier_ids[str(min(3, max(1, t)))].append(q["id"])
+            t_clamped = min(3, max(1, t))
+            tier_ids[str(t_clamped)].append(q["id"])
+            tid = str(q.get("topicId", ""))
+            if tid:
+                if tid not in topic_map:
+                    topic_map[tid] = {
+                        "id": tid,
+                        "title": f"Topic {tid}",
+                        "questionCount": 0,
+                        "parMinutes": 0.0,
+                        "questionIds": [],
+                    }
+                raw_learn_min = float((q.get("pacing") or {}).get("learning", {}).get("target") or (2.0 if q.get("kind") == "mcq" else 6.0))
+                if q.get("kind") == "mcq":
+                    text_len = len(q.get("contextMarkdown") or "") + len(q.get("promptMarkdown") or "") + sum(len(str(o)) for o in (q.get("options") or []))
+                    extra_cap = 25 if t_clamped == 1 else (35 if t_clamped == 2 else 45)
+                    extra_s = min(extra_cap, round(max(0, text_len - 160) / 14))
+                    base_s = 50 if t_clamped == 1 else (80 if t_clamped == 2 else 120)
+                    max_s = 85 if t_clamped == 1 else (135 if t_clamped == 2 else 190)
+                    par_min = min(raw_learn_min * 60.0, max_s, base_s + extra_s) / 60.0
+                else:
+                    par_min = max(1.0, raw_learn_min)
+                tm = topic_map[tid]
+                tm["questionCount"] += 1
+                tm["parMinutes"] = round(tm["parMinutes"] + par_min, 1)
+                tm["questionIds"].append(q["id"])
         course_entry["tierQuestionIds"] = tier_ids
         course_entry["lowDlpfcCount"] = len(tier_ids["1"])
         course_entry["medDlpfcCount"] = len(tier_ids["2"])
         course_entry["highDlpfcCount"] = len(tier_ids["3"])
+        course_entry["topicStats"] = [v for v in topic_map.values() if v["questionCount"] > 0]
     (static_dir / "bootstrap.json").write_text(
         json.dumps(bootstrap, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
