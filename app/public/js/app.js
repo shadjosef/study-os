@@ -7922,6 +7922,7 @@ window.StudyApp = (() => {
       ...(fields.draft !== undefined ? { savedDraft: fields.draft } : {}),
       ...(fields.choice !== undefined ? { savedChoice: fields.choice } : {}),
       ...(fields.wiseflowAnswers !== undefined ? { savedWiseflow: fields.wiseflowAnswers } : {}),
+      ...(fields.draftImages !== undefined ? { savedDraftImages: Array.isArray(fields.draftImages) ? fields.draftImages.slice(0, 8) : [] } : {}),
     });
     if (ws) {
       rec.updatedAt = new Date().toISOString();

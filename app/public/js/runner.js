@@ -954,12 +954,175 @@ window.StudyRunner = (() => {
     return { earned, total, accuracy, details };
   }
 
+  // ---------------------------------------------------------------------------
+  // PAPER / CLIPBOARD IMAGE ATTACHMENTS (IndexedDB vault — zero localStorage bloat)
+  // ---------------------------------------------------------------------------
+  const DRAFT_IMG_DB = 'study-os-draft-images-v1';
+  const DRAFT_IMG_STORE = 'images';
+  const MAX_DRAFT_IMAGES = 8;
+  const draftImgDataCache = new Map(); // id -> dataUrl
+
+  function openDraftImgDb() {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === 'undefined') {
+        reject(new Error('IndexedDB unavailable'));
+        return;
+      }
+      const req = indexedDB.open(DRAFT_IMG_DB, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(DRAFT_IMG_STORE)) {
+          const store = db.createObjectStore(DRAFT_IMG_STORE, { keyPath: 'id' });
+          store.createIndex('qid', 'qid', { unique: false });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error('Could not open image store'));
+    });
+  }
+
+  async function saveDraftImageRecord(rec) {
+    draftImgDataCache.set(rec.id, rec.dataUrl);
+    try {
+      const db = await openDraftImgDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(DRAFT_IMG_STORE, 'readwrite');
+        tx.objectStore(DRAFT_IMG_STORE).put(rec);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    } catch {}
+    return rec;
+  }
+
+  async function loadDraftImageDataUrl(id) {
+    if (!id) return '';
+    if (draftImgDataCache.has(id)) return draftImgDataCache.get(id);
+    try {
+      const db = await openDraftImgDb();
+      const row = await new Promise((resolve, reject) => {
+        const tx = db.transaction(DRAFT_IMG_STORE, 'readonly');
+        const req = tx.objectStore(DRAFT_IMG_STORE).get(id);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+      db.close();
+      if (row?.dataUrl) {
+        draftImgDataCache.set(id, row.dataUrl);
+        return row.dataUrl;
+      }
+    } catch {}
+    return '';
+  }
+
+  async function deleteDraftImageRecord(id) {
+    draftImgDataCache.delete(id);
+    try {
+      const db = await openDraftImgDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(DRAFT_IMG_STORE, 'readwrite');
+        tx.objectStore(DRAFT_IMG_STORE).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    } catch {}
+  }
+
+  async function compressImageBlobToRecord(blob, qid, fileName = '') {
+    const dataUrlRaw = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Could not read image'));
+      reader.readAsDataURL(blob);
+    });
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('Unsupported image format'));
+      el.src = dataUrlRaw;
+    });
+    const MAX_DIM = 1600;
+    let w = img.naturalWidth || img.width || 1;
+    let h = img.naturalHeight || img.height || 1;
+    if (w > MAX_DIM || h > MAX_DIM) {
+      const scale = Math.min(MAX_DIM / w, MAX_DIM / h);
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    const mime = 'image/jpeg';
+    const dataUrl = canvas.toDataURL(mime, 0.84);
+    const approxBytes = Math.round((dataUrl.length * 3) / 4);
+    const id = `dimg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    return {
+      id,
+      qid: String(qid || ''),
+      name: String(fileName || `paper-work-${new Date().toISOString().slice(11, 19).replace(/:/g, '')}.jpg`).slice(0, 80),
+      mime,
+      width: w,
+      height: h,
+      bytes: approxBytes,
+      addedAt: new Date().toISOString(),
+      dataUrl,
+    };
+  }
+
+  function openDraftImageLightbox(dataUrl, caption = '') {
+    if (!dataUrl) return;
+    let dlg = document.getElementById('draft-img-lightbox');
+    if (!dlg) {
+      dlg = document.createElement('dialog');
+      dlg.id = 'draft-img-lightbox';
+      dlg.className = 'draft-img-lightbox';
+      dlg.innerHTML = `
+        <div class="draft-lb-head">
+          <span id="draft-lb-cap" class="muted"></span>
+          <button type="button" class="mini-tool-btn" id="draft-lb-close">Close (Esc)</button>
+        </div>
+        <div class="draft-lb-body"><img id="draft-lb-img" alt="Attached paper work"></div>
+      `;
+      document.body.appendChild(dlg);
+      dlg.querySelector('#draft-lb-close')?.addEventListener('click', () => dlg.close());
+      dlg.addEventListener('click', (ev) => {
+        if (ev.target === dlg) dlg.close();
+      });
+    }
+    const imgEl = dlg.querySelector('#draft-lb-img');
+    const capEl = dlg.querySelector('#draft-lb-cap');
+    if (imgEl) imgEl.src = dataUrl;
+    if (capEl) capEl.textContent = caption || 'Attached paper working';
+    if (!dlg.open) dlg.showModal();
+  }
+
+  // Expose clean reader API for future OCR / AI vision grading pipelines
+  window.StudyDraftMedia = {
+    getImageDataUrl: loadDraftImageDataUrl,
+    async getImagesForQuestion(qid) {
+      const rec = window.StudyApp?.getProgressRecord?.(qid) || {};
+      const metas = Array.isArray(rec.savedDraftImages) ? rec.savedDraftImages : [];
+      const out = [];
+      for (const m of metas) {
+        const dataUrl = await loadDraftImageDataUrl(m.id);
+        if (dataUrl) out.push({ ...m, dataUrl });
+      }
+      return out;
+    },
+  };
+
   function hasAnyAnswerEntered(q, st) {
     if (q.kind === 'mcq') return st.choice !== null && st.choice !== undefined;
     if (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length) {
-      return Object.values(st.wiseflow || {}).some((v) => String(v ?? '').trim() !== '');
+      return Object.values(st.wiseflow || {}).some((v) => String(v ?? '').trim() !== '') || Boolean(st.draftImages?.length);
     }
-    return Boolean((st.draft || '').trim() || (st.numericInput || '').trim());
+    return Boolean((st.draft || '').trim() || (st.numericInput || '').trim() || (st.draftImages?.length));
   }
 
   // ---------------------------------------------------------------------------
@@ -987,6 +1150,7 @@ window.StudyRunner = (() => {
         hintsUsed: 0,
         choice: resumeDraft ? rec.savedChoice ?? null : null,
         draft: resumeDraft ? rec.savedDraft || '' : '',
+        draftImages: !activeRun.freshExamSit && Array.isArray(rec.savedDraftImages) ? [...rec.savedDraftImages] : [],
         wiseflow: resumeDraft ? { ...rec.savedWiseflow } : {},
         wfGrade: null,
         numericInput: '',
@@ -2394,6 +2558,36 @@ window.StudyRunner = (() => {
       </div>
     `;
 
+    const renderDraftMediaBlock = (stObj, autoSaveTxt) => {
+      const imgs = Array.isArray(stObj.draftImages) ? stObj.draftImages : [];
+      const thumbsHtml = imgs.map((im) => {
+        const cached = draftImgDataCache.get(im.id) || '';
+        const kb = Math.max(1, Math.round((Number(im.bytes) || 0) / 1024));
+        return `<div class="draft-img-thumb" data-dimg-id="${esc(im.id)}">
+          <button type="button" class="draft-img-open" data-dimg-open="${esc(im.id)}" title="Click to zoom ${esc(im.name || 'image')}">
+            <img data-dimg-src="${esc(im.id)}" src="${esc(cached)}" alt="${esc(im.name || 'Paper working')}">
+            <span class="draft-img-meta">${kb} KB</span>
+          </button>
+          <button type="button" class="draft-img-del" data-dimg-del="${esc(im.id)}" aria-label="Remove image" title="Remove image">×</button>
+        </div>`;
+      }).join('');
+      return `
+        <div class="draft-images-strip" id="draft-images-strip" ${imgs.length ? '' : 'hidden'}>
+          ${thumbsHtml}
+        </div>
+        <div class="row-between draft-foot-row">
+          <span class="muted">${autoSaveTxt} · Paste (<kbd>⌘V</kbd>) or drop paper photos</span>
+          <div class="draft-foot-right">
+            <label class="mini-tool-btn draft-img-add-btn" title="Attach or paste photo of handwritten work">
+              📷 Add image
+              <input type="file" id="inp-draft-image-file" accept="image/*" multiple hidden>
+            </label>
+            <span id="lbl-word-count" class="muted">0 words</span>
+          </div>
+        </div>
+      `;
+    };
+
     // Answer Workspace by Kind / WISEflow Fields
     let workspaceHtml = '';
     if (q.kind === 'mcq' && Array.isArray(q.options) && q.options.length) {
@@ -2435,14 +2629,11 @@ window.StudyRunner = (() => {
           <summary style="cursor:pointer;font-size:12.5px;font-weight:600;color:var(--muted)">
             Working Notes (optional, auto-saved)
           </summary>
-          <div style="margin-top:8px">
-            <textarea id="inp-written-draft" style="min-height:90px" placeholder="Intermediate workings, T-accounts, or notes…">${esc(
+          <div style="margin-top:8px" class="draft-drop-zone" id="draft-drop-zone">
+            <textarea id="inp-written-draft" style="min-height:90px" placeholder="Intermediate workings, T-accounts, or notes (paste ⌘V images of paper work)…">${esc(
               st.draft
             )}</textarea>
-            <div class="row-between" style="margin:4px 0 0;font-size:12px">
-              <span class="muted">${autoSaveLabel}</span>
-              <span id="lbl-word-count" class="muted">0 words</span>
-            </div>
+            ${renderDraftMediaBlock(st, autoSaveLabel)}
           </div>
         </details>
       `;
@@ -2494,12 +2685,9 @@ window.StudyRunner = (() => {
 
           <details class="coding-scratchpad-details">
             <summary>Quick scratchpad / notes (optional)</summary>
-            <div style="margin-top:8px">
-              <textarea id="inp-written-draft" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;min-height:105px" placeholder="# Optional notes or pasted code snippet...">${esc(st.draft)}</textarea>
-              <div class="row-between" style="margin:4px 0 0;font-size:12px">
-                <span class="muted">${autoSaveLabel}</span>
-                <span id="lbl-word-count" class="muted">0 words</span>
-              </div>
+            <div style="margin-top:8px" class="draft-drop-zone" id="draft-drop-zone">
+              <textarea id="inp-written-draft" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;min-height:105px" placeholder="# Optional notes, pasted code, or screenshots (⌘V)...">${esc(st.draft)}</textarea>
+              ${renderDraftMediaBlock(st, autoSaveLabel)}
             </div>
           </details>
         </div>
@@ -2520,13 +2708,10 @@ window.StudyRunner = (() => {
           </div>`
         : '';
       workspaceHtml = `
-        <div style="margin:10px 0">
+        <div style="margin:10px 0" class="draft-drop-zone" id="draft-drop-zone">
           ${numCheckHtml}
           <textarea id="inp-written-draft" style="min-height:${isSplit ? '210px' : '135px'}" placeholder="${esc(placeholder)}">${esc(st.draft)}</textarea>
-          <div class="row-between" style="margin:4px 0 0;font-size:12px">
-            <span class="muted">${autoSaveLabel}</span>
-            <span id="lbl-word-count" class="muted">0 words</span>
-          </div>
+          ${renderDraftMediaBlock(st, autoSaveLabel)}
         </div>
       `;
     }
@@ -3519,13 +3704,52 @@ window.StudyRunner = (() => {
       });
     }
 
-    // Written / Coding draft
+    // Written / Coding draft + Clipboard Image Paste / Drop / Picker
     const draftEl = document.getElementById('inp-written-draft');
+    const dropZone = document.getElementById('draft-drop-zone');
+    const attachImageBlobs = async (blobs) => {
+      const files = Array.from(blobs || []).filter((f) => f && /^image\//i.test(f.type || ''));
+      if (!files.length) return;
+      if (!Array.isArray(st.draftImages)) st.draftImages = [];
+      let added = 0;
+      let totalKb = 0;
+      for (const file of files) {
+        if (st.draftImages.length >= MAX_DRAFT_IMAGES) {
+          toast(`Max ${MAX_DRAFT_IMAGES} images per question.`);
+          break;
+        }
+        try {
+          const rec = await compressImageBlobToRecord(file, q.id, file.name || '');
+          await saveDraftImageRecord(rec);
+          const { dataUrl: _drop, ...metaOnly } = rec;
+          st.draftImages.push(metaOnly);
+          added++;
+          totalKb += Math.max(1, Math.round(rec.bytes / 1024));
+        } catch (err) {
+          toast(err?.message || 'Could not attach image.');
+        }
+      }
+      if (added > 0) {
+        window.StudyApp.debouncedSaveDraft(q.id, {
+          draft: st.draft,
+          draftImages: st.draftImages,
+          activeElapsedSec: itemActiveSec(st),
+          profile: activeRun.profile,
+        });
+        toast(`📎 Attached ${added} image${added === 1 ? '' : 's'} (${totalKb} KB) — saved locally`);
+        renderRunner();
+      }
+    };
+    activeRun._attachImageBlobs = draftEl ? attachImageBlobs : null;
+
     if (draftEl) {
       const updateWords = () => {
         const words = draftEl.value.trim() ? draftEl.value.trim().split(/\s+/).length : 0;
+        const imgN = (st.draftImages || []).length;
         const lbl = document.getElementById('lbl-word-count');
-        if (lbl) lbl.textContent = `${words} word${words === 1 ? '' : 's'}`;
+        if (lbl) {
+          lbl.textContent = `${words} word${words === 1 ? '' : 's'}${imgN ? ` · ${imgN} img${imgN === 1 ? '' : 's'}` : ''}`;
+        }
       };
       updateWords();
       draftEl.addEventListener('input', () => {
@@ -3533,11 +3757,78 @@ window.StudyRunner = (() => {
         updateWords();
         window.StudyApp.debouncedSaveDraft(q.id, {
           draft: st.draft,
+          draftImages: st.draftImages || [],
           activeElapsedSec: itemActiveSec(st),
           profile: activeRun.profile,
         });
       });
+      draftEl.addEventListener('paste', (ev) => {
+        const items = Array.from(ev.clipboardData?.items || []);
+        const imgFiles = items
+          .filter((it) => it.kind === 'file' && /^image\//i.test(it.type))
+          .map((it) => it.getAsFile())
+          .filter(Boolean);
+        if (imgFiles.length) {
+          ev.preventDefault();
+          attachImageBlobs(imgFiles);
+        }
+      });
     }
+
+    if (dropZone) {
+      dropZone.addEventListener('dragover', (ev) => {
+        if (Array.from(ev.dataTransfer?.types || []).includes('Files')) {
+          ev.preventDefault();
+          dropZone.classList.add('is-drag-over');
+        }
+      });
+      dropZone.addEventListener('dragleave', () => dropZone.classList.remove('is-drag-over'));
+      dropZone.addEventListener('drop', (ev) => {
+        dropZone.classList.remove('is-drag-over');
+        const files = Array.from(ev.dataTransfer?.files || []).filter((f) => /^image\//i.test(f.type));
+        if (files.length) {
+          ev.preventDefault();
+          attachImageBlobs(files);
+        }
+      });
+    }
+
+    document.getElementById('inp-draft-image-file')?.addEventListener('change', (ev) => {
+      const files = ev.target?.files;
+      if (files?.length) attachImageBlobs(files);
+      ev.target.value = '';
+    });
+
+    // Hydrate cached/IndexedDB thumbnails + bind zoom & delete buttons
+    document.querySelectorAll('[data-dimg-src]').forEach((imgEl) => {
+      const id = imgEl.dataset.dimgSrc;
+      if (!id || imgEl.getAttribute('src')) return;
+      loadDraftImageDataUrl(id).then((url) => {
+        if (url && imgEl.isConnected) imgEl.src = url;
+      });
+    });
+    document.querySelectorAll('[data-dimg-open]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.dimgOpen;
+        const meta = (st.draftImages || []).find((m) => m.id === id);
+        const url = await loadDraftImageDataUrl(id);
+        if (url) openDraftImageLightbox(url, meta ? `${meta.name} (${meta.width}×${meta.height})` : 'Paper working');
+      });
+    });
+    document.querySelectorAll('[data-dimg-del]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.dimgDel;
+        st.draftImages = (st.draftImages || []).filter((m) => m.id !== id);
+        await deleteDraftImageRecord(id);
+        window.StudyApp.debouncedSaveDraft(q.id, {
+          draft: st.draft,
+          draftImages: st.draftImages,
+          activeElapsedSec: itemActiveSec(st),
+          profile: activeRun.profile,
+        });
+        renderRunner();
+      });
+    });
 
     const numEl = document.getElementById('inp-numeric-ans');
     if (numEl) {
@@ -4118,6 +4409,8 @@ window.StudyRunner = (() => {
       focusSwitches: st.focusSwitches,
       choice: st.choice,
       draft: st.draft,
+      attachedImageCount: Array.isArray(st.draftImages) ? st.draftImages.length : 0,
+      attachedImageIds: Array.isArray(st.draftImages) ? st.draftImages.map((m) => m.id) : [],
       wiseflowAnswers: st.wiseflow,
       checkedRubricIndices: st.checkedRubrics,
     }).finally(() => { pendingSaves -= 1; });
@@ -4662,6 +4955,24 @@ window.StudyRunner = (() => {
         if (activeRun.index + 1 < activeRun.questionIds.length) enterQuestion(activeRun.index + 1);
       } else if (key === 'arrowleft') {
         if (activeRun.index > 0) enterQuestion(activeRun.index - 1);
+      }
+    });
+
+    // Global clipboard image paste anywhere inside an active runner question (except inside AI Tutor or other inputs)
+    window.addEventListener('paste', (ev) => {
+      if (!activeRun || !activeRun._attachImageBlobs || document.getElementById('view-runner')?.hidden) return;
+      const target = ev.target;
+      if (target?.id === 'inp-written-draft') return; // handled directly on the textarea
+      if (target?.closest?.('#ai-tutor-pane, #ai-tutor-drawer, dialog')) return;
+      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
+      const items = Array.from(ev.clipboardData?.items || []);
+      const imgFiles = items
+        .filter((it) => it.kind === 'file' && /^image\//i.test(it.type))
+        .map((it) => it.getAsFile())
+        .filter(Boolean);
+      if (imgFiles.length) {
+        ev.preventDefault();
+        activeRun._attachImageBlobs(imgFiles);
       }
     });
   }
