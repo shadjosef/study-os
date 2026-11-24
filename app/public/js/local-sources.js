@@ -92,7 +92,7 @@ window.StudyProvenance = (() => {
         category = 'ai_mock';
       } else if (kind === 'drill' || /^(SYN-|OBSID-BANK|foundation-|concept-mcq|math-topic-practice)/i.test(id)) {
         category = 'ai_synthetic';
-      } else if (kind === 'exam' || /^(E\d|exam-|sample-exam|pandas-viz-exam2)/i.test(id)) {
+      } else if (kind === 'exam' || /^(E\d|exam-|sample-exam)/i.test(id)) {
         category = 'past_exam';
       } else if (kind === 'tutoring') {
         category = 'tutoring';

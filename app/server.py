@@ -223,7 +223,14 @@ class StudyStore:
                     "flowmultiCount": sum(1 for q in qs if q.get("wiseflowFields")),
                     "topicCount": len(b.get("topics") or []),
                     "topics": b.get("topics") or [],
-                    "collections": b.get("collections") or [],
+                    "collections": [
+                        {
+                            **col,
+                            "questionIds": [q["id"] for q in qs if str(q.get("collectionId") or "") == str(col.get("id") or "")],
+                            "questionCount": sum(1 for q in qs if str(q.get("collectionId") or "") == str(col.get("id") or "")),
+                        }
+                        for col in (b.get("collections") or [])
+                    ],
                     "obsidian": obs,
                     "obsidianMainReference": main_ref,
                     "obsidianUri": make_obsidian_uri(obs.get("vault") or "Obsidian Vault", main_ref) if main_ref else "",

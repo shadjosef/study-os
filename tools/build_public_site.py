@@ -401,6 +401,24 @@ def build_catalog_entry(bank: dict[str, Any]) -> dict[str, Any]:
         if (q.get("provenance") or {}).get("category") == "book" or q.get("origin") == "textbook"
     )
     official_count = len(qs) - synthetic_count - book_count
+    by_coll: dict[str, list[dict[str, Any]]] = {}
+    for q in qs:
+        cid_q = str(q.get("collectionId") or "")
+        if cid_q:
+            by_coll.setdefault(cid_q, []).append(q)
+    enriched_collections: list[dict[str, Any]] = []
+    for col in bank.get("collections") or []:
+        c_item = dict(col)
+        c_qs = by_coll.get(str(col.get("id") or ""), [])
+        c_item["questionIds"] = [q["id"] for q in c_qs]
+        c_item["questionCount"] = len(c_qs)
+        par_sum = 0.0
+        for q in c_qs:
+            p = q.get("pacing") or {}
+            t_min = (p.get("exam") or {}).get("target") or (p.get("learning") or {}).get("target")
+            par_sum += float(t_min) if isinstance(t_min, (int, float)) and t_min > 0 else (2.0 if q.get("kind") == "mcq" else 6.0)
+        c_item["parMinutes"] = round(par_sum)
+        enriched_collections.append(c_item)
     return {
         "courseId": bank["courseId"],
         "canvasId": bank.get("canvasId", ""),
@@ -423,7 +441,7 @@ def build_catalog_entry(bank: dict[str, Any]) -> dict[str, Any]:
         "flowmultiCount": sum(1 for q in qs if q.get("wiseflowFields")),
         "topicCount": len(bank.get("topics") or []),
         "topics": bank.get("topics") or [],
-        "collections": bank.get("collections") or [],
+        "collections": enriched_collections,
         "obsidian": obs,
         "obsidianMainReference": main_ref,
         "obsidianUri": "",

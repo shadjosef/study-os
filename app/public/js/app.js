@@ -1676,6 +1676,7 @@ window.StudyApp = (() => {
             if (currentView === 'home') renderHome();
             else if (currentView === 'analytics') renderAnalytics();
             else if (currentView === 'schedule') renderScheduleStudio();
+            else if (currentView === 'exams') renderExamsHub();
           }
         }
       }
@@ -3685,26 +3686,169 @@ window.StudyApp = (() => {
   }
 
   // ---------------------------------------------------------------------------
-  // VIEW 2: EXAM SIMULATOR HUB (All 5 Subjects + WISEflow ±2% + Custom Papers)
+  // VIEW 2: EXAM SIMULATOR HUB (All 5 Subjects + Verified Past Papers + Progress)
   // ---------------------------------------------------------------------------
+  let selectedExamFilter = 'all'; // 'all' | 'todo' | 'past' | 'done'
+
+  const EXCLUDED_NON_EXAM_COLLS = new Set(['multchoice-2025', 'pandas-viz-exam2']);
+
   function getExamPaperCollections(cMeta) {
     const colls = cMeta.collections || [];
-    const examColls = colls.filter((col) =>
-      /^(E\d|WF-MOCK|exam-|nov19-mock|wiseflow-mock|sample-exam|mock-exam-|official-mock|pandas-viz-exam2|multchoice-2025)/i.test(col.id) ||
-      col.kind === 'mock_exam' ||
-      col.kind === 'exam'
-    );
-    return examColls.length || isStaticWeb ? examColls : colls.slice(0, 4);
+    const examColls = colls.filter((col) => {
+      const id = String(col.id || '');
+      if (EXCLUDED_NON_EXAM_COLLS.has(id)) return false;
+      const qCount = Array.isArray(col.questionIds) ? col.questionIds.length : Number(col.questionCount || 0);
+      if (Array.isArray(col.questionIds) && qCount === 0) return false;
+      return (
+        /^(E\d|WF-MOCK|exam-|nov19-mock|wiseflow-mock|sample-exam|mock-exam-|official-mock)/i.test(id) ||
+        col.kind === 'mock_exam' ||
+        col.kind === 'exam'
+      );
+    });
+    return examColls;
+  }
+
+  function examSortYearScore(col) {
+    const hay = `${col.id || ''} ${col.title || ''}`;
+    const mFull = hay.match(/\b(20\d{2})\s*([hvsf]|autumn|spring|fall)?/i);
+    if (mFull) {
+      const yr = Number(mFull[1]) * 10;
+      const term = String(mFull[2] || '').toLowerCase();
+      return yr + (term.startsWith('h') || term.startsWith('f') || term.startsWith('a') ? 8 : 4);
+    }
+    const mShort = String(col.id || '').match(/^E(\d{2})([FS])/i);
+    if (mShort) {
+      return (2000 + Number(mShort[1])) * 10 + (mShort[2].toUpperCase() === 'F' ? 8 : 4);
+    }
+    return 0;
+  }
+
+  function classifyExamPaper(col, cMeta) {
+    const id = String(col.id || '');
+    const cid = String(cMeta?.courseId || '');
+    const qIds = Array.isArray(col.questionIds) ? col.questionIds : [];
+    const qCount = qIds.length || Number(col.questionCount || 0);
+    const colProv = window.StudyProvenance?.describeCollection?.(col, cid);
+    const defaultDur = Number(cMeta?.examInfo?.durationMinutes || 180);
+
+    // Explicit verified durations where collection omitted durationMinutes
+    let durMin = Number(col.durationMinutes || 0);
+    if (!durMin) {
+      if (id === 'sample-exam') durMin = 60;
+      else if (id === 'official-mock-2') durMin = 60;
+      else if (id === 'official-mock') durMin = 45;
+      else if (id === 'wiseflow-mock-1') durMin = 180;
+      else if (cid === 'econ-2522' && /^E(23F|24S)$/i.test(id) && qCount > 0 && qCount < 12) durMin = 90;
+      else durMin = defaultDur;
+    }
+
+    const isOfficialSample = id === 'sample-exam' || /^official-mock/i.test(id);
+    const isSynthetic = Boolean(colProv?.synthetic) || col.kind === 'mock_exam' || col.kind === 'mock' || /^(WF-MOCK|nov19-mock|wiseflow-mock|mock-exam)/i.test(id);
+    const isPartialPast = !isSynthetic && !isOfficialSample && cid === 'econ-2522' && qCount > 0 && qCount < 12;
+
+    if (!isSynthetic && !isOfficialSample) {
+      return {
+        group: 'past',
+        tier: isPartialPast ? 'partial_past' : 'full_past',
+        badgeText: isPartialPast ? 'Partial Past Exam' : 'Full Past Exam',
+        badgeClass: isPartialPast ? 'exam-type-partial' : 'exam-type-past',
+        tooltip: isPartialPast
+          ? `Official BI past paper extract (${qCount} text-complete questions online; original PDF figures require BI Canvas sync or archive).`
+          : 'Verified full official BI past examination paper.',
+        durMin,
+        qCount,
+        qIds,
+        isPast: true,
+        isFullPast: !isPartialPast,
+        sortScore: (isPartialPast ? 0 : 100000) + examSortYearScore(col),
+      };
+    }
+
+    if (isOfficialSample) {
+      return {
+        group: 'mock',
+        tier: 'official_sample',
+        badgeText: id === 'sample-exam' ? 'Official BI Sample' : 'Official Short Mock',
+        badgeClass: 'exam-type-sample',
+        tooltip: 'Official BI sample or short rehearsal paper — shorter than a full 3-hour final exam.',
+        durMin,
+        qCount,
+        qIds,
+        isPast: false,
+        isFullPast: false,
+        sortScore: 50000 + qCount,
+      };
+    }
+
+    const modelShort = colProv?.llmModel
+      ? colProv.llmModel.replace(/\s*\(legacy[^)]*\)/i, '').replace(/Antigravity format/i, 'Antigravity')
+      : '';
+    return {
+      group: 'mock',
+      tier: 'ai_mock',
+      badgeText: durMin >= 150 ? 'AI Full Mock' : 'AI Rehearsal Mock',
+      badgeClass: 'exam-type-ai',
+      tooltip: `Synthetically constructed mock paper${modelShort ? ` (${modelShort})` : ''} matching official BI exam format.`,
+      durMin,
+      qCount,
+      qIds,
+      isPast: false,
+      isFullPast: false,
+      sortScore: 10000 + durMin * 10 + qCount,
+    };
+  }
+
+  function computeExamPaperProgress(qIds, records, attemptsByQid) {
+    const total = qIds.length;
+    let done = 0;
+    let revisit = 0;
+    let inProgress = 0;
+    let firstUndoneIdx = 0;
+    let foundUndone = false;
+    let accSum = 0;
+    let accCount = 0;
+
+    qIds.forEach((qid, idx) => {
+      const rec = records[qid];
+      const st = rec?.status || 'not_started';
+      if (st === 'done') {
+        done++;
+      } else {
+        if (!foundUndone) {
+          firstUndoneIdx = idx;
+          foundUndone = true;
+        }
+        if (st === 'revisit') revisit++;
+        else if (st === 'in_progress') inProgress++;
+      }
+      const latestAcc = attemptsByQid.get(qid);
+      if (Number.isFinite(latestAcc)) {
+        accSum += latestAcc;
+        accCount++;
+      }
+    });
+
+    const touched = done + revisit + inProgress;
+    const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+    const revisitPct = total > 0 ? Math.min(100 - pct, Math.round((revisit / total) * 100)) : 0;
+    const status = total > 0 && done >= total
+      ? 'completed'
+      : touched > 0
+      ? 'in_progress'
+      : 'not_started';
+    const avgAccPct = accCount > 0 ? Math.round((accSum / accCount) * 100) : null;
+
+    return { total, done, revisit, inProgress, touched, pct, revisitPct, status, avgAccPct, firstUndoneIdx };
   }
 
   function renderExamsHub(focusCourseId = '') {
     const root = document.getElementById('exams-hub-root');
+    if (isStaticWeb) recomputeWebAnalytics();
     if (!boot.catalog.length) {
       root.innerHTML = '<div class="panel"><p>No course banks loaded.</p></div>';
       return;
     }
 
-    // Order courses chronologically by upcoming exam date
     ensureExamCountdownTicker();
     const sortedCourses = [...boot.catalog].sort((a, b) => {
       const da = daysUntilDateStr(a.examInfo?.date);
@@ -3714,8 +3858,131 @@ window.StudyApp = (() => {
       return va - vb;
     });
 
-    const cardsHtml = sortedCourses
-      .map((c) => {
+    const records = boot.progress?.records || {};
+    const attemptsByQid = new Map();
+    if (isStaticWeb) {
+      const ws = loadWebState();
+      for (const a of ws.attempts || []) {
+        if (a?.questionId && Number.isFinite(Number(a.qualityAccuracy))) {
+          attemptsByQid.set(a.questionId, Number(a.qualityAccuracy));
+        }
+      }
+    }
+
+    // Aggregate global exam progress across all active courses
+    let globalPapersTotal = 0;
+    let globalPapersDone = 0;
+    let globalPapersInProg = 0;
+    let globalFullPastTotal = 0;
+    let globalFullPastDone = 0;
+    let globalQsTotal = 0;
+    let globalQsDone = 0;
+
+    const coursePrepared = sortedCourses.map((c) => {
+      const maint = getCourseMaintenance(c.courseId);
+      const maintLocked = Boolean(maint && !canBypassCourseMaintenance());
+      const rawColls = getExamPaperCollections(c);
+      const papers = rawColls.map((col) => {
+        const meta = classifyExamPaper(col, c);
+        const prog = computeExamPaperProgress(meta.qIds, records, attemptsByQid);
+        return { col, meta, prog };
+      });
+      if (!maintLocked) {
+        for (const p of papers) {
+          globalPapersTotal++;
+          if (p.prog.status === 'completed') globalPapersDone++;
+          else if (p.prog.status === 'in_progress') globalPapersInProg++;
+          if (p.meta.isFullPast) {
+            globalFullPastTotal++;
+            if (p.prog.status === 'completed') globalFullPastDone++;
+          }
+          globalQsTotal += p.prog.total;
+          globalQsDone += p.prog.done;
+        }
+      }
+      return { c, maint, maintLocked, papers };
+    });
+
+    const globalQPct = globalQsTotal > 0 ? Math.min(100, Math.round((globalQsDone / globalQsTotal) * 100)) : 0;
+
+    const renderPackCard = (c, item) => {
+      const { col, meta, prog } = item;
+      const statusBadge = prog.status === 'completed'
+        ? `<span class="exam-status-pill is-done">✓ Completed</span>`
+        : prog.status === 'in_progress'
+        ? `<span class="exam-status-pill is-prog">In progress</span>`
+        : `<span class="exam-status-pill is-todo">Not started</span>`;
+      const qUnit = c.courseId === 'prog-3021'
+        ? (meta.qCount === 1 ? 'task' : 'tasks')
+        : (meta.qCount === 1 ? 'Q' : 'Qs');
+      const metaBits = [
+        meta.qCount ? `${meta.qCount} ${qUnit}` : '',
+        `${meta.durMin} min`,
+        prog.avgAccPct != null ? `${prog.avgAccPct}% acc` : '',
+        prog.revisit > 0 ? `${prog.revisit} revisit` : '',
+      ].filter(Boolean).join(' · ');
+
+      const cardClasses = [
+        'exam-pack-card',
+        meta.isPast ? 'exam-pack-official' : '',
+        prog.status === 'completed' ? 'is-completed' : prog.status === 'in_progress' ? 'is-in-progress' : '',
+      ].filter(Boolean).join(' ');
+
+      const btnClass = prog.status === 'completed' ? 'ghost-btn' : 'primary-btn';
+      const btnText = prog.status === 'completed'
+        ? 'Retake paper'
+        : prog.status === 'in_progress'
+        ? `Continue (${prog.done}/${prog.total})`
+        : meta.isPast
+        ? 'Start past exam'
+        : meta.tier === 'official_sample'
+        ? 'Start sample'
+        : 'Start mock exam';
+
+      const progBarHtml = prog.total > 0
+        ? `<div class="exam-prog-wrap">
+            <div class="exam-prog-meta">
+              <span>${prog.done} / ${prog.total} done</span>
+              <strong>${prog.pct}%</strong>
+            </div>
+            <div class="exam-prog-track" role="progressbar" aria-valuenow="${prog.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(examLabel(col.title))} completion">
+              <div class="exam-prog-fill ${prog.status === 'completed' ? 'is-done' : ''}" style="width:${prog.pct}%"></div>
+              ${prog.revisitPct > 0 ? `<div class="exam-prog-revisit" style="width:${prog.revisitPct}%;left:${prog.pct}%"></div>` : ''}
+            </div>
+          </div>`
+        : '';
+
+      return `<div class="${cardClasses}">
+        <div class="exam-pack-body">
+          <div class="exam-pack-top">
+            <span class="prov-badge ${meta.badgeClass}" title="${esc(meta.tooltip)}">${esc(meta.badgeText)}</span>
+            ${statusBadge}
+          </div>
+          <strong class="exam-pack-title">${esc(examLabel(col.title))}</strong>
+          <small class="muted exam-pack-meta">${esc(metaBits)}</small>
+          ${progBarHtml}
+        </div>
+        <div class="row-actions">
+          <button type="button" class="${btnClass}" style="flex:1" data-sit-course="${esc(c.courseId)}" data-sit-coll="${esc(
+            col.id
+          )}" data-sit-dur="${meta.durMin}" data-sit-title="${esc(examLabel(col.title))}" data-sit-start-idx="${
+            selectedExamStyle === 'guided' && prog.status === 'in_progress' ? prog.firstUndoneIdx : 0
+          }">
+            ${esc(btnText)}
+          </button>
+        </div>
+      </div>`;
+    };
+
+    const matchesFilter = (item) => {
+      if (selectedExamFilter === 'todo') return item.prog.status !== 'completed';
+      if (selectedExamFilter === 'done') return item.prog.status === 'completed';
+      if (selectedExamFilter === 'past') return item.meta.isPast;
+      return true;
+    };
+
+    const cardsHtml = coursePrepared
+      .map(({ c, maint, maintLocked, papers }) => {
         const daysLeft = daysUntilDateStr(c.examInfo?.date);
         const targetMs = examTargetMs(c.examInfo);
         const examTip = formatExamHoverTip(c.examInfo, targetMs);
@@ -3723,59 +3990,13 @@ window.StudyApp = (() => {
           Number.isFinite(targetMs) && targetMs > Date.now() - 14400_000
             ? `<span class="badge exam-tip-host ${daysLeft !== null && daysLeft <= 14 && daysLeft >= 0 ? 'warn' : 'gold'}" data-exam-tip="${esc(examTip)}" aria-label="${esc(examTip)}" tabindex="0"><span class="exam-countdown-live" data-exam-target-ms="${targetMs}" data-exam-countdown-mode="exam">${esc(formatExamCountdown(targetMs, 'exam'))}</span></span>`
             : '';
-        const durMin = c.examInfo?.durationMinutes || 180;
-        const examColls = getExamPaperCollections(c);
         const mathPrep = c.courseId === 'math-2588' && c.obsidian?.practiceNote
           ? publicReferenceUrl(c.obsidian.practiceNote)
           : '';
-
-        const packsHtml = [...examColls]
-          .sort((a, b) => {
-            const pa = window.StudyProvenance?.describeCollection?.(a, c.courseId);
-            const pb = window.StudyProvenance?.describeCollection?.(b, c.courseId);
-            return (pa?.synthetic ? 1 : 0) - (pb?.synthetic ? 1 : 0);
-          })
-          .map(
-            (col) => {
-              const colDur = Number(col.durationMinutes || durMin);
-              const colProv = window.StudyProvenance?.describeCollection?.(col, c.courseId);
-              const provPill = colProv
-                ? `<span class="prov-badge ${colProv.badgeClass}" style="margin-bottom:4px" title="${esc(colProv.tooltip)}">${esc(colProv.badgeText)}</span>`
-                : '';
-              return `<div class="exam-pack-card ${colProv && !colProv.synthetic ? 'exam-pack-official' : ''}">
-              <div>
-                ${provPill}
-                <strong>${esc(examLabel(col.title))}</strong>
-                <small class="muted">${colDur} min${col.description ? ` · ${esc(col.description)}` : ''}</small>
-              </div>
-              <div class="row-actions">
-                <button type="button" class="primary-btn" style="flex:1" data-sit-course="${esc(c.courseId)}" data-sit-coll="${esc(
-              col.id
-            )}" data-sit-dur="${colDur}" data-sit-title="${esc(examLabel(col.title))}">
-                  ${colProv && !colProv.synthetic ? 'Practice past exam' : 'Start Al mock'}
-                </button>
-              </div>
-            </div>`;
-            }
-          )
-          .join('');
-
-        const customDesc =
-          c.courseId === 'acct-2527'
-            ? '10 random MCQs (40 pts) + 4 worksheets across Ch 2/3, Ch 5, Ch 7 & Ch 8/10 (140 pts).'
-            : c.courseId === 'econ-2522'
-            ? 'Official BI 3-part structure: 10 MCQs + 3 Short Answers + 1 Multi-Part Analytical Case (180m).'
-            : c.courseId === 'math-2588'
-            ? '12 stratified calculation problems spanning Financial Math, Algebra/Functions, Optimisation & Taylor (180m).'
-            : c.courseId === 'ob-2537'
-            ? 'Full 50-question randomized WISEflow MCQ paper balanced across Lessons 1–14.'
-            : '4-task Home Exam 2 blueprint: (1) Loop/Simulation, (2) Function/Dict/DateTime, (3) Pandas/Seaborn Table, (4) Time Series/Resample/Plot + 2 rule checks (180m).';
-
-        const maint = getCourseMaintenance(c.courseId);
-        const maintLocked = Boolean(maint && !canBypassCourseMaintenance());
         const maintBadgeHtml = maint
           ? `<span class="badge maintenance" title="${esc(maint.eta)}">${maintLocked ? esc(maint.badge) : 'Maintenance · Admin'}</span>`
           : '';
+
         if (maintLocked) {
           return `
             <section class="panel exam-course-card course-card-maintenance" id="exam-card-${esc(c.courseId)}" style="border-left-color:${esc(c.color)}">
@@ -3795,15 +4016,52 @@ window.StudyApp = (() => {
           `;
         }
 
+        const cPastPapers = papers.filter((p) => p.meta.group === 'past').sort((a, b) => b.meta.sortScore - a.meta.sortScore);
+        const cMockPapers = papers.filter((p) => p.meta.group !== 'past').sort((a, b) => b.meta.sortScore - a.meta.sortScore);
+        const visPast = cPastPapers.filter(matchesFilter);
+        const visMocks = cMockPapers.filter(matchesFilter);
+
+        const cPapersDone = papers.filter((p) => p.prog.status === 'completed').length;
+        const cPastDone = cPastPapers.filter((p) => p.prog.status === 'completed').length;
+        const cQsTotal = papers.reduce((s, p) => s + p.prog.total, 0);
+        const cQsDone = papers.reduce((s, p) => s + p.prog.done, 0);
+        const cPct = cQsTotal > 0 ? Math.min(100, Math.round((cQsDone / cQsTotal) * 100)) : 0;
+
+        if (selectedExamFilter !== 'all' && !visPast.length && !visMocks.length) {
+          return '';
+        }
+
+        const customDesc =
+          c.courseId === 'acct-2527'
+            ? '10 random MCQs (40 pts) + 4 worksheets across Ch 2/3, Ch 5, Ch 7 & Ch 8/10 (140 pts).'
+            : c.courseId === 'econ-2522'
+            ? 'Official BI 3-part structure: 10 MCQs + 3 Short Answers + 1 Multi-Part Analytical Case (180m).'
+            : c.courseId === 'math-2588'
+            ? '12 stratified calculation problems spanning Financial Math, Algebra/Functions, Optimisation & Taylor (180m).'
+            : c.courseId === 'ob-2537'
+            ? 'Full 50-question randomized WISEflow MCQ paper balanced across Lessons 1–14 (180m).'
+            : '4-task Home Exam 2 blueprint: (1) Loop/Simulation, (2) Function/Dict/DateTime, (3) Pandas/Seaborn Table, (4) Time Series/Resample/Plot + 2 checks (180m).';
+
+        const showRandomBuilder = selectedExamFilter === 'all' || selectedExamFilter === 'todo';
+
         return `
           <section class="panel exam-course-card" id="exam-card-${esc(c.courseId)}" style="border-left-color:${esc(c.color)}">
-            <div class="row-between" style="margin-top:0">
+            <div class="row-between" style="margin-top:0;align-items:flex-start">
               <div style="flex:1;min-width:260px">
                 <span class="eyebrow" style="color:${esc(c.color)}">${esc(c.code)} · ${esc(c.examInfo?.format || 'Exam Preparation')}</span>
                 <h2>${esc(c.title)}</h2>
-                ${c.examInfo?.notes ? `<p class="muted" style="font-size:13.5px;margin:6px 0 0">${esc(c.examInfo.notes)}</p>` : ''}
-                ${mathPrep ? `<p><a href="${esc(mathPrep)}">2026 preparation guide</a></p>` : ''}
-                ${c.courseId === 'math-2588' ? '<p><a href="https://www.dr-eriksen.no/teaching/EBA1180/exams.php" target="_blank" rel="noopener">Mathematics past papers and solutions ↗</a></p>' : ''}
+                <div class="exam-course-prog">
+                  <div class="exam-course-prog-meta">
+                    <span><strong>${cPapersDone}/${papers.length}</strong> papers completed${cPastPapers.length ? ` · <strong>${cPastDone}/${cPastPapers.length}</strong> past exams` : ''} · ${cQsDone}/${cQsTotal} Qs</span>
+                    <strong>${cPct}%</strong>
+                  </div>
+                  <div class="exam-prog-track"><div class="exam-prog-fill ${cPct >= 100 ? 'is-done' : ''}" style="width:${cPct}%"></div></div>
+                </div>
+                ${c.examInfo?.notes ? `<p class="muted" style="font-size:13px;margin:8px 0 0">${esc(c.examInfo.notes)}</p>` : ''}
+                <div class="row-actions" style="gap:12px;margin-top:6px;font-size:12.5px">
+                  ${mathPrep ? `<a href="${esc(mathPrep)}">2026 preparation guide</a>` : ''}
+                  ${c.courseId === 'math-2588' ? '<a href="https://www.dr-eriksen.no/teaching/EBA1180/exams.php" target="_blank" rel="noopener">Dr. Eriksen EBA 1180 archive ↗</a>' : ''}
+                </div>
               </div>
               <div class="row-actions">
                 ${maintBadgeHtml}
@@ -3812,20 +4070,47 @@ window.StudyApp = (() => {
               </div>
             </div>
 
-            <div class="exam-pack-grid">
-              ${packsHtml}
-              <div class="exam-pack-card" style="border-style:dashed;border-color:var(--accent)">
-                <div>
-                  <strong>Randomized Full Mock Exam</strong>
-                  <small class="muted">${esc(customDesc)}</small>
-                </div>
-                <button type="button" class="ghost-btn" data-gen-exam="${esc(c.courseId)}">Build &amp; Launch Paper →</button>
+            ${visPast.length ? `
+              <div class="exam-group-head">
+                <span class="exam-group-label">Official BI Past Exams (${visPast.length})</span>
+                <small class="muted">Newest first · real BI exam papers</small>
               </div>
-            </div>
+              <div class="exam-pack-grid">
+                ${visPast.map((p) => renderPackCard(c, p)).join('')}
+              </div>
+            ` : ''}
+
+            ${(visMocks.length || showRandomBuilder) ? `
+              <div class="exam-group-head">
+                <span class="exam-group-label">${visPast.length ? 'Mock Exams & Official Samples' : 'Official Samples & Mock Exams'}</span>
+                <small class="muted">${visMocks.length} paper${visMocks.length === 1 ? '' : 's'}${showRandomBuilder ? ' + custom builder' : ''}</small>
+              </div>
+              <div class="exam-pack-grid">
+                ${visMocks.map((p) => renderPackCard(c, p)).join('')}
+                ${showRandomBuilder ? `
+                  <div class="exam-pack-card exam-pack-builder">
+                    <div class="exam-pack-body">
+                      <div class="exam-pack-top">
+                        <span class="prov-badge exam-type-ai">Dynamic Generator</span>
+                        <span class="exam-status-pill is-todo">Unlimited</span>
+                      </div>
+                      <strong class="exam-pack-title">Randomized Full Mock Exam</strong>
+                      <small class="muted exam-pack-meta">${esc(customDesc)}</small>
+                    </div>
+                    <button type="button" class="ghost-btn" data-gen-exam="${esc(c.courseId)}">Build &amp; Launch Paper →</button>
+                  </div>
+                ` : ''}
+              </div>
+            ` : ''}
           </section>
         `;
       })
+      .filter(Boolean)
       .join('');
+
+    const emptyFilterHtml = !cardsHtml
+      ? `<div class="panel" style="text-align:center;padding:28px"><p class="muted" style="margin:0 0 10px">No exam papers match this filter yet.</p><button type="button" class="ghost-btn" data-exam-filter="all">Show all exams</button></div>`
+      : '';
 
     root.innerHTML = `
       <div class="hero-card" style="margin-bottom:20px">
@@ -3833,20 +4118,9 @@ window.StudyApp = (() => {
           <div style="flex:1;min-width:260px">
             <span class="eyebrow">WISEflow &amp; Past Exam Simulator</span>
             <h1 class="hero-title" style="margin-bottom:6px">Mock exams and past papers</h1>
-            <p class="muted" style="margin:0;font-size:14px">
-              Official BI past exams are listed first and clearly separated from Al-generated mocks (with model provenance). Open for all accounts &amp; demo — sync BI Canvas or drop your own PDFs inside any exercise to read original source sheets inline.
+            <p class="muted" style="margin:0;font-size:13.5px">
+              Every paper is verified and grouped honestly — full official past exams first, followed by official samples and AI mocks. Track completion across every paper.
             </p>
-            <div class="row-actions" style="margin-top:10px;flex-wrap:wrap">
-              ${isStaticWeb && !getBiSyncStatus().hasEverSynced
-                ? `<button type="button" class="primary-btn" id="btn-exams-sync-bi">Sync BI Canvas for course PDFs</button>`
-                : ''}
-              <a class="ghost-btn" href="https://portal.bi.no/en/exams/former-examination-papers" target="_blank" rel="noopener">Official BI past papers portal ↗</a>
-              ${isStaticWeb && members.enabled && !members.isUnlocked()
-                ? `<button type="button" class="ghost-btn" id="btn-exams-unlock-member" style="font-size:12.5px">Owner PDF key</button>`
-                : isStaticWeb && members.enabled && members.isUnlocked()
-                ? `<span class="badge good">Private PDF archive unlocked</span>`
-                : ''}
-            </div>
           </div>
           <div>
             <small class="muted" style="display:block;margin-bottom:6px;font-weight:700">DELIVERY MODE:</small>
@@ -3860,8 +4134,38 @@ window.StudyApp = (() => {
             </div>
           </div>
         </div>
+
+        <div class="exam-summary-bar">
+          <div class="exam-summary-stats">
+            <div class="exam-stat-chip"><b>${globalPapersDone} / ${globalPapersTotal}</b><span>Papers Completed</span></div>
+            <div class="exam-stat-chip"><b>${globalFullPastDone} / ${globalFullPastTotal}</b><span>Full Past Exams Done</span></div>
+            <div class="exam-stat-chip"><b>${globalPapersInProg}</b><span>In Progress</span></div>
+            <div class="exam-stat-chip"><b>${globalQsDone} / ${globalQsTotal}</b><span>Exam Qs Mastered (${globalQPct}%)</span></div>
+          </div>
+          <div class="exam-prog-track is-hero"><div class="exam-prog-fill ${globalQPct >= 100 ? 'is-done' : ''}" style="width:${globalQPct}%"></div></div>
+        </div>
+
+        <div class="exam-toolbar-foot">
+          <div class="exam-filter-row" role="group" aria-label="Filter exams">
+            <button type="button" class="preset-chip ${selectedExamFilter === 'all' ? 'active' : ''}" data-exam-filter="all">All (${globalPapersTotal})</button>
+            <button type="button" class="preset-chip ${selectedExamFilter === 'todo' ? 'active' : ''}" data-exam-filter="todo">Not Completed (${Math.max(0, globalPapersTotal - globalPapersDone)})</button>
+            <button type="button" class="preset-chip ${selectedExamFilter === 'past' ? 'active' : ''}" data-exam-filter="past">Past Exams Only</button>
+            <button type="button" class="preset-chip ${selectedExamFilter === 'done' ? 'active' : ''}" data-exam-filter="done">Completed (${globalPapersDone})</button>
+          </div>
+          <div class="row-actions" style="gap:8px;flex-wrap:wrap">
+            ${isStaticWeb && !getBiSyncStatus().hasEverSynced
+              ? `<button type="button" class="primary-btn" id="btn-exams-sync-bi" style="padding:6px 12px;font-size:12.5px">Sync BI Canvas</button>`
+              : ''}
+            <a class="ghost-btn" href="https://portal.bi.no/en/exams/former-examination-papers" target="_blank" rel="noopener" style="padding:6px 11px;font-size:12.5px">BI past papers ↗</a>
+            ${isStaticWeb && members.enabled && !members.isUnlocked()
+              ? `<button type="button" class="ghost-btn" id="btn-exams-unlock-member" style="padding:6px 11px;font-size:12.5px">Owner PDF key</button>`
+              : isStaticWeb && members.enabled && members.isUnlocked()
+              ? `<span class="badge good">Private PDF archive unlocked</span>`
+              : ''}
+          </div>
+        </div>
       </div>
-      ${cardsHtml}
+      ${cardsHtml || emptyFilterHtml}
     `;
 
     root.querySelector('#btn-exams-sync-bi')?.addEventListener('click', () => {
@@ -3878,6 +4182,13 @@ window.StudyApp = (() => {
       });
     });
 
+    root.querySelectorAll('[data-exam-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        selectedExamFilter = btn.dataset.examFilter || 'all';
+        renderExamsHub();
+      });
+    });
+
     root.querySelectorAll('[data-sit-course]').forEach((btn) => {
       btn.addEventListener('click', () =>
         launchCollectionExam(
@@ -3885,7 +4196,8 @@ window.StudyApp = (() => {
           btn.dataset.sitColl,
           btn.dataset.sitTitle,
           selectedExamStyle,
-          Number(btn.dataset.sitDur || 0)
+          Number(btn.dataset.sitDur || 0),
+          Number(btn.dataset.sitStartIdx || 0)
         )
       );
     });
@@ -3915,7 +4227,7 @@ window.StudyApp = (() => {
     return copy;
   }
 
-  async function launchCollectionExam(courseId, collectionId, title, examStyle = 'blind', customDurationMin = 0) {
+  async function launchCollectionExam(courseId, collectionId, title, examStyle = 'blind', customDurationMin = 0, startIndex = 0) {
     if (isCourseInMaintenanceForUser(courseId)) {
       const m = getCourseMaintenance(courseId);
       toast(`${m?.badge || 'Under maintenance'} — ${m?.eta || 'reworking soon'}.`);
@@ -3939,6 +4251,7 @@ window.StudyApp = (() => {
       courseMeta: cMeta,
       bank,
       questionIds: qids,
+      startIndex: examStyle === 'guided' ? startIndex : 0,
       mode: 'exam',
       examStyle,
       examTitle: title,

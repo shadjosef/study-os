@@ -1145,7 +1145,7 @@ window.StudyRunner = (() => {
       bank: config.bank,
       questionsById,
       questionIds: validIds,
-      index: 0,
+      index: Math.max(0, Math.min(validIds.length - 1, Number(config.startIndex) || 0)),
       mode: isExam ? 'exam' : 'practice',
       examStyle,
       examTitle: config.examTitle || '',
