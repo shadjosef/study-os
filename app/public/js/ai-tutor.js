@@ -42,9 +42,9 @@ window.StudyAiTutor = (() => {
     { id: 'high', label: 'High', hint: 'Deep proofs & derivations' },
   ];
 
-  const AI_PANE_MIN_W = 210;
+  const AI_PANE_MIN_W = 152;
   const AI_PANE_MAX_W = 640;
-  const AI_COLLAPSE_THRESHOLD = 148;
+  const AI_COLLAPSE_THRESHOLD = 92;
   const AI_DOCK_MIN_VP = 760;
 
   let conversations = loadStoredChats();
@@ -665,6 +665,7 @@ window.StudyAiTutor = (() => {
     const w = pane.getBoundingClientRect().width || getSavedWidth() || 340;
     pane.classList.toggle('is-narrow', w < 318);
     pane.classList.toggle('is-ultra-narrow', w < 248);
+    pane.classList.toggle('is-micro-narrow', w < 198);
   }
 
   function ensurePane() {
@@ -729,7 +730,7 @@ window.StudyAiTutor = (() => {
         pane.querySelector('#ai-tutor-settings')?.classList.remove('is-active');
       }
       handle.setPointerCapture?.(startEv.pointerId);
-      const restoreW = Math.max(260, Math.round(pane.getBoundingClientRect().width || getSavedWidth() || 360));
+      const restoreW = Math.max(AI_PANE_MIN_W, Math.round(pane.getBoundingClientRect().width || getSavedWidth() || 340));
       let willCollapse = false;
       document.body.classList.add('ai-pane-resizing');
       pane.classList.add('is-resizing');
