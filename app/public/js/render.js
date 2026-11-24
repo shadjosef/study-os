@@ -2145,6 +2145,7 @@ window.StudyUI = (() => {
     const canUseBreakTools = workClock.canUseBreakTools(now);
     const breakEnded = workState.mode === 'break' && !canUseBreakTools;
     const isWorking = workState.mode === 'working';
+    const inExamBreak = Boolean(window.StudyRunner?.isInExam?.());
     const endSession = canUseBreakTools && workState.mode !== 'idle';
     const community = document.getElementById('break-community-btn');
     document.getElementById('evening-break-tools-btn').hidden = !evening;
@@ -2152,16 +2153,26 @@ window.StudyUI = (() => {
     document.getElementById('break-footer').hidden = !(endSession || evening);
     document.getElementById('break-close-btn').hidden = !evening;
     document.getElementById('break-add-1m').hidden = evening;
+    const add5Btn = document.getElementById('break-add-5m');
+    if (add5Btn) add5Btn.hidden = evening;
     document.getElementById('break-end-session-btn').hidden = !endSession;
-    document.getElementById('break-resume-btn').textContent = isWorking ? 'Continue studying' : 'Start next 75 min';
+    document.getElementById('break-resume-btn').textContent = isWorking
+      ? (inExamBreak ? 'Resume exam' : 'Continue studying')
+      : (inExamBreak ? 'Resume exam' : 'Start next 75 min');
     community.hidden = !canUseBreakTools || !window.StudyCommunity?.enabled || Boolean(window.StudyRooms?.running());
     community.textContent = document.getElementById('view-community').hidden ? 'Community' : 'Back to Community';
     cdEl.hidden = evening;
     document.getElementById('break-modal-title').textContent = evening ? 'Evening break tools'
-      : breakEnded ? 'Break ended' : 'Study break';
+      : breakEnded ? (inExamBreak ? 'Exam break ended' : 'Break ended')
+      : (inExamBreak ? 'Exam break' : 'Study break');
     const workedMin = Math.round((workState.lastWaveSec || 0) / 60);
     document.getElementById('break-ratio-note').textContent = evening ? 'Available 18:00–22:30 Oslo time.'
-      : breakEnded ? 'Add a minute to reopen break tools, or start your next session.'
+      : breakEnded
+        ? (inExamBreak
+            ? 'Exam countdown is paused. Add more time or resume your exam.'
+            : 'Add a minute to reopen break tools, or start your next session.')
+      : inExamBreak
+        ? `Exam countdown & question timer are paused.${workedMin ? ` After ${workedMin} ${workedMin === 1 ? 'minute' : 'minutes'} of study.` : ''}`
       : workedMin ? `After ${workedMin} ${workedMin === 1 ? 'minute' : 'minutes'} of study.`
       : 'Take a moment before your next session.';
     document.querySelector('main').inert = breakEnded;
@@ -3102,7 +3113,7 @@ window.StudyUI = (() => {
     devMode.syncUi();
 
     // Universal 75m Session + 1:5 Break controls
-    const onWorkActionClick = () => {
+    const onWorkActionClick = (ev) => {
       if (devModeActive) {
         toast('Dev Mode ON — real work & break timers are frozen.');
         return;
@@ -3113,7 +3124,8 @@ window.StudyUI = (() => {
         if (workState.mode === 'break') showBreakModalUi();
         return;
       }
-      if (workState.mode === 'working') {
+      const fromRunnerBreakBtn = ev?.currentTarget?.id === 'run-break-btn';
+      if (workState.mode === 'working' || (fromRunnerBreakBtn && workState.mode === 'idle')) {
         workClock.triggerBreak(false);
       } else if (workState.mode === 'break') {
         showBreakModalUi();
@@ -3126,6 +3138,9 @@ window.StudyUI = (() => {
     document.getElementById('run-break-btn')?.addEventListener('click', onWorkActionClick);
     document.getElementById('break-add-1m')?.addEventListener('click', () => {
       workClock.addBreakSeconds(60);
+    });
+    document.getElementById('break-add-5m')?.addEventListener('click', () => {
+      workClock.addBreakSeconds(300);
     });
     const breakDialog = document.getElementById('break-modal');
     breakDialog.addEventListener('keydown', (event) => {

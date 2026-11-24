@@ -1395,11 +1395,22 @@ window.StudyRunner = (() => {
       const q = currentQuestion();
       if (q) closePauseRecord(itemState(q.id), 1.5);
       pauseCurrentTimer();
+      if (activeRun.mode === 'exam' && !activeRun.examBreakStartedMs) {
+        activeRun.examBreakStartedMs = Date.now();
+        activeRun.examBreakCount = (activeRun.examBreakCount || 0) + 1;
+      }
       tickLiveClocks();
-    } else if (!endedSession && !document.getElementById('view-runner')?.hidden) {
-      activeRun.consecutiveMisses = 0;
-      resumeCurrentTimer();
-      renderRunner();
+    } else {
+      if (activeRun.examBreakStartedMs) {
+        activeRun.examBreakSec =
+          (activeRun.examBreakSec || 0) + Math.max(0, Math.round((Date.now() - activeRun.examBreakStartedMs) / 1000));
+        activeRun.examBreakStartedMs = null;
+      }
+      if (!endedSession && !document.getElementById('view-runner')?.hidden) {
+        activeRun.consecutiveMisses = 0;
+        resumeCurrentTimer();
+        renderRunner();
+      }
     }
   }
 
@@ -1454,6 +1465,9 @@ window.StudyRunner = (() => {
       paperSubmitted: false,
       paperScoreSummary: null,
       examResultRecorded: false,
+      examBreakCount: 0,
+      examBreakSec: 0,
+      examBreakStartedMs: null,
       profile: config.profile || (isExam ? 'exam' : 'learning'),
       calendarBlock: config.calendarBlock || null,
       consecutiveMisses: 0,
@@ -2209,15 +2223,38 @@ window.StudyRunner = (() => {
     return { letter: 'F', label: 'Fail', cls: 'grade-f', points: 0, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
   }
 
+  const EXAM_HINT_PENALTY_PER_HINT = 0.15; // -15% of a question's earned points per hint used during an exam
+  const EXAM_HINT_PENALTY_MAX = 0.45;      // cap at -45% credit reduction on any single question
+
+  function countActiveRunHints() {
+    if (!activeRun) return { hintsTotal: 0, hintedQCount: 0 };
+    let hintsTotal = 0;
+    let hintedQCount = 0;
+    for (const qid of activeRun.questionIds) {
+      const st = activeRun.items[qid];
+      if (!st) continue;
+      const h = Math.max(0, Number(st.hintsUsed || 0), Number(st.loggedAttempt?.hintsUsed || 0));
+      if (h > 0) {
+        hintsTotal += h;
+        hintedQCount += 1;
+      }
+    }
+    return { hintsTotal, hintedQCount };
+  }
+
   function recomputeExamRunGrade({ includeUnverifiedAsZero = false } = {}) {
     if (!activeRun) return null;
     let earnedPts = 0;
+    let rawEarnedPts = 0;
+    let hintPenaltyPts = 0;
     let totalPts = 0;
     let gradedPts = 0;
     let gradedCount = 0;
     let autoCount = 0;
     let rubricCount = 0;
     let manualRemaining = 0;
+    let hintsTotal = 0;
+    let hintedQCount = 0;
 
     for (const qid of activeRun.questionIds) {
       const q = activeRun.questionsById[qid];
@@ -2226,31 +2263,38 @@ window.StudyRunner = (() => {
       const qPts = Number(q.points || (q.kind === 'mcq' ? 2 : 10));
       totalPts += qPts;
 
+      const qHints = Math.max(0, Number(st.hintsUsed || 0), Number(st.loggedAttempt?.hintsUsed || 0));
+      if (qHints > 0) {
+        hintsTotal += qHints;
+        hintedQCount += 1;
+      }
+      const hintFactor = 1 - Math.min(EXAM_HINT_PENALTY_MAX, qHints * EXAM_HINT_PENALTY_PER_HINT);
+
       const isMcq = q.kind === 'mcq';
       const isWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
       const isAuto = isMcq || isWf;
       if (isAuto) autoCount += 1;
       else rubricCount += 1;
 
+      let acc = null;
       if (st.loggedAttempt && Number.isFinite(Number(st.loggedAttempt.qualityAccuracy))) {
-        const acc = Math.max(0, Math.min(1, Number(st.loggedAttempt.qualityAccuracy)));
-        earnedPts += acc * qPts;
-        gradedPts += qPts;
-        gradedCount += 1;
+        acc = Math.max(0, Math.min(1, Number(st.loggedAttempt.qualityAccuracy)));
       } else if (isMcq && (st.revealed || activeRun.paperSubmitted)) {
-        const acc = st.choice !== null && st.choice === q.answerIndex ? 1.0 : 0.0;
-        earnedPts += acc * qPts;
-        gradedPts += qPts;
-        gradedCount += 1;
+        acc = st.choice !== null && st.choice === q.answerIndex ? 1.0 : 0.0;
       } else if (isWf && (st.wfGrade || activeRun.paperSubmitted)) {
         const g = st.wfGrade || evaluateWiseflowSheet(q, st);
-        earnedPts += Math.max(0, Math.min(1, Number(g.accuracy || 0))) * qPts;
-        gradedPts += qPts;
-        gradedCount += 1;
+        acc = Math.max(0, Math.min(1, Number(g.accuracy || 0)));
       } else if (!isAuto && st.revealed && Array.isArray(st.checkedRubrics) && st.checkedRubrics.length > 0) {
         const totalChecks = Math.max(1, (q.rubricChecks || []).length || 3);
-        const acc = Math.min(1, st.checkedRubrics.length / totalChecks);
-        earnedPts += acc * qPts;
+        acc = Math.min(1, st.checkedRubrics.length / totalChecks);
+      }
+
+      if (acc !== null) {
+        const rawQ = acc * qPts;
+        const adjQ = rawQ * hintFactor;
+        rawEarnedPts += rawQ;
+        earnedPts += adjQ;
+        hintPenaltyPts += rawQ - adjQ;
         gradedPts += qPts;
         gradedCount += 1;
       } else if (!isAuto) {
@@ -2260,19 +2304,34 @@ window.StudyRunner = (() => {
 
     const totalCount = activeRun.questionIds.length;
     const denom = includeUnverifiedAsZero ? totalPts : (gradedPts || totalPts);
+    const rawPct = denom > 0 ? Math.max(0, Math.min(100, (rawEarnedPts / denom) * 100)) : 0;
     const pct = denom > 0 ? Math.max(0, Math.min(100, (earnedPts / denom) * 100)) : 0;
     const grade = window.StudyApp?.gradeFromPct?.(pct) || fallbackGradeFromPct(pct);
+    const rawGrade = window.StudyApp?.gradeFromPct?.(rawPct) || fallbackGradeFromPct(rawPct);
     const gradingKind = rubricCount === 0 ? 'auto' : autoCount === 0 ? 'rubric' : 'mixed';
+    const liveBreakSec =
+      Number(activeRun.examBreakSec || 0)
+      + (activeRun.examBreakStartedMs ? Math.max(0, Math.round((Date.now() - activeRun.examBreakStartedMs) / 1000)) : 0);
     return {
       earnedPts,
+      rawEarnedPts,
+      hintPenaltyPts,
       totalPts,
       gradedPts,
       gradedCount,
       totalCount,
       manualCount: manualRemaining,
       pct,
+      rawPct,
       grade,
+      rawGrade,
       gradingKind,
+      hintsTotal,
+      hintedQCount,
+      cleanRun: hintsTotal === 0,
+      breaksCount: Number(activeRun.examBreakCount || 0),
+      breakSec: liveBreakSec,
+      durationSec: Math.round(totalExamActiveSec()),
     };
   }
 
@@ -2282,12 +2341,17 @@ window.StudyRunner = (() => {
     if (!colId || colId === 'randomized-mock') return null;
     const summary = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(activeRun.paperSubmitted) });
     if (!summary || !summary.gradedCount) return null;
-    const ready = force
-      || (activeRun.paperSubmitted && summary.manualCount === 0)
-      || summary.gradedCount >= summary.totalCount;
+    const isCompleteSit = Boolean(
+      (activeRun.paperSubmitted && summary.manualCount === 0)
+      || summary.gradedCount >= summary.totalCount
+    );
+    const ready = force || isCompleteSit;
     if (!ready) return summary;
     window.StudyApp?.recordExamResult?.(activeRun.courseMeta.courseId, colId, {
       ...summary,
+      sessionId: activeRun.sessionId,
+      examStyle: activeRun.examStyle,
+      complete: isCompleteSit,
       incrementAttempt: !activeRun.examResultRecorded,
     });
     activeRun.examResultRecorded = true;
@@ -2298,21 +2362,45 @@ window.StudyRunner = (() => {
     const notice = document.getElementById('runner-notice');
     const score = activeRun.paperScoreSummary;
     const suggestBreak = activeRun.mode === 'practice' && activeRun.consecutiveMisses >= 2;
+    const liveHints = activeRun.mode === 'exam' ? countActiveRunHints() : { hintsTotal: 0, hintedQCount: 0 };
+    const breaksCount = Number(activeRun.examBreakCount || 0);
 
     if (isBlindUnfinished) {
       const { answeredCount, total } = computeRunSummary();
       const flagged = Object.values(activeRun.items).filter((item) => item.flagged).length;
-      notice.textContent = `${answeredCount} / ${total} answered${flagged ? ` · ${flagged} flagged` : ''}`;
+      const bits = [
+        `${answeredCount} / ${total} answered`,
+        flagged ? `${flagged} flagged` : '',
+        liveHints.hintsTotal > 0
+          ? `💡 ${liveHints.hintsTotal} hint${liveHints.hintsTotal === 1 ? '' : 's'} tracked`
+          : '',
+        breaksCount > 0 ? `☕ ${breaksCount} break${breaksCount === 1 ? '' : 's'}` : '',
+      ].filter(Boolean);
+      notice.textContent = bits.join(' · ');
     } else if (score && score.totalPts > 0 && score.gradedCount > 0) {
       const g = score.grade || fallbackGradeFromPct(score.pct);
       const star = g.letter === 'A' ? '★ ' : '';
       const modeTag = score.gradingKind === 'auto' ? 'Auto-graded' : score.gradingKind === 'rubric' ? 'Rubric-graded' : 'Auto + Rubric';
       const pendingTag = score.manualCount > 0 ? ` · ${score.manualCount} written left` : g.toA > 0 ? ` · +${g.toA}% to A` : ' · Target A hit!';
-      notice.innerHTML = `<span class="exam-grade-medal is-inline ${g.cls}"><b>${star}${g.letter}</b><small>${Math.round(score.pct)}%</small></span><span>${score.earnedPts.toFixed(1)} / ${score.totalPts} pts · ${modeTag}${pendingTag}</span>`;
+      const hTotal = Math.max(Number(score.hintsTotal || 0), liveHints.hintsTotal);
+      const hPen = Number(score.hintPenaltyPts || 0);
+      const hintChipHtml = hTotal > 0
+        ? `<span class="exam-hint-chip is-assisted" title="Raw score ${Math.round(score.rawPct ?? score.pct)}% · -${hPen.toFixed(1)} pts hint adjustment (${hTotal} hint${hTotal === 1 ? '' : 's'} across ${Math.max(1, Number(score.hintedQCount || liveHints.hintedQCount || 1))} Q${Math.max(1, Number(score.hintedQCount || liveHints.hintedQCount || 1)) === 1 ? '' : 's'})">💡 ${hTotal} hint${hTotal === 1 ? '' : 's'}${hPen >= 0.05 ? ` (-${hPen.toFixed(1)} pts)` : ''}</span>`
+        : `<span class="exam-hint-chip is-clean" title="0 hints used — clean exam attempt">✓ Clean</span>`;
+      const breakTag = breaksCount > 0 ? ` · ☕ ${breaksCount} break${breaksCount === 1 ? '' : 's'}` : '';
+      notice.innerHTML = `<span class="exam-grade-medal is-inline ${g.cls}"><b>${star}${g.letter}</b><small>${Math.round(score.pct)}%</small></span>${hintChipHtml}<span>${score.earnedPts.toFixed(1)} / ${score.totalPts} pts · ${modeTag}${pendingTag}${breakTag}</span>`;
     } else if (score) {
       notice.textContent = score.manualCount > 0
         ? `Paper submitted — tick your marking checklist steps (${score.manualCount} written problem${score.manualCount === 1 ? '' : 's'}) to calculate your BI grade.`
         : 'Paper submitted';
+    } else if (activeRun.mode === 'exam' && (liveHints.hintsTotal > 0 || breaksCount > 0)) {
+      const parts = [
+        liveHints.hintsTotal > 0
+          ? `<span class="exam-hint-chip is-assisted">💡 ${liveHints.hintsTotal} hint${liveHints.hintsTotal === 1 ? '' : 's'} tracked (-15% Q credit/hint)</span>`
+          : '',
+        breaksCount > 0 ? `<span>☕ ${breaksCount} break${breaksCount === 1 ? '' : 's'} taken</span>` : '',
+      ].filter(Boolean);
+      notice.innerHTML = parts.join('');
     } else if (suggestBreak) {
       notice.innerHTML = '<span>Two misses in a row</span><button type="button" class="mini-tool-btn" id="btn-run-break-nudge">Take a break</button>';
       document.getElementById('btn-run-break-nudge').onclick = () => workClock?.triggerBreak?.(false);
@@ -2407,7 +2495,7 @@ window.StudyRunner = (() => {
 
     if (examCountdownEl) examCountdownEl.hidden = !activeRun.examBudgetSec || activeRun.paperSubmitted;
     if (submitExamBtn) submitExamBtn.hidden = !isBlindUnfinished;
-    if (breakBtn) breakBtn.hidden = activeRun.mode !== 'practice';
+    if (breakBtn) breakBtn.hidden = false;
     if (runObsLink) runObsLink.hidden = isBlindUnfinished || window.StudyApp?.isStaticMode();
 
     renderRunnerNotice(isBlindUnfinished);
@@ -2716,15 +2804,18 @@ window.StudyRunner = (() => {
       `;
     }
 
-    // Hints area (locked in Exam mode)
+    // Hints area (allowed in Practice & Exam modes; tracked on exam grade & best attempt)
     const hintsArr = Array.isArray(q.hints) ? q.hints : [];
     let hintsHtml = '';
-    if (st.hintsUsed > 0 && hintsArr.length && !isBlindUnfinished) {
+    if (st.hintsUsed > 0 && hintsArr.length) {
+      const hintNote = activeRun.mode === 'exam'
+        ? `Tracked on exam grade · -${Math.round(EXAM_HINT_PENALTY_PER_HINT * 100)}% credit on this Q`
+        : `+${st.handicapPerHintSec}s par`;
       hintsHtml = hintsArr
         .slice(0, st.hintsUsed)
         .map(
-          (h, idx) => `<div class="hint-box">
-            <strong>Hint ${idx + 1} <small class="muted">(+${st.handicapPerHintSec}s par)</small></strong>
+          (h, idx) => `<div class="hint-box${activeRun.mode === 'exam' ? ' is-exam-hint' : ''}">
+            <strong>Hint ${idx + 1} <small class="muted">(${hintNote})</small></strong>
             <div class="markdown-body">${renderMarkdownWithMath(h)}</div>
           </div>`
         )
@@ -2982,7 +3073,7 @@ window.StudyRunner = (() => {
     `;
 
     // Primary Action Button
-    const canHint = activeRun.mode !== 'exam' && st.hintsUsed < hintsArr.length && !st.revealed;
+    const canHint = st.hintsUsed < hintsArr.length && !st.revealed;
     let primaryActionBtn = '';
     if (isBlindUnfinished) {
       primaryActionBtn = hasMoreQuestions
@@ -3026,7 +3117,7 @@ window.StudyRunner = (() => {
         <div class="row-actions" style="gap:7px">
           ${primaryActionBtn}
           ${secondaryNextBtn}
-          ${canHint ? `<button type="button" class="ghost-btn" id="btn-hint" title="Show hint (H)" data-study-help>Hint ${st.hintsUsed + 1}/${hintsArr.length}</button>` : ''}
+          ${canHint ? `<button type="button" class="ghost-btn${activeRun.mode === 'exam' ? ' is-exam-hint-btn' : ''}" id="btn-hint" title="${activeRun.mode === 'exam' ? 'Show hint (H) · Tracked on exam grade (-15% credit on this Q per hint, max -45%) & logged on best attempt' : 'Show hint (H)'}">Hint ${st.hintsUsed + 1}/${hintsArr.length}</button>` : ''}
           ${
             finalAnswers.length
               ? `<button type="button" class="ghost-btn ans-check-toggle-btn ${st.answerTrayOpen ? 'active' : ''}" id="btn-toggle-answers" aria-expanded="${st.answerTrayOpen ? 'true' : 'false'}" aria-controls="runner-answer-tray" title="Check final answers one by one (no steps, zero penalty)">Answers${shownAnswerCount ? ` (${shownAnswerCount}/${finalAnswers.length})` : ''}</button>`
@@ -3068,8 +3159,10 @@ window.StudyRunner = (() => {
         <span><kbd>S</kbd> Solution</span>
         <span><kbd>Enter</kbd>/<kbd>N</kbd> Check/Next</span>
         <span><kbd>P</kbd> Pause</span>
+        <span><kbd>B</kbd> Break</span>
         <span><kbd>V</kbd> Focus/Split</span>
-        ${!isBlindUnfinished ? '<span><kbd>H</kbd> Hint</span><span><kbd>O</kbd> Ref</span>' : ''}
+        ${hintsArr.length ? '<span><kbd>H</kbd> Hint</span>' : ''}
+        ${!isBlindUnfinished ? '<span><kbd>O</kbd> Ref</span>' : ''}
         <span><kbd>←</kbd><kbd>→</kbd> Nav</span>
       </div>
     `;
@@ -3840,6 +3933,12 @@ window.StudyRunner = (() => {
     // Hints
     document.getElementById('btn-hint')?.addEventListener('click', () => {
       st.hintsUsed = Math.min((q.hints || []).length, st.hintsUsed + 1);
+      if (activeRun.mode === 'exam') {
+        if (activeRun.paperSubmitted || activeRun.examStyle === 'guided') {
+          activeRun.paperScoreSummary = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(activeRun.paperSubmitted) });
+        }
+        toast(`Hint ${st.hintsUsed} shown · Tracked on exam grade (-${Math.min(45, st.hintsUsed * 15)}% credit on this Q)`);
+      }
       renderRunner();
     });
 
@@ -4535,8 +4634,10 @@ window.StudyRunner = (() => {
     const examCd = document.getElementById('run-exam-countdown');
     if (examCd && activeRun.examBudgetSec && !activeRun.paperSubmitted) {
       const remSec = Math.max(0, activeRun.examBudgetSec - totalExamActiveSec());
-      examCd.textContent = `${clockSec(remSec)} left`;
+      const isPausedExam = workClock?.getState?.().mode === 'break' || st.runningSince === null;
+      examCd.textContent = `${isPausedExam ? '⏸ ' : ''}${clockSec(remSec)} left`;
       examCd.classList.toggle('urgent', remSec <= 600);
+      examCd.classList.toggle('paused', isPausedExam);
     }
   }
 
@@ -4563,8 +4664,17 @@ window.StudyRunner = (() => {
       const g = ps.grade || fallbackGradeFromPct(ps.pct);
       const star = g.letter === 'A' ? '★ ' : '';
       const modeTag = ps.gradingKind === 'auto' ? 'Auto-graded' : ps.gradingKind === 'rubric' ? 'Rubric-graded' : 'Auto + Rubric';
+      const hTotal = Number(ps.hintsTotal || 0);
+      const hQs = Number(ps.hintedQCount || 0);
+      const hPen = Number(ps.hintPenaltyPts || 0);
+      const hintChipHtml = hTotal > 0
+        ? `<span class="exam-hint-chip is-assisted">💡 ${hTotal} hint${hTotal === 1 ? '' : 's'} (${hQs} Q${hQs === 1 ? '' : 's'} · raw ${Math.round(ps.rawPct ?? ps.pct)}%)</span>`
+        : `<span class="exam-hint-chip is-clean">✓ Clean (0 hints)</span>`;
+      const breakPart = ps.breaksCount > 0
+        ? ` · ${ps.breaksCount} break${ps.breaksCount === 1 ? '' : 's'}${ps.breakSec >= 60 ? ` (${Math.round(ps.breakSec / 60)}m)` : ''}`
+        : '';
       const targetMsg = g.letter === 'A'
-        ? 'Target A achieved! Locked onto your Exams board.'
+        ? (hTotal === 0 ? 'Clean Target A achieved! Locked onto your Exams board.' : 'Target A achieved (hint-assisted) — retake with 0 hints for a Clean A!')
         : `+${g.toA}% to hit BI Grade A (85%) — review your weak questions and beat this score.`;
       examGradeHtml = `
         <div class="exam-result-grade-banner ${g.cls}">
@@ -4573,8 +4683,9 @@ window.StudyRunner = (() => {
             <div class="exam-result-grade-top">
               <strong>BI Grade ${g.letter} · ${Math.round(ps.pct)}%</strong>
               <span class="exam-result-kind">${esc(modeTag)}</span>
+              ${hintChipHtml}
             </div>
-            <div class="exam-result-grade-sub">${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts (${ps.gradedCount}/${ps.totalCount} graded) · ${esc(targetMsg)}</div>
+            <div class="exam-result-grade-sub">${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts${hPen >= 0.05 ? ` (-${hPen.toFixed(1)} hint adj)` : ''} (${ps.gradedCount}/${ps.totalCount} graded${breakPart}) · ${esc(targetMsg)}</div>
           </div>
         </div>
       `;
@@ -4939,7 +5050,7 @@ window.StudyRunner = (() => {
         document.getElementById('btn-reveal-sol')?.click();
       } else if (key === 'o') {
         toggleRunnerReference();
-      } else if (key === 'b' && activeRun.mode === 'practice') {
+      } else if (key === 'b') {
         workClock?.triggerBreak?.(false);
         e.preventDefault();
       } else if (key === 'p') {
@@ -4980,6 +5091,7 @@ window.StudyRunner = (() => {
   return {
     getRun,
     getActiveCourseId: () => activeRun?.courseMeta?.courseId || '',
+    isInExam: () => Boolean(activeRun && activeRun.mode === 'exam' && !document.getElementById('view-runner')?.hidden),
     isIdeCodingFocusExempt,
     startRun,
     pauseIfRunning,

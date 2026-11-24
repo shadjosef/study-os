@@ -174,6 +174,51 @@ function gradeForPctSync(pct) {
   return 'F';
 }
 
+function cleanAttemptHistory(raw) {
+  if (!Array.isArray(raw)) return [];
+  const byKey = new Map();
+  for (const item of raw) {
+    if (!isObj(item) || !Number.isFinite(Number(item.pct))) continue;
+    const pct = Math.min(100, Math.max(0, Math.round(Number(item.pct) * 10) / 10));
+    const rawPct = Number.isFinite(Number(item.rawPct))
+      ? Math.min(100, Math.max(0, Math.round(Number(item.rawPct) * 10) / 10))
+      : pct;
+    const completedAt = typeof item.completedAt === 'string' && Number.isFinite(Date.parse(item.completedAt))
+      ? new Date(item.completedAt).toISOString()
+      : '';
+    const sid = typeof item.sessionId === 'string' && item.sessionId.trim()
+      ? item.sessionId.trim().slice(0, 64)
+      : (completedAt || `at-${byKey.size}`);
+    const row = {
+      sessionId: sid,
+      completedAt,
+      pct,
+      rawPct,
+      grade: VALID_GRADES.has(item.grade) ? item.grade : gradeForPctSync(pct),
+      earnedPts: Math.max(0, Math.round(Number(item.earnedPts || 0) * 10) / 10),
+      totalPts: Math.max(0, Math.round(Number(item.totalPts || 0) * 10) / 10),
+      gradedCount: Math.max(0, Math.min(500, Math.round(Number(item.gradedCount || 0)))),
+      totalCount: Math.max(0, Math.min(500, Math.round(Number(item.totalCount || 0)))),
+      complete: Boolean(item.complete),
+      hintsUsed: Math.max(0, Math.min(500, Math.round(Number(item.hintsUsed || 0)))),
+      hintedQCount: Math.max(0, Math.min(500, Math.round(Number(item.hintedQCount || 0)))),
+      hintPenaltyPts: Math.max(0, Math.round(Number(item.hintPenaltyPts || 0) * 10) / 10),
+      breaksCount: Math.max(0, Math.min(100, Math.round(Number(item.breaksCount || 0)))),
+      breakSec: Math.max(0, Math.min(86400, Math.round(Number(item.breakSec || 0)))),
+      durationSec: Math.max(0, Math.min(86400, Math.round(Number(item.durationSec || 0)))),
+      examStyle: item.examStyle === 'guided' ? 'guided' : 'blind',
+      gradingKind: VALID_GRADING_KINDS.has(item.gradingKind) ? item.gradingKind : 'mixed',
+    };
+    const prev = byKey.get(sid);
+    if (!prev || (Date.parse(row.completedAt || '') || 0) >= (Date.parse(prev.completedAt || '') || 0)) {
+      byKey.set(sid, row);
+    }
+  }
+  return [...byKey.values()]
+    .sort((a, b) => (Date.parse(b.completedAt || '') || 0) - (Date.parse(a.completedAt || '') || 0))
+    .slice(0, 15);
+}
+
 function cleanExamResults(raw) {
   if (!isObj(raw)) return {};
   const out = {};
@@ -182,27 +227,66 @@ function cleanExamResults(raw) {
     if (typeof k !== 'string' || !k.includes(':') || k.length > 140 || !isObj(v)) continue;
     const lastPct = Math.min(100, Math.max(0, Math.round(Number(v.lastPct ?? v.bestPct ?? 0) * 10) / 10));
     const bestPct = Math.min(100, Math.max(lastPct, Math.round(Number(v.bestPct ?? lastPct) * 10) / 10));
+    const lastRawPct = Number.isFinite(Number(v.lastRawPct))
+      ? Math.min(100, Math.max(0, Math.round(Number(v.lastRawPct) * 10) / 10))
+      : lastPct;
+    const bestRawPct = Number.isFinite(Number(v.bestRawPct))
+      ? Math.min(100, Math.max(0, Math.round(Number(v.bestRawPct) * 10) / 10))
+      : bestPct;
     const completedAt = typeof v.completedAt === 'string' && Number.isFinite(Date.parse(v.completedAt))
       ? new Date(v.completedAt).toISOString()
       : '';
     const bestAt = typeof v.bestAt === 'string' && Number.isFinite(Date.parse(v.bestAt))
       ? new Date(v.bestAt).toISOString()
       : completedAt;
+    const bestCleanPct = v.bestCleanPct != null && Number.isFinite(Number(v.bestCleanPct))
+      ? Math.min(100, Math.max(0, Math.round(Number(v.bestCleanPct) * 10) / 10))
+      : null;
+    const bestCleanAt = typeof v.bestCleanAt === 'string' && Number.isFinite(Date.parse(v.bestCleanAt))
+      ? new Date(v.bestCleanAt).toISOString()
+      : '';
+    const attemptHistory = cleanAttemptHistory(v.attemptHistory);
+    const gradedCount = Math.max(0, Math.min(500, Math.round(Number(v.gradedCount || 0))));
+    const totalCount = Math.max(0, Math.min(500, Math.round(Number(v.totalCount || 0))));
+    const attemptsCount = Math.max(1, Math.min(500, Math.round(Number(v.attemptsCount || 1))), attemptHistory.length);
+    const histComp = attemptHistory.filter((x) => x.complete).length;
+    const completedAttempts = Number.isFinite(Number(v.completedAttempts))
+      ? Math.max(0, Math.min(500, Math.round(Number(v.completedAttempts))), histComp)
+      : Math.max(totalCount > 0 && gradedCount >= totalCount ? attemptsCount : 0, histComp);
     out[k] = {
       courseId: typeof v.courseId === 'string' ? v.courseId.slice(0, 48) : k.split(':')[0].slice(0, 48),
       collectionId: typeof v.collectionId === 'string' ? v.collectionId.slice(0, 80) : k.split(':').slice(1).join(':').slice(0, 80),
       lastPct,
+      lastRawPct,
       lastGrade: VALID_GRADES.has(v.lastGrade) ? v.lastGrade : gradeForPctSync(lastPct),
+      lastHintsUsed: v.lastHintsUsed == null ? null : Math.max(0, Math.min(500, Math.round(Number(v.lastHintsUsed || 0)))),
+      lastHintedQCount: v.lastHintedQCount == null ? null : Math.max(0, Math.min(500, Math.round(Number(v.lastHintedQCount || 0)))),
+      lastBreaksCount: v.lastBreaksCount == null ? null : Math.max(0, Math.min(100, Math.round(Number(v.lastBreaksCount || 0)))),
+      lastDurationSec: v.lastDurationSec == null ? null : Math.max(0, Math.min(86400, Math.round(Number(v.lastDurationSec || 0)))),
+      lastStyle: v.lastStyle === 'guided' ? 'guided' : v.lastStyle === 'blind' ? 'blind' : '',
       bestPct,
+      bestRawPct,
       bestGrade: VALID_GRADES.has(v.bestGrade) ? v.bestGrade : gradeForPctSync(bestPct),
+      bestEarnedPts: v.bestEarnedPts == null ? null : Math.max(0, Math.round(Number(v.bestEarnedPts || 0) * 10) / 10),
+      bestTotalPts: v.bestTotalPts == null ? null : Math.max(0, Math.round(Number(v.bestTotalPts || 0) * 10) / 10),
+      bestHintsUsed: v.bestHintsUsed == null ? null : Math.max(0, Math.min(500, Math.round(Number(v.bestHintsUsed || 0)))),
+      bestHintedQCount: v.bestHintedQCount == null ? null : Math.max(0, Math.min(500, Math.round(Number(v.bestHintedQCount || 0)))),
+      bestBreaksCount: v.bestBreaksCount == null ? null : Math.max(0, Math.min(100, Math.round(Number(v.bestBreaksCount || 0)))),
+      bestDurationSec: v.bestDurationSec == null ? null : Math.max(0, Math.min(86400, Math.round(Number(v.bestDurationSec || 0)))),
+      bestStyle: v.bestStyle === 'guided' ? 'guided' : v.bestStyle === 'blind' ? 'blind' : '',
+      bestCleanPct,
+      bestCleanGrade: bestCleanPct != null ? gradeForPctSync(bestCleanPct) : '',
+      bestCleanAt,
       earnedPts: Math.max(0, Math.round(Number(v.earnedPts || 0) * 10) / 10),
       totalPts: Math.max(0, Math.round(Number(v.totalPts || 0) * 10) / 10),
-      gradedCount: Math.max(0, Math.min(500, Math.round(Number(v.gradedCount || 0)))),
-      totalCount: Math.max(0, Math.min(500, Math.round(Number(v.totalCount || 0)))),
+      gradedCount,
+      totalCount,
       gradingKind: VALID_GRADING_KINDS.has(v.gradingKind) ? v.gradingKind : 'mixed',
-      attemptsCount: Math.max(1, Math.min(500, Math.round(Number(v.attemptsCount || 1)))),
+      attemptsCount,
+      completedAttempts,
       completedAt,
       bestAt,
+      attemptHistory,
     };
     if (++count >= 150) break;
   }
@@ -222,13 +306,32 @@ function mergeExamResults(existingRaw, incomingRaw) {
     const aAt = Date.parse(a.completedAt || '') || 0;
     const bAt = Date.parse(b.completedAt || '') || 0;
     const latest = bAt >= aAt ? b : a;
-    const best = b.bestPct >= a.bestPct ? b : a;
+    const bWinsBest = b.bestPct > a.bestPct + 0.04
+      || (Math.abs(b.bestPct - a.bestPct) <= 0.04 && (b.bestHintsUsed ?? 9999) <= (a.bestHintsUsed ?? 9999));
+    const best = bWinsBest ? b : a;
+    const mergedHist = cleanAttemptHistory([...(a.attemptHistory || []), ...(b.attemptHistory || [])]);
+    const cleanA = a.bestCleanPct == null ? -1 : a.bestCleanPct;
+    const cleanB = b.bestCleanPct == null ? -1 : b.bestCleanPct;
+    const bestCleanPct = Math.max(cleanA, cleanB);
     merged[k] = {
       ...latest,
       bestPct: best.bestPct,
+      bestRawPct: best.bestRawPct,
       bestGrade: best.bestGrade,
+      bestEarnedPts: best.bestEarnedPts,
+      bestTotalPts: best.bestTotalPts,
+      bestHintsUsed: best.bestHintsUsed,
+      bestHintedQCount: best.bestHintedQCount,
+      bestBreaksCount: best.bestBreaksCount,
+      bestDurationSec: best.bestDurationSec,
+      bestStyle: best.bestStyle,
       bestAt: best.bestAt || latest.completedAt,
-      attemptsCount: Math.max(a.attemptsCount, b.attemptsCount),
+      bestCleanPct: bestCleanPct >= 0 ? bestCleanPct : null,
+      bestCleanGrade: bestCleanPct >= 0 ? gradeForPctSync(bestCleanPct) : '',
+      bestCleanAt: cleanB >= cleanA && cleanB >= 0 ? (b.bestCleanAt || b.completedAt) : a.bestCleanAt,
+      attemptsCount: Math.max(a.attemptsCount, b.attemptsCount, mergedHist.length),
+      completedAttempts: Math.max(a.completedAttempts || 0, b.completedAttempts || 0, mergedHist.filter((x) => x.complete).length),
+      attemptHistory: mergedHist,
     };
   }
   return merged;

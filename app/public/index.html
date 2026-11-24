@@ -732,7 +732,8 @@
     <div id="break-duel-slot" class="break-duel-slot" hidden></div>
     <div class="break-session-actions">
       <button type="button" class="primary-btn" id="break-resume-btn">Start next 75 min</button>
-      <button type="button" class="ghost-btn" id="break-add-1m">+1 minute</button>
+      <button type="button" class="ghost-btn" id="break-add-1m">+1 min</button>
+      <button type="button" class="ghost-btn" id="break-add-5m">+5 min</button>
     </div>
     <div class="break-tool-list" id="break-tool-list" role="group" aria-label="Break tools" hidden>
       <button type="button" class="ghost-btn" id="break-community-btn" hidden>Open Community</button>
@@ -743,6 +744,17 @@
       <button type="button" class="ghost-btn" id="break-end-session-btn" hidden>End session</button>
       <button type="button" class="ghost-btn" id="break-close-btn" hidden>Close</button>
     </div>
+  </dialog>
+
+  <dialog id="exam-history-dialog" class="member-dialog exam-history-dialog" aria-labelledby="exam-history-title">
+    <div class="exam-history-head">
+      <div>
+        <span class="eyebrow" id="exam-history-eyebrow">Exam Attempts</span>
+        <h2 id="exam-history-title" style="margin:2px 0 0">Best Attempt &amp; History</h2>
+      </div>
+      <button type="button" class="ghost-btn" id="exam-history-close" aria-label="Close">Close</button>
+    </div>
+    <div id="exam-history-body" class="exam-history-body"></div>
   </dialog>
 
   <dialog id="layout-dialog" class="member-dialog" aria-labelledby="layout-title">

@@ -304,6 +304,77 @@ window.StudyApp = (() => {
     }
   }
 
+  function normalizeAttemptHistoryList(list) {
+    if (!Array.isArray(list)) return [];
+    const byKey = new Map();
+    for (const item of list) {
+      if (!isRecord(item) || !Number.isFinite(Number(item.pct))) continue;
+      const pct = Math.max(0, Math.min(100, Math.round(Number(item.pct) * 10) / 10));
+      const rawPct = Number.isFinite(Number(item.rawPct))
+        ? Math.max(0, Math.min(100, Math.round(Number(item.rawPct) * 10) / 10))
+        : pct;
+      const completedAt = typeof item.completedAt === 'string' && backupTime(item.completedAt)
+        ? new Date(item.completedAt).toISOString()
+        : '';
+      const sid = typeof item.sessionId === 'string' && item.sessionId.trim()
+        ? item.sessionId.trim().slice(0, 64)
+        : (completedAt || `at-${byKey.size}`);
+      const clean = {
+        sessionId: sid,
+        completedAt,
+        pct,
+        rawPct,
+        grade: gradeFromPct(pct)?.letter || 'F',
+        earnedPts: Math.max(0, Math.round(Number(item.earnedPts || 0) * 10) / 10),
+        totalPts: Math.max(0, Math.round(Number(item.totalPts || 0) * 10) / 10),
+        gradedCount: Math.max(0, Math.round(Number(item.gradedCount || 0))),
+        totalCount: Math.max(0, Math.round(Number(item.totalCount || 0))),
+        complete: Boolean(item.complete),
+        hintsUsed: Math.max(0, Math.round(Number(item.hintsUsed || 0))),
+        hintedQCount: Math.max(0, Math.round(Number(item.hintedQCount || 0))),
+        hintPenaltyPts: Math.max(0, Math.round(Number(item.hintPenaltyPts || 0) * 10) / 10),
+        breaksCount: Math.max(0, Math.round(Number(item.breaksCount || 0))),
+        breakSec: Math.max(0, Math.round(Number(item.breakSec || 0))),
+        durationSec: Math.max(0, Math.round(Number(item.durationSec || 0))),
+        examStyle: item.examStyle === 'guided' ? 'guided' : 'blind',
+        gradingKind: ['auto', 'rubric', 'mixed'].includes(item.gradingKind) ? item.gradingKind : 'mixed',
+      };
+      const prev = byKey.get(sid);
+      if (!prev || backupTime(clean.completedAt) >= backupTime(prev.completedAt)) {
+        byKey.set(sid, clean);
+      }
+    }
+    return [...byKey.values()]
+      .sort((a, b) => backupTime(b.completedAt) - backupTime(a.completedAt))
+      .slice(0, 15);
+  }
+
+  function isBetterExamAttempt(candPct, candHints, prevPct, prevHints) {
+    if (!Number.isFinite(prevPct) || prevPct < 0) return true;
+    if (candPct > prevPct + 0.04) return true;
+    if (Math.abs(candPct - prevPct) <= 0.04) {
+      const ch = Number.isFinite(candHints) ? candHints : 9999;
+      const ph = Number.isFinite(prevHints) ? prevHints : 9999;
+      return ch <= ph;
+    }
+    return false;
+  }
+
+  function inferCompletedAttempts(entry) {
+    if (!isRecord(entry)) return 0;
+    const explicit = Number(entry.completedAttempts);
+    const histComplete = Array.isArray(entry.attemptHistory)
+      ? entry.attemptHistory.filter((x) => x?.complete).length
+      : 0;
+    if (Number.isFinite(explicit) && explicit >= 0) {
+      return Math.max(Math.round(explicit), histComplete);
+    }
+    const g = Number(entry.gradedCount || 0);
+    const t = Number(entry.totalCount || 0);
+    const legacyCount = t > 0 && g >= t ? Math.max(1, Math.round(Number(entry.attemptsCount || 1))) : 0;
+    return Math.max(legacyCount, histComplete);
+  }
+
   function mergeExamResultsMaps(baseMap, incMap) {
     const base = isRecord(baseMap) ? baseMap : {};
     const inc = isRecord(incMap) ? incMap : {};
@@ -321,15 +392,47 @@ window.StudyApp = (() => {
       const incAt = backupTime(v.completedAt);
       const curBest = Number(cur.bestPct || 0);
       const incBest = Number(v.bestPct || 0);
-      if (incAt > curAt || incBest > curBest || Number(v.attemptsCount || 0) > Number(cur.attemptsCount || 0)) {
+      const curHints = cur.bestHintsUsed == null ? null : Number(cur.bestHintsUsed);
+      const incHints = v.bestHintsUsed == null ? null : Number(v.bestHintsUsed);
+      const curComp = inferCompletedAttempts(cur);
+      const incComp = inferCompletedAttempts(v);
+      const mergedHist = normalizeAttemptHistoryList([...(cur.attemptHistory || []), ...(v.attemptHistory || [])]);
+      const prevHistLen = Array.isArray(cur.attemptHistory) ? cur.attemptHistory.length : 0;
+      const incClean = v.bestCleanPct == null ? -1 : Number(v.bestCleanPct);
+      const curClean = cur.bestCleanPct == null ? -1 : Number(cur.bestCleanPct);
+      const bestCleanPct = Math.max(curClean, incClean);
+      if (
+        incAt > curAt
+        || isBetterExamAttempt(incBest, incHints, curBest, curHints)
+        || Number(v.attemptsCount || 0) > Number(cur.attemptsCount || 0)
+        || incComp > curComp
+        || mergedHist.length > prevHistLen
+        || bestCleanPct > curClean
+      ) {
         const latest = incAt >= curAt ? v : cur;
-        const best = incBest >= curBest ? v : cur;
+        const incWinsBest = isBetterExamAttempt(incBest, incHints, curBest, curHints)
+          && (incBest > curBest + 0.04 || (Math.abs(incBest - curBest) <= 0.04 && (incHints ?? 9999) < (curHints ?? 9999)));
+        const best = incWinsBest ? v : cur;
+        const bestPctVal = Math.max(curBest, incBest);
         out[k] = {
           ...latest,
-          bestPct: Math.max(curBest, incBest),
-          bestGrade: (gradeFromPct(Math.max(curBest, incBest))?.letter) || best.bestGrade || latest.lastGrade,
+          bestPct: bestPctVal,
+          bestRawPct: best.bestRawPct ?? latest.bestRawPct ?? bestPctVal,
+          bestGrade: (gradeFromPct(bestPctVal)?.letter) || best.bestGrade || latest.lastGrade,
+          bestEarnedPts: best.bestEarnedPts ?? best.earnedPts ?? latest.earnedPts,
+          bestTotalPts: best.bestTotalPts ?? best.totalPts ?? latest.totalPts,
+          bestHintsUsed: best.bestHintsUsed ?? null,
+          bestHintedQCount: best.bestHintedQCount ?? null,
+          bestBreaksCount: best.bestBreaksCount ?? null,
+          bestDurationSec: best.bestDurationSec ?? null,
+          bestStyle: best.bestStyle || latest.lastStyle || '',
           bestAt: best.bestAt || latest.completedAt || '',
-          attemptsCount: Math.max(Number(cur.attemptsCount || 1), Number(v.attemptsCount || 1)),
+          bestCleanPct: bestCleanPct >= 0 ? bestCleanPct : null,
+          bestCleanGrade: bestCleanPct >= 0 ? (gradeFromPct(bestCleanPct)?.letter || '') : '',
+          bestCleanAt: incClean >= curClean && incClean >= 0 ? (v.bestCleanAt || v.completedAt || '') : (cur.bestCleanAt || ''),
+          attemptsCount: Math.max(Number(cur.attemptsCount || 1), Number(v.attemptsCount || 1), mergedHist.length),
+          completedAttempts: Math.max(curComp, incComp, mergedHist.filter((x) => x.complete).length),
+          attemptHistory: mergedHist,
         };
         changed++;
       }
@@ -342,29 +445,117 @@ window.StudyApp = (() => {
     if (isDevSandbox()) return null;
     const key = `${courseId}:${collectionId}`;
     const pct = Math.max(0, Math.min(100, Math.round(Number(summary.pct) * 10) / 10));
+    const rawPct = Number.isFinite(Number(summary.rawPct))
+      ? Math.max(0, Math.min(100, Math.round(Number(summary.rawPct) * 10) / 10))
+      : pct;
     const g = gradeFromPct(pct);
     const nowIso = new Date().toISOString();
+    const hintsUsed = Math.max(0, Math.round(Number(summary.hintsTotal ?? summary.hintsUsed ?? 0)));
+    const hintedQCount = Math.max(0, Math.round(Number(summary.hintedQCount || 0)));
+    const hintPenaltyPts = Math.max(0, Math.round(Number(summary.hintPenaltyPts || 0) * 10) / 10);
+    const breaksCount = Math.max(0, Math.round(Number(summary.breaksCount || 0)));
+    const breakSec = Math.max(0, Math.round(Number(summary.breakSec || 0)));
+    const durationSec = Math.max(0, Math.round(Number(summary.durationSec || 0)));
+    const earnedPts = Math.round(Number(summary.earnedPts || 0) * 10) / 10;
+    const totalPts = Math.round(Number(summary.totalPts || 0) * 10) / 10;
+    const gradedCount = Math.max(0, Math.round(Number(summary.gradedCount || 0)));
+    const totalCount = Math.max(0, Math.round(Number(summary.totalCount || 0)));
+    const examStyle = summary.examStyle === 'guided' ? 'guided' : 'blind';
+    const gradingKind = ['auto', 'rubric', 'mixed'].includes(summary.gradingKind) ? summary.gradingKind : 'mixed';
+    const isComplete = Boolean(summary.complete || (totalCount > 0 && gradedCount >= totalCount));
+    const sessionId = typeof summary.sessionId === 'string' && summary.sessionId.trim()
+      ? summary.sessionId.trim().slice(0, 64)
+      : `ses-${Date.now()}`;
+
     const saveInto = (map) => {
       const prev = isRecord(map[key]) ? map[key] : null;
       const prevBest = prev ? Number(prev.bestPct ?? prev.lastPct ?? -1) : -1;
-      const isNewBest = pct >= prevBest;
+      const prevBestHints = prev?.bestHintsUsed == null ? null : Number(prev.bestHintsUsed);
+      const isNewBest = isBetterExamAttempt(pct, hintsUsed, prevBest, prevBestHints);
       const bestPct = isNewBest ? pct : prevBest;
       const bestG = gradeFromPct(bestPct);
+
+      const prevCleanBest = prev?.bestCleanPct == null ? -1 : Number(prev.bestCleanPct);
+      const isNewCleanBest = hintsUsed === 0 && pct >= prevCleanBest;
+      const bestCleanPct = isNewCleanBest ? pct : (prevCleanBest >= 0 ? prevCleanBest : null);
+      const bestCleanGrade = bestCleanPct != null ? (gradeFromPct(bestCleanPct)?.letter || '') : '';
+
+      const prevHist = normalizeAttemptHistoryList(prev?.attemptHistory || []);
+      const hadSession = prevHist.some((x) => x.sessionId === sessionId);
+      const hadSessionComplete = prevHist.some((x) => x.sessionId === sessionId && x.complete);
+      const nextAttemptRec = {
+        sessionId,
+        completedAt: nowIso,
+        pct,
+        rawPct,
+        grade: g.letter,
+        earnedPts,
+        totalPts,
+        gradedCount,
+        totalCount,
+        complete: isComplete,
+        hintsUsed,
+        hintedQCount,
+        hintPenaltyPts,
+        breaksCount,
+        breakSec,
+        durationSec,
+        examStyle,
+        gradingKind,
+      };
+      const attemptHistory = normalizeAttemptHistoryList([
+        nextAttemptRec,
+        ...prevHist.filter((x) => x.sessionId !== sessionId),
+      ]);
+
+      const prevAttempts = Number(prev?.attemptsCount || 0);
+      const incAttempt = Boolean(summary.incrementAttempt) && !hadSession;
+      const attemptsCount = Math.max(
+        1,
+        prevAttempts + (incAttempt ? 1 : prev ? 0 : 1),
+        attemptHistory.length
+      );
+      const prevCompleted = inferCompletedAttempts(prev);
+      const incComplete = isComplete && !hadSessionComplete;
+      const completedAttempts = Math.max(
+        prevCompleted + (incComplete ? 1 : 0),
+        attemptHistory.filter((x) => x.complete).length
+      );
+
       const entry = {
         courseId: String(courseId),
         collectionId: String(collectionId),
         lastPct: pct,
+        lastRawPct: rawPct,
         lastGrade: g.letter,
+        lastHintsUsed: hintsUsed,
+        lastHintedQCount: hintedQCount,
+        lastBreaksCount: breaksCount,
+        lastDurationSec: durationSec,
+        lastStyle: examStyle,
         bestPct,
+        bestRawPct: isNewBest ? rawPct : (prev?.bestRawPct ?? bestPct),
         bestGrade: bestG.letter,
-        earnedPts: Math.round(Number(summary.earnedPts || 0) * 10) / 10,
-        totalPts: Math.round(Number(summary.totalPts || 0) * 10) / 10,
-        gradedCount: Math.max(0, Math.round(Number(summary.gradedCount || 0))),
-        totalCount: Math.max(0, Math.round(Number(summary.totalCount || 0))),
-        gradingKind: ['auto', 'rubric', 'mixed'].includes(summary.gradingKind) ? summary.gradingKind : 'mixed',
-        attemptsCount: Math.max(1, Number(prev?.attemptsCount || 0) + (summary.incrementAttempt ? 1 : prev ? 0 : 1)),
+        bestEarnedPts: isNewBest ? earnedPts : (prev?.bestEarnedPts ?? prev?.earnedPts ?? earnedPts),
+        bestTotalPts: isNewBest ? totalPts : (prev?.bestTotalPts ?? prev?.totalPts ?? totalPts),
+        bestHintsUsed: isNewBest ? hintsUsed : (prev?.bestHintsUsed ?? null),
+        bestHintedQCount: isNewBest ? hintedQCount : (prev?.bestHintedQCount ?? null),
+        bestBreaksCount: isNewBest ? breaksCount : (prev?.bestBreaksCount ?? null),
+        bestDurationSec: isNewBest ? durationSec : (prev?.bestDurationSec ?? null),
+        bestStyle: isNewBest ? examStyle : (prev?.bestStyle || examStyle),
+        bestCleanPct,
+        bestCleanGrade,
+        bestCleanAt: isNewCleanBest ? nowIso : (prev?.bestCleanAt || ''),
+        earnedPts,
+        totalPts,
+        gradedCount,
+        totalCount,
+        gradingKind,
+        attemptsCount,
+        completedAttempts,
         completedAt: nowIso,
         bestAt: isNewBest ? nowIso : (prev?.bestAt || nowIso),
+        attemptHistory,
       };
       map[key] = entry;
       return entry;
@@ -4069,6 +4260,21 @@ window.StudyApp = (() => {
       ? 'Auto + Rubric'
       : '';
 
+    const completedAttempts = savedResult
+      ? inferCompletedAttempts(savedResult)
+      : (status === 'completed' ? 1 : 0);
+    const bestHintsUsed = savedResult && savedResult.bestHintsUsed != null && Number.isFinite(Number(savedResult.bestHintsUsed))
+      ? Math.max(0, Math.round(Number(savedResult.bestHintsUsed)))
+      : null;
+    const bestRawPct = savedResult && Number.isFinite(Number(savedResult.bestRawPct))
+      ? Math.round(Number(savedResult.bestRawPct))
+      : bestPct;
+    const bestCleanPct = savedResult && savedResult.bestCleanPct != null && Number.isFinite(Number(savedResult.bestCleanPct))
+      ? Math.round(Number(savedResult.bestCleanPct))
+      : null;
+    const bestCleanGrade = bestCleanPct != null ? gradeFromPct(bestCleanPct) : null;
+    const attemptHistory = Array.isArray(savedResult?.attemptHistory) ? savedResult.attemptHistory : [];
+
     return {
       total,
       done,
@@ -4083,7 +4289,13 @@ window.StudyApp = (() => {
       grade,
       gradeSource,
       bestPct,
+      bestRawPct,
       lastPct,
+      bestHintsUsed,
+      bestCleanPct,
+      bestCleanGrade,
+      completedAttempts,
+      attemptHistory,
       savedResult,
       gradingMode,
       gradingLabel,
@@ -4138,6 +4350,7 @@ window.StudyApp = (() => {
     let globalGradedPapers = 0;
     let globalQsTotal = 0;
     let globalQsDone = 0;
+    let globalCompletedAttempts = 0;
 
     const coursePrepared = sortedCourses.map((c) => {
       const maint = getCourseMaintenance(c.courseId);
@@ -4168,6 +4381,7 @@ window.StudyApp = (() => {
           }
           globalQsTotal += p.prog.total;
           globalQsDone += Math.min(p.prog.total, p.prog.done);
+          globalCompletedAttempts += Number(p.prog.completedAttempts || 0);
         }
       }
       return { c, maint, maintLocked, papers };
@@ -4181,11 +4395,19 @@ window.StudyApp = (() => {
       const { col, meta, prog } = item;
       const g = prog.grade;
       const isOfficialOrFullGrade = Boolean(g && prog.gradeSource !== 'estimate');
+      const hasBestAttempt = Boolean(isOfficialOrFullGrade && prog.bestPct != null);
+      const compCount = Number(prog.completedAttempts || 0);
+      const bestHints = prog.bestHintsUsed;
 
       let rightBadgeHtml = '';
       if (isOfficialOrFullGrade) {
         const star = g.letter === 'A' ? '★ ' : '';
-        const tip = `${prog.gradingLabel || 'Graded'} · Best ${prog.bestPct}% (BI Grade ${g.letter} · ${g.label})${prog.savedResult?.attemptsCount > 1 ? ` · ${prog.savedResult.attemptsCount} sits` : ''}`;
+        const hintTip = bestHints === 0
+          ? ' · Clean (0 hints)'
+          : bestHints > 0
+          ? ` · ${bestHints} hint${bestHints === 1 ? '' : 's'} used${prog.bestRawPct && prog.bestRawPct !== prog.bestPct ? ` (raw ${prog.bestRawPct}%)` : ''}`
+          : '';
+        const tip = `${prog.gradingLabel || 'Graded'} · Best ${prog.bestPct}% (BI Grade ${g.letter} · ${g.label})${hintTip} · ${compCount} completed attempt${compCount === 1 ? '' : 's'}`;
         rightBadgeHtml = `<span class="exam-grade-medal ${g.cls}" title="${esc(tip)}"><b>${star}${g.letter}</b><small>${prog.bestPct}%</small></span>`;
       } else if (g && prog.gradeSource === 'estimate') {
         rightBadgeHtml = `<span class="exam-grade-medal is-est ${g.cls}" title="Projected BI grade from ${prog.touched} attempted question(s)"><b>Est. ${g.letter}</b><small>${prog.bestPct}%</small></span>`;
@@ -4204,6 +4426,35 @@ window.StudyApp = (() => {
         prog.gradingLabel,
         prog.revisit > 0 ? `${prog.revisit} revisit` : '',
       ].filter(Boolean).join(' · ');
+
+      // Best attempt + hint status + completed attempts strip
+      let bestSummaryHtml = '';
+      if (hasBestAttempt) {
+        const bestStar = g.letter === 'A' ? '★ ' : '';
+        const hintTagHtml = bestHints === 0
+          ? `<span class="exam-hint-chip is-clean" title="Best attempt completed with 0 hints">✓ Clean</span>`
+          : bestHints > 0
+          ? `<span class="exam-hint-chip is-assisted" title="Best attempt used ${bestHints} hint${bestHints === 1 ? '' : 's'}${prog.bestRawPct && prog.bestRawPct !== prog.bestPct ? ` (raw ${prog.bestRawPct}% → ${prog.bestPct}%)` : ''}${prog.bestCleanGrade ? ` · Clean best: ${prog.bestCleanGrade.letter} ${prog.bestCleanPct}%` : ''}">💡 ${bestHints} hint${bestHints === 1 ? '' : 's'}</span>`
+          : '';
+        bestSummaryHtml = `<span class="exam-best-label">Best <b class="exam-inline-grade ${g.cls}">${bestStar}${g.letter} · ${prog.bestPct}%</b></span>${hintTagHtml}`;
+      } else if (g && prog.gradeSource === 'estimate') {
+        bestSummaryHtml = `<span class="exam-best-label muted">Est. <b class="exam-inline-grade ${g.cls}">${g.letter} · ${prog.bestPct}%</b></span>`;
+      } else {
+        bestSummaryHtml = `<span class="exam-best-label muted">No completed attempt yet</span>`;
+      }
+
+      const canInspectHistory = Boolean(prog.savedResult || prog.attemptHistory.length > 0);
+      const compLabel = `${compCount} completed`;
+      const attemptsBadgeHtml = canInspectHistory
+        ? `<button type="button" class="exam-attempts-pill is-clickable" data-exam-history="${esc(c.courseId)}:${esc(col.id)}" data-exam-history-title="${esc(examLabel(col.title))}" title="Inspect best attempt &amp; completed attempts">${esc(compLabel)} ▾</button>`
+        : `<span class="exam-attempts-pill ${compCount > 0 ? '' : 'is-zero'}">${esc(compLabel)}</span>`;
+
+      const attemptStripHtml = `
+        <div class="exam-attempt-strip">
+          <div class="exam-attempt-best">${bestSummaryHtml}</div>
+          ${attemptsBadgeHtml}
+        </div>
+      `;
 
       const cardClasses = [
         'exam-pack-card',
@@ -4251,6 +4502,7 @@ window.StudyApp = (() => {
           </div>
           <strong class="exam-pack-title">${esc(examLabel(col.title))}</strong>
           <small class="muted exam-pack-meta">${esc(metaBits)}</small>
+          ${attemptStripHtml}
         </div>
         <div class="exam-card-prog-cta ${prog.isGradeA ? 'is-grade-a' : prog.status === 'in_progress' ? 'is-active' : ''}">
           <div class="exam-card-prog-row">
@@ -4322,6 +4574,7 @@ window.StudyApp = (() => {
         const cACount = cGraded.filter((p) => p.prog.grade.letter === 'A').length;
         const cAvgPct = cGraded.length ? Math.round(cGraded.reduce((s, p) => s + Number(p.prog.bestPct || 0), 0) / cGraded.length) : null;
         const cAvgGrade = cAvgPct != null ? gradeFromPct(cAvgPct) : null;
+        const cCompletedAttempts = papers.reduce((s, p) => s + Number(p.prog.completedAttempts || 0), 0);
 
         if (selectedExamFilter !== 'all' && !visPast.length && !visMocks.length) {
           return '';
@@ -4348,7 +4601,7 @@ window.StudyApp = (() => {
                 <h2>${esc(c.title)}</h2>
                 <div class="exam-course-prog">
                   <div class="exam-course-prog-meta">
-                    <span><strong>${cPapersDone}/${papers.length}</strong> papers done${cPastPapers.length ? ` · <strong>${cPastDone}/${cPastPapers.length}</strong> past exams` : ''} · ${cQsDone}/${cQsTotal} Qs${cGraded.length ? ` · <strong class="exam-inline-grade ${cAvgGrade.cls}">★ ${cACount}/${papers.length} A · Avg ${cAvgGrade.letter} (${cAvgPct}%)</strong>` : ''}</span>
+                    <span><strong>${cPapersDone}/${papers.length}</strong> papers done${cCompletedAttempts > 0 ? ` · <strong>${cCompletedAttempts}</strong> completed attempt${cCompletedAttempts === 1 ? '' : 's'}` : ''}${cPastPapers.length ? ` · <strong>${cPastDone}/${cPastPapers.length}</strong> past exams` : ''} · ${cQsDone}/${cQsTotal} Qs${cGraded.length ? ` · <strong class="exam-inline-grade ${cAvgGrade.cls}">★ ${cACount}/${papers.length} A · Avg ${cAvgGrade.letter} (${cAvgPct}%)</strong>` : ''}</span>
                     <strong>${cPct}%</strong>
                   </div>
                   <div class="exam-prog-track"><div class="exam-prog-fill ${cACount === papers.length && papers.length > 0 ? 'is-grade-a' : cPct >= 100 ? 'is-done' : ''}" style="width:${cPct}%"></div></div>
@@ -4440,6 +4693,7 @@ window.StudyApp = (() => {
         <div class="exam-summary-bar">
           <div class="exam-summary-stats">
             <div class="exam-stat-chip ${globalAGrades > 0 ? 'is-gold' : ''}"><b>★ ${globalAGrades} / ${globalPapersTotal}</b><span>A-Grades Earned</span></div>
+            <div class="exam-stat-chip"><b>${globalCompletedAttempts}</b><span>Completed Attempts</span></div>
             <div class="exam-stat-chip"><b>${globalPapersDone} / ${globalPapersTotal}</b><span>Papers Completed</span></div>
             <div class="exam-stat-chip"><b>${globalFullPastDone} / ${globalFullPastTotal}</b><span>Full Past Exams</span></div>
             <div class="exam-stat-chip"><b>${globalAvgGrade ? `<span class="exam-inline-grade ${globalAvgGrade.cls}">${globalAvgGrade.letter} · ${globalAvgPct}%</span>` : '—'}</b><span>Avg Exam Grade</span></div>
@@ -4503,14 +4757,27 @@ window.StudyApp = (() => {
     });
 
     const bindCardTrigger = (el, handler) => {
-      el.addEventListener('click', handler);
+      el.addEventListener('click', (ev) => {
+        if (ev.target?.closest?.('[data-exam-history]')) return;
+        handler();
+      });
       el.addEventListener('keydown', (ev) => {
+        if (ev.target?.closest?.('[data-exam-history]')) return;
         if (ev.key === 'Enter' || ev.key === ' ') {
           ev.preventDefault();
           handler();
         }
       });
     };
+
+    root.querySelectorAll('[data-exam-history]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const key = btn.dataset.examHistory || '';
+        const title = btn.dataset.examHistoryTitle || 'Exam Attempts';
+        openExamHistoryDialog(key, title);
+      });
+    });
 
     root.querySelectorAll('[data-sit-course]').forEach((card) => {
       bindCardTrigger(card, () =>
@@ -4539,6 +4806,117 @@ window.StudyApp = (() => {
     if (focusCourseId) {
       document.getElementById(`exam-card-${focusCourseId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  }
+
+  function formatAttemptDuration(sec) {
+    const s = Math.max(0, Math.round(Number(sec) || 0));
+    if (!s) return '—';
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    if (m >= 60) {
+      const h = Math.floor(m / 60);
+      const rm = m % 60;
+      return `${h}h ${rm}m`;
+    }
+    return m > 0 ? `${m}m ${String(rem).padStart(2, '0')}s` : `${rem}s`;
+  }
+
+  function formatAttemptDate(iso) {
+    const t = backupTime(iso);
+    if (!t) return '—';
+    try {
+      return new Intl.DateTimeFormat('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'Europe/Oslo',
+      }).format(new Date(t));
+    } catch {
+      return new Date(t).toLocaleDateString();
+    }
+  }
+
+  function openExamHistoryDialog(examKey, title = 'Exam Attempts') {
+    const dlg = document.getElementById('exam-history-dialog');
+    const body = document.getElementById('exam-history-body');
+    const titleEl = document.getElementById('exam-history-title');
+    const eyebrowEl = document.getElementById('exam-history-eyebrow');
+    if (!dlg || !body) return;
+
+    const map = loadExamResultsMap();
+    const res = map[examKey] || null;
+    const [courseId] = String(examKey || '').split(':');
+    const course = boot.catalog.find((c) => c.courseId === courseId);
+    if (eyebrowEl) eyebrowEl.textContent = course ? `${course.code} · ${course.shortTitle || course.title}` : 'Exam Attempts';
+    if (titleEl) titleEl.textContent = title;
+
+    if (!res) {
+      body.innerHTML = `<p class="muted">No graded exam attempts recorded for this paper yet.</p>`;
+    } else {
+      const bestPct = Math.round(Number(res.bestPct ?? res.lastPct ?? 0));
+      const bestG = gradeFromPct(bestPct);
+      const bestRaw = Number.isFinite(Number(res.bestRawPct)) ? Math.round(Number(res.bestRawPct)) : bestPct;
+      const bestHints = res.bestHintsUsed == null ? null : Math.max(0, Math.round(Number(res.bestHintsUsed)));
+      const bestBreaks = res.bestBreaksCount == null ? 0 : Math.max(0, Math.round(Number(res.bestBreaksCount)));
+      const compCount = inferCompletedAttempts(res);
+      const totalSits = Math.max(compCount, Number(res.attemptsCount || 1));
+      const cleanBestG = res.bestCleanPct != null ? gradeFromPct(res.bestCleanPct) : null;
+
+      const bestHintBadge = bestHints === 0
+        ? `<span class="exam-hint-chip is-clean">✓ Clean (0 hints)</span>`
+        : bestHints > 0
+        ? `<span class="exam-hint-chip is-assisted">💡 ${bestHints} hint${bestHints === 1 ? '' : 's'}${bestRaw !== bestPct ? ` · raw ${bestRaw}%` : ''}</span>`
+        : `<span class="exam-hint-chip">Hints n/a (legacy sit)</span>`;
+
+      const hist = normalizeAttemptHistoryList(res.attemptHistory || []);
+      const rowsHtml = hist.length
+        ? `<div class="exam-history-list">
+            ${hist.map((a, idx) => {
+              const ag = gradeFromPct(a.pct);
+              const isBestRow = Math.round(a.pct) === bestPct && (bestHints == null || a.hintsUsed === bestHints) && idx === hist.findIndex((x) => Math.round(x.pct) === bestPct && (bestHints == null || x.hintsUsed === bestHints));
+              const hChip = a.hintsUsed === 0
+                ? `<span class="exam-hint-chip is-clean">✓ Clean</span>`
+                : `<span class="exam-hint-chip is-assisted" title="Raw ${Math.round(a.rawPct)}% · -${a.hintPenaltyPts.toFixed(1)} pts">💡 ${a.hintsUsed} hint${a.hintsUsed === 1 ? '' : 's'}</span>`;
+              const brkTxt = a.breaksCount > 0 ? ` · ☕ ${a.breaksCount} break${a.breaksCount === 1 ? '' : 's'}` : '';
+              const statusTxt = a.complete ? 'Completed' : `Partial (${a.gradedCount}/${a.totalCount})`;
+              return `<div class="exam-history-row ${isBestRow ? 'is-best' : ''}">
+                <div class="exam-history-row-left">
+                  <span class="exam-grade-medal ${ag.cls}"><b>${ag.letter === 'A' ? '★ ' : ''}${ag.letter}</b><small>${Math.round(a.pct)}%</small></span>
+                  ${hChip}
+                  ${isBestRow ? '<span class="badge good" style="font-size:10.5px;padding:1px 6px">Best</span>' : ''}
+                </div>
+                <div class="exam-history-row-meta">
+                  <span>${a.earnedPts.toFixed(1)}/${a.totalPts} pts${a.hintsUsed > 0 && Math.round(a.rawPct) !== Math.round(a.pct) ? ` (raw ${Math.round(a.rawPct)}%)` : ''} · ${esc(statusTxt)} · ${a.examStyle === 'guided' ? 'Guided' : 'Blind'}${brkTxt}</span>
+                  <small class="muted">${formatAttemptDuration(a.durationSec)} · ${esc(formatAttemptDate(a.completedAt))}</small>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>`
+        : `<p class="muted" style="font-size:13px;margin:12px 0 0">Completed sits prior to attempt-history tracking are counted above; future sits will list each run with hints &amp; breaks here.</p>`;
+
+      body.innerHTML = `
+        <div class="exam-history-best ${bestG ? bestG.cls : ''}">
+          <div class="exam-history-best-top">
+            <span class="exam-grade-medal ${bestG ? bestG.cls : ''}"><b>${bestG?.letter === 'A' ? '★ ' : ''}${bestG?.letter || '—'}</b><small>${bestPct}%</small></span>
+            ${bestHintBadge}
+            ${cleanBestG && bestHints > 0 ? `<span class="exam-hint-chip is-clean">Clean best: ${cleanBestG.letter} ${Math.round(res.bestCleanPct)}%</span>` : ''}
+          </div>
+          <div class="exam-history-stats">
+            <div><strong>${compCount}</strong><span>Completed attempt${compCount === 1 ? '' : 's'}</span></div>
+            <div><strong>${totalSits}</strong><span>Total graded sit${totalSits === 1 ? '' : 's'}</span></div>
+            <div><strong>${formatAttemptDuration(res.bestDurationSec)}</strong><span>Best run time</span></div>
+            <div><strong>${bestBreaks}</strong><span>Breaks in best</span></div>
+          </div>
+        </div>
+        ${rowsHtml}
+      `;
+    }
+
+    const closeBtn = document.getElementById('exam-history-close');
+    if (closeBtn) closeBtn.onclick = () => dlg.close();
+    dlg.onclick = (ev) => { if (ev.target === dlg) dlg.close(); };
+    if (!dlg.open) dlg.showModal();
   }
 
   function shuffleArray(arr) {
