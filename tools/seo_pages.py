@@ -539,8 +539,12 @@ def generate_growth_seo_pages(
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {seo_theme_script}
   <title>{escape(uni['title'])}</title>
-  <link rel="icon" href="../favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="../pwa/study-os-192.png" sizes="192x192">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-48.png" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
+  <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/pwa/study-os-192.png">
   <link rel="stylesheet" href="../styles.css">
 {seo_page_style}
   <style>
@@ -694,7 +698,10 @@ def generate_growth_seo_pages(
                 "name": hub_title,
                 "url": f"{base}/universities.html",
                 "description": hub_desc,
+                "image": f"{base}/og-image.png",
                 "inLanguage": ["en", "nb"],
+                "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+                "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
             },
             {
                 "@type": "ItemList",
@@ -732,8 +739,12 @@ def generate_growth_seo_pages(
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {seo_theme_script}
   <title>{escape(hub_title)}</title>
-  <link rel="icon" href="./favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-48.png" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
+  <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/pwa/study-os-192.png">
   <link rel="stylesheet" href="./styles.css">
 {seo_page_style}
   <script type="application/ld+json">{json.dumps(hub_json_ld, ensure_ascii=False)}</script>
@@ -812,7 +823,9 @@ def generate_growth_seo_pages(
                 "isAccessibleForFree": True,
                 "inLanguage": ["nb", "en"],
                 "description": gpa_desc,
+                "image": f"{base}/og-image.png",
                 "offers": {"@type": "Offer", "price": "0", "priceCurrency": "NOK"},
+                "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
             },
             {
                 "@type": "FAQPage",
@@ -848,8 +861,12 @@ def generate_growth_seo_pages(
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {seo_theme_script}
   <title>{escape(gpa_title)}</title>
-  <link rel="icon" href="./favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-48.png" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
+  <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/pwa/study-os-192.png">
   <link rel="stylesheet" href="./styles.css">
 {seo_page_style}
   <style>
@@ -1164,8 +1181,12 @@ def generate_growth_seo_pages(
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {seo_theme_script}
   <title>{escape(cmp_title)}</title>
-  <link rel="icon" href="./favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-48.png" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
+  <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/pwa/study-os-192.png">
   <link rel="stylesheet" href="./styles.css">
 {seo_page_style}
   <style>

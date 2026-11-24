@@ -52,9 +52,12 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="icon" href="./favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
-  <link rel="apple-touch-icon" href="./pwa/study-os-192.png">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-48.png" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
+  <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/pwa/study-os-192.png">
   <title>Study-OS · Free Canvas LMS Sync, Exam Prep &amp; WISEflow Workspace</title>
   <script type="application/ld+json">
     {
@@ -65,7 +68,12 @@
           "@id": "https://studyos.no/#org",
           "name": "Study-OS",
           "url": "https://studyos.no/",
-          "logo": "https://studyos.no/pwa/study-os-192.png",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://studyos.no/pwa/study-os-192.png",
+            "width": 192,
+            "height": 192
+          },
           "sameAs": [
             "https://github.com/shadjosef/study-os"
           ]
@@ -76,6 +84,7 @@
           "url": "https://studyos.no/",
           "name": "Study-OS",
           "alternateName": ["StudyOS", "Study-OS Norway", "Study-OS BI"],
+          "image": "https://studyos.no/og-image.png",
           "publisher": { "@id": "https://studyos.no/#org" },
           "inLanguage": ["en", "nb"]
         },
@@ -259,7 +268,7 @@
     <div id="site-explorer-tree" class="explorer-tree"></div>
   </aside>
 
-  <dialog id="profile-gate" class="member-dialog auth-sheet" tabindex="-1" aria-label="Sign in to Study-OS"></dialog>
+  <dialog id="profile-gate" class="member-dialog auth-sheet" closedby="none" tabindex="-1" aria-label="Sign in to Study-OS"></dialog>
   <dialog id="account-security-dialog" class="member-dialog security-sheet" tabindex="-1" aria-labelledby="security-sheet-title"></dialog>
   <dialog id="tutor-dialog" class="member-dialog" aria-labelledby="tutor-title">
     <h2 id="tutor-title">Adamlite &amp; Desktop MCP</h2>
@@ -523,6 +532,7 @@
     <noscript>
       <section class="panel" style="max-width:780px;margin:24px auto;padding:24px">
         <h1>Study-OS · BI Oslo Exam Prep, Course Notes &amp; WISEflow Practice</h1>
+        <img src="/og-image.png" width="1200" height="630" alt="Study-OS — Free BI Oslo Exam Prep, Course Notes &amp; WISEflow Workspace" style="max-width:100%;height:auto;border-radius:14px;margin:12px 0">
         <p>Free student study workspace for Oslo and BI Norwegian Business School courses. Enable JavaScript for the interactive practice runner, or browse the course overview pages below:</p>
         <ul>
           <li><a href="./bi-oslo.html">BI Oslo &amp; Norway Study Guide (English)</a></li>

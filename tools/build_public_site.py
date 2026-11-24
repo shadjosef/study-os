@@ -643,7 +643,16 @@ SEO_PAGE_STYLE = """  <style>
     .seo-faq p { margin: 8px 0 0; line-height: 1.55; color: var(--muted); font-size: 14px; }
     .seo-foot { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--muted); }
     .seo-foot nav { display: flex; flex-wrap: wrap; gap: 14px; }
+    .seo-preview-media { margin: 18px 0 0; padding: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #0b1312; }
+    .seo-preview-media img { display: block; width: 100%; height: auto; }
   </style>"""
+
+SEO_ICON_LINKS = """  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-48.png" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
+  <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/pwa/study-os-192.png">"""
 
 COURSE_NO_BLURBS: dict[str, str] = {
     "econ-2522": "Samfunnsøkonomi (mikroøkonomi og makroøkonomi) · Øvingsoppgaver, notater og WISEflow eksamensforberedelse for BI-studenter i Oslo.",
@@ -806,8 +815,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {SEO_THEME_SCRIPT}
   <title>{escape(page_title)}</title>
-  <link rel="icon" href="../favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="../pwa/study-os-192.png" sizes="192x192">
+{SEO_ICON_LINKS}
   <link rel="stylesheet" href="../styles.css">
 {SEO_PAGE_STYLE}
   <script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False)}</script>
@@ -838,6 +846,9 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <div class="seo-stat"><strong>{duration} min</strong><small>Timed exam simulation</small></div>
         <div class="seo-stat"><strong>{high_c} / {med_c} / {low_c}</strong><small>High / Med / Low DLPFC</small></div>
       </div>
+      <figure class="seo-preview-media">
+        <img src="{base}/og-image.png" width="1200" height="630" alt="{escape(code, quote=True)} {escape(title, quote=True)} exam prep workspace on Study-OS" loading="lazy">
+      </figure>
     </article>
 {exam_block}
     <section class="panel seo-card" style="margin-bottom:16px">
@@ -921,8 +932,11 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
                 "url": f"{base}/bi-oslo.html",
                 "name": oslo_title,
                 "description": oslo_desc,
+                "image": f"{base}/og-image.png",
                 "inLanguage": ["en", "nb"],
                 "about": {"@type": "City", "name": "Oslo"},
+                "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+                "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
             },
             {
                 "@type": "FAQPage",
@@ -988,8 +1002,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {SEO_THEME_SCRIPT}
   <title>{escape(oslo_title)}</title>
-  <link rel="icon" href="./favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+{SEO_ICON_LINKS}
   <link rel="stylesheet" href="./styles.css">
 {SEO_PAGE_STYLE}
   <script type="application/ld+json">{json.dumps(oslo_json_ld, ensure_ascii=False)}</script>
@@ -1019,6 +1032,9 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <div class="seo-stat"><strong>{len(references)}</strong><small>Reference sheets</small></div>
         <div class="seo-stat"><strong>100% Free</strong><small>No ads or trackers</small></div>
       </div>
+      <figure class="seo-preview-media">
+        <img src="{base}/og-image.png" width="1200" height="630" alt="Study-OS BI Oslo Exam Prep, Course Notes and WISEflow Practice Workspace" loading="eager">
+      </figure>
     </article>
 
     <section>
@@ -1095,8 +1111,11 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
                 "url": f"{base}/norsk.html",
                 "name": nb_title,
                 "description": nb_desc,
+                "image": f"{base}/og-image.png",
                 "inLanguage": "nb",
                 "about": {"@type": "City", "name": "Oslo"},
+                "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+                "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
             },
             {
                 "@type": "FAQPage",
@@ -1141,8 +1160,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {SEO_THEME_SCRIPT}
   <title>{escape(nb_title)}</title>
-  <link rel="icon" href="./favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+{SEO_ICON_LINKS}
   <link rel="stylesheet" href="./styles.css">
 {SEO_PAGE_STYLE}
   <script type="application/ld+json">{json.dumps(nb_json_ld, ensure_ascii=False)}</script>
@@ -1229,8 +1247,11 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         "name": wf_title,
         "url": f"{base}/wiseflow-practice.html",
         "description": wf_desc,
+        "image": f"{base}/og-image.png",
         "inLanguage": ["en", "nb"],
         "about": ["WISEflow", "FLOWmulti", "BI Norwegian Business School", "Oslo exam preparation"],
+        "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+        "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
     }
     wf_html = f"""<!doctype html>
 <html lang="en">
@@ -1256,8 +1277,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {SEO_THEME_SCRIPT}
   <title>{escape(wf_title)}</title>
-  <link rel="icon" href="./favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+{SEO_ICON_LINKS}
   <link rel="stylesheet" href="./styles.css">
 {SEO_PAGE_STYLE}
   <script type="application/ld+json">{json.dumps(wf_json_ld, ensure_ascii=False)}</script>
@@ -1406,8 +1426,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {SEO_THEME_SCRIPT}
   <title>{escape(sync_title)}</title>
-  <link rel="icon" href="./favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+{SEO_ICON_LINKS}
   <link rel="stylesheet" href="./styles.css">
 {SEO_PAGE_STYLE}
   <script type="application/ld+json">{json.dumps(sync_json_ld, ensure_ascii=False)}</script>
@@ -1588,6 +1607,17 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       {toc_html}
     </section>\n"""
         )
+    notes_json_ld = {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": notes_title,
+        "url": f"{base}/notes.html",
+        "description": notes_desc,
+        "image": f"{base}/og-image.png",
+        "inLanguage": ["en", "nb"],
+        "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+        "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
+    }
     notes_html = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1612,10 +1642,10 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
 {SEO_THEME_SCRIPT}
   <title>{escape(notes_title)}</title>
-  <link rel="icon" href="./favicon.ico" sizes="48x48">
-  <link rel="icon" type="image/png" href="./pwa/study-os-192.png" sizes="192x192">
+{SEO_ICON_LINKS}
   <link rel="stylesheet" href="./styles.css">
 {SEO_PAGE_STYLE}
+  <script type="application/ld+json">{json.dumps(notes_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
   <main class="seo-shell">
@@ -1635,6 +1665,9 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a class="primary-btn btn-lg" href="./?view=references">Open Interactive Notes Reader →</a>
         <a class="ghost-btn btn-lg" href="./bi-oslo.html">Browse Courses</a>
       </div>
+      <figure class="seo-preview-media">
+        <img src="{base}/og-image.png" width="1200" height="630" alt="Study-OS BI Oslo Course Notes, Formula Sheets and Reference Hub" loading="eager">
+      </figure>
     </article>
 
 {"".join(ref_cards_parts)}

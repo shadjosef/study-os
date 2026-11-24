@@ -976,8 +976,9 @@ window.StudyCommunity = (() => {
     }
     const root = document.getElementById('community-root');
     if (document.getElementById('view-community').hidden) return;
+    if (!token) return;
     const available = canUse();
-    if (!available && root.querySelector('#community-social, #community-demo-view')) {
+    if (!available && root.querySelector('#community-social')) {
       renderLocked(root, currentProfile);
     } else if (available && root.querySelector('#community-locked') && !openingBreak) {
       openingBreak = true;
@@ -1016,118 +1017,229 @@ window.StudyCommunity = (() => {
     const localSchool = readLocalSchool();
     const localMajor = readLocalMajor();
     const cleanPrefill = String(prefillCode || '').trim().slice(0, 120);
+    const bookMarkSvg = `
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+      </svg>`;
+    const legalLineHtml = (verb = 'continuing') => `
+      <p class="auth-legal-line">By ${verb}, you agree to our <a href="./terms.html" target="_blank" rel="noopener">Terms</a> and <a href="./privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</p>`;
+
     root.innerHTML = `
-      <div class="auth-card">
-        <div class="auth-head">
-          <div class="auth-emblem" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-            </svg>
+      <div class="auth-card" data-auth-step="entry">
+        <!-- STEP 1: CALM FLAGSHIP ENTRY (zero scroll, 1-click primary actions) -->
+        <div class="auth-step-pane" data-step-pane="entry">
+          ${onDemo ? '<button type="button" class="auth-close-x" id="auth-close-x" title="Continue with limited preview" aria-label="Close sign in">✕</button>' : ''}
+          <div class="auth-hero-center">
+            <div class="auth-emblem" aria-hidden="true">${bookMarkSvg}</div>
+            <h1 class="auth-title">Welcome to Study-OS</h1>
+            <p class="muted auth-sub">Free student workspace — sync progress, AI tutor &amp; BI past exams.</p>
           </div>
-          <div>
-            <h1 class="auth-title">Unlock full Study-OS</h1>
-            <p class="muted auth-sub">Free student account — save progress across devices, unlock AI tutor &amp; study sets, and open BI course PDFs.</p>
-            <p class="mobile-auth-tip muted">On a computer, you can also sync Canvas &amp; TimeEdit in 1 click.</p>
+
+          ${cleanPrefill ? `<div class="auth-pass-ready-pill" role="status">✓ Class code <strong>${esc(cleanPrefill)}</strong> applied — sign in to unlock PDFs</div>` : ''}
+
+          <div id="community-top-code-wrap" class="auth-access-code-box" hidden>
+            <label class="field-label" style="margin:0">
+              <span class="field-label-row"><span>Class access code</span><span class="field-opt" id="community-top-code-hint">Optional</span></span>
+              <input id="community-top-code" type="text" value="${esc(cleanPrefill)}" autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026" maxlength="120">
+            </label>
           </div>
+
+          <div class="auth-primary-stack">
+            <div id="community-google-slot" class="auth-google-slot" hidden></div>
+            ${passkeyReady ? `
+              <button type="button" class="primary-btn auth-passkey-btn" id="community-passkey-login">
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="8" cy="15" r="4"></circle>
+                  <path d="M10.85 12.15L19 4"></path>
+                  <path d="M18 5l2 2"></path>
+                  <path d="M15 8l2 2"></path>
+                </svg>
+                <span>Sign in with Passkey</span>
+              </button>
+            ` : ''}
+          </div>
+
+          <div class="auth-or" id="community-auth-or" ${passkeyReady ? '' : 'hidden'}><span>or</span></div>
+
+          <button type="button" class="ghost-btn auth-create-cta" id="community-start-signup">Create free account</button>
+
+          <div class="auth-entry-links">
+            <button type="button" class="auth-link-btn" id="community-toggle-code" ${cleanPrefill ? 'hidden' : ''}>Class code</button>
+            <span class="auth-link-dot" id="community-link-dot-1" ${cleanPrefill ? 'hidden' : ''} aria-hidden="true">·</span>
+            <button type="button" class="auth-link-btn" id="community-open-device">Device code</button>
+            ${onDemo ? '<span class="auth-link-dot" aria-hidden="true">·</span><button type="button" class="auth-link-btn" id="community-demo">Preview first</button>' : ''}
+          </div>
+
+          ${legalLineHtml('continuing')}
         </div>
 
-        ${cleanPrefill ? `<div class="auth-pass-ready-pill" role="status">✓ Access pass link detected — sign in below to unlock full version &amp; jump straight to your course!</div>` : ''}
+        <!-- STEP 2A + 2B: PROGRESSIVE 2-STEP ACCOUNT CREATION (1 focused question at a time) -->
+        <form id="community-join" class="auth-step-pane auth-form" data-step-pane="join" hidden>
+          <div class="auth-step-nav">
+            <button type="button" class="auth-back-btn" id="auth-join-back">← Back</button>
+            <div class="auth-step-dots" aria-label="Signup progress">
+              <span class="auth-dot is-active" data-dot="1"></span>
+              <span class="auth-dot" data-dot="2"></span>
+              <small class="muted" id="auth-join-step-label">1 of 2</small>
+            </div>
+          </div>
 
-        <div id="community-top-code-wrap" class="auth-access-code-box" ${cleanPrefill ? '' : 'hidden'}>
-          <label class="field-label" style="margin:0">
-            Access code <small class="muted" id="community-top-code-hint">(required for new accounts &amp; instant course PDF access)</small>
-            <input id="community-top-code" type="text" value="${esc(cleanPrefill)}" autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026" maxlength="120">
-          </label>
-        </div>
+          <!-- Sub-step 1: Nickname (+ required access code only if closed signup) -->
+          <div class="auth-substep" data-join-substep="1">
+            <div class="auth-step-heading">
+              <h2>Pick a study nickname</h2>
+              <p class="muted">Shown on the leaderboard &amp; study rooms. You can change it later.</p>
+            </div>
+            <label class="field-label">
+              Nickname
+              <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Alex" autocomplete="username" required>
+            </label>
+            <label class="field-label" data-join-invite hidden>
+              Class access code
+              <input name="invite" type="text" disabled autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026" maxlength="120">
+            </label>
+            <button type="button" class="primary-btn auth-next-btn" id="auth-join-next">Continue →</button>
+          </div>
 
-        <div id="community-google-slot" class="auth-google-slot" hidden></div>
+          <!-- Sub-step 2: Optional school & major (skip in 1 click) -->
+          <div class="auth-substep" data-join-substep="2" hidden>
+            <div class="auth-step-heading">
+              <h2>Where do you study?</h2>
+              <p class="muted">Optional — adds your university badge and matches course filters.</p>
+            </div>
+            ${schoolFieldHtml(localSchool.school, localSchool.canvasOrigin)}
+            ${majorFieldHtml(localMajor)}
+            <details class="auth-more-opts">
+              <summary>More options (language, passkey &amp; updates)</summary>
+              <div class="auth-more-opts-body">
+                ${secondaryLanguageFieldHtml('')}
+                ${passkeyReady ? '<label class="check-row" style="font-size:13px"><input name="withPasskey" type="checkbox" checked> Set up a Passkey right after signup</label>' : ''}
+                <label class="check-row" style="font-size:13px">
+                  <input name="newsletterOptIn" type="checkbox">
+                  <span><strong>Monthly updates</strong> <small class="muted">— new past exams &amp; recaps</small></span>
+                </label>
+                <label class="field-label" data-newsletter-email hidden>Email
+                  <input name="contactEmail" type="email" placeholder="you@example.com" autocomplete="email" disabled>
+                </label>
+              </div>
+            </details>
+            <button type="submit" class="primary-btn auth-next-btn" id="auth-join-submit">Create free account →</button>
+            <button type="button" class="auth-skip-btn" id="auth-join-skip">Skip details &amp; start studying</button>
+            ${legalLineHtml('creating an account')}
+          </div>
+        </form>
 
-        ${passkeyReady ? `
-          <button type="button" class="primary-btn auth-passkey-btn" id="community-passkey-login">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="8" cy="15" r="4"></circle>
-              <path d="M10.85 12.15L19 4"></path>
-              <path d="M18 5l2 2"></path>
-              <path d="M15 8l2 2"></path>
-            </svg>
-            <span>Sign in with Passkey</span>
-          </button>
-          <button type="button" class="ghost-btn auth-passkey-create-btn" id="community-passkey-create">New profile + Passkey</button>
-        ` : ''}
-        <div class="auth-or" id="community-auth-or" ${passkeyReady ? '' : 'hidden'}><span>or</span></div>
-
-        <div id="community-google-complete-wrap" hidden>
-          <p class="muted" style="margin:0 0 8px;font-size:13px" id="community-google-complete-note"></p>
+        <!-- GOOGLE FIRST-TIME COMPLETE STEP (1 fast focused step) -->
+        <div class="auth-step-pane" id="community-google-complete-wrap" data-step-pane="google" hidden>
+          <div class="auth-step-nav">
+            <button type="button" class="auth-back-btn" id="community-google-back">← Back</button>
+            <span class="badge good">Google verified ✓</span>
+          </div>
+          <div class="auth-step-heading">
+            <h2>Finish your profile</h2>
+            <p class="muted" id="community-google-complete-note">Choose a nickname &amp; optional school to start.</p>
+          </div>
           <form id="community-google-complete-form" class="auth-form">
             <input type="hidden" name="ticket">
             <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" required></label>
             ${schoolFieldHtml(localSchool.school, localSchool.canvasOrigin)}
             ${majorFieldHtml(localMajor)}
-            <label class="field-label" data-join-invite="google" hidden>Access code <input name="invite" type="text" disabled autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026"></label>
-            ${secondaryLanguageFieldHtml('')}
-            ${signupConsentHtml({ showEmailField: false })}
-            <div class="row-actions">
-              <button type="submit" class="primary-btn" style="flex:1">Finish &amp; Sign In</button>
-              <button type="button" class="ghost-btn" id="community-google-back">Back</button>
-            </div>
+            <label class="field-label" data-join-invite="google" hidden>Class access code <input name="invite" type="text" disabled autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026" maxlength="120"></label>
+            <details class="auth-more-opts">
+              <summary>More options (language &amp; updates)</summary>
+              <div class="auth-more-opts-body">
+                ${secondaryLanguageFieldHtml('')}
+                <label class="check-row" style="font-size:13px">
+                  <input name="newsletterOptIn" type="checkbox">
+                  <span><strong>Monthly updates</strong> <small class="muted">— new past exams &amp; recaps</small></span>
+                </label>
+              </div>
+            </details>
+            <button type="submit" class="primary-btn auth-next-btn">Start studying →</button>
+            ${legalLineHtml('continuing')}
           </form>
         </div>
 
-        <div id="community-classic-wrap">
-          <div class="ios-segmented auth-tabs" role="tablist" aria-label="Sign in method">
-            <button type="button" role="tab" class="active" data-auth-tab="join" aria-selected="true">Create profile</button>
-            <button type="button" role="tab" data-auth-tab="code" aria-selected="false">Device code</button>
-            <button type="button" role="tab" data-auth-tab="key" aria-selected="false">Use a key</button>
+        <!-- DEVICE CODE & RECOVERY KEY STEP (cleanly separated from Step 1) -->
+        <div class="auth-step-pane" data-step-pane="device" hidden>
+          <div class="auth-step-nav">
+            <button type="button" class="auth-back-btn" id="auth-device-back">← Back</button>
+            <span class="muted" style="font-size:12.5px;font-weight:600">Sign in on another device</span>
           </div>
-
-          <form id="community-join" class="auth-form" data-auth-pane="join">
-            <label class="field-label">Nickname <input name="nickname" type="text" minlength="2" maxlength="24" placeholder="e.g. Alex" required></label>
-            ${schoolFieldHtml(localSchool.school, localSchool.canvasOrigin)}
-            ${majorFieldHtml(localMajor)}
-            <label class="field-label" data-join-invite hidden>Access code <input name="invite" type="text" disabled autocomplete="off" spellcheck="false" autocapitalize="characters" placeholder="e.g. BI2026"></label>
-            ${secondaryLanguageFieldHtml('')}
-            ${passkeyReady ? '<label class="check-row"><input name="withPasskey" type="checkbox" checked> Set up a passkey after signup</label>' : ''}
-            ${signupConsentHtml({ showEmailField: true })}
-            <button type="submit" class="primary-btn" aria-describedby="community-stats-notice">Create profile</button>
-            <small class="muted" id="community-stats-notice">Your nickname, school, study hours, breaks, and practice totals appear on the members leaderboard.</small>
-          </form>
-
-          <form id="community-link-redeem" class="auth-form" data-auth-pane="code" hidden>
+          <div class="ios-segmented auth-tabs auth-tabs-2" role="tablist" aria-label="Device sign in method">
+            <button type="button" role="tab" class="active" data-auth-tab="code" aria-selected="true">Device code</button>
+            <button type="button" role="tab" data-auth-tab="key" aria-selected="false">Recovery / key</button>
+          </div>
+          <form id="community-link-redeem" class="auth-form" data-auth-pane="code">
             <label class="field-label">6-character device code
               <input name="code" type="text" maxlength="7" autocomplete="off" spellcheck="false" placeholder="K7M-9P2" style="text-transform:uppercase;letter-spacing:0.12em;font-family:ui-monospace,monospace;font-weight:700" required>
             </label>
-            <button type="submit" class="primary-btn">Link this device</button>
+            <button type="submit" class="primary-btn auth-next-btn">Link this device</button>
             <small class="muted">On a signed-in device, open <b>Settings → Passkeys &amp; Linked Devices</b> to generate a 5-minute code.</small>
           </form>
-
           <form id="community-sign-in" class="auth-form" data-auth-pane="key" hidden>
             <label class="field-label">Recovery or profile key <input name="key" type="password" required autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-            <button type="submit" class="primary-btn">Sign in with key</button>
+            <button type="submit" class="primary-btn auth-next-btn">Sign in with key</button>
           </form>
         </div>
 
         <p id="community-status" class="auth-status" role="status">${esc(error)}</p>
-
-        ${onDemo ? `
-          <div class="auth-demo-bar">
-            <button type="button" class="ghost-btn" id="community-demo">Continue with limited preview (no sync or PDFs)</button>
-          </div>
-        ` : ''}
-        ${privacyNote}
       </div>`;
 
+    const card = root.querySelector('.auth-card');
     const status = root.querySelector('#community-status');
     bindSchoolPickers(root);
-    if (onDemo) root.querySelector('#community-demo').onclick = onDemo;
+
+    let currentStep = 'entry';
+    let joinSubstep = 1;
+    let authCfg = { openSignup: true, googleOpenSignup: true, requireCodeOnLogin: false, archivePassEnabled: false };
+
+    const setStep = (step, sub = 1) => {
+      currentStep = step;
+      card.dataset.authStep = step;
+      status.textContent = '';
+      root.querySelectorAll('[data-step-pane]').forEach((pane) => {
+        pane.hidden = pane.dataset.stepPane !== step;
+      });
+      if (step === 'join') {
+        joinSubstep = sub;
+        root.querySelectorAll('[data-join-substep]').forEach((el) => {
+          el.hidden = Number(el.dataset.joinSubstep) !== sub;
+        });
+        root.querySelectorAll('.auth-dot').forEach((dot) => {
+          dot.classList.toggle('is-active', Number(dot.dataset.dot) <= sub);
+        });
+        const lbl = root.querySelector('#auth-join-step-label');
+        if (lbl) lbl.textContent = `${sub} of 2`;
+        window.requestAnimationFrame(() => {
+          if (sub === 1) root.querySelector('#community-join input[name="nickname"]')?.focus();
+          else root.querySelector('#community-join [data-combo="school"] input')?.focus();
+        });
+      } else if (step === 'device') {
+        window.requestAnimationFrame(() => {
+          const activePane = root.querySelector('[data-step-pane="device"] [data-auth-pane]:not([hidden])');
+          activePane?.querySelector('input')?.focus();
+        });
+      } else if (step === 'google') {
+        window.requestAnimationFrame(() => {
+          root.querySelector('#community-google-complete-form input[name="nickname"]')?.focus();
+        });
+      }
+    };
+
+    if (onDemo) {
+      root.querySelector('#community-demo')?.addEventListener('click', onDemo);
+      root.querySelector('#auth-close-x')?.addEventListener('click', onDemo);
+    }
 
     const googleSlot = root.querySelector('#community-google-slot');
-    const googleCompleteWrap = root.querySelector('#community-google-complete-wrap');
-    const classicWrap = root.querySelector('#community-classic-wrap');
     const authOr = root.querySelector('#community-auth-or');
     const topCodeWrap = root.querySelector('#community-top-code-wrap');
     const topCodeInput = root.querySelector('#community-top-code');
     const topCodeHint = root.querySelector('#community-top-code-hint');
+    const toggleCodeBtn = root.querySelector('#community-toggle-code');
+    const linkDot1 = root.querySelector('#community-link-dot-1');
 
     const syncCodeInputs = (val) => {
       root.querySelectorAll('input[name="invite"]').forEach((inp) => {
@@ -1142,22 +1254,37 @@ window.StudyCommunity = (() => {
       });
     });
 
-    getAuthConfig().then(({ openSignup, googleOpenSignup, requireCodeOnLogin, archivePassEnabled }) => {
-      const showTopCode = Boolean(requireCodeOnLogin || !openSignup || archivePassEnabled);
-      if (topCodeWrap) topCodeWrap.hidden = !showTopCode;
-      if (topCodeHint) {
-        topCodeHint.textContent = requireCodeOnLogin
-          ? '(enter your short class code to sign up & unlock PDFs)'
-          : archivePassEnabled
-          ? '(optional with Google — enter a class code to skip Canvas Sync)'
-          : '(required for Create profile)';
+    toggleCodeBtn?.addEventListener('click', () => {
+      if (!topCodeWrap) return;
+      topCodeWrap.hidden = !topCodeWrap.hidden;
+      if (!topCodeWrap.hidden) topCodeInput?.focus();
+    });
+
+    getAuthConfig().then((cfg) => {
+      authCfg = cfg || authCfg;
+      const { openSignup, googleOpenSignup, requireCodeOnLogin, archivePassEnabled } = authCfg;
+      const mustShowTopCode = Boolean(requireCodeOnLogin);
+      if (topCodeWrap) topCodeWrap.hidden = !mustShowTopCode;
+      if (mustShowTopCode) {
+        if (toggleCodeBtn) toggleCodeBtn.hidden = true;
+        if (linkDot1) linkDot1.hidden = true;
+      } else if (!cleanPrefill && !archivePassEnabled && openSignup) {
+        if (toggleCodeBtn) toggleCodeBtn.hidden = true;
+        if (linkDot1) linkDot1.hidden = true;
       }
-      root.querySelectorAll('[data-join-invite]').forEach(label => {
+      if (topCodeHint) {
+        topCodeHint.textContent = requireCodeOnLogin ? 'Required' : 'Optional';
+      }
+      root.querySelectorAll('[data-join-invite]').forEach((label) => {
         const isGoogleField = label.dataset.joinInvite === 'google';
-        const open = Boolean(openSignup || (isGoogleField && googleOpenSignup && !requireCodeOnLogin));
-        label.hidden = open;
-        label.firstElementChild.disabled = open;
-        label.firstElementChild.required = !open;
+        const hasTopCode = Boolean((topCodeInput?.value || '').trim());
+        const hideField = Boolean(openSignup || (isGoogleField && googleOpenSignup && !requireCodeOnLogin) || hasTopCode);
+        label.hidden = hideField;
+        const inp = label.querySelector('input');
+        if (inp) {
+          inp.disabled = hideField;
+          inp.required = !hideField;
+        }
       });
     });
 
@@ -1174,7 +1301,7 @@ window.StudyCommunity = (() => {
       if (google && googleOpenSignup && !requireCodeOnLogin) {
         return optionalHashes || {};
       }
-      if (!optionalHashes) throw new Error('Enter your access code (e.g. BI2026).');
+      if (!optionalHashes) throw new Error('Enter your class access code (e.g. BI2026).');
       return optionalHashes;
     }
 
@@ -1183,24 +1310,13 @@ window.StudyCommunity = (() => {
       try {
         const res = await request('/auth/google', { idToken, label: detectDeviceLabel() }, '');
         if (res.needsJoin && res.ticket) {
-          status.textContent = '';
           const form = root.querySelector('#community-google-complete-form');
           form.elements.ticket.value = res.ticket;
           form.elements.nickname.value = res.suggestedName || '';
           if (form.elements.invite && topCodeInput?.value) {
             form.elements.invite.value = topCodeInput.value.trim();
           }
-          root.querySelector('#community-google-complete-note').textContent = 'Pick a nickname & school to finish setting up your Google sign-in.';
-          googleCompleteWrap.hidden = false;
-          classicWrap.hidden = true;
-          googleSlot.hidden = true;
-          if (topCodeWrap) topCodeWrap.hidden = true;
-          const pkBtn = root.querySelector('#community-passkey-login');
-          if (pkBtn) pkBtn.hidden = true;
-          const createBtn = root.querySelector('#community-passkey-create');
-          if (createBtn) createBtn.hidden = true;
-          if (authOr) authOr.hidden = true;
-          form.elements.nickname.focus();
+          setStep('google');
           return;
         }
         useProfile(res.token);
@@ -1219,17 +1335,59 @@ window.StudyCommunity = (() => {
       if (shown && authOr) authOr.hidden = false;
     });
 
-    root.querySelector('#community-google-back')?.addEventListener('click', () => {
-      googleCompleteWrap.hidden = true;
-      classicWrap.hidden = false;
-      googleSlot.hidden = false;
-      if (topCodeWrap) topCodeWrap.hidden = false;
-      const pkBtn = root.querySelector('#community-passkey-login');
-      if (pkBtn) pkBtn.hidden = false;
-      const createBtn = root.querySelector('#community-passkey-create');
-      if (createBtn) createBtn.hidden = false;
-      if (authOr) authOr.hidden = false;
-      status.textContent = '';
+    root.querySelector('#community-start-signup')?.addEventListener('click', () => {
+      // Sync whether Step 2a needs an access code input based on live topCodeInput value
+      const invLabel = root.querySelector('#community-join [data-join-invite]');
+      if (invLabel) {
+        const hideField = Boolean(authCfg.openSignup || (topCodeInput?.value || '').trim());
+        invLabel.hidden = hideField;
+        const inp = invLabel.querySelector('input');
+        if (inp) { inp.disabled = hideField; inp.required = !hideField; }
+      }
+      setStep('join', 1);
+    });
+    root.querySelector('#community-open-device')?.addEventListener('click', () => setStep('device'));
+    root.querySelector('#auth-device-back')?.addEventListener('click', () => setStep('entry'));
+    root.querySelector('#community-google-back')?.addEventListener('click', () => setStep('entry'));
+
+    root.querySelector('#auth-join-back')?.addEventListener('click', () => {
+      if (joinSubstep === 2) setStep('join', 1);
+      else setStep('entry');
+    });
+
+    const advanceJoinToStep2 = () => {
+      const joinForm = root.querySelector('#community-join');
+      const nickInp = joinForm?.elements?.nickname;
+      const nick = String(nickInp?.value || '').trim();
+      if (nick.length < 2 || nick.length > 24) {
+        status.textContent = 'Choose a nickname between 2 and 24 characters.';
+        nickInp?.focus();
+        return;
+      }
+      const invInp = joinForm?.querySelector('[data-join-invite]:not([hidden]) input');
+      if (invInp && invInp.required && !invInp.value.trim()) {
+        status.textContent = 'Enter your class access code (e.g. BI2026).';
+        invInp.focus();
+        return;
+      }
+      setStep('join', 2);
+    };
+
+    root.querySelector('#auth-join-next')?.addEventListener('click', advanceJoinToStep2);
+    root.querySelector('#community-join input[name="nickname"]')?.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        advanceJoinToStep2();
+      }
+    });
+    root.querySelector('#auth-join-skip')?.addEventListener('click', () => {
+      const joinForm = root.querySelector('#community-join');
+      if (!joinForm) return;
+      const schInp = joinForm.querySelector('input[name="schoolInput"]');
+      const majInp = joinForm.querySelector('input[name="majorInput"]');
+      if (schInp) schInp.value = '';
+      if (majInp) majInp.value = '';
+      joinForm.requestSubmit();
     });
 
     action(root.querySelector('#community-google-complete-form'), async (form, element) => {
@@ -1242,7 +1400,7 @@ window.StudyCommunity = (() => {
         major,
         canvasOrigin,
         secondaryLanguage: String(form.get('secondaryLanguage') || ''),
-        tosAccepted: form.get('tosAccepted') === 'on',
+        tosAccepted: true,
         newsletterOptIn: form.get('newsletterOptIn') === 'on',
         ...await signupAccess(form, element, true),
         label: detectDeviceLabel(),
@@ -1281,14 +1439,11 @@ window.StudyCommunity = (() => {
           pane.hidden = pane.dataset.authPane !== mode;
         });
         status.textContent = '';
+        root.querySelector(`[data-auth-pane="${mode}"] input`)?.focus();
       });
     });
 
     const passkeyBtn = root.querySelector('#community-passkey-login');
-    root.querySelector('#community-passkey-create')?.addEventListener('click', () => {
-      root.querySelector('[data-auth-tab="join"]').click();
-      root.querySelector('#community-join input[name="nickname"]').focus();
-    });
     if (passkeyBtn) {
       passkeyBtn.onclick = async () => {
         passkeyBtn.disabled = true;
@@ -1308,6 +1463,10 @@ window.StudyCommunity = (() => {
     }
 
     action(root.querySelector('#community-join'), async (form, element) => {
+      if (joinSubstep === 1) {
+        advanceJoinToStep2();
+        return;
+      }
       const { school, canvasOrigin } = extractSchoolFields(form);
       const major = extractMajorField(form);
       const result = await request('/join', {
@@ -1316,7 +1475,7 @@ window.StudyCommunity = (() => {
         major,
         canvasOrigin,
         secondaryLanguage: String(form.get('secondaryLanguage') || ''),
-        tosAccepted: form.get('tosAccepted') === 'on',
+        tosAccepted: true,
         newsletterOptIn: form.get('newsletterOptIn') === 'on',
         contactEmail: String(form.get('contactEmail') || '').trim(),
         ...await signupAccess(form, element),
@@ -1384,6 +1543,14 @@ window.StudyCommunity = (() => {
       try { if (sessionStorage.getItem(demoKey)) return false; } catch {}
     }
     const gate = document.getElementById('profile-gate');
+    gate.setAttribute('closedby', 'none');
+    const pulseGate = () => {
+      const card = gate.querySelector('.auth-card');
+      if (!card) return;
+      card.classList.remove('auth-shake');
+      void card.offsetWidth;
+      card.classList.add('auth-shake');
+    };
     return new Promise((resolve) => {
       const tryDemo = () => {
         try { sessionStorage.setItem(demoKey, '1'); } catch {}
@@ -1399,9 +1566,13 @@ window.StudyCommunity = (() => {
         window.StudyApp?.syncCloudProgress?.().catch(() => {});
         resolve(true);
       }, allowDemo ? tryDemo : undefined, prefillCode);
+      // Never accidentally dismiss on stray backdrop click or accidental Escape
       gate.oncancel = (event) => {
         event.preventDefault();
-        if (allowDemo) tryDemo();
+        pulseGate();
+      };
+      gate.onclick = (event) => {
+        if (event.target === gate) pulseGate();
       };
       if (!gate.open) {
         gate.showModal();
@@ -2689,7 +2860,7 @@ window.StudyCommunity = (() => {
     return copy;
   }
 
-  function chessLeaderboardHtml({ rows, meId = '', offset = 0, now = Date.now(), isDemo = false, tab = 'overall', hasMoreRanks = false }) {
+  function chessLeaderboardHtml({ rows, meId = '', offset = 0, now = Date.now(), isDemo = false, isPublicGuest = false, tab = 'overall', hasMoreRanks = false }) {
     const sorted = sortBoardRows(rows, tab);
     const crownSvg = '<svg class="lb-crown" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M3 18h18v2H3v-2zm0-2L1 7l5.5 3.5L12 4l5.5 6.5L23 7l-2 9H3z"/></svg>';
 
@@ -2799,7 +2970,7 @@ window.StudyCommunity = (() => {
                 <strong>${esc(row.nickname)}</strong>
                 ${isPublicBadgeVal(row.school) ? `<span class="leaderboard-school-pill">${esc(row.school)}</span>` : ''}
                 ${isPublicBadgeVal(row.major) ? `<span class="leaderboard-major-pill">${esc(row.major)}</span>` : ''}
-                ${row.id === meId ? '<span class="badge good">You</span>' : (!isDemo && row.id ? `<button type="button" class="lb-duel-btn" data-challenge-member-id="${esc(row.id)}" data-challenge-member-name="${esc(row.nickname)}" title="Send break-aware 1v1 duel request to ${esc(row.nickname)}">⚔️ Duel</button>` : '')}
+                ${row.id === meId && meId ? '<span class="badge good">You</span>' : (!isDemo && !isPublicGuest && row.id ? `<button type="button" class="lb-duel-btn" data-challenge-member-id="${esc(row.id)}" data-challenge-member-name="${esc(row.nickname)}" title="Send break-aware 1v1 duel request to ${esc(row.nickname)}">⚔️ Duel</button>` : '')}
               </div>
               ${row.bio ? `<small class="community-bio-sub">${esc(row.bio)}</small>` : ''}
             </div>
@@ -2825,17 +2996,19 @@ window.StudyCommunity = (() => {
     }).join('');
 
     return `
-      <section class="panel lb-arena-panel" data-lb-root="${isDemo ? 'demo' : 'live'}">
+      <section class="panel lb-arena-panel" data-lb-root="${isDemo ? 'demo' : (isPublicGuest ? 'public' : 'live')}">
         <div class="lb-arena-header">
           <div>
             <div class="lb-arena-title-row">
               <span class="lb-arena-icon" aria-hidden="true">${crownSvg}</span>
-              <h2 style="margin:0">${isDemo ? 'Leaderboard Preview' : 'Leaderboard'}</h2>
-              <span class="lb-hours-chip" title="Open during timed breaks or daily 18:00–22:30 Oslo time">18:00–22:30 Oslo · or Break</span>
+              <h2 style="margin:0">${isDemo ? 'Leaderboard Preview' : (isPublicGuest ? 'Live Leaderboard' : 'Leaderboard')}</h2>
+              <span class="lb-hours-chip" title="${isPublicGuest && !isDemo ? 'Public read-only rankings — sign in free to join & track your rank' : (isDemo ? 'Sample preview until live rankings load' : 'Open during timed breaks or daily 18:00–22:30 Oslo time')}">${isPublicGuest && !isDemo ? 'Public · Live' : (isDemo ? 'Preview' : '18:00–22:30 Oslo · or Break')}</span>
             </div>
             <p class="muted" style="margin:4px 0 0;font-size:13px">${isDemo
               ? 'Chess-style study rankings, live status & upcoming ELO arena (sample players).'
-              : 'University study rankings with titles, accuracy bars, break habits, live timers & upcoming ELO.'}</p>
+              : (isPublicGuest
+                ? 'Live university study rankings across Norway — sign up free to appear on the board & challenge classmates.'
+                : 'University study rankings with titles, accuracy bars, break habits, live timers & upcoming ELO.')}</p>
           </div>
           <div class="lb-arena-controls">
             <div class="lb-tab-strip" role="tablist" aria-label="Leaderboard ranking category">
@@ -2940,55 +3113,124 @@ window.StudyCommunity = (() => {
       </div>`;
   }
 
-  function renderDemo(root) {
+  const publicBoardCache = new Map();
+
+  async function fetchPublicLeaderboard(offset = 0, { force = false } = {}) {
+    const cleanOffset = Math.max(0, Math.min(1000, Number(offset) || 0));
+    const cached = publicBoardCache.get(cleanOffset);
+    if (!force && cached && Date.now() - cached.fetchedAt < 15_000) return cached.data;
+    try {
+      const res = await request('/leaderboard/public?offset=' + cleanOffset, null, '');
+      const data = {
+        live: true,
+        ranks: Array.isArray(res?.ranks) ? res.ranks : [],
+        hasMoreRanks: Boolean(res?.hasMoreRanks),
+        totalMembers: Number(res?.totalMembers || (res?.ranks?.length || 0)),
+        activeNow: Number(res?.activeNow || 0),
+        now: Number(res?.now || Date.now()),
+      };
+      publicBoardCache.set(cleanOffset, { fetchedAt: Date.now(), data });
+      return data;
+    } catch {
+      return {
+        live: false,
+        ranks: DEMO_LEADERBOARD_ROWS,
+        hasMoreRanks: false,
+        totalMembers: 0,
+        activeNow: 0,
+        now: Date.now(),
+      };
+    }
+  }
+
+  async function renderPublicCommunity(root, offset = 0, { forceRefresh = false } = {}) {
+    const cleanOffset = Math.max(0, Number(offset) || 0);
+    const data = await fetchPublicLeaderboard(cleanOffset, { force: forceRefresh });
+    if (token || !root.isConnected) return;
+    const isLive = Boolean(data.live);
+    const liveBadges = isLive
+      ? `<span class="badge good">Public · Live</span>${data.totalMembers ? `<span class="badge">${data.totalMembers} students</span>` : ''}${data.activeNow ? `<span class="badge lb-live-pulse">● ${data.activeNow} studying now</span>` : ''}`
+      : '<span class="badge">Leaderboard Preview</span>';
     root.innerHTML = `
-      <section class="panel" id="community-demo-view">
-        <h1 id="community-demo-title" tabindex="-1">Study community</h1>
-        <p class="muted">Explore the Chess-style leaderboard, upcoming ELO arena, Ed Discussion course forums, and try sending a message in this tab. Live Community opens during breaks or 18:00–22:30 Oslo time.</p>
-        <div class="row-actions">
-          <button type="button" class="primary-btn" id="community-join-live">Join live Community</button>
+      <section class="panel community-public-hero" id="community-public-view">
+        <div class="community-public-hero-top">
+          <div>
+            <div class="community-public-badges">${liveBadges}</div>
+            <h1 id="community-demo-title" tabindex="-1" style="margin:6px 0 4px">Study-OS Community</h1>
+            <p class="muted" style="margin:0;max-width:60ch">${isLive
+              ? 'Live university study rankings across Norway. Sign up free to claim your rank, sync progress across devices, and join 1v1 duels &amp; study pods.'
+              : 'Explore the Chess-style leaderboard, upcoming ELO arena, and Ed Discussion course forums. Sign up free to appear on the live leaderboard.'}</p>
+          </div>
+          <div class="row-actions" style="flex-shrink:0">
+            <button type="button" class="primary-btn" id="community-join-live">Join leaderboard — Free →</button>
+          </div>
         </div>
       </section>
-      ${demoCardsHtml(true)}
+      <div id="community-leaderboard-mount">${chessLeaderboardHtml({
+        rows: data.ranks,
+        meId: '',
+        offset: cleanOffset,
+        now: data.now,
+        isDemo: !isLive,
+        isPublicGuest: true,
+        tab: activeBoardTab,
+        hasMoreRanks: data.hasMoreRanks,
+      })}</div>
+      <section class="panel room-hub-panel">
+        <div class="row-between" style="margin:0 0 8px;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <h2 style="margin:0">Study Pods, 1v1 Duels &amp; Global Chat</h2>
+              <span class="badge gold">Members · 18:00–22:30 Oslo or Break</span>
+            </div>
+            <p class="muted" style="margin:4px 0 0;font-size:13px">Challenge classmates to 5-minute timed duels, study in 25m/50m/75m pods, or chat during breaks.</p>
+          </div>
+          <button type="button" class="ghost-btn" id="community-join-rooms">Sign in to join →</button>
+        </div>
+      </section>
       ${edDiscussionSectionHtml()}`;
-    root.querySelectorAll('[data-lb-tab]').forEach((btn) => {
-      btn.onclick = () => {
-        activeBoardTab = btn.dataset.lbTab || 'overall';
-        renderDemo(root);
-      };
-    });
-    const join = root.querySelector('#community-join-live');
-    join.onclick = async () => {
-      if (!canUse()) return;
+
+    const openAuth = async () => {
       const signedIn = await requireProfile({ allowDemo: true, forcePrompt: true });
       if (!signedIn) return;
-      await window.StudyRooms?.restore();
-      await render();
+      await window.StudyRooms?.restore?.();
+      await render(0);
     };
+    root.querySelector('#community-join-live')?.addEventListener('click', openAuth);
+    root.querySelector('#community-join-rooms')?.addEventListener('click', openAuth);
 
-    const form = root.querySelector('#community-demo-chat');
-    const { channel, message } = form.elements;
-    const paintMessages = () => {
-      const sample = channel.value === 'global'
-        ? ['Noah', 'Anyone up for a group session after break?']
-        : ['Mira', 'How did your last practice block go?'];
-      form.querySelector('#community-demo-messages').innerHTML = [sample, ...demoMessages
-        .filter((entry) => entry.channel === channel.value)
-        .map((entry) => ['You', entry.message])]
-        .map(([name, text]) => `<li><strong>${esc(name)}</strong><p>${esc(text)}</p></li>`).join('');
+    const bindPublicBoard = () => {
+      const mount = root.querySelector('#community-leaderboard-mount');
+      if (!mount) return;
+      mount.querySelectorAll('[data-lb-tab]').forEach((btn) => {
+        btn.onclick = () => {
+          activeBoardTab = btn.dataset.lbTab || 'overall';
+          mount.innerHTML = chessLeaderboardHtml({
+            rows: data.ranks,
+            meId: '',
+            offset: cleanOffset,
+            now: data.now,
+            isDemo: !isLive,
+            isPublicGuest: true,
+            tab: activeBoardTab,
+            hasMoreRanks: data.hasMoreRanks,
+          });
+          bindPublicBoard();
+        };
+      });
+      const refreshBtn = mount.querySelector('#community-stats');
+      if (refreshBtn) refreshBtn.onclick = () => renderPublicCommunity(root, cleanOffset, { forceRefresh: true });
+      const prevBtn = mount.querySelector('#community-ranks-prev');
+      if (prevBtn) prevBtn.onclick = () => renderPublicCommunity(root, Math.max(0, cleanOffset - 50));
+      const nextBtn = mount.querySelector('#community-ranks-next');
+      if (nextBtn) nextBtn.onclick = () => renderPublicCommunity(root, cleanOffset + 50);
     };
-    channel.onchange = paintMessages;
-    form.onsubmit = (event) => {
-      event.preventDefault();
-      if (!canUse() || !message.value.trim()) return;
-      demoMessages.push({ channel: channel.value, message: message.value.trim() });
-      if (demoMessages.length > 20) demoMessages.shift();
-      message.value = '';
-      paintMessages();
-      message.focus();
-    };
-    paintMessages();
+    bindPublicBoard();
     mountEdDiscussionSection(root);
+  }
+
+  function renderDemo(root) {
+    renderPublicCommunity(root, 0).catch(() => {});
   }
 
   function renderLocked(root, me = null) {
@@ -3584,8 +3826,7 @@ window.StudyCommunity = (() => {
     if (!api) return;
     const root = document.getElementById('community-root');
     if (!token) {
-      if (canUse()) renderDemo(root);
-      else renderLocked(root);
+      await renderPublicCommunity(root, offset);
       return;
     }
     const generation = token;

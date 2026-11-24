@@ -183,6 +183,38 @@ export default {
     if (humanError) return humanError;
     if (path === '/courses' && request.method === 'GET') return handleCourses({ path, request, db, reply });
 
+    if (path === '/leaderboard/public' && request.method === 'GET') {
+      const offset = Number(url.searchParams.get('offset') || 0);
+      if (!boundedInt(offset, 1000)) return reply({ error: 'Invalid leaderboard page.' }, 400);
+      const nowPublic = Date.now();
+      const [ranks, summary] = await Promise.all([
+        db.prepare(`
+          SELECT nickname, avatar, bio, school, major, study_minutes, break_minutes, break_count, last_break_at,
+            completed, attempts, accuracy, presence.mode,
+            presence.elapsed_seconds, presence.updated_at, presence.break_ends_at
+          FROM profiles LEFT JOIN presence ON presence.profile = profiles.id AND presence.expires_at > ?
+            AND (presence.mode <> 'break' OR presence.break_ends_at > ?)
+          ORDER BY completed DESC, study_minutes DESC, nickname LIMIT 51 OFFSET ?
+        `).bind(nowPublic, nowPublic, offset).all(),
+        db.prepare(`
+          SELECT COUNT(*) AS total,
+            SUM(CASE WHEN presence.expires_at > ? AND presence.mode IN ('working', 'break')
+              AND (presence.mode <> 'break' OR presence.break_ends_at > ?) THEN 1 ELSE 0 END) AS active
+          FROM profiles LEFT JOIN presence ON presence.profile = profiles.id
+        `).bind(nowPublic, nowPublic).first(),
+      ]);
+      return Response.json(
+        {
+          ranks: (ranks.results || []).slice(0, 50),
+          hasMoreRanks: (ranks.results || []).length > 50,
+          totalMembers: Number(summary?.total || 0),
+          activeNow: Number(summary?.active || 0),
+          now: nowPublic,
+        },
+        { status: 200, headers: { ...headers, 'Cache-Control': 'public, max-age=15' } }
+      );
+    }
+
     if (publicAuthPaths.has(path)) {
       return handlePublicAuth({
         request, path, db, env, now: Date.now(), data, reply, digest, hex,
