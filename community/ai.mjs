@@ -438,15 +438,27 @@ function parseGeneratedScheduleJson(rawText, opts = {}) {
     fixedByDate.get(ev.date).push([s, e]);
   }
 
+  const startDateOpt = /^\d{4}-\d{2}-\d{2}$/.test(String(opts.startDate || '').trim())
+    ? String(opts.startDate).trim()
+    : '';
+  const currentTimeMins = /^\d{2}:\d{2}$/.test(String(opts.currentTime || '').trim())
+    ? parseHmToMins(opts.currentTime, -1)
+    : -1;
+
   const takenByDate = new Map();
   const blocks = [];
   for (const b of rawBlocks.slice(0, 110)) {
     if (!b || typeof b !== 'object') continue;
     const date = String(b.date || '').trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    if (startDateOpt && date < startDateOpt) continue;
     const sMins = parseHmToMins(b.startTime || b.start, -1);
     const eMinsRaw = b.endTime || b.end ? parseHmToMins(b.endTime || b.end, -1) : sMins + Number(b.durationMinutes || 50);
     if (sMins < 0 || eMinsRaw <= sMins) continue;
+    // Never schedule a block on startDate that already ended or started in the past
+    if (startDateOpt && date === startDateOpt && currentTimeMins >= 0 && (eMinsRaw <= currentTimeMins || sMins < currentTimeMins - 5)) {
+      continue;
+    }
     const dur = eMinsRaw - sMins;
     if (dur < 20 || dur > 120) continue;
 
@@ -833,6 +845,9 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
     const startDate = /^\d{4}-\d{2}-\d{2}$/.test(String(data.startDate || '').trim())
       ? String(data.startDate).trim()
       : new Date(now).toISOString().slice(0, 10);
+    const currentTime = /^([01]\d|2[0-3]):([0-5]\d)$/.test(String(data.currentTime || '').trim())
+      ? String(data.currentTime).trim()
+      : '';
     const horizonDays = Math.max(7, Math.min(14, Number(data.horizonDays) || 14));
 
     const courses = (Array.isArray(data.courses) ? data.courses : [])
@@ -892,7 +907,7 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
     ].join('\n');
 
     const userPrompt = [
-      `PLAN HORIZON: ${horizonDays} days starting ${startDate}`,
+      `PLAN HORIZON: ${horizonDays} days starting ${startDate}${currentTime ? ` (CURRENT OSLO TIME: ${currentTime} — NEVER schedule blocks earlier than ${currentTime} on ${startDate} or on any date before ${startDate})` : ''}`,
       `WEEKLY WORK HOURS: ${weeklyWorkHours}h/wk -> TARGET SELF-STUDY: ~${targetStudyHours}h/wk (~${Math.round((targetStudyHours * horizonDays) / 7)}h total over ${horizonDays} days, capped at 56 blocks max)`,
       `WAKE-UP: ${wakeTime} | AUTO-BEDTIME (${sleepHours}h sleep): ${bedTime} | STUDY WINDOW: ${wakeStudyStart}–${bedStudyEnd}`,
       restDayNames.length ? `PREFERRED REST / LIGHT DAYS: ${restDayNames.join(', ')}` : '',
@@ -947,6 +962,7 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
         courses,
         fixedEvents,
         startDate,
+        currentTime,
         horizonDays,
         wakeTime,
         sleepHours,

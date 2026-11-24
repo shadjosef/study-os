@@ -2406,7 +2406,10 @@ window.StudyApp = (() => {
               <strong>${qState.debtBlocks.length} overdue ${qState.debtBlocks.length === 1 ? 'block' : 'blocks'} (+${esc(formatDurationShort(qState.debtMinutes))} rolled over)</strong>
               <span class="muted">Missed blocks stack here until cleared — complete upcoming blocks early to avoid debt.</span>
             </div>
-            <button type="button" class="ghost-btn" id="btn-hero-open-sched-debt" style="padding:4px 10px;font-size:12px">Manage →</button>
+            <div class="row-actions" style="gap:6px;flex-shrink:0">
+              <button type="button" class="ghost-btn" id="btn-hero-forgive-debt" style="padding:4px 10px;font-size:12px" title="Dismiss all overdue blocks without losing your future plan">Forgive all</button>
+              <button type="button" class="ghost-btn" id="btn-hero-open-sched-debt" style="padding:4px 10px;font-size:12px">Manage →</button>
+            </div>
           </div>`
         : '';
 
@@ -2496,6 +2499,9 @@ window.StudyApp = (() => {
       document.getElementById('btn-hero-sched')?.addEventListener('click', (ev) => {
         ev.stopPropagation();
         navigate('schedule');
+      });
+      document.getElementById('btn-hero-forgive-debt')?.addEventListener('click', () => {
+        dismissScheduleDebt(qState.debtBlocks.map((b) => b.eventId));
       });
       document.getElementById('btn-hero-open-sched-debt')?.addEventListener('click', () => navigate('schedule'));
       document.getElementById('btn-web-bi-sync')?.addEventListener('click', (ev) => {
@@ -6851,7 +6857,13 @@ window.StudyApp = (() => {
           const liveEst = computeClientStudyEstimate(formPrefs.weeklyWorkHours, weeklyClassH, boot.catalog.length || 4);
           const targetStudyHours = formPrefs.autoAdjustStudy ? liveEst.recommendedStudyHours : formPrefs.targetStudyHours;
           const nowDate = new Date();
-          const startDate = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}-${String(nowDate.getDate()).padStart(2, '0')}`;
+          const startDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(nowDate);
+          const currentTime = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Oslo',
+            hour: '2-digit',
+            minute: '2-digit',
+            hourCycle: 'h23',
+          }).format(nowDate);
 
           const coursesPayload = (boot.catalog || []).slice(0, 12).map((c) => {
             const cp = boot.analytics?.courseProgress?.[c.courseId] || {};
@@ -6877,6 +6889,7 @@ window.StudyApp = (() => {
             restDays: formPrefs.restDays,
             notes: formPrefs.customNotes,
             startDate,
+            currentTime,
             horizonDays: 14,
             courses: coursesPayload,
             fixedEvents,
@@ -6913,27 +6926,33 @@ window.StudyApp = (() => {
               };
             });
 
-          const aiBlocks = (res.blocks || []).map((b, i) => {
-            const sd = new Date(`${b.date}T${b.startTime}:00`);
-            const ed = new Date(`${b.date}T${b.endTime}:00`);
-            const dur = Math.max(20, Math.round((ed - sd) / 60_000));
-            return {
-              eventId: `hydrogen-${b.date}-${b.startTime.replace(':', '')}-${i + 1}`,
-              summary: b.title || 'Focused study block',
-              date: b.date,
-              startIso: sd.toISOString(),
-              endIso: ed.toISOString(),
-              startLabel: b.startTime,
-              endLabel: b.endTime,
-              focusMinutes: dur,
-              attemptBudgetMinutes: Math.round(dur * 0.85),
-              courseId: b.courseId || boot.catalog[0]?.courseId || '',
-              dlpfcMode: b.dlpfcMode || 'high_dlpfc',
-              profile: b.profile === 'exam' ? 'exam' : 'learning',
-              blockKind: 'study_block',
-              timingState: 'upcoming',
-            };
-          });
+          const nowThresholdMs = Date.now();
+          const aiBlocks = (res.blocks || [])
+            .map((b, i) => {
+              const sd = new Date(`${b.date}T${b.startTime}:00`);
+              const ed = new Date(`${b.date}T${b.endTime}:00`);
+              if (!Number.isFinite(sd.getTime()) || !Number.isFinite(ed.getTime()) || ed.getTime() <= nowThresholdMs) {
+                return null;
+              }
+              const dur = Math.max(20, Math.round((ed - sd) / 60_000));
+              return {
+                eventId: `hydrogen-${b.date}-${b.startTime.replace(':', '')}-${i + 1}`,
+                summary: b.title || 'Focused study block',
+                date: b.date,
+                startIso: sd.toISOString(),
+                endIso: ed.toISOString(),
+                startLabel: b.startTime,
+                endLabel: b.endTime,
+                focusMinutes: dur,
+                attemptBudgetMinutes: Math.round(dur * 0.85),
+                courseId: b.courseId || boot.catalog[0]?.courseId || '',
+                dlpfcMode: b.dlpfcMode || 'high_dlpfc',
+                profile: b.profile === 'exam' ? 'exam' : 'learning',
+                blockKind: 'study_block',
+                timingState: 'upcoming',
+              };
+            })
+            .filter(Boolean);
 
           const mergedBlocks = [...fixedBlocks, ...aiBlocks].sort(
             (a, b) => Date.parse(a.startIso || '') - Date.parse(b.startIso || '')

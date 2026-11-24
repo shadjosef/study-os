@@ -14,6 +14,369 @@ window.StudyRunner = (() => {
   let tickInterval = null;
   let pendingSaves = 0;
 
+  // ---------------------------------------------------------------------------
+  // IDE / JUPYTER CODING HANDOFF + ALWAYS-ON-TOP FLOATING AI-PAR BAR (Doc PiP)
+  // ---------------------------------------------------------------------------
+  const CODING_IDE_KEY = 'study-os-coding-ide-v1';
+  const IDE_CONFIGS = {
+    antigravity: { label: 'Antigravity', scheme: 'antigravity' },
+    vscode: { label: 'VS Code', scheme: 'vscode' },
+    cursor: { label: 'Cursor', scheme: 'cursor' },
+  };
+  let floatingParWin = null;
+
+  function getPreferredCodingIde() {
+    try {
+      const v = localStorage.getItem(CODING_IDE_KEY);
+      if (v && IDE_CONFIGS[v]) return v;
+    } catch {}
+    return 'vscode';
+  }
+  function setPreferredCodingIde(ide) {
+    if (!IDE_CONFIGS[ide]) return;
+    try { localStorage.setItem(CODING_IDE_KEY, ide); } catch {}
+  }
+
+  function toBase64UrlUtf8(str) {
+    const bytes = new TextEncoder().encode(String(str || ''));
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  function toNotebookLines(text) {
+    const raw = String(text || '').replace(/\r\n/g, '\n');
+    if (!raw) return [];
+    const lines = raw.split('\n');
+    return lines.map((line, i) => (i < lines.length - 1 ? `${line}\n` : line));
+  }
+
+  function buildExamNotebookObject(q, st, topicLabel = '') {
+    const qid = String(q?.id || 'exercise');
+    const title = String(q?.title || qid);
+    const parSec = Math.max(60, Number(st?.targetSec) || 900);
+    const prompt = String(q?.promptMarkdown || '').replace(/\r\n/g, '\n').trim();
+
+    let starterCode = '';
+    const starterMatch = prompt.match(/```python\s*\n([\s\S]*?)```/i);
+    if (starterMatch) starterCode = starterMatch[1].trim();
+
+    const needsPandas = /\b(pandas|pd\.|dataframe|read_csv|groupby|crosstab|resample|\.csv)\b/i.test(prompt);
+    const needsPlot = /\b(matplotlib|plt\.|seaborn|sns\.|subplot|plot|chart|heatmap|facetgrid|scatter|histogram|pie)\b/i.test(prompt);
+    const autoImports = [];
+    if (needsPandas) autoImports.push('import pandas as pd');
+    if (needsPlot) {
+      autoImports.push('import matplotlib.pyplot as plt');
+      if (/\b(seaborn|sns|heatmap|facetgrid)\b/i.test(prompt)) autoImports.push('import seaborn as sns');
+    }
+
+    const subpartRe = /^(?:[-*]\s+)?(?:\*\*)?(?:\((\d+\.[a-z]|[a-z]|\d+)\)|([a-z])\.)(?:\*\*)?\s+(.*)$/i;
+    const lines = prompt.split('\n');
+    const introLines = [];
+    const subparts = [];
+    let activeSub = null;
+    for (const line of lines) {
+      if (/^\*\*Starter Code/i.test(line.trim())) {
+        activeSub = null;
+        continue;
+      }
+      const m = line.match(subpartRe);
+      if (m) {
+        const tag = m[1] ? `(${m[1]})` : `(${m[2]})`;
+        activeSub = { label: tag, body: [m[3]] };
+        subparts.push(activeSub);
+      } else if (activeSub) {
+        activeSub.body.push(line);
+      } else {
+        introLines.push(line);
+      }
+    }
+
+    const cells = [];
+    const headerParts = [
+      `# ${title}`,
+      `> **Study-OS AI Par:** \`${clockSec(parSec)}\`${topicLabel ? ` · **Topic:** ${topicLabel}` : ''} · \`${qid}\``,
+    ];
+    const introText = introLines.join('\n').trim();
+    if (introText) headerParts.push('', introText);
+    cells.push({ cell_type: 'markdown', metadata: {}, source: toNotebookLines(headerParts.join('\n')) });
+
+    if (subparts.length >= 2) {
+      if (autoImports.length) {
+        cells.push({
+          cell_type: 'code',
+          execution_count: null,
+          metadata: {},
+          outputs: [],
+          source: toNotebookLines(autoImports.join('\n')),
+        });
+      }
+      subparts.forEach((sp, idx) => {
+        cells.push({
+          cell_type: 'markdown',
+          metadata: {},
+          source: toNotebookLines(`**${sp.label}** ${sp.body.join('\n').trim()}`),
+        });
+        const codeInit = idx === 0 && starterCode ? starterCode : `# ${sp.label}\n`;
+        cells.push({
+          cell_type: 'code',
+          execution_count: null,
+          metadata: {},
+          outputs: [],
+          source: toNotebookLines(codeInit),
+        });
+      });
+    } else {
+      const codeParts = [];
+      if (autoImports.length && !starterCode.includes('import pandas')) codeParts.push(autoImports.join('\n'));
+      codeParts.push(starterCode || `# Write your Python solution for ${qid} below\n`);
+      cells.push({
+        cell_type: 'code',
+        execution_count: null,
+        metadata: {},
+        outputs: [],
+        source: toNotebookLines(codeParts.join('\n\n')),
+      });
+    }
+
+    return {
+      cells,
+      metadata: {
+        kernelspec: { display_name: 'Python 3', language: 'python', name: 'python3' },
+        language_info: { name: 'python', mimetype: 'text/x-python', file_extension: '.py' },
+        studyOs: { qid, title, parSec },
+      },
+      nbformat: 4,
+      nbformat_minor: 5,
+    };
+  }
+
+  function downloadExamNotebook(q, st, topicLabel = '') {
+    const nb = buildExamNotebookObject(q, st, topicLabel);
+    const shortId = String(q?.id || 'exercise').replace(/^[^:]+:/, '').replace(/[^a-zA-Z0-9._-]+/g, '_');
+    const blob = new Blob([JSON.stringify(nb, null, 2)], { type: 'application/x-ipynb+json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${shortId || 'study-os-task'}.ipynb`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    toast(`Downloaded ${shortId}.ipynb — open in Jupyter / VS Code!`);
+  }
+
+  function buildIdeCompanionUri(ide, q, st, topicLabel = '') {
+    const cfg = IDE_CONFIGS[ide] || IDE_CONFIGS.vscode;
+    const payload = {
+      qid: String(q?.id || 'exercise'),
+      title: String(q?.title || q?.id || 'Exercise').slice(0, 140),
+      parSec: Math.max(60, Math.round(Number(st?.targetSec) || 900)),
+      elapsedSec: Math.max(0, Math.floor(itemActiveSec(st))),
+      topic: String(topicLabel || '').slice(0, 90),
+      promptMarkdown: String(q?.promptMarkdown || '').slice(0, 4500),
+    };
+    const encoded = toBase64UrlUtf8(JSON.stringify(payload));
+    return `${cfg.scheme}://study-os.companion/open?data=${encoded}`;
+  }
+
+  function isIdeCodingFocusExempt() {
+    if (!activeRun || document.getElementById('view-runner')?.hidden) return false;
+    if (floatingParWin && !floatingParWin.closed) return true;
+    const q = currentQuestion();
+    if (!q || q.kind !== 'coding') return false;
+    const st = itemState(q.id);
+    return Boolean(st?.ideActive);
+  }
+
+  function closeFloatingParBar() {
+    if (floatingParWin && !floatingParWin.closed) {
+      try { floatingParWin.close(); } catch {}
+    }
+    floatingParWin = null;
+  }
+
+  function syncFloatingParBar(q, st, activeSec, finished) {
+    if (!floatingParWin || floatingParWin.closed || !q || !st) return;
+    const doc = floatingParWin.document;
+    const titleEl = doc.getElementById('pip-title');
+    const youEl = doc.getElementById('pip-you');
+    const statusEl = doc.getElementById('pip-status');
+    const parEl = doc.getElementById('pip-par');
+    const fillEl = doc.getElementById('pip-fill');
+    const pauseBtn = doc.getElementById('pip-pause');
+    const doneBtn = doc.getElementById('pip-done');
+    const solBtn = doc.getElementById('pip-sol');
+    const revBtn = doc.getElementById('pip-revisit');
+    const barEl = doc.getElementById('pip-bar');
+    if (!titleEl || !fillEl) return;
+
+    const hintTime = st.hintsUsed * st.handicapPerHintSec;
+    const elapsed = st.loggedAttempt?.effectiveSec ?? activeSec + hintTime;
+    const remaining = st.targetSec - elapsed;
+    const paused = st.runningSince === null && !finished;
+    let tone = 'running';
+    let msg = `${clockSec(Math.ceil(remaining))} left`;
+    if (st.loggedAttempt?.beatAi) {
+      tone = 'beat';
+      msg = 'Target beaten';
+    } else if (remaining <= 0) {
+      tone = 'overtime';
+      const ov = Math.floor(-remaining);
+      msg = ov ? `+${clockSec(ov)} over` : 'Par reached';
+    } else if (finished) {
+      tone = 'review';
+      msg = 'Review';
+    } else if (remaining <= Math.min(30, st.targetSec * 0.08)) {
+      tone = 'urgent';
+    } else if (remaining <= Math.min(180, st.targetSec * 0.2)) {
+      tone = 'near';
+    }
+    if (paused) msg = `Paused · ${msg}`;
+
+    const shortTitle = String(q.title || q.id || 'Exercise').replace(/^[^·]+·\s*/, (m) => m);
+    if (titleEl.textContent !== shortTitle) titleEl.textContent = shortTitle;
+    if (youEl) youEl.textContent = `You ${clockSec(Math.floor(elapsed))}`;
+    if (statusEl) statusEl.textContent = msg;
+    if (parEl) parEl.textContent = `Par ${clockSec(st.targetSec)}`;
+    if (barEl) barEl.dataset.tone = tone;
+    const pct = Math.min(100, Math.max(0, (elapsed / Math.max(1, st.targetSec)) * 100));
+    fillEl.style.width = `${pct.toFixed(1)}%`;
+
+    if (pauseBtn) {
+      pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+      pauseBtn.disabled = finished;
+    }
+    if (solBtn) solBtn.hidden = Boolean(st.revealed);
+    if (doneBtn) {
+      doneBtn.textContent = st.revealed ? '✓ Got It & Next' : '✓ Done';
+    }
+    if (revBtn) revBtn.hidden = !st.revealed;
+  }
+
+  async function openFloatingParBar() {
+    if (!activeRun) return false;
+    const q = currentQuestion();
+    if (!q) return false;
+    const st = itemState(q.id);
+    if (floatingParWin && !floatingParWin.closed) {
+      try { floatingParWin.focus(); } catch {}
+      syncFloatingParBar(q, st, itemActiveSec(st), Boolean(st.revealed));
+      return true;
+    }
+    if (!('documentPictureInPicture' in window) || typeof window.documentPictureInPicture?.requestWindow !== 'function') {
+      toast('Always-on-top bar needs Chrome or Edge — your IDE Companion status bar timer still works!');
+      return false;
+    }
+    try {
+      const pip = await window.documentPictureInPicture.requestWindow({
+        width: 640,
+        height: 86,
+        disallowReturnToOpener: false,
+      });
+      floatingParWin = pip;
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      pip.document.title = 'Study-OS · AI-Par Bar';
+      pip.document.head.innerHTML = `
+        <meta charset="utf-8">
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+            background: ${isDark ? '#11161d' : '#ffffff'};
+            color: ${isDark ? '#f1f5f9' : '#0f172a'};
+            padding: 8px 12px;
+            overflow: hidden;
+            user-select: none;
+          }
+          #pip-bar { display: flex; flex-direction: column; gap: 6px; }
+          .pip-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; font-variant-numeric: tabular-nums; }
+          .pip-title { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+          .pip-mid { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+          .pip-you { font-weight: 700; }
+          .pip-status { font-weight: 650; padding: 1px 7px; border-radius: 999px; font-size: 11px; background: ${isDark ? '#13312d' : '#e6f5f2'}; color: ${isDark ? '#34d399' : '#0f766e'}; }
+          #pip-bar[data-tone="near"] .pip-status { background: ${isDark ? '#3a2b0d' : '#fef3c7'}; color: ${isDark ? '#fbbf24' : '#b45309'}; }
+          #pip-bar[data-tone="urgent"] .pip-status, #pip-bar[data-tone="overtime"] .pip-status { background: ${isDark ? '#3f1515' : '#fee2e2'}; color: ${isDark ? '#f87171' : '#dc2626'}; }
+          .pip-par { color: ${isDark ? '#94a3b8' : '#64748b'}; font-size: 11.5px; }
+          .pip-track { width: 100%; height: 5px; border-radius: 999px; background: ${isDark ? '#1e293b' : '#e2e8f0'}; overflow: hidden; }
+          .pip-fill { height: 100%; width: 0%; background: #0f766e; transition: width 0.35s linear, background-color 0.25s ease; border-radius: 999px; }
+          #pip-bar[data-tone="near"] .pip-fill { background: #f59e0b; }
+          #pip-bar[data-tone="urgent"] .pip-fill, #pip-bar[data-tone="overtime"] .pip-fill { background: #ef4444; }
+          .pip-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+          .pip-btn-grp { display: flex; align-items: center; gap: 5px; }
+          button {
+            font: 600 11.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            padding: 5px 9px;
+            border-radius: 7px;
+            border: 1px solid ${isDark ? '#2d3748' : '#d1d5db'};
+            background: ${isDark ? '#1c2430' : '#f8fafc'};
+            color: ${isDark ? '#e2e8f0' : '#0f172a'};
+            cursor: pointer;
+          }
+          button:hover:not(:disabled) { border-color: #0f766e; }
+          button:disabled { opacity: 0.45; cursor: default; }
+          button.primary { background: #0f766e; border-color: #0f766e; color: #ffffff; }
+          button.primary:hover:not(:disabled) { background: #0d625b; }
+          .pip-brand { font-size: 11px; color: ${isDark ? '#64748b' : '#94a3b8'}; font-weight: 600; }
+        </style>
+      `;
+      pip.document.body.innerHTML = `
+        <div id="pip-bar" data-tone="running">
+          <div class="pip-top">
+            <span class="pip-title" id="pip-title"></span>
+            <div class="pip-mid">
+              <span class="pip-you" id="pip-you">You 0:00</span>
+              <span class="pip-status" id="pip-status">0:00 left</span>
+              <span class="pip-par" id="pip-par">Par 0:00</span>
+            </div>
+          </div>
+          <div class="pip-track"><div class="pip-fill" id="pip-fill"></div></div>
+          <div class="pip-actions">
+            <span class="pip-brand">StudyOS.no · Live IDE Sync</span>
+            <div class="pip-btn-grp">
+              <button type="button" id="pip-pause">Pause</button>
+              <button type="button" id="pip-sol">Solution</button>
+              <button type="button" id="pip-revisit" hidden>Revisit</button>
+              <button type="button" class="primary" id="pip-done">✓ Done</button>
+            </div>
+          </div>
+        </div>
+      `;
+      pip.document.getElementById('pip-pause')?.addEventListener('click', () => {
+        toggleManualPause();
+        const cq = currentQuestion();
+        if (cq) syncFloatingParBar(cq, itemState(cq.id), itemActiveSec(itemState(cq.id)), Boolean(itemState(cq.id).revealed));
+      });
+      pip.document.getElementById('pip-sol')?.addEventListener('click', () => {
+        document.getElementById('btn-reveal-sol')?.click();
+        try { window.focus(); } catch {}
+      });
+      pip.document.getElementById('pip-done')?.addEventListener('click', () => {
+        const cq = currentQuestion();
+        if (!cq) return;
+        const cst = itemState(cq.id);
+        if (!cst.revealed) {
+          document.getElementById('btn-reveal-sol')?.click();
+          try { window.focus(); } catch {}
+        } else {
+          document.querySelector('.btn-got-it-next')?.click();
+        }
+      });
+      pip.document.getElementById('pip-revisit')?.addEventListener('click', () => {
+        document.querySelector('.btn-missed-next')?.click();
+      });
+      pip.addEventListener('pagehide', () => {
+        if (floatingParWin === pip) floatingParWin = null;
+        const badge = document.getElementById('coding-ide-live-pill');
+        if (badge && !isIdeCodingFocusExempt()) badge.hidden = true;
+      });
+      syncFloatingParBar(q, st, itemActiveSec(st), Boolean(st.revealed));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   const RUNNER_UI_KEY = 'study-os-runner-ui-v3';
   const dockReferenceLayout = matchMedia('(min-width: 1020px)');
   function getRunnerUiPrefs() {
@@ -671,6 +1034,7 @@ window.StudyRunner = (() => {
 
   function triggerFocusAutoPause(reason = 'window_blur') {
     if (devMode.isActive() || autoPauseMode === 'off') return;
+    if (isIdeCodingFocusExempt()) return;
     if (workClock?.getState?.().mode === 'break') return;
 
     // Hold universal 75m clock whenever display focus leaves Study-OS
@@ -1841,17 +2205,71 @@ window.StudyRunner = (() => {
           </div>
         </details>
       `;
+    } else if (q.kind === 'coding') {
+      const autoSaveLabel = document.documentElement.dataset.studyMode === 'web'
+        ? 'Auto-saved in browser'
+        : 'Auto-saved to OneDrive';
+      const activeIde = getPreferredCodingIde();
+      const ideLabel = IDE_CONFIGS[activeIde]?.label || 'VS Code';
+      const ideSynced = Boolean(st.ideActive || (floatingParWin && !floatingParWin.closed));
+      const pipSupported = 'documentPictureInPicture' in window;
+      const vsixHref = `${document.documentElement.dataset.studyRoot || './'}downloads/study-os-companion.vsix`;
+      workspaceHtml = `
+        <div class="coding-ide-card">
+          <div class="coding-ide-head">
+            <div>
+              <strong>Code in ${esc(ideLabel)} (Jupyter)</strong>
+              <span class="coding-ide-sub">Run real Python, pandas &amp; plots while Study-OS tracks AI Par live.</span>
+            </div>
+            <div class="coding-ide-seg" role="group" aria-label="Preferred IDE">
+              <button type="button" class="coding-ide-opt ${activeIde === 'antigravity' ? 'active' : ''}" data-coding-ide="antigravity">Antigravity</button>
+              <button type="button" class="coding-ide-opt ${activeIde === 'vscode' ? 'active' : ''}" data-coding-ide="vscode">VS Code</button>
+              <button type="button" class="coding-ide-opt ${activeIde === 'cursor' ? 'active' : ''}" data-coding-ide="cursor">Cursor</button>
+            </div>
+          </div>
+
+          <div class="coding-ide-actions">
+            <button type="button" class="primary-btn" id="btn-coding-open-ide">
+              ${ideSynced ? `Re-open in ${esc(ideLabel)}` : `Open in ${esc(ideLabel)}${pipSupported ? ' + Top AI-Par Bar' : ''}`}
+            </button>
+            ${pipSupported ? `<button type="button" class="ghost-btn" id="btn-coding-float-bar" title="Pin a slim live AI-Par timer strip above VS Code / Antigravity">Float AI-Par Bar</button>` : ''}
+            <button type="button" class="ghost-btn" id="btn-coding-download-ipynb" title="Download an exam-format Jupyter notebook (.ipynb) with Markdown prompt cells and Python code cells">Download .ipynb</button>
+          </div>
+
+          <div class="coding-ide-foot">
+            <span class="badge live" id="coding-ide-live-pill" ${ideSynced ? '' : 'hidden'}>● IDE timer active — switching to ${esc(ideLabel)} won't pause</span>
+            <details class="coding-ide-setup">
+              <summary>1-time IDE Companion setup (cursor straight in code cell + CSV links)</summary>
+              <div class="coding-ide-setup-body">
+                <p>Install the tiny <strong>7 KB</strong> Study-OS Companion extension once so clicking <em>Open in ${esc(ideLabel)}</em> creates the exam <code>.ipynb</code>, auto-links BI CSV datasets (<code>hotel.csv</code>, <code>citybike.csv</code>…), drops your cursor right into Cell 1, and shows an AI-Par timer in the IDE status bar.</p>
+                <div class="row-actions" style="gap:8px;margin-top:6px">
+                  <a class="ghost-btn" href="${esc(vsixHref)}" download="study-os-companion.vsix" style="text-decoration:none">Download .vsix (7 KB)</a>
+                  <span class="muted" style="font-size:11.5px">In ${esc(ideLabel)}: <kbd>⌘⇧P</kbd> → <em>Extensions: Install from VSIX…</em></span>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <details class="coding-scratchpad-details">
+            <summary>Quick scratchpad / notes (optional)</summary>
+            <div style="margin-top:8px">
+              <textarea id="inp-written-draft" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;min-height:105px" placeholder="# Optional notes or pasted code snippet...">${esc(st.draft)}</textarea>
+              <div class="row-between" style="margin:4px 0 0;font-size:12px">
+                <span class="muted">${autoSaveLabel}</span>
+                <span id="lbl-word-count" class="muted">0 words</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      `;
     } else {
       const autoSaveLabel = document.documentElement.dataset.studyMode === 'web'
         ? 'Auto-saved in browser'
         : 'Auto-saved to OneDrive';
       const placeholder =
-        q.kind === 'coding'
-          ? '# Write your Python solution or key logic here before revealing the model solution...'
-          : q.kind === 'calculation'
+        q.kind === 'calculation'
           ? 'Write your setup equation, intermediate steps, and final numerical result here (or solve on paper and record key numbers)...'
           : 'Write your structured response here before revealing the official guidance...';
-      const monoStyle = q.kind === 'coding' ? 'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;' : '';
       const numCheckHtml = q.numericCheck
         ? `<div class="row-actions" style="margin-bottom:10px">
             <label style="font-size:13px;font-weight:600">Numeric Answer (${esc(q.numericCheck.unit || 'value')}):
@@ -1862,7 +2280,7 @@ window.StudyRunner = (() => {
       workspaceHtml = `
         <div style="margin:10px 0">
           ${numCheckHtml}
-          <textarea id="inp-written-draft" style="${monoStyle};min-height:${isSplit ? '210px' : '135px'}" placeholder="${esc(placeholder)}">${esc(st.draft)}</textarea>
+          <textarea id="inp-written-draft" style="min-height:${isSplit ? '210px' : '135px'}" placeholder="${esc(placeholder)}">${esc(st.draft)}</textarea>
           <div class="row-between" style="margin:4px 0 0;font-size:12px">
             <span class="muted">${autoSaveLabel}</span>
             <span id="lbl-word-count" class="muted">0 words</span>
@@ -2806,6 +3224,46 @@ window.StudyRunner = (() => {
       });
     });
 
+    // Coding IDE / Jupyter Studio controls
+    if (q.kind === 'coding') {
+      const codingTopicName = (activeRun.bank.topics || []).find((t) => String(t.id) === String(q.topicId))?.title || '';
+      document.querySelectorAll('[data-coding-ide]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          setPreferredCodingIde(btn.dataset.codingIde);
+          renderRunner();
+        });
+      });
+      document.getElementById('btn-coding-open-ide')?.addEventListener('click', async () => {
+        const ide = getPreferredCodingIde();
+        st.ideActive = true;
+        const livePill = document.getElementById('coding-ide-live-pill');
+        if (livePill) livePill.hidden = false;
+        // Pop out always-on-top Floating AI-Par Bar inside the user click gesture
+        await openFloatingParBar();
+        // Fire deep-link into Antigravity / VS Code / Cursor companion extension
+        const uri = buildIdeCompanionUri(ide, q, st, codingTopicName);
+        const link = document.createElement('a');
+        link.href = uri;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast(`Opening in ${IDE_CONFIGS[ide]?.label || 'IDE'} · AI-Par timer keeps running while you code!`);
+      });
+      document.getElementById('btn-coding-float-bar')?.addEventListener('click', async () => {
+        st.ideActive = true;
+        const livePill = document.getElementById('coding-ide-live-pill');
+        if (livePill) livePill.hidden = false;
+        await openFloatingParBar();
+      });
+      document.getElementById('btn-coding-download-ipynb')?.addEventListener('click', () => {
+        st.ideActive = true;
+        const livePill = document.getElementById('coding-ide-live-pill');
+        if (livePill) livePill.hidden = false;
+        downloadExamNotebook(q, st, codingTopicName);
+      });
+    }
+
     // Written / Coding draft
     const draftEl = document.getElementById('inp-written-draft');
     if (draftEl) {
@@ -3468,6 +3926,7 @@ window.StudyRunner = (() => {
     const activeSec = itemActiveSec(st);
     const isBlindUnfinished = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
     updateRunnerPace(st, activeSec, st.revealed && !isBlindUnfinished);
+    syncFloatingParBar(q, st, activeSec, st.revealed && !isBlindUnfinished);
 
     // Anti-Stall nudge (Guided Practice mode)
     const stallBanner = document.getElementById('stall-nudge-banner');
@@ -3614,6 +4073,7 @@ window.StudyRunner = (() => {
     document.getElementById('checkin-modal').hidden = true;
     if (document.getElementById('checkin-note')) document.getElementById('checkin-note').value = '';
     clearInterval(tickInterval);
+    closeFloatingParBar();
     activeRun = null;
     document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-split-ref', 'runner-foveal-compact');
     document.getElementById('runner-header').hidden = true;

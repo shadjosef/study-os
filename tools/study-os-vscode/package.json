@@ -1,0 +1,44 @@
+{
+  "name": "companion",
+  "displayName": "Study-OS Companion",
+  "description": "Open Study-OS Python/Jupyter exercises straight into VS Code / Antigravity with cursor in the code cell, automatic BI dataset linking, and a live AI-Par status bar timer.",
+  "version": "0.1.0",
+  "publisher": "study-os",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Education",
+    "Notebooks",
+    "Other"
+  ],
+  "activationEvents": [
+    "onUri",
+    "onCommand:studyOs.toggleTimer",
+    "onCommand:studyOs.stopTimer"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "studyOs.toggleTimer",
+        "title": "Study-OS: Pause / Resume AI-Par Timer"
+      },
+      {
+        "command": "studyOs.stopTimer",
+        "title": "Study-OS: Clear AI-Par Timer"
+      }
+    ],
+    "configuration": {
+      "title": "Study-OS Companion",
+      "properties": {
+        "studyOs.practiceFolder": {
+          "type": "string",
+          "default": "",
+          "description": "Optional custom folder for Study-OS Jupyter practice notebooks (.ipynb). Leave empty to auto-detect your active workspace or BI Canvas-Archive Files folder."
+        }
+      }
+    }
+  }
+}
