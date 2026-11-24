@@ -8385,21 +8385,187 @@ body.in-runner main.container {
   color: var(--muted);
 }
 
-/* Universal School Picker & Leaderboard Pill */
+/* Universal School / Major Flagship Combobox & Leaderboard Pill */
+.field-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+.field-opt {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  opacity: 0.78;
+}
+.clean-select {
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 16 16' fill='none' stroke='%236b7280' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4.5 6.5 3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
+}
 .school-picker-wrap {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
+.combo-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.combo-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.combo-control input[data-combo-input] {
+  width: 100%;
+  padding-right: 54px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.combo-control input[data-combo-input]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.combo-clear {
+  position: absolute;
+  right: 30px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  min-height: 0 !important;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.combo-clear:hover {
+  background: var(--panel-alt);
+  color: var(--ink);
+}
+.combo-clear[hidden] {
+  display: none;
+}
+.combo-chevron {
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  pointer-events: none;
+  transition: transform 150ms ease;
+}
+.combo-field.is-open .combo-chevron {
+  transform: translateY(-50%) rotate(180deg);
+}
+.combo-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  z-index: 45;
+  max-height: 216px;
+  overflow-y: auto;
+  padding: 5px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 32px -10px rgba(15, 23, 42, 0.22), 0 2px 6px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.combo-menu[hidden] {
+  display: none;
+}
+html[data-theme="dark"] .combo-menu {
+  box-shadow: 0 18px 36px -8px rgba(0, 0, 0, 0.55);
+}
+.combo-option {
+  width: 100%;
+  min-height: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.combo-option:hover,
+.combo-option.is-active {
+  background: var(--panel-alt);
+}
+.combo-option.is-selected {
+  font-weight: 650;
+  color: var(--accent);
+}
+.combo-option.is-custom {
+  color: var(--accent);
+  font-weight: 600;
+}
+.combo-option.is-private {
+  margin-top: 4px;
+  padding-top: 9px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 8px 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.combo-check {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+.school-canvas-extra {
+  display: flex;
+  flex-direction: column;
+}
+.school-canvas-extra[hidden] {
+  display: none;
+}
+.school-canvas-extra input {
+  width: 100%;
+}
 .school-picker-custom {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   align-items: end;
   gap: 8px;
   padding: 10px;
   border-radius: 12px;
   background: var(--panel-alt);
   border: 1px solid var(--line);
+}
+.school-picker-custom input {
+  width: 100%;
 }
 .school-picker-custom[hidden] {
   display: none;
@@ -10347,8 +10513,17 @@ details[open] > summary > .exp-chev::before {
 }
 
 /* Settings School & Major Quick Card + Leaderboard Major Pill */
+#settings-school-major-section {
+  position: relative;
+  z-index: 6;
+}
+#settings-school-major-section .ios-group,
+.ios-group:has(.combo-field) {
+  overflow: visible !important;
+}
 .settings-school-major-box {
   padding: 12px 14px;
+  overflow: visible !important;
 }
 .settings-school-major-form {
   display: flex;

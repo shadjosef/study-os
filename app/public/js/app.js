@@ -9532,11 +9532,11 @@ window.StudyApp = (() => {
               <span class="badge ${syncedCourses || hasTe ? 'live' : ''}">${syncedCourses ? `${schoolInfo.shortSchool ? `${esc(schoolInfo.shortSchool)} · ` : ''}${syncedCourses} courses · ${syncedDeadlines} deadlines` : hasTe ? 'Timetable active' : 'Ready'}</span>
             </div>
             <div class="sync-school-bar">
-              <label class="field-label" style="margin:0;flex:1;min-width:190px">Your university / school
-                <select id="bi-sync-school-select">
-                  <option value="" ${!schoolSelectVal ? 'selected' : ''}>Choose your school (or just open any Canvas tab)…</option>
+              <label class="field-label" style="margin:0;flex:1;min-width:190px">University
+                <select id="bi-sync-school-select" class="clean-select">
+                  <option value="" ${!schoolSelectVal ? 'selected' : ''}>Select university…</option>
                   ${catalog.map((s) => `<option value="${esc(s.name)}" ${schoolSelectVal === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
-                  <option value="__custom__" ${schoolSelectVal === '__custom__' ? 'selected' : ''}>Not listed here (enter custom…)</option>
+                  <option value="__custom__" ${schoolSelectVal === '__custom__' ? 'selected' : ''}>Other…</option>
                   <option value="__private__" ${schoolSelectVal === '__private__' ? 'selected' : ''}>Prefer not to say</option>
                 </select>
               </label>

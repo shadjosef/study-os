@@ -175,19 +175,19 @@ window.StudyCommunity = (() => {
   }
 
   const SCHOOL_CATALOG = [
-    { name: 'BI Oslo', short: 'BI', canvasOrigin: 'https://canvas.bi.no', timetableUrl: 'https://cloud.timeedit.net/bi/web/public/ri1Q7.html', timetableLabel: 'BI TimeEdit' },
-    { name: 'HVL', short: 'HVL', canvasOrigin: 'https://hvl.instructure.com', timetableUrl: 'https://tp.educloud.no/hvl/', timetableLabel: 'HVL TP' },
-    { name: 'Kristiania', short: 'Kristiania', canvasOrigin: 'https://kristiania.instructure.com', timetableUrl: 'https://cloud.timeedit.net/kristiania/web/', timetableLabel: 'Kristiania TimeEdit' },
-    { name: 'NHH', short: 'NHH', canvasOrigin: 'https://nhh.instructure.com', timetableUrl: 'https://cloud.timeedit.net/nhh/web/', timetableLabel: 'NHH TimeEdit' },
-    { name: 'NMBU', short: 'NMBU', canvasOrigin: 'https://nmbu.instructure.com', timetableUrl: 'https://cloud.timeedit.net/nmbu/web/', timetableLabel: 'NMBU TimeEdit' },
-    { name: 'NTNU', short: 'NTNU', canvasOrigin: 'https://ntnu.instructure.com', timetableUrl: 'https://tp.educloud.no/ntnu/', timetableLabel: 'NTNU TP' },
-    { name: 'OsloMet', short: 'OsloMet', canvasOrigin: 'https://oslomet.instructure.com', timetableUrl: 'https://tp.educloud.no/oslomet/', timetableLabel: 'OsloMet TP' },
-    { name: 'UiA', short: 'UiA', canvasOrigin: 'https://uia.instructure.com', timetableUrl: 'https://tp.educloud.no/uia/', timetableLabel: 'UiA TP' },
-    { name: 'UiB', short: 'UiB', canvasOrigin: 'https://mitt.uib.no', timetableUrl: 'https://tp.educloud.no/uib/', timetableLabel: 'UiB TP' },
-    { name: 'UiO', short: 'UiO', canvasOrigin: 'https://uio.instructure.com', timetableUrl: 'https://tp.educloud.no/uio/', timetableLabel: 'UiO TP' },
-    { name: 'UiS', short: 'UiS', canvasOrigin: 'https://uis.instructure.com', timetableUrl: 'https://tp.educloud.no/uis/', timetableLabel: 'UiS TP' },
-    { name: 'UiT', short: 'UiT', canvasOrigin: 'https://uit.instructure.com', timetableUrl: 'https://tp.educloud.no/uit/', timetableLabel: 'UiT TP' },
-    { name: 'USN', short: 'USN', canvasOrigin: 'https://usn.instructure.com', timetableUrl: 'https://cloud.timeedit.net/usn/web/', timetableLabel: 'USN TimeEdit' },
+    { name: 'BI Oslo', short: 'BI', aliases: ['BI Norwegian Business School', 'Handelshøyskolen BI'], canvasOrigin: 'https://canvas.bi.no', timetableUrl: 'https://cloud.timeedit.net/bi/web/public/ri1Q7.html', timetableLabel: 'BI TimeEdit' },
+    { name: 'HVL', short: 'HVL', aliases: ['Høgskulen på Vestlandet'], canvasOrigin: 'https://hvl.instructure.com', timetableUrl: 'https://tp.educloud.no/hvl/', timetableLabel: 'HVL TP' },
+    { name: 'Kristiania', short: 'Kristiania', aliases: ['Høyskolen Kristiania'], canvasOrigin: 'https://kristiania.instructure.com', timetableUrl: 'https://cloud.timeedit.net/kristiania/web/', timetableLabel: 'Kristiania TimeEdit' },
+    { name: 'NHH', short: 'NHH', aliases: ['Norges Handelshøyskole', 'Norwegian School of Economics'], canvasOrigin: 'https://nhh.instructure.com', timetableUrl: 'https://cloud.timeedit.net/nhh/web/', timetableLabel: 'NHH TimeEdit' },
+    { name: 'NMBU', short: 'NMBU', aliases: ['Norges miljø- og biovitenskapelige universitet'], canvasOrigin: 'https://nmbu.instructure.com', timetableUrl: 'https://cloud.timeedit.net/nmbu/web/', timetableLabel: 'NMBU TimeEdit' },
+    { name: 'NTNU', short: 'NTNU', aliases: ['Norges teknisk-naturvitenskapelige universitet'], canvasOrigin: 'https://ntnu.instructure.com', timetableUrl: 'https://tp.educloud.no/ntnu/', timetableLabel: 'NTNU TP' },
+    { name: 'OsloMet', short: 'OsloMet', aliases: ['Oslo Metropolitan University'], canvasOrigin: 'https://oslomet.instructure.com', timetableUrl: 'https://tp.educloud.no/oslomet/', timetableLabel: 'OsloMet TP' },
+    { name: 'UiA', short: 'UiA', aliases: ['Universitetet i Agder', 'University of Agder'], canvasOrigin: 'https://uia.instructure.com', timetableUrl: 'https://tp.educloud.no/uia/', timetableLabel: 'UiA TP' },
+    { name: 'UiB', short: 'UiB', aliases: ['Universitetet i Bergen', 'University of Bergen'], canvasOrigin: 'https://mitt.uib.no', timetableUrl: 'https://tp.educloud.no/uib/', timetableLabel: 'UiB TP' },
+    { name: 'UiO', short: 'UiO', aliases: ['Universitetet i Oslo', 'University of Oslo'], canvasOrigin: 'https://uio.instructure.com', timetableUrl: 'https://tp.educloud.no/uio/', timetableLabel: 'UiO TP' },
+    { name: 'UiS', short: 'UiS', aliases: ['Universitetet i Stavanger', 'University of Stavanger'], canvasOrigin: 'https://uis.instructure.com', timetableUrl: 'https://tp.educloud.no/uis/', timetableLabel: 'UiS TP' },
+    { name: 'UiT', short: 'UiT', aliases: ['Universitetet i Tromsø'], canvasOrigin: 'https://uit.instructure.com', timetableUrl: 'https://tp.educloud.no/uit/', timetableLabel: 'UiT TP' },
+    { name: 'USN', short: 'USN', aliases: ['Universitetet i Sørøst-Norge'], canvasOrigin: 'https://usn.instructure.com', timetableUrl: 'https://cloud.timeedit.net/usn/web/', timetableLabel: 'USN TimeEdit' },
   ];
   const MAJOR_CATALOG = [
     'BBA (Business Administration)',
@@ -198,6 +198,7 @@ window.StudyCommunity = (() => {
     'Eiendomsmegling',
     'Finans',
     'Indøk (Industriell økonomi)',
+    'International Business',
     'IT og informasjonssystemer',
     'Jus / Forretningsjus',
     'Markedsføring / Marketing',
@@ -383,28 +384,52 @@ window.StudyCommunity = (() => {
     } catch {}
   }
 
+  let comboIdSeq = 0;
+
+  function renderComboField({ kind, inputName, label, optional = true, value = '', placeholder = '', maxLength = 64 }) {
+    const id = `combo-${kind}-${++comboIdSeq}`;
+    const listId = `${id}-list`;
+    const cleanVal = String(value || '').trim();
+    return `
+      <div class="combo-field" data-combo="${esc(kind)}">
+        <label class="field-label" for="${id}">
+          <span class="field-label-row"><span>${esc(label)}</span>${optional ? '<span class="field-opt">Optional</span>' : ''}</span>
+        </label>
+        <div class="combo-control">
+          <input id="${id}" name="${esc(inputName)}" type="text" maxlength="${maxLength}"
+            value="${esc(cleanVal)}" placeholder="${esc(placeholder)}"
+            autocomplete="off" spellcheck="false" role="combobox"
+            aria-autocomplete="list" aria-expanded="false" aria-controls="${listId}"
+            data-combo-input>
+          <button type="button" class="combo-clear" data-combo-clear aria-label="Clear ${esc(label)}" ${cleanVal ? '' : 'hidden'}>&times;</button>
+          <span class="combo-chevron" aria-hidden="true">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 6.5 3.5 3.5 3.5-3.5"/></svg>
+          </span>
+        </div>
+        <div id="${listId}" class="combo-menu" role="listbox" hidden></div>
+      </div>`;
+  }
+
   function schoolFieldHtml(selectedSchool = '', selectedOrigin = '') {
     const cleanSchool = String(selectedSchool || '').trim();
     const cleanOrigin = normalizeCanvasUrl(selectedOrigin);
     const isPrivate = cleanSchool.toLowerCase() === PREFER_NOT_TO_SAY.toLowerCase();
     const preset = isPrivate ? null : SCHOOL_CATALOG.find((s) => s.name.toLowerCase() === cleanSchool.toLowerCase());
     const isCustom = Boolean(!isPrivate && !preset && (cleanSchool || cleanOrigin));
-    const selectValue = isPrivate ? '__private__' : preset ? preset.name : isCustom ? '__custom__' : '';
     return `
       <div class="school-picker-wrap" data-school-picker>
-        <label class="field-label">University / school <small class="muted">(type letters to jump/cycle)</small>
-          <select name="schoolPreset" data-school-select>
-            <option value="" ${!selectValue ? 'selected' : ''}>Select your university / school (optional)</option>
-            ${SCHOOL_CATALOG.map((s) => `<option value="${esc(s.name)}" ${selectValue === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
-            <option value="__custom__" ${selectValue === '__custom__' ? 'selected' : ''}>Not listed here (enter custom…)</option>
-            <option value="__private__" ${selectValue === '__private__' ? 'selected' : ''}>Prefer not to say</option>
-          </select>
-        </label>
-        <div class="school-picker-custom" data-school-custom ${isCustom ? '' : 'hidden'}>
-          <label class="field-label">School / university name
-            <input name="customSchool" type="text" maxlength="48" value="${esc(isCustom ? cleanSchool : '')}" placeholder="e.g. CBS, Stockholm University, MIT" ${isCustom ? '' : 'disabled'}>
-          </label>
-          <label class="field-label">Canvas URL <small class="muted">(optional)</small>
+        ${renderComboField({
+          kind: 'school',
+          inputName: 'schoolInput',
+          label: 'University',
+          optional: true,
+          value: cleanSchool,
+          placeholder: 'Search or enter your university',
+          maxLength: 48,
+        })}
+        <div class="school-canvas-extra" data-school-custom ${isCustom ? '' : 'hidden'}>
+          <label class="field-label">
+            <span class="field-label-row"><span>Canvas URL</span><span class="field-opt">Optional</span></span>
             <input name="customCanvasOrigin" type="text" maxlength="120" value="${esc(isCustom ? cleanOrigin : '')}" placeholder="https://yourschool.instructure.com" autocomplete="off" autocapitalize="off" spellcheck="false" ${isCustom ? '' : 'disabled'}>
           </label>
         </div>
@@ -413,78 +438,257 @@ window.StudyCommunity = (() => {
 
   function majorFieldHtml(selectedMajor = '') {
     const cleanMajor = String(selectedMajor || '').trim();
-    const isPrivate = cleanMajor.toLowerCase() === PREFER_NOT_TO_SAY.toLowerCase();
-    const preset = isPrivate ? null : MAJOR_CATALOG.find((m) => m.toLowerCase() === cleanMajor.toLowerCase());
-    const isCustom = Boolean(!isPrivate && !preset && cleanMajor);
-    const selectValue = isPrivate ? '__private__' : preset ? preset : isCustom ? '__custom__' : '';
     return `
       <div class="school-picker-wrap" data-major-picker>
-        <label class="field-label">Major / study program <small class="muted">(optional · press a letter repeatedly to cycle)</small>
-          <select name="majorPreset" data-major-select>
-            <option value="" ${!selectValue ? 'selected' : ''}>Select your major (optional)</option>
-            ${MAJOR_CATALOG.map((m) => `<option value="${esc(m)}" ${selectValue === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}
-            <option value="__custom__" ${selectValue === '__custom__' ? 'selected' : ''}>Not listed here (enter custom…)</option>
-            <option value="__private__" ${selectValue === '__private__' ? 'selected' : ''}>Prefer not to say</option>
-          </select>
-        </label>
-        <div class="school-picker-custom" data-major-custom ${isCustom ? '' : 'hidden'}>
-          <label class="field-label">Custom major / program
-            <input name="customMajor" type="text" maxlength="64" value="${esc(isCustom ? cleanMajor : '')}" placeholder="e.g. Industrial Economics, Cognitive Science" ${isCustom ? '' : 'disabled'}>
-          </label>
-        </div>
+        ${renderComboField({
+          kind: 'major',
+          inputName: 'majorInput',
+          label: 'Major',
+          optional: true,
+          value: cleanMajor,
+          placeholder: 'Search or enter your major',
+          maxLength: 64,
+        })}
       </div>`;
+  }
+
+  const openComboClosers = new Map();
+
+  function bindComboField(comboEl, catalogItems, onValueChange) {
+    if (!comboEl || comboEl.dataset.comboBound === '1') return;
+    comboEl.dataset.comboBound = '1';
+    const input = comboEl.querySelector('[data-combo-input]');
+    const menu = comboEl.querySelector('.combo-menu');
+    const clearBtn = comboEl.querySelector('[data-combo-clear]');
+    if (!input || !menu) return;
+
+    const normalizedItems = catalogItems.map((entry) =>
+      typeof entry === 'string'
+        ? { label: entry, aliases: [] }
+        : { label: entry.name || entry.label || '', aliases: Array.isArray(entry.aliases) ? entry.aliases : [] }
+    );
+
+    let open = false;
+    let activeIdx = -1;
+    let currentOptions = [];
+    let showAllOnOpen = false;
+
+    const syncClear = () => {
+      if (clearBtn) clearBtn.hidden = !input.value.trim();
+    };
+
+    const getMatches = (query) => {
+      const q = String(query || '').trim().toLowerCase();
+      if (!q || showAllOnOpen) {
+        const list = normalizedItems.map((it) => ({ value: it.label, label: it.label, kind: 'preset' }));
+        list.push({ value: PREFER_NOT_TO_SAY, label: PREFER_NOT_TO_SAY, kind: 'private' });
+        return list;
+      }
+      const prefix = [];
+      const substr = [];
+      for (const it of normalizedItems) {
+        const low = it.label.toLowerCase();
+        const aliasMatch = it.aliases.some((a) => a.toLowerCase().includes(q));
+        if (low.startsWith(q)) prefix.push({ value: it.label, label: it.label, kind: 'preset' });
+        else if (low.includes(q) || aliasMatch) substr.push({ value: it.label, label: it.label, kind: 'preset' });
+      }
+      const list = [...prefix, ...substr];
+      const exactMatch = normalizedItems.some((it) => it.label.toLowerCase() === q) || PREFER_NOT_TO_SAY.toLowerCase() === q;
+      if (!exactMatch) {
+        const trimmed = String(query || '').trim();
+        list.push({ value: trimmed, label: `Use "${trimmed}"`, kind: 'custom' });
+      }
+      if (PREFER_NOT_TO_SAY.toLowerCase().includes(q)) {
+        list.push({ value: PREFER_NOT_TO_SAY, label: PREFER_NOT_TO_SAY, kind: 'private' });
+      }
+      return list;
+    };
+
+    const renderMenu = () => {
+      const valNorm = input.value.trim().toLowerCase();
+      currentOptions = getMatches(input.value);
+      if (activeIdx >= currentOptions.length) activeIdx = currentOptions.length - 1;
+      menu.innerHTML = currentOptions.map((opt, idx) => {
+        const isSel = opt.kind !== 'custom' && opt.value.toLowerCase() === valNorm && valNorm !== '';
+        const cls = [
+          'combo-option',
+          idx === activeIdx ? 'is-active' : '',
+          isSel ? 'is-selected' : '',
+          opt.kind === 'custom' ? 'is-custom' : '',
+          opt.kind === 'private' ? 'is-private' : '',
+        ].filter(Boolean).join(' ');
+        const checkHtml = isSel
+          ? '<svg class="combo-check" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 8.5 3 3 6-6.5"/></svg>'
+          : '';
+        return `<button type="button" class="${cls}" role="option" aria-selected="${isSel}" data-combo-idx="${idx}"><span>${esc(opt.label)}</span>${checkHtml}</button>`;
+      }).join('');
+      const activeEl = activeIdx >= 0 ? menu.querySelector(`[data-combo-idx="${activeIdx}"]`) : null;
+      if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+    };
+
+    const closeMenu = () => {
+      if (!open) return;
+      open = false;
+      showAllOnOpen = false;
+      activeIdx = -1;
+      menu.hidden = true;
+      input.setAttribute('aria-expanded', 'false');
+      comboEl.classList.remove('is-open');
+    };
+
+    openComboClosers.set(comboEl, closeMenu);
+
+    const openMenu = (showAll = false) => {
+      for (const [el, closer] of openComboClosers.entries()) {
+        if (!el.isConnected) { openComboClosers.delete(el); continue; }
+        if (el !== comboEl) closer();
+      }
+      showAllOnOpen = showAll;
+      open = true;
+      activeIdx = -1;
+      renderMenu();
+      menu.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      comboEl.classList.add('is-open');
+    };
+
+    const pickOption = (opt) => {
+      if (!opt) return;
+      input.value = opt.value;
+      syncClear();
+      closeMenu();
+      onValueChange?.(opt.value, true);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    input.addEventListener('focus', () => {
+      openMenu(true);
+    });
+    input.addEventListener('click', () => {
+      if (!open) openMenu(true);
+    });
+    input.addEventListener('input', () => {
+      for (const [el, closer] of openComboClosers.entries()) {
+        if (!el.isConnected) { openComboClosers.delete(el); continue; }
+        if (el !== comboEl) closer();
+      }
+      showAllOnOpen = false;
+      syncClear();
+      if (!open) open = true;
+      activeIdx = 0;
+      renderMenu();
+      menu.hidden = false;
+      input.setAttribute('aria-expanded', 'true');
+      comboEl.classList.add('is-open');
+      onValueChange?.(input.value, false);
+    });
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        if (!open) { openMenu(true); activeIdx = 0; renderMenu(); return; }
+        activeIdx = currentOptions.length ? (activeIdx + 1) % currentOptions.length : -1;
+        renderMenu();
+      } else if (ev.key === 'ArrowUp') {
+        ev.preventDefault();
+        if (!open) { openMenu(true); activeIdx = Math.max(0, currentOptions.length - 1); renderMenu(); return; }
+        activeIdx = currentOptions.length ? (activeIdx <= 0 ? currentOptions.length - 1 : activeIdx - 1) : -1;
+        renderMenu();
+      } else if (ev.key === 'Enter' && open && activeIdx >= 0 && currentOptions[activeIdx]) {
+        ev.preventDefault();
+        pickOption(currentOptions[activeIdx]);
+      } else if (ev.key === 'Escape' && open) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeMenu();
+      } else if (ev.key === 'Tab') {
+        closeMenu();
+      }
+    });
+
+    menu.addEventListener('mousedown', (ev) => {
+      // Keep focus in input so blur doesn't prematurely swallow option clicks
+      ev.preventDefault();
+    });
+    menu.addEventListener('click', (ev) => {
+      const btn = ev.target?.closest?.('[data-combo-idx]');
+      if (!btn) return;
+      pickOption(currentOptions[Number(btn.dataset.comboIdx)]);
+    });
+
+    clearBtn?.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();
+    });
+    clearBtn?.addEventListener('click', () => {
+      input.value = '';
+      syncClear();
+      onValueChange?.('', true);
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      input.focus();
+      openMenu(true);
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (!comboEl.contains(document.activeElement)) {
+          closeMenu();
+          onValueChange?.(input.value, false);
+        }
+      }, 120);
+    });
+
+    syncClear();
+    onValueChange?.(input.value, false);
   }
 
   function bindSchoolPickers(root) {
     if (!root) return;
     root.querySelectorAll('[data-school-picker]').forEach((wrap) => {
-      const sel = wrap.querySelector('[data-school-select]');
+      const combo = wrap.querySelector('[data-combo="school"]');
       const customBox = wrap.querySelector('[data-school-custom]');
-      if (!sel || !customBox) return;
-      bindTypeaheadSelect(sel);
-      const sync = () => {
-        const isCustom = sel.value === '__custom__';
-        customBox.hidden = !isCustom;
-        customBox.querySelectorAll('input').forEach((inp) => { inp.disabled = !isCustom; });
+      if (!combo) return;
+      const syncCustom = (val) => {
+        if (!customBox) return;
+        const clean = String(val || '').trim();
+        const isPrivate = clean.toLowerCase() === PREFER_NOT_TO_SAY.toLowerCase();
+        const isPreset = SCHOOL_CATALOG.some((s) => s.name.toLowerCase() === clean.toLowerCase());
+        const showCustom = Boolean(clean && !isPrivate && !isPreset);
+        customBox.hidden = !showCustom;
+        customBox.querySelectorAll('input').forEach((inp) => { inp.disabled = !showCustom; });
       };
-      sel.addEventListener('change', sync);
-      sync();
+      bindComboField(combo, SCHOOL_CATALOG, syncCustom);
     });
     root.querySelectorAll('[data-major-picker]').forEach((wrap) => {
-      const sel = wrap.querySelector('[data-major-select]');
-      const customBox = wrap.querySelector('[data-major-custom]');
-      if (!sel || !customBox) return;
-      bindTypeaheadSelect(sel);
-      const sync = () => {
-        const isCustom = sel.value === '__custom__';
-        customBox.hidden = !isCustom;
-        customBox.querySelectorAll('input').forEach((inp) => { inp.disabled = !isCustom; });
-      };
-      sel.addEventListener('change', sync);
-      sync();
+      const combo = wrap.querySelector('[data-combo="major"]');
+      if (!combo) return;
+      bindComboField(combo, MAJOR_CATALOG);
     });
     root.querySelectorAll('select[name="secondaryLanguage"]').forEach(bindTypeaheadSelect);
   }
 
   function extractSchoolFields(formData) {
-    const presetVal = String(formData.get('schoolPreset') || '').trim();
-    if (!presetVal) return { school: '', canvasOrigin: '' };
-    if (presetVal === '__private__') return { school: PREFER_NOT_TO_SAY, canvasOrigin: '' };
-    if (presetVal === '__custom__') {
+    const raw = String(formData.get('schoolInput') ?? formData.get('schoolPreset') ?? '').trim();
+    if (!raw) return { school: '', canvasOrigin: '' };
+    if (raw === '__private__' || raw.toLowerCase() === PREFER_NOT_TO_SAY.toLowerCase()) {
+      return { school: PREFER_NOT_TO_SAY, canvasOrigin: '' };
+    }
+    if (raw === '__custom__') {
       const school = String(formData.get('customSchool') || '').trim().slice(0, 48);
       const canvasOrigin = normalizeCanvasUrl(formData.get('customCanvasOrigin') || '');
       return { school, canvasOrigin };
     }
-    const found = SCHOOL_CATALOG.find((s) => s.name === presetVal);
-    return found ? { school: found.name, canvasOrigin: found.canvasOrigin } : { school: presetVal.slice(0, 48), canvasOrigin: '' };
+    const found = SCHOOL_CATALOG.find((s) => s.name.toLowerCase() === raw.toLowerCase());
+    if (found) return { school: found.name, canvasOrigin: found.canvasOrigin };
+    const canvasOrigin = normalizeCanvasUrl(formData.get('customCanvasOrigin') || '');
+    return { school: raw.slice(0, 48), canvasOrigin };
   }
 
   function extractMajorField(formData) {
-    const presetVal = String(formData.get('majorPreset') || '').trim();
-    if (!presetVal) return '';
-    if (presetVal === '__private__') return PREFER_NOT_TO_SAY;
-    if (presetVal === '__custom__') return String(formData.get('customMajor') || '').trim().slice(0, 64);
-    return presetVal.slice(0, 64);
+    const raw = String(formData.get('majorInput') ?? formData.get('majorPreset') ?? '').trim();
+    if (!raw) return '';
+    if (raw === '__private__' || raw.toLowerCase() === PREFER_NOT_TO_SAY.toLowerCase()) return PREFER_NOT_TO_SAY;
+    if (raw === '__custom__') return String(formData.get('customMajor') || '').trim().slice(0, 64);
+    const found = MAJOR_CATALOG.find((m) => m.toLowerCase() === raw.toLowerCase());
+    return (found || raw).slice(0, 64);
   }
 
   const SECONDARY_LANGUAGES = [
@@ -516,8 +720,9 @@ window.StudyCommunity = (() => {
 
   function secondaryLanguageFieldHtml(selected = '') {
     return `
-      <label class="field-label">Secondary language <small class="muted">(optional · coming soon: translated materials)</small>
-        <select name="secondaryLanguage">
+      <label class="field-label">
+        <span class="field-label-row"><span>Secondary language</span><span class="field-opt">Optional</span></span>
+        <select name="secondaryLanguage" class="clean-select">
           ${SECONDARY_LANGUAGES.map((l) => `<option value="${esc(l.code)}" ${selected === l.code ? 'selected' : ''}>${esc(l.label)}</option>`).join('')}
         </select>
       </label>`;
@@ -532,12 +737,12 @@ window.StudyCommunity = (() => {
       <label class="check-row" style="font-size:12.5px;align-items:flex-start">
         <input name="newsletterOptIn" type="checkbox" style="margin-top:2px">
         <span>
-          <strong>Monthly Study-OS digest &amp; updates</strong> <small class="muted">(optional)</small><br>
-          <small class="muted">1–2 emails/month: newly added past exams &amp; courses, plus an upcoming end-of-month profile recap with tailored Al study tips. Unsubscribe anytime.</small>
+          <strong>Monthly updates</strong><br>
+          <small class="muted">New past exams, courses, and monthly AI study recaps. Unsubscribe anytime.</small>
         </span>
       </label>
       ${showEmailField ? `
-        <label class="field-label" data-newsletter-email hidden>Email for monthly digest
+        <label class="field-label" data-newsletter-email hidden>Email
           <input name="contactEmail" type="email" placeholder="you@example.com" autocomplete="email" disabled>
         </label>
       ` : ''}`;
@@ -1572,8 +1777,9 @@ window.StudyCommunity = (() => {
               ${lockedUntil ? 'readonly aria-readonly="true"' : ''}>
           </label>
           <div style="margin:-4px 0 8px">${nickHint}</div>
-          <label class="field-label">Short bio / study focus <small class="muted">(optional, up to 140 chars)</small>
-            <input name="bio" value="${esc(profile.bio || '')}" maxlength="140" placeholder="e.g. BSc Economics · Grinding Finance &amp; Maths">
+          <label class="field-label">
+            <span class="field-label-row"><span>Bio</span><span class="field-opt">Optional</span></span>
+            <input name="bio" value="${esc(profile.bio || '')}" maxlength="140" placeholder="e.g. BSc Economics · Finance &amp; Maths">
           </label>
           ${schoolFieldHtml(profile.school || '', profile.canvasOrigin || '')}
           ${majorFieldHtml(profile.major || readLocalMajor())}
@@ -1581,8 +1787,8 @@ window.StudyCommunity = (() => {
           <label class="check-row" style="font-size:13px;align-items:flex-start;margin:6px 0">
             <input name="newsletterOptIn" type="checkbox" ${profile.newsletterOptIn ? 'checked' : ''} style="margin-top:2px">
             <span>
-              <strong>Monthly Study-OS digest &amp; updates</strong> <small class="muted">(1–2/month)</small><br>
-              <small class="muted">New past exams, courses &amp; upcoming monthly profile recap with tailored Al study tips.${profile.contactEmailHint ? ` Currently sent to ${esc(profile.contactEmailHint)}.` : ''}</small>
+              <strong>Monthly updates</strong><br>
+              <small class="muted">New past exams, courses, and monthly AI study recaps.${profile.contactEmailHint ? ` Sent to ${esc(profile.contactEmailHint)}.` : ''}</small>
             </span>
           </label>
           <label class="field-label" data-profile-newsletter-email ${profile.newsletterOptIn && !profile.contactEmailHint ? '' : 'hidden'}>Email for monthly digest
@@ -3466,7 +3672,7 @@ window.StudyCommunity = (() => {
         ${schoolFieldHtml(curSchool, curOrigin)}
         ${majorFieldHtml(curMajor)}
         <div class="settings-school-major-foot">
-          <small class="muted" id="settings-school-major-status">Press any letter repeatedly on a dropdown to cycle options.</small>
+          <small class="muted" id="settings-school-major-status"></small>
           <button type="submit" class="ghost-btn settings-sm-save-btn">Save</button>
         </div>
       </form>`;
@@ -3491,10 +3697,14 @@ window.StudyCommunity = (() => {
       ev.preventDefault();
       persistForm(false);
     });
-    // Auto-save non-custom selections smoothly on change (custom values save on Save/blur)
-    form.querySelectorAll('[data-school-select], [data-major-select]').forEach((sel) => {
-      sel.addEventListener('change', () => {
-        if (sel.value !== '__custom__') persistForm(true);
+    // Auto-save selections smoothly on combobox change
+    form.querySelectorAll('[data-combo-input]').forEach((inp) => {
+      inp.addEventListener('change', () => {
+        const isCustomSchool = inp.name === 'schoolInput'
+          && inp.value.trim()
+          && inp.value.trim().toLowerCase() !== PREFER_NOT_TO_SAY.toLowerCase()
+          && !SCHOOL_CATALOG.some((s) => s.name.toLowerCase() === inp.value.trim().toLowerCase());
+        if (!isCustomSchool) persistForm(true);
       });
     });
   }
