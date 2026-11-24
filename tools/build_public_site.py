@@ -1774,6 +1774,28 @@ def finalize_site(
         course_entry["medDlpfcCount"] = len(tier_ids["2"])
         course_entry["highDlpfcCount"] = len(tier_ids["3"])
         course_entry["topicStats"] = [v for v in topic_map.values() if v["questionCount"] > 0]
+        by_coll_qids: dict[str, list[str]] = {}
+        by_coll_par: dict[str, float] = {}
+        for q in cqs:
+            col_id = str(q.get("collectionId") or "")
+            if not col_id:
+                continue
+            by_coll_qids.setdefault(col_id, []).append(q["id"])
+            p = q.get("pacing") or {}
+            t_min = (p.get("exam") or {}).get("target") or (p.get("learning") or {}).get("target")
+            by_coll_par[col_id] = by_coll_par.get(col_id, 0.0) + (
+                float(t_min) if isinstance(t_min, (int, float)) and t_min > 0 else (2.0 if q.get("kind") == "mcq" else 6.0)
+            )
+        enriched_colls = []
+        for col in course_entry.get("collections") or []:
+            c_copy = dict(col)
+            cid_col = str(col.get("id") or "")
+            qids_col = by_coll_qids.get(cid_col, [])
+            c_copy["questionIds"] = qids_col
+            c_copy["questionCount"] = len(qids_col)
+            c_copy["parMinutes"] = round(by_coll_par.get(cid_col, 0.0))
+            enriched_colls.append(c_copy)
+        course_entry["collections"] = enriched_colls
     (static_dir / "bootstrap.json").write_text(
         json.dumps(bootstrap, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
