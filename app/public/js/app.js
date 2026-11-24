@@ -333,6 +333,10 @@ window.StudyApp = (() => {
         hintsUsed: Math.max(0, Math.round(Number(item.hintsUsed || 0))),
         hintedQCount: Math.max(0, Math.round(Number(item.hintedQCount || 0))),
         hintPenaltyPts: Math.max(0, Math.round(Number(item.hintPenaltyPts || 0) * 10) / 10),
+        refQCount: Math.max(0, Math.round(Number(item.refQCount || 0))),
+        refSec: Math.max(0, Math.round(Number(item.refSec || 0))),
+        refPenaltyPts: Math.max(0, Math.round(Number(item.refPenaltyPts || 0) * 10) / 10),
+        openBookExam: Boolean(item.openBookExam),
         breaksCount: Math.max(0, Math.round(Number(item.breaksCount || 0))),
         breakSec: Math.max(0, Math.round(Number(item.breakSec || 0))),
         durationSec: Math.max(0, Math.round(Number(item.durationSec || 0))),
@@ -349,15 +353,20 @@ window.StudyApp = (() => {
       .slice(0, 15);
   }
 
-  function isBetterExamAttempt(candPct, candHints, prevPct, prevHints) {
+  function isBetterExamAttempt(candPct, candAids, prevPct, prevAids) {
     if (!Number.isFinite(prevPct) || prevPct < 0) return true;
     if (candPct > prevPct + 0.04) return true;
     if (Math.abs(candPct - prevPct) <= 0.04) {
-      const ch = Number.isFinite(candHints) ? candHints : 9999;
-      const ph = Number.isFinite(prevHints) ? prevHints : 9999;
+      const ch = Number.isFinite(candAids) ? candAids : 9999;
+      const ph = Number.isFinite(prevAids) ? prevAids : 9999;
       return ch <= ph;
     }
     return false;
+  }
+
+  function countExamAidUnits(hints, refQs, openBook = false) {
+    if (hints == null && refQs == null) return null;
+    return Math.max(0, Number(hints || 0)) + (openBook ? 0 : Math.max(0, Number(refQs || 0)));
   }
 
   function inferCompletedAttempts(entry) {
@@ -392,8 +401,8 @@ window.StudyApp = (() => {
       const incAt = backupTime(v.completedAt);
       const curBest = Number(cur.bestPct || 0);
       const incBest = Number(v.bestPct || 0);
-      const curHints = cur.bestHintsUsed == null ? null : Number(cur.bestHintsUsed);
-      const incHints = v.bestHintsUsed == null ? null : Number(v.bestHintsUsed);
+      const curAids = countExamAidUnits(cur.bestHintsUsed, cur.bestRefQCount, Boolean(cur.openBookExam));
+      const incAids = countExamAidUnits(v.bestHintsUsed, v.bestRefQCount, Boolean(v.openBookExam));
       const curComp = inferCompletedAttempts(cur);
       const incComp = inferCompletedAttempts(v);
       const mergedHist = normalizeAttemptHistoryList([...(cur.attemptHistory || []), ...(v.attemptHistory || [])]);
@@ -403,15 +412,15 @@ window.StudyApp = (() => {
       const bestCleanPct = Math.max(curClean, incClean);
       if (
         incAt > curAt
-        || isBetterExamAttempt(incBest, incHints, curBest, curHints)
+        || isBetterExamAttempt(incBest, incAids, curBest, curAids)
         || Number(v.attemptsCount || 0) > Number(cur.attemptsCount || 0)
         || incComp > curComp
         || mergedHist.length > prevHistLen
         || bestCleanPct > curClean
       ) {
         const latest = incAt >= curAt ? v : cur;
-        const incWinsBest = isBetterExamAttempt(incBest, incHints, curBest, curHints)
-          && (incBest > curBest + 0.04 || (Math.abs(incBest - curBest) <= 0.04 && (incHints ?? 9999) < (curHints ?? 9999)));
+        const incWinsBest = isBetterExamAttempt(incBest, incAids, curBest, curAids)
+          && (incBest > curBest + 0.04 || (Math.abs(incBest - curBest) <= 0.04 && (incAids ?? 9999) < (curAids ?? 9999)));
         const best = incWinsBest ? v : cur;
         const bestPctVal = Math.max(curBest, incBest);
         out[k] = {
@@ -423,6 +432,9 @@ window.StudyApp = (() => {
           bestTotalPts: best.bestTotalPts ?? best.totalPts ?? latest.totalPts,
           bestHintsUsed: best.bestHintsUsed ?? null,
           bestHintedQCount: best.bestHintedQCount ?? null,
+          bestRefQCount: best.bestRefQCount ?? null,
+          bestRefSec: best.bestRefSec ?? null,
+          openBookExam: Boolean(best.openBookExam ?? latest.openBookExam),
           bestBreaksCount: best.bestBreaksCount ?? null,
           bestDurationSec: best.bestDurationSec ?? null,
           bestStyle: best.bestStyle || latest.lastStyle || '',
@@ -453,6 +465,10 @@ window.StudyApp = (() => {
     const hintsUsed = Math.max(0, Math.round(Number(summary.hintsTotal ?? summary.hintsUsed ?? 0)));
     const hintedQCount = Math.max(0, Math.round(Number(summary.hintedQCount || 0)));
     const hintPenaltyPts = Math.max(0, Math.round(Number(summary.hintPenaltyPts || 0) * 10) / 10);
+    const refQCount = Math.max(0, Math.round(Number(summary.refQCount || 0)));
+    const refSec = Math.max(0, Math.round(Number(summary.refTotalSec ?? summary.refSec ?? 0)));
+    const refPenaltyPts = Math.max(0, Math.round(Number(summary.refPenaltyPts || 0) * 10) / 10);
+    const openBookExam = Boolean(summary.openBookExam || courseId === 'prog-3021');
     const breaksCount = Math.max(0, Math.round(Number(summary.breaksCount || 0)));
     const breakSec = Math.max(0, Math.round(Number(summary.breakSec || 0)));
     const durationSec = Math.max(0, Math.round(Number(summary.durationSec || 0)));
@@ -463,6 +479,7 @@ window.StudyApp = (() => {
     const examStyle = summary.examStyle === 'guided' ? 'guided' : 'blind';
     const gradingKind = ['auto', 'rubric', 'mixed'].includes(summary.gradingKind) ? summary.gradingKind : 'mixed';
     const isComplete = Boolean(summary.complete || (totalCount > 0 && gradedCount >= totalCount));
+    const isCleanSit = hintsUsed === 0 && (openBookExam || refQCount === 0);
     const sessionId = typeof summary.sessionId === 'string' && summary.sessionId.trim()
       ? summary.sessionId.trim().slice(0, 64)
       : `ses-${Date.now()}`;
@@ -470,13 +487,14 @@ window.StudyApp = (() => {
     const saveInto = (map) => {
       const prev = isRecord(map[key]) ? map[key] : null;
       const prevBest = prev ? Number(prev.bestPct ?? prev.lastPct ?? -1) : -1;
-      const prevBestHints = prev?.bestHintsUsed == null ? null : Number(prev.bestHintsUsed);
-      const isNewBest = isBetterExamAttempt(pct, hintsUsed, prevBest, prevBestHints);
+      const prevBestAids = prev ? countExamAidUnits(prev.bestHintsUsed, prev.bestRefQCount, Boolean(prev.openBookExam ?? openBookExam)) : null;
+      const candAids = countExamAidUnits(hintsUsed, refQCount, openBookExam);
+      const isNewBest = isBetterExamAttempt(pct, candAids, prevBest, prevBestAids);
       const bestPct = isNewBest ? pct : prevBest;
       const bestG = gradeFromPct(bestPct);
 
       const prevCleanBest = prev?.bestCleanPct == null ? -1 : Number(prev.bestCleanPct);
-      const isNewCleanBest = hintsUsed === 0 && pct >= prevCleanBest;
+      const isNewCleanBest = isCleanSit && pct >= prevCleanBest;
       const bestCleanPct = isNewCleanBest ? pct : (prevCleanBest >= 0 ? prevCleanBest : null);
       const bestCleanGrade = bestCleanPct != null ? (gradeFromPct(bestCleanPct)?.letter || '') : '';
 
@@ -497,6 +515,10 @@ window.StudyApp = (() => {
         hintsUsed,
         hintedQCount,
         hintPenaltyPts,
+        refQCount,
+        refSec,
+        refPenaltyPts,
+        openBookExam,
         breaksCount,
         breakSec,
         durationSec,
@@ -525,11 +547,14 @@ window.StudyApp = (() => {
       const entry = {
         courseId: String(courseId),
         collectionId: String(collectionId),
+        openBookExam,
         lastPct: pct,
         lastRawPct: rawPct,
         lastGrade: g.letter,
         lastHintsUsed: hintsUsed,
         lastHintedQCount: hintedQCount,
+        lastRefQCount: refQCount,
+        lastRefSec: refSec,
         lastBreaksCount: breaksCount,
         lastDurationSec: durationSec,
         lastStyle: examStyle,
@@ -540,6 +565,8 @@ window.StudyApp = (() => {
         bestTotalPts: isNewBest ? totalPts : (prev?.bestTotalPts ?? prev?.totalPts ?? totalPts),
         bestHintsUsed: isNewBest ? hintsUsed : (prev?.bestHintsUsed ?? null),
         bestHintedQCount: isNewBest ? hintedQCount : (prev?.bestHintedQCount ?? null),
+        bestRefQCount: isNewBest ? refQCount : (prev?.bestRefQCount ?? null),
+        bestRefSec: isNewBest ? refSec : (prev?.bestRefSec ?? null),
         bestBreaksCount: isNewBest ? breaksCount : (prev?.bestBreaksCount ?? null),
         bestDurationSec: isNewBest ? durationSec : (prev?.bestDurationSec ?? null),
         bestStyle: isNewBest ? examStyle : (prev?.bestStyle || examStyle),
@@ -4266,6 +4293,13 @@ window.StudyApp = (() => {
     const bestHintsUsed = savedResult && savedResult.bestHintsUsed != null && Number.isFinite(Number(savedResult.bestHintsUsed))
       ? Math.max(0, Math.round(Number(savedResult.bestHintsUsed)))
       : null;
+    const bestRefQCount = savedResult && savedResult.bestRefQCount != null && Number.isFinite(Number(savedResult.bestRefQCount))
+      ? Math.max(0, Math.round(Number(savedResult.bestRefQCount)))
+      : null;
+    const bestRefSec = savedResult && savedResult.bestRefSec != null && Number.isFinite(Number(savedResult.bestRefSec))
+      ? Math.max(0, Math.round(Number(savedResult.bestRefSec)))
+      : 0;
+    const openBookExam = Boolean(savedResult?.openBookExam);
     const bestRawPct = savedResult && Number.isFinite(Number(savedResult.bestRawPct))
       ? Math.round(Number(savedResult.bestRawPct))
       : bestPct;
@@ -4292,6 +4326,9 @@ window.StudyApp = (() => {
       bestRawPct,
       lastPct,
       bestHintsUsed,
+      bestRefQCount,
+      bestRefSec,
+      openBookExam,
       bestCleanPct,
       bestCleanGrade,
       completedAttempts,
@@ -4398,16 +4435,19 @@ window.StudyApp = (() => {
       const hasBestAttempt = Boolean(isOfficialOrFullGrade && prog.bestPct != null);
       const compCount = Number(prog.completedAttempts || 0);
       const bestHints = prog.bestHintsUsed;
+      const bestRefs = prog.bestRefQCount;
+      const openBook = Boolean(prog.openBookExam || c.courseId === 'prog-3021');
+      const isCleanBest = bestHints === 0 && (openBook || bestRefs === 0 || bestRefs == null);
 
       let rightBadgeHtml = '';
       if (isOfficialOrFullGrade) {
         const star = g.letter === 'A' ? '★ ' : '';
-        const hintTip = bestHints === 0
-          ? ' · Clean (0 hints)'
-          : bestHints > 0
-          ? ` · ${bestHints} hint${bestHints === 1 ? '' : 's'} used${prog.bestRawPct && prog.bestRawPct !== prog.bestPct ? ` (raw ${prog.bestRawPct}%)` : ''}`
-          : '';
-        const tip = `${prog.gradingLabel || 'Graded'} · Best ${prog.bestPct}% (BI Grade ${g.letter} · ${g.label})${hintTip} · ${compCount} completed attempt${compCount === 1 ? '' : 's'}`;
+        const aidBits = [];
+        if (isCleanBest) aidBits.push(openBook ? 'Clean (0 hints)' : 'Clean closed-book');
+        if (bestHints > 0) aidBits.push(`${bestHints} hint${bestHints === 1 ? '' : 's'}`);
+        if (bestRefs > 0) aidBits.push(`Ref on ${bestRefs} Q${bestRefs === 1 ? '' : 's'}${prog.bestRefSec ? ` (${formatAttemptDuration(prog.bestRefSec)})` : ''}`);
+        const rawNote = prog.bestRawPct && prog.bestRawPct !== prog.bestPct ? ` (raw ${prog.bestRawPct}%)` : '';
+        const tip = `${prog.gradingLabel || 'Graded'} · Best ${prog.bestPct}%${rawNote} (BI Grade ${g.letter} · ${g.label})${aidBits.length ? ` · ${aidBits.join(', ')}` : ''} · ${compCount} completed attempt${compCount === 1 ? '' : 's'}`;
         rightBadgeHtml = `<span class="exam-grade-medal ${g.cls}" title="${esc(tip)}"><b>${star}${g.letter}</b><small>${prog.bestPct}%</small></span>`;
       } else if (g && prog.gradeSource === 'estimate') {
         rightBadgeHtml = `<span class="exam-grade-medal is-est ${g.cls}" title="Projected BI grade from ${prog.touched} attempted question(s)"><b>Est. ${g.letter}</b><small>${prog.bestPct}%</small></span>`;
@@ -4427,16 +4467,21 @@ window.StudyApp = (() => {
         prog.revisit > 0 ? `${prog.revisit} revisit` : '',
       ].filter(Boolean).join(' · ');
 
-      // Best attempt + hint status + completed attempts strip
+      // Best attempt + hint/reference status + completed attempts strip
       let bestSummaryHtml = '';
       if (hasBestAttempt) {
         const bestStar = g.letter === 'A' ? '★ ' : '';
-        const hintTagHtml = bestHints === 0
-          ? `<span class="exam-hint-chip is-clean" title="Best attempt completed with 0 hints">✓ Clean</span>`
-          : bestHints > 0
-          ? `<span class="exam-hint-chip is-assisted" title="Best attempt used ${bestHints} hint${bestHints === 1 ? '' : 's'}${prog.bestRawPct && prog.bestRawPct !== prog.bestPct ? ` (raw ${prog.bestRawPct}% → ${prog.bestPct}%)` : ''}${prog.bestCleanGrade ? ` · Clean best: ${prog.bestCleanGrade.letter} ${prog.bestCleanPct}%` : ''}">💡 ${bestHints} hint${bestHints === 1 ? '' : 's'}</span>`
-          : '';
-        bestSummaryHtml = `<span class="exam-best-label">Best <b class="exam-inline-grade ${g.cls}">${bestStar}${g.letter} · ${prog.bestPct}%</b></span>${hintTagHtml}`;
+        const chips = [];
+        if (isCleanBest) {
+          chips.push(`<span class="exam-hint-chip is-clean" title="${openBook ? 'Best attempt completed with 0 hints' : 'Best attempt completed closed-book with 0 hints & 0 reference opens'}">✓ Clean</span>`);
+        }
+        if (bestHints > 0) {
+          chips.push(`<span class="exam-hint-chip is-assisted" title="Best attempt used ${bestHints} hint${bestHints === 1 ? '' : 's'}${prog.bestRawPct && prog.bestRawPct !== prog.bestPct ? ` (raw ${prog.bestRawPct}% → ${prog.bestPct}%)` : ''}${prog.bestCleanGrade ? ` · Clean best: ${prog.bestCleanGrade.letter} ${prog.bestCleanPct}%` : ''}">💡 ${bestHints} hint${bestHints === 1 ? '' : 's'}</span>`);
+        }
+        if (bestRefs > 0) {
+          chips.push(`<span class="exam-hint-chip ${openBook ? 'is-info' : 'is-assisted'}" title="Reference consulted on ${bestRefs} Q${bestRefs === 1 ? '' : 's'}${prog.bestRefSec ? ` (${formatAttemptDuration(prog.bestRefSec)})` : ''}${openBook ? ' · open-book exam (0% penalty)' : ' · -10%/Q closed-book adjustment'}">📖 ${bestRefs} ref</span>`);
+        }
+        bestSummaryHtml = `<span class="exam-best-label">Best <b class="exam-inline-grade ${g.cls}">${bestStar}${g.letter} · ${prog.bestPct}%</b></span>${chips.join('')}`;
       } else if (g && prog.gradeSource === 'estimate') {
         bestSummaryHtml = `<span class="exam-best-label muted">Est. <b class="exam-inline-grade ${g.cls}">${g.letter} · ${prog.bestPct}%</b></span>`;
       } else {
@@ -4858,49 +4903,71 @@ window.StudyApp = (() => {
       const bestG = gradeFromPct(bestPct);
       const bestRaw = Number.isFinite(Number(res.bestRawPct)) ? Math.round(Number(res.bestRawPct)) : bestPct;
       const bestHints = res.bestHintsUsed == null ? null : Math.max(0, Math.round(Number(res.bestHintsUsed)));
+      const bestRefs = res.bestRefQCount == null ? null : Math.max(0, Math.round(Number(res.bestRefQCount)));
+      const bestRefSec = Math.max(0, Math.round(Number(res.bestRefSec || 0)));
+      const openBook = Boolean(res.openBookExam || courseId === 'prog-3021');
       const bestBreaks = res.bestBreaksCount == null ? 0 : Math.max(0, Math.round(Number(res.bestBreaksCount)));
       const compCount = inferCompletedAttempts(res);
       const totalSits = Math.max(compCount, Number(res.attemptsCount || 1));
       const cleanBestG = res.bestCleanPct != null ? gradeFromPct(res.bestCleanPct) : null;
+      const bestIsClean = bestHints === 0 && (openBook || bestRefs === 0 || bestRefs == null);
 
-      const bestHintBadge = bestHints === 0
-        ? `<span class="exam-hint-chip is-clean">✓ Clean (0 hints)</span>`
-        : bestHints > 0
-        ? `<span class="exam-hint-chip is-assisted">💡 ${bestHints} hint${bestHints === 1 ? '' : 's'}${bestRaw !== bestPct ? ` · raw ${bestRaw}%` : ''}</span>`
-        : `<span class="exam-hint-chip">Hints n/a (legacy sit)</span>`;
+      const bestAidBadges = [];
+      if (bestIsClean) {
+        bestAidBadges.push(`<span class="exam-hint-chip is-clean">✓ Clean (${openBook ? '0 hints' : 'closed-book'})</span>`);
+      }
+      if (bestHints > 0) {
+        bestAidBadges.push(`<span class="exam-hint-chip is-assisted">💡 ${bestHints} hint${bestHints === 1 ? '' : 's'}</span>`);
+      }
+      if (bestRefs > 0) {
+        bestAidBadges.push(`<span class="exam-hint-chip ${openBook ? 'is-info' : 'is-assisted'}">📖 Ref: ${bestRefs} Q${bestRefs === 1 ? '' : 's'}${bestRefSec >= 10 ? ` · ${formatAttemptDuration(bestRefSec)}` : ''}</span>`);
+      }
+      if (bestRaw !== bestPct) {
+        bestAidBadges.push(`<span class="exam-hint-chip">Raw ${bestRaw}%</span>`);
+      }
+      if (!bestAidBadges.length && bestHints == null && bestRefs == null) {
+        bestAidBadges.push(`<span class="exam-hint-chip">Legacy sit</span>`);
+      }
 
       const hist = normalizeAttemptHistoryList(res.attemptHistory || []);
       const rowsHtml = hist.length
         ? `<div class="exam-history-list">
             ${hist.map((a, idx) => {
               const ag = gradeFromPct(a.pct);
-              const isBestRow = Math.round(a.pct) === bestPct && (bestHints == null || a.hintsUsed === bestHints) && idx === hist.findIndex((x) => Math.round(x.pct) === bestPct && (bestHints == null || x.hintsUsed === bestHints));
-              const hChip = a.hintsUsed === 0
-                ? `<span class="exam-hint-chip is-clean">✓ Clean</span>`
-                : `<span class="exam-hint-chip is-assisted" title="Raw ${Math.round(a.rawPct)}% · -${a.hintPenaltyPts.toFixed(1)} pts">💡 ${a.hintsUsed} hint${a.hintsUsed === 1 ? '' : 's'}</span>`;
+              const rowOpen = Boolean(a.openBookExam || openBook);
+              const rowClean = a.hintsUsed === 0 && (rowOpen || (a.refQCount || 0) === 0);
+              const isBestRow = Math.round(a.pct) === bestPct
+                && (bestHints == null || a.hintsUsed === bestHints)
+                && (bestRefs == null || (a.refQCount || 0) === bestRefs)
+                && idx === hist.findIndex((x) => Math.round(x.pct) === bestPct && (bestHints == null || x.hintsUsed === bestHints) && (bestRefs == null || (x.refQCount || 0) === bestRefs));
+              const chips = [];
+              if (rowClean) chips.push(`<span class="exam-hint-chip is-clean">✓ Clean</span>`);
+              if (a.hintsUsed > 0) chips.push(`<span class="exam-hint-chip is-assisted" title="Raw ${Math.round(a.rawPct)}% · -${a.hintPenaltyPts.toFixed(1)} pts">💡 ${a.hintsUsed} hint${a.hintsUsed === 1 ? '' : 's'}</span>`);
+              if ((a.refQCount || 0) > 0) chips.push(`<span class="exam-hint-chip ${rowOpen ? 'is-info' : 'is-assisted'}" title="Reference consulted on ${a.refQCount} Q${a.refQCount === 1 ? '' : 's'}${a.refSec ? ` (${formatAttemptDuration(a.refSec)})` : ''}${!rowOpen && a.refPenaltyPts ? ` · -${a.refPenaltyPts.toFixed(1)} pts` : ''}">📖 ${a.refQCount} ref${a.refSec >= 60 ? ` (${Math.round(a.refSec / 60)}m)` : ''}</span>`);
               const brkTxt = a.breaksCount > 0 ? ` · ☕ ${a.breaksCount} break${a.breaksCount === 1 ? '' : 's'}` : '';
               const statusTxt = a.complete ? 'Completed' : `Partial (${a.gradedCount}/${a.totalCount})`;
+              const hasRawDiff = Math.round(a.rawPct) !== Math.round(a.pct);
               return `<div class="exam-history-row ${isBestRow ? 'is-best' : ''}">
                 <div class="exam-history-row-left">
                   <span class="exam-grade-medal ${ag.cls}"><b>${ag.letter === 'A' ? '★ ' : ''}${ag.letter}</b><small>${Math.round(a.pct)}%</small></span>
-                  ${hChip}
+                  ${chips.join('')}
                   ${isBestRow ? '<span class="badge good" style="font-size:10.5px;padding:1px 6px">Best</span>' : ''}
                 </div>
                 <div class="exam-history-row-meta">
-                  <span>${a.earnedPts.toFixed(1)}/${a.totalPts} pts${a.hintsUsed > 0 && Math.round(a.rawPct) !== Math.round(a.pct) ? ` (raw ${Math.round(a.rawPct)}%)` : ''} · ${esc(statusTxt)} · ${a.examStyle === 'guided' ? 'Guided' : 'Blind'}${brkTxt}</span>
+                  <span>${a.earnedPts.toFixed(1)}/${a.totalPts} pts${hasRawDiff ? ` (raw ${Math.round(a.rawPct)}%)` : ''} · ${esc(statusTxt)} · ${a.examStyle === 'guided' ? 'Guided' : 'Blind'}${brkTxt}</span>
                   <small class="muted">${formatAttemptDuration(a.durationSec)} · ${esc(formatAttemptDate(a.completedAt))}</small>
                 </div>
               </div>`;
             }).join('')}
           </div>`
-        : `<p class="muted" style="font-size:13px;margin:12px 0 0">Completed sits prior to attempt-history tracking are counted above; future sits will list each run with hints &amp; breaks here.</p>`;
+        : `<p class="muted" style="font-size:13px;margin:12px 0 0">Completed sits prior to attempt-history tracking are counted above; future sits will list each run with hints, reference usage &amp; breaks here.</p>`;
 
       body.innerHTML = `
         <div class="exam-history-best ${bestG ? bestG.cls : ''}">
           <div class="exam-history-best-top">
             <span class="exam-grade-medal ${bestG ? bestG.cls : ''}"><b>${bestG?.letter === 'A' ? '★ ' : ''}${bestG?.letter || '—'}</b><small>${bestPct}%</small></span>
-            ${bestHintBadge}
-            ${cleanBestG && bestHints > 0 ? `<span class="exam-hint-chip is-clean">Clean best: ${cleanBestG.letter} ${Math.round(res.bestCleanPct)}%</span>` : ''}
+            ${bestAidBadges.join('')}
+            ${cleanBestG && !bestIsClean ? `<span class="exam-hint-chip is-clean">Clean best: ${cleanBestG.letter} ${Math.round(res.bestCleanPct)}%</span>` : ''}
           </div>
           <div class="exam-history-stats">
             <div><strong>${compCount}</strong><span>Completed attempt${compCount === 1 ? '' : 's'}</span></div>
@@ -6536,10 +6603,12 @@ window.StudyApp = (() => {
       if (boot.analytics.today) boot.analytics.today.liveActiveSec = liveTodaySec;
     }
     const aiBriefText = buildAiCoachBrief();
+    const examAidStats = computeExamAidStats();
     if (window.StudyMetrics?.renderDashboard) {
       window.StudyMetrics.renderDashboard(root, {
         analytics: boot.analytics || {},
         catalog: boot.catalog || [],
+        examAidStats,
         aiBriefText,
         onPracticeTopic: (courseId, topicId) => {
           launchSmartCourseRun(courseId, 45, 'learning', String(topicId), 'auto', false, 0);
@@ -6548,6 +6617,117 @@ window.StudyApp = (() => {
       return;
     }
     root.innerHTML = `<div class="panel"><p class="muted">Loading metrics…</p></div>`;
+  }
+
+  function computeExamAidStats() {
+    const attempts = isStaticWeb ? (loadWebState().attempts || []) : [];
+    const examResults = loadExamResultsMap();
+    const courseById = new Map((boot.catalog || []).map((c) => [c.courseId, c]));
+    const topicTitleMap = new Map();
+    for (const c of boot.catalog || []) {
+      for (const t of c.topics || []) {
+        topicTitleMap.set(`${c.courseId}:${t.id}`, t.title || `Topic ${t.id}`);
+      }
+    }
+
+    let examQTotal = 0;
+    let examQClean = 0;
+    let closedBookQTotal = 0;
+    let closedBookQClean = 0;
+    let examRefQs = 0;
+    let examRefSec = 0;
+    let examHints = 0;
+    const byTopic = new Map();
+
+    for (const a of attempts) {
+      if (!a || a.profile !== 'exam') continue;
+      const openBook = Boolean(a.openBookExam || a.courseId === 'prog-3021');
+      const h = Math.max(0, Number(a.hintsUsed || 0));
+      const rUsed = Boolean(a.refUsed);
+      const rSec = Math.max(0, Number(a.refSec || 0));
+      examQTotal += 1;
+      examHints += h;
+      if (rUsed) examRefQs += 1;
+      examRefSec += rSec;
+      const isCleanQ = h === 0 && (openBook || !rUsed);
+      if (isCleanQ) examQClean += 1;
+      if (!openBook) {
+        closedBookQTotal += 1;
+        if (h === 0 && !rUsed) closedBookQClean += 1;
+      }
+      if (h > 0 || rUsed) {
+        const tk = `${a.courseId || ''}:${a.topicId || ''}`;
+        const cur = byTopic.get(tk) || {
+          courseId: a.courseId || '',
+          courseCode: courseById.get(a.courseId)?.code || a.courseId || '',
+          courseShort: courseById.get(a.courseId)?.shortTitle || '',
+          topicId: String(a.topicId || ''),
+          topicTitle: topicTitleMap.get(tk) || `Topic ${a.topicId || '?'}`,
+          openBook,
+          refCount: 0,
+          refSec: 0,
+          hintCount: 0,
+          attempts: 0,
+        };
+        if (rUsed) cur.refCount += 1;
+        cur.refSec += rSec;
+        cur.hintCount += h;
+        cur.attempts += 1;
+        byTopic.set(tk, cur);
+      }
+    }
+
+    let sitCount = 0;
+    let cleanSitCount = 0;
+    let sitRefQs = 0;
+    let sitRefSec = 0;
+    let sitHints = 0;
+    for (const entry of Object.values(examResults)) {
+      if (!isRecord(entry)) continue;
+      const hist = normalizeAttemptHistoryList(entry.attemptHistory || []);
+      if (hist.length) {
+        for (const h of hist) {
+          sitCount += 1;
+          const ob = Boolean(h.openBookExam || entry.openBookExam || entry.courseId === 'prog-3021');
+          if (h.hintsUsed === 0 && (ob || (h.refQCount || 0) === 0)) cleanSitCount += 1;
+          sitRefQs += Number(h.refQCount || 0);
+          sitRefSec += Number(h.refSec || 0);
+          sitHints += Number(h.hintsUsed || 0);
+        }
+      } else if (entry.bestHintsUsed != null || entry.bestRefQCount != null) {
+        sitCount += 1;
+        const ob = Boolean(entry.openBookExam || entry.courseId === 'prog-3021');
+        if ((entry.bestHintsUsed || 0) === 0 && (ob || (entry.bestRefQCount || 0) === 0)) cleanSitCount += 1;
+        sitRefQs += Number(entry.bestRefQCount || 0);
+        sitRefSec += Number(entry.bestRefSec || 0);
+        sitHints += Number(entry.bestHintsUsed || 0);
+      }
+    }
+
+    const recallGaps = [...byTopic.values()]
+      .sort((a, b) => (b.refCount * 2 + b.hintCount) - (a.refCount * 2 + a.hintCount) || b.refSec - a.refSec)
+      .slice(0, 6);
+
+    const independencePct = closedBookQTotal > 0
+      ? Math.round((closedBookQClean / closedBookQTotal) * 100)
+      : examQTotal > 0
+      ? Math.round((examQClean / examQTotal) * 100)
+      : sitCount > 0
+      ? Math.round((cleanSitCount / sitCount) * 100)
+      : null;
+
+    return {
+      examQTotal,
+      closedBookQTotal,
+      closedBookQClean,
+      independencePct,
+      refQs: Math.max(examRefQs, sitRefQs),
+      refSec: Math.round(Math.max(examRefSec, sitRefSec)),
+      hintsTotal: Math.max(examHints, sitHints),
+      sitCount,
+      cleanSitCount,
+      recallGaps,
+    };
   }
 
   function buildAiCoachBrief() {
@@ -6591,6 +6771,20 @@ window.StudyApp = (() => {
         lines.push(
           `- [${(s.endedAt || '').slice(0, 16)}] ${s.courseId} | ${s.reviewedCount} Qs | UPI ${s.upi ?? '—'} | Focus=${ci.focus ?? '-'} Energy=${ci.energy ?? '-'} Inertia=${ci.startInertia ?? '-'} | Tags: ${(ci.tags || []).join(', ') || '-'} | Note: ${ci.note || '-'}`
         );
+      }
+    }
+    const aid = computeExamAidStats();
+    if (aid.examQTotal > 0 || aid.sitCount > 0) {
+      lines.push('');
+      lines.push('EXAM AID & CLOSED-BOOK INDEPENDENCE:');
+      lines.push(
+        `- Closed-book independence: ${aid.independencePct != null ? `${aid.independencePct}%` : '—'} | Exam reference lookups: ${aid.refQs} Qs (${Math.round(aid.refSec / 60)}m) | Exam hints: ${aid.hintsTotal} | Clean sits: ${aid.cleanSitCount}/${aid.sitCount}`
+      );
+      if (aid.recallGaps.length) {
+        lines.push('- Top formula/concept recall gaps (consulted Reference/Hints during exams):');
+        for (const g of aid.recallGaps.slice(0, 5)) {
+          lines.push(`  * ${g.courseCode} · ${g.topicTitle}: Ref ${g.refCount}x (${Math.round(g.refSec / 60)}m), Hints ${g.hintCount}x`);
+        }
       }
     }
     return lines.join('\n');
@@ -8337,7 +8531,8 @@ window.StudyApp = (() => {
       const qAcc = Number(payload.qualityAccuracy || 0);
       const effSec = Number(payload.activeSec || 1) + Number(payload.hintsUsed || 0) * Number(payload.hintHandicapSec || 30);
       const aiSec = Number(payload.aiParSec || 120);
-      const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !payload.assisted && effSec <= aiSec;
+      const closedBookRefUsed = payload.profile === 'exam' && Boolean(payload.refUsed) && !payload.openBookExam;
+      const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !closedBookRefUsed && !payload.assisted && effSec <= aiSec;
       const autoGraded = isAutoGradedAttempt(payload);
       const maxPr = autoGraded ? 1.5 : 1.0;
       const paceRatio = qAcc < 0.6 ? 0.35 : Math.min(maxPr, aiSec / Math.max(1, effSec));
@@ -8351,7 +8546,8 @@ window.StudyApp = (() => {
       const qAcc = Number(payload.qualityAccuracy || 0);
       const effSec = Number(payload.activeSec || 1) + Number(payload.hintsUsed || 0) * Number(payload.hintHandicapSec || 30);
       const aiSec = Number(payload.aiParSec || 120);
-      const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !payload.assisted && effSec <= aiSec;
+      const closedBookRefUsed = payload.profile === 'exam' && Boolean(payload.refUsed) && !payload.openBookExam;
+      const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !closedBookRefUsed && !payload.assisted && effSec <= aiSec;
       const autoGraded = isAutoGradedAttempt(payload);
       const maxPr = autoGraded ? 1.5 : 1.0;
       const paceRatio = qAcc < 0.6 ? 0.35 : Math.min(maxPr, aiSec / Math.max(1, effSec));

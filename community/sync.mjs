@@ -203,6 +203,10 @@ function cleanAttemptHistory(raw) {
       hintsUsed: Math.max(0, Math.min(500, Math.round(Number(item.hintsUsed || 0)))),
       hintedQCount: Math.max(0, Math.min(500, Math.round(Number(item.hintedQCount || 0)))),
       hintPenaltyPts: Math.max(0, Math.round(Number(item.hintPenaltyPts || 0) * 10) / 10),
+      refQCount: Math.max(0, Math.min(500, Math.round(Number(item.refQCount || 0)))),
+      refSec: Math.max(0, Math.min(86400, Math.round(Number(item.refSec || 0)))),
+      refPenaltyPts: Math.max(0, Math.round(Number(item.refPenaltyPts || 0) * 10) / 10),
+      openBookExam: Boolean(item.openBookExam),
       breaksCount: Math.max(0, Math.min(100, Math.round(Number(item.breaksCount || 0)))),
       breakSec: Math.max(0, Math.min(86400, Math.round(Number(item.breakSec || 0)))),
       durationSec: Math.max(0, Math.min(86400, Math.round(Number(item.durationSec || 0)))),
@@ -261,6 +265,9 @@ function cleanExamResults(raw) {
       lastGrade: VALID_GRADES.has(v.lastGrade) ? v.lastGrade : gradeForPctSync(lastPct),
       lastHintsUsed: v.lastHintsUsed == null ? null : Math.max(0, Math.min(500, Math.round(Number(v.lastHintsUsed || 0)))),
       lastHintedQCount: v.lastHintedQCount == null ? null : Math.max(0, Math.min(500, Math.round(Number(v.lastHintedQCount || 0)))),
+      lastRefQCount: v.lastRefQCount == null ? null : Math.max(0, Math.min(500, Math.round(Number(v.lastRefQCount || 0)))),
+      lastRefSec: v.lastRefSec == null ? null : Math.max(0, Math.min(86400, Math.round(Number(v.lastRefSec || 0)))),
+      openBookExam: Boolean(v.openBookExam),
       lastBreaksCount: v.lastBreaksCount == null ? null : Math.max(0, Math.min(100, Math.round(Number(v.lastBreaksCount || 0)))),
       lastDurationSec: v.lastDurationSec == null ? null : Math.max(0, Math.min(86400, Math.round(Number(v.lastDurationSec || 0)))),
       lastStyle: v.lastStyle === 'guided' ? 'guided' : v.lastStyle === 'blind' ? 'blind' : '',
@@ -271,6 +278,8 @@ function cleanExamResults(raw) {
       bestTotalPts: v.bestTotalPts == null ? null : Math.max(0, Math.round(Number(v.bestTotalPts || 0) * 10) / 10),
       bestHintsUsed: v.bestHintsUsed == null ? null : Math.max(0, Math.min(500, Math.round(Number(v.bestHintsUsed || 0)))),
       bestHintedQCount: v.bestHintedQCount == null ? null : Math.max(0, Math.min(500, Math.round(Number(v.bestHintedQCount || 0)))),
+      bestRefQCount: v.bestRefQCount == null ? null : Math.max(0, Math.min(500, Math.round(Number(v.bestRefQCount || 0)))),
+      bestRefSec: v.bestRefSec == null ? null : Math.max(0, Math.min(86400, Math.round(Number(v.bestRefSec || 0)))),
       bestBreaksCount: v.bestBreaksCount == null ? null : Math.max(0, Math.min(100, Math.round(Number(v.bestBreaksCount || 0)))),
       bestDurationSec: v.bestDurationSec == null ? null : Math.max(0, Math.min(86400, Math.round(Number(v.bestDurationSec || 0)))),
       bestStyle: v.bestStyle === 'guided' ? 'guided' : v.bestStyle === 'blind' ? 'blind' : '',
@@ -306,8 +315,10 @@ function mergeExamResults(existingRaw, incomingRaw) {
     const aAt = Date.parse(a.completedAt || '') || 0;
     const bAt = Date.parse(b.completedAt || '') || 0;
     const latest = bAt >= aAt ? b : a;
+    const aAids = (a.bestHintsUsed ?? 9999) + (a.openBookExam ? 0 : (a.bestRefQCount ?? 0));
+    const bAids = (b.bestHintsUsed ?? 9999) + (b.openBookExam ? 0 : (b.bestRefQCount ?? 0));
     const bWinsBest = b.bestPct > a.bestPct + 0.04
-      || (Math.abs(b.bestPct - a.bestPct) <= 0.04 && (b.bestHintsUsed ?? 9999) <= (a.bestHintsUsed ?? 9999));
+      || (Math.abs(b.bestPct - a.bestPct) <= 0.04 && bAids <= aAids);
     const best = bWinsBest ? b : a;
     const mergedHist = cleanAttemptHistory([...(a.attemptHistory || []), ...(b.attemptHistory || [])]);
     const cleanA = a.bestCleanPct == null ? -1 : a.bestCleanPct;
@@ -322,6 +333,9 @@ function mergeExamResults(existingRaw, incomingRaw) {
       bestTotalPts: best.bestTotalPts,
       bestHintsUsed: best.bestHintsUsed,
       bestHintedQCount: best.bestHintedQCount,
+      bestRefQCount: best.bestRefQCount,
+      bestRefSec: best.bestRefSec,
+      openBookExam: Boolean(best.openBookExam || latest.openBookExam),
       bestBreaksCount: best.bestBreaksCount,
       bestDurationSec: best.bestDurationSec,
       bestStyle: best.bestStyle,

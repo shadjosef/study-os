@@ -1148,6 +1148,10 @@ window.StudyRunner = (() => {
         stuckSec: Math.max(45, Math.min(Math.round((Number(q?.pacing?.stuckMinutes) || 2) * 60), Math.round(calPar * 1.2))),
         handicapPerHintSec: Number(q?.pacing?.hintHandicapSeconds ?? 30),
         hintsUsed: 0,
+        refUsed: false,
+        refOpenCount: 0,
+        refSec: 0,
+        refLastTickMs: null,
         choice: resumeDraft ? rec.savedChoice ?? null : null,
         draft: resumeDraft ? rec.savedDraft || '' : '',
         draftImages: !activeRun.freshExamSit && Array.isArray(rec.savedDraftImages) ? [...rec.savedDraftImages] : [],
@@ -1499,7 +1503,7 @@ window.StudyRunner = (() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
     if (window.StudyUI.isReferenceDrawerOpen?.()) {
       const q = currentQuestion();
-      if (q && !(activeRun.examStyle === 'blind' && !activeRun.paperSubmitted)) {
+      if (q) {
         window.StudyUI.syncReferenceDrawerForQuestion?.(activeRun.courseMeta, q, activeRun.bank);
       } else {
         window.StudyUI.closeReferenceDrawer?.();
@@ -2223,13 +2227,44 @@ window.StudyRunner = (() => {
     return { letter: 'F', label: 'Fail', cls: 'grade-f', points: 0, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
   }
 
-  const EXAM_HINT_PENALTY_PER_HINT = 0.15; // -15% of a question's earned points per hint used during an exam
-  const EXAM_HINT_PENALTY_MAX = 0.45;      // cap at -45% credit reduction on any single question
+  const EXAM_HINT_PENALTY_PER_HINT = 0.15;   // -15% of a question's earned points per hint used during an exam
+  const EXAM_REF_PENALTY_CLOSED_BOOK = 0.10; // -10% on closed-book exams if Reference was consulted before reveal
+  const EXAM_HINT_PENALTY_MAX = 0.45;        // cap combined hint + reference credit reduction at -45% per question
 
-  function countActiveRunHints() {
-    if (!activeRun) return { hintsTotal: 0, hintedQCount: 0 };
+  function isOpenBookExamCourse(courseMeta) {
+    if (!courseMeta) return false;
+    if (courseMeta.courseId === 'prog-3021') return true;
+    return /home\s*exam|open[- ]?book/i.test(String(courseMeta.examInfo?.format || ''));
+  }
+
+  function markQuestionRefOpened(q, st, explicit = false) {
+    if (!activeRun || activeRun.mode !== 'exam' || !q || !st) return;
+    if (st.revealed) return; // Reviewing notes after revealing solution is never penalized
+    const firstMark = !st.refUsed;
+    st.refUsed = true;
+    if (explicit) st.refOpenCount = (st.refOpenCount || 0) + 1;
+    else st.refOpenCount = Math.max(1, st.refOpenCount || 0);
+    if (firstMark) {
+      const openBook = isOpenBookExamCourse(activeRun.courseMeta);
+      toast(
+        openBook
+          ? 'Reference opened · Tracked on exam attempt (open-book exam, 0% penalty)'
+          : `Reference opened · Tracked on exam grade (-${Math.round(EXAM_REF_PENALTY_CLOSED_BOOK * 100)}% credit on this Q)`
+      );
+    }
+    if (activeRun.paperSubmitted || activeRun.examStyle === 'guided') {
+      activeRun.paperScoreSummary = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(activeRun.paperSubmitted) });
+    }
+    const isBlindUnfinished = activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
+    renderRunnerNotice(isBlindUnfinished);
+  }
+
+  function countActiveRunAids() {
+    if (!activeRun) return { hintsTotal: 0, hintedQCount: 0, refQCount: 0, refTotalSec: 0 };
     let hintsTotal = 0;
     let hintedQCount = 0;
+    let refQCount = 0;
+    let refTotalSec = 0;
     for (const qid of activeRun.questionIds) {
       const st = activeRun.items[qid];
       if (!st) continue;
@@ -2238,15 +2273,21 @@ window.StudyRunner = (() => {
         hintsTotal += h;
         hintedQCount += 1;
       }
+      const rUsed = Boolean(st.refUsed || st.loggedAttempt?.refUsed);
+      const rSec = Math.max(0, Number(st.refSec || 0), Number(st.loggedAttempt?.refSec || 0));
+      if (rUsed) refQCount += 1;
+      refTotalSec += rSec;
     }
-    return { hintsTotal, hintedQCount };
+    return { hintsTotal, hintedQCount, refQCount, refTotalSec: Math.round(refTotalSec) };
   }
 
   function recomputeExamRunGrade({ includeUnverifiedAsZero = false } = {}) {
     if (!activeRun) return null;
+    const openBookExam = isOpenBookExamCourse(activeRun.courseMeta);
     let earnedPts = 0;
     let rawEarnedPts = 0;
     let hintPenaltyPts = 0;
+    let refPenaltyPts = 0;
     let totalPts = 0;
     let gradedPts = 0;
     let gradedCount = 0;
@@ -2255,6 +2296,8 @@ window.StudyRunner = (() => {
     let manualRemaining = 0;
     let hintsTotal = 0;
     let hintedQCount = 0;
+    let refQCount = 0;
+    let refTotalSec = 0;
 
     for (const qid of activeRun.questionIds) {
       const q = activeRun.questionsById[qid];
@@ -2268,7 +2311,15 @@ window.StudyRunner = (() => {
         hintsTotal += qHints;
         hintedQCount += 1;
       }
-      const hintFactor = 1 - Math.min(EXAM_HINT_PENALTY_MAX, qHints * EXAM_HINT_PENALTY_PER_HINT);
+      const qRefUsed = Boolean(st.refUsed || st.loggedAttempt?.refUsed);
+      const qRefSec = Math.max(0, Number(st.refSec || 0), Number(st.loggedAttempt?.refSec || 0));
+      if (qRefUsed) refQCount += 1;
+      refTotalSec += qRefSec;
+
+      const hintFrac = qHints * EXAM_HINT_PENALTY_PER_HINT;
+      const refFrac = !openBookExam && qRefUsed ? EXAM_REF_PENALTY_CLOSED_BOOK : 0;
+      const totalAidFrac = Math.min(EXAM_HINT_PENALTY_MAX, hintFrac + refFrac);
+      const aidFactor = 1 - totalAidFrac;
 
       const isMcq = q.kind === 'mcq';
       const isWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
@@ -2291,10 +2342,15 @@ window.StudyRunner = (() => {
 
       if (acc !== null) {
         const rawQ = acc * qPts;
-        const adjQ = rawQ * hintFactor;
+        const adjQ = rawQ * aidFactor;
+        const lostQ = rawQ - adjQ;
+        const sumFrac = hintFrac + refFrac;
+        const lostHint = sumFrac > 0 ? lostQ * (hintFrac / sumFrac) : 0;
+        const lostRef = sumFrac > 0 ? lostQ * (refFrac / sumFrac) : 0;
         rawEarnedPts += rawQ;
         earnedPts += adjQ;
-        hintPenaltyPts += rawQ - adjQ;
+        hintPenaltyPts += lostHint;
+        refPenaltyPts += lostRef;
         gradedPts += qPts;
         gradedCount += 1;
       } else if (!isAuto) {
@@ -2316,6 +2372,7 @@ window.StudyRunner = (() => {
       earnedPts,
       rawEarnedPts,
       hintPenaltyPts,
+      refPenaltyPts,
       totalPts,
       gradedPts,
       gradedCount,
@@ -2328,7 +2385,10 @@ window.StudyRunner = (() => {
       gradingKind,
       hintsTotal,
       hintedQCount,
-      cleanRun: hintsTotal === 0,
+      refQCount,
+      refTotalSec: Math.round(refTotalSec),
+      openBookExam,
+      cleanRun: hintsTotal === 0 && (openBookExam || refQCount === 0),
       breaksCount: Number(activeRun.examBreakCount || 0),
       breakSec: liveBreakSec,
       durationSec: Math.round(totalExamActiveSec()),
@@ -2362,7 +2422,8 @@ window.StudyRunner = (() => {
     const notice = document.getElementById('runner-notice');
     const score = activeRun.paperScoreSummary;
     const suggestBreak = activeRun.mode === 'practice' && activeRun.consecutiveMisses >= 2;
-    const liveHints = activeRun.mode === 'exam' ? countActiveRunHints() : { hintsTotal: 0, hintedQCount: 0 };
+    const liveAids = activeRun.mode === 'exam' ? countActiveRunAids() : { hintsTotal: 0, hintedQCount: 0, refQCount: 0, refTotalSec: 0 };
+    const openBookExam = isOpenBookExamCourse(activeRun.courseMeta);
     const breaksCount = Number(activeRun.examBreakCount || 0);
 
     if (isBlindUnfinished) {
@@ -2371,8 +2432,11 @@ window.StudyRunner = (() => {
       const bits = [
         `${answeredCount} / ${total} answered`,
         flagged ? `${flagged} flagged` : '',
-        liveHints.hintsTotal > 0
-          ? `💡 ${liveHints.hintsTotal} hint${liveHints.hintsTotal === 1 ? '' : 's'} tracked`
+        liveAids.hintsTotal > 0
+          ? `💡 ${liveAids.hintsTotal} hint${liveAids.hintsTotal === 1 ? '' : 's'} tracked`
+          : '',
+        liveAids.refQCount > 0
+          ? `📖 Ref: ${liveAids.refQCount} Q${liveAids.refQCount === 1 ? '' : 's'}${openBookExam ? '' : ' (-10%/Q)'}`
           : '',
         breaksCount > 0 ? `☕ ${breaksCount} break${breaksCount === 1 ? '' : 's'}` : '',
       ].filter(Boolean);
@@ -2382,21 +2446,40 @@ window.StudyRunner = (() => {
       const star = g.letter === 'A' ? '★ ' : '';
       const modeTag = score.gradingKind === 'auto' ? 'Auto-graded' : score.gradingKind === 'rubric' ? 'Rubric-graded' : 'Auto + Rubric';
       const pendingTag = score.manualCount > 0 ? ` · ${score.manualCount} written left` : g.toA > 0 ? ` · +${g.toA}% to A` : ' · Target A hit!';
-      const hTotal = Math.max(Number(score.hintsTotal || 0), liveHints.hintsTotal);
+      const hTotal = Math.max(Number(score.hintsTotal || 0), liveAids.hintsTotal);
       const hPen = Number(score.hintPenaltyPts || 0);
-      const hintChipHtml = hTotal > 0
-        ? `<span class="exam-hint-chip is-assisted" title="Raw score ${Math.round(score.rawPct ?? score.pct)}% · -${hPen.toFixed(1)} pts hint adjustment (${hTotal} hint${hTotal === 1 ? '' : 's'} across ${Math.max(1, Number(score.hintedQCount || liveHints.hintedQCount || 1))} Q${Math.max(1, Number(score.hintedQCount || liveHints.hintedQCount || 1)) === 1 ? '' : 's'})">💡 ${hTotal} hint${hTotal === 1 ? '' : 's'}${hPen >= 0.05 ? ` (-${hPen.toFixed(1)} pts)` : ''}</span>`
-        : `<span class="exam-hint-chip is-clean" title="0 hints used — clean exam attempt">✓ Clean</span>`;
+      const rCount = Math.max(Number(score.refQCount || 0), liveAids.refQCount);
+      const rSec = Math.max(Number(score.refTotalSec || 0), liveAids.refTotalSec);
+      const rPen = Number(score.refPenaltyPts || 0);
+      const isCleanNow = hTotal === 0 && (openBookExam || rCount === 0);
+      const aidChips = [];
+      if (isCleanNow) {
+        aidChips.push(`<span class="exam-hint-chip is-clean" title="${openBookExam ? '0 hints used' : '0 hints & 0 reference opens — true closed-book attempt'}">✓ Clean</span>`);
+      }
+      if (hTotal > 0) {
+        const hQs = Math.max(1, Number(score.hintedQCount || liveAids.hintedQCount || 1));
+        aidChips.push(`<span class="exam-hint-chip is-assisted" title="Raw score ${Math.round(score.rawPct ?? score.pct)}% · -${hPen.toFixed(1)} pts hint adjustment (${hTotal} hint${hTotal === 1 ? '' : 's'} across ${hQs} Q${hQs === 1 ? '' : 's'})">💡 ${hTotal} hint${hTotal === 1 ? '' : 's'}${hPen >= 0.05 ? ` (-${hPen.toFixed(1)} pts)` : ''}</span>`);
+      }
+      if (rCount > 0) {
+        const refCls = openBookExam ? 'is-info' : 'is-assisted';
+        const refTip = openBookExam
+          ? `Reference consulted on ${rCount} Q${rCount === 1 ? '' : 's'} (${clockSec(rSec)}) — tracked on attempt, 0% penalty (open-book exam)`
+          : `Reference consulted on ${rCount} Q${rCount === 1 ? '' : 's'} (${clockSec(rSec)}) · -${rPen.toFixed(1)} pts closed-book adjustment`;
+        aidChips.push(`<span class="exam-hint-chip ${refCls}" title="${esc(refTip)}">📖 ${rCount} ref${!openBookExam && rPen >= 0.05 ? ` (-${rPen.toFixed(1)} pts)` : ''}</span>`);
+      }
       const breakTag = breaksCount > 0 ? ` · ☕ ${breaksCount} break${breaksCount === 1 ? '' : 's'}` : '';
-      notice.innerHTML = `<span class="exam-grade-medal is-inline ${g.cls}"><b>${star}${g.letter}</b><small>${Math.round(score.pct)}%</small></span>${hintChipHtml}<span>${score.earnedPts.toFixed(1)} / ${score.totalPts} pts · ${modeTag}${pendingTag}${breakTag}</span>`;
+      notice.innerHTML = `<span class="exam-grade-medal is-inline ${g.cls}"><b>${star}${g.letter}</b><small>${Math.round(score.pct)}%</small></span>${aidChips.join('')}<span>${score.earnedPts.toFixed(1)} / ${score.totalPts} pts · ${modeTag}${pendingTag}${breakTag}</span>`;
     } else if (score) {
       notice.textContent = score.manualCount > 0
         ? `Paper submitted — tick your marking checklist steps (${score.manualCount} written problem${score.manualCount === 1 ? '' : 's'}) to calculate your BI grade.`
         : 'Paper submitted';
-    } else if (activeRun.mode === 'exam' && (liveHints.hintsTotal > 0 || breaksCount > 0)) {
+    } else if (activeRun.mode === 'exam' && (liveAids.hintsTotal > 0 || liveAids.refQCount > 0 || breaksCount > 0)) {
       const parts = [
-        liveHints.hintsTotal > 0
-          ? `<span class="exam-hint-chip is-assisted">💡 ${liveHints.hintsTotal} hint${liveHints.hintsTotal === 1 ? '' : 's'} tracked (-15% Q credit/hint)</span>`
+        liveAids.hintsTotal > 0
+          ? `<span class="exam-hint-chip is-assisted">💡 ${liveAids.hintsTotal} hint${liveAids.hintsTotal === 1 ? '' : 's'} tracked (-15% Q credit/hint)</span>`
+          : '',
+        liveAids.refQCount > 0
+          ? `<span class="exam-hint-chip ${openBookExam ? 'is-info' : 'is-assisted'}">📖 Ref: ${liveAids.refQCount} Q${liveAids.refQCount === 1 ? '' : 's'}${openBookExam ? ' (open-book)' : ' (-10% Q credit)'}</span>`
           : '',
         breaksCount > 0 ? `<span>☕ ${breaksCount} break${breaksCount === 1 ? '' : 's'} taken</span>` : '',
       ].filter(Boolean);
@@ -2441,13 +2524,21 @@ window.StudyRunner = (() => {
       ? false
       : preferredSplit;
 
-    const canOpenReference = !isBlindUnfinished && Boolean(q.obsidianLink?.file ||
+    const canOpenReference = Boolean(q.obsidianLink?.file ||
       activeRun.courseMeta.obsidian?.mainReference || activeRun.courseMeta.obsidian?.workedExamples ||
       activeRun.courseMeta.obsidian?.practiceNote);
     const isTriPane = isSplit && canOpenReference && dockReferenceLayout.matches && Boolean(uiPrefs.dockRefPane);
     const refButton = document.getElementById('run-ref-btn');
     refButton.hidden = !canOpenReference;
     refButton.setAttribute('aria-expanded', String(isTriPane));
+    if (activeRun.mode === 'exam') {
+      const ob = isOpenBookExamCourse(activeRun.courseMeta);
+      refButton.title = ob
+        ? 'Course Reference (O) · Tracked on exam attempt (open-book exam, 0% penalty)'
+        : 'Course Reference (O) · Tracked on exam grade (-10% credit on this Q) & Metrics recall gaps';
+    } else {
+      refButton.title = 'Course Reference (O)';
+    }
     const alButton = document.getElementById('run-al-btn');
     if (alButton) {
       alButton.hidden = isBlindUnfinished;
@@ -3162,7 +3253,7 @@ window.StudyRunner = (() => {
         <span><kbd>B</kbd> Break</span>
         <span><kbd>V</kbd> Focus/Split</span>
         ${hintsArr.length ? '<span><kbd>H</kbd> Hint</span>' : ''}
-        ${!isBlindUnfinished ? '<span><kbd>O</kbd> Ref</span>' : ''}
+        ${canOpenReference ? '<span><kbd>O</kbd> Ref</span>' : ''}
         <span><kbd>←</kbd><kbd>→</kbd> Nav</span>
       </div>
     `;
@@ -4499,6 +4590,10 @@ window.StudyRunner = (() => {
       activeSec: Math.max(1, itemActiveSec(st)),
       aiParSec: st.targetSec,
       hintsUsed: st.hintsUsed,
+      refUsed: Boolean(st.refUsed),
+      refSec: Math.round(Number(st.refSec || 0)),
+      refOpenCount: Number(st.refOpenCount || 0),
+      openBookExam: isOpenBookExamCourse(run.courseMeta),
       assisted: Boolean(st.solutionPeeked),
       hintHandicapSec: st.handicapPerHintSec,
       qualityAccuracy,
@@ -4630,7 +4725,27 @@ window.StudyRunner = (() => {
       }
     }
 
-    // Total Exam Paper Countdown
+    // Total Exam Paper Countdown + Live Exam Reference Tracking
+    if (activeRun.mode === 'exam' && !st.revealed && st.runningSince != null && workClock?.getState?.().mode !== 'break') {
+      const refOpenNow = document.body.classList.contains('runner-split-ref') || Boolean(window.StudyUI.isReferenceDrawerOpen?.());
+      const nowMs = Date.now();
+      if (refOpenNow) {
+        if (st.refLastTickMs != null) {
+          const dtSec = Math.min(2, Math.max(0, (nowMs - st.refLastTickMs) / 1000));
+          st.refSec = (Number(st.refSec) || 0) + dtSec;
+        }
+        st.refLastTickMs = nowMs;
+        // 3s grace window if user navigated onto a new question while Reference was already docked open
+        if (!st.refUsed && st.refSec >= 3) {
+          markQuestionRefOpened(q, st, false);
+        }
+      } else {
+        st.refLastTickMs = null;
+      }
+    } else {
+      st.refLastTickMs = null;
+    }
+
     const examCd = document.getElementById('run-exam-countdown');
     if (examCd && activeRun.examBudgetSec && !activeRun.paperSubmitted) {
       const remSec = Math.max(0, activeRun.examBudgetSec - totalExamActiveSec());
@@ -4667,14 +4782,27 @@ window.StudyRunner = (() => {
       const hTotal = Number(ps.hintsTotal || 0);
       const hQs = Number(ps.hintedQCount || 0);
       const hPen = Number(ps.hintPenaltyPts || 0);
-      const hintChipHtml = hTotal > 0
-        ? `<span class="exam-hint-chip is-assisted">💡 ${hTotal} hint${hTotal === 1 ? '' : 's'} (${hQs} Q${hQs === 1 ? '' : 's'} · raw ${Math.round(ps.rawPct ?? ps.pct)}%)</span>`
-        : `<span class="exam-hint-chip is-clean">✓ Clean (0 hints)</span>`;
+      const rQs = Number(ps.refQCount || 0);
+      const rSec = Number(ps.refTotalSec || 0);
+      const rPen = Number(ps.refPenaltyPts || 0);
+      const totalAidPen = hPen + rPen;
+      const isClean = Boolean(ps.cleanRun);
+      const aidChips = [];
+      if (isClean) {
+        aidChips.push(`<span class="exam-hint-chip is-clean">✓ Clean (${ps.openBookExam ? '0 hints' : 'closed-book'})</span>`);
+      }
+      if (hTotal > 0) {
+        aidChips.push(`<span class="exam-hint-chip is-assisted">💡 ${hTotal} hint${hTotal === 1 ? '' : 's'} (${hQs} Q${hQs === 1 ? '' : 's'})</span>`);
+      }
+      if (rQs > 0) {
+        aidChips.push(`<span class="exam-hint-chip ${ps.openBookExam ? 'is-info' : 'is-assisted'}">📖 Ref: ${rQs} Q${rQs === 1 ? '' : 's'}${rSec >= 10 ? ` · ${clockSec(rSec)}` : ''}</span>`);
+      }
       const breakPart = ps.breaksCount > 0
         ? ` · ${ps.breaksCount} break${ps.breaksCount === 1 ? '' : 's'}${ps.breakSec >= 60 ? ` (${Math.round(ps.breakSec / 60)}m)` : ''}`
         : '';
+      const rawPart = totalAidPen >= 0.05 ? ` (raw ${Math.round(ps.rawPct ?? ps.pct)}%, -${totalAidPen.toFixed(1)} aid adj)` : '';
       const targetMsg = g.letter === 'A'
-        ? (hTotal === 0 ? 'Clean Target A achieved! Locked onto your Exams board.' : 'Target A achieved (hint-assisted) — retake with 0 hints for a Clean A!')
+        ? (isClean ? 'Clean Target A achieved! Locked onto your Exams board.' : 'Target A achieved (aided) — retake closed-book with 0 aids for a Clean A!')
         : `+${g.toA}% to hit BI Grade A (85%) — review your weak questions and beat this score.`;
       examGradeHtml = `
         <div class="exam-result-grade-banner ${g.cls}">
@@ -4683,9 +4811,9 @@ window.StudyRunner = (() => {
             <div class="exam-result-grade-top">
               <strong>BI Grade ${g.letter} · ${Math.round(ps.pct)}%</strong>
               <span class="exam-result-kind">${esc(modeTag)}</span>
-              ${hintChipHtml}
+              ${aidChips.join('')}
             </div>
-            <div class="exam-result-grade-sub">${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts${hPen >= 0.05 ? ` (-${hPen.toFixed(1)} hint adj)` : ''} (${ps.gradedCount}/${ps.totalCount} graded${breakPart}) · ${esc(targetMsg)}</div>
+            <div class="exam-result-grade-sub">${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts${rawPart} (${ps.gradedCount}/${ps.totalCount} graded${breakPart}) · ${esc(targetMsg)}</div>
           </div>
         </div>
       `;
@@ -4875,10 +5003,16 @@ window.StudyRunner = (() => {
       }
       openReferenceDrawer(activeRun.courseMeta, q.obsidianLink?.file || '', q.obsidianLink?.heading || '', { question: q, bank: activeRun.bank });
       refButton.setAttribute('aria-expanded', 'true');
+      markQuestionRefOpened(q, itemState(q.id), true);
       return;
     }
-    saveRunnerUiPrefs({ dockRefPane: !docked });
-    if (!docked) itemState(q.id).layoutOverride = 'split';
+    const opening = !docked;
+    saveRunnerUiPrefs({ dockRefPane: opening });
+    if (opening) {
+      const st = itemState(q.id);
+      st.layoutOverride = 'split';
+      markQuestionRefOpened(q, st, true);
+    }
     renderRunner();
   }
 

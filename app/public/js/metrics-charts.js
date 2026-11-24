@@ -884,6 +884,56 @@ window.StudyMetrics = (() => {
       <!-- TOPIC COVERAGE & HOURS WORKED VS AI-PAR RECOMMENDED BEFORE EXAM -->
       <section class="panel mc-chart-card" id="mc-topics-card"></section>
 
+      ${(() => {
+        const aid = ctx.examAidStats;
+        if (!aid || (!aid.examQTotal && !aid.sitCount && !aid.refQs && !aid.hintsTotal)) return '';
+        const indLabel = aid.independencePct != null ? `${aid.independencePct}%` : '—';
+        const indTone = aid.independencePct == null ? '' : aid.independencePct >= 85 ? 'good' : aid.independencePct >= 65 ? 'gold' : 'debt';
+        const refMinTxt = aid.refSec >= 60 ? `${Math.round(aid.refSec / 60)}m` : aid.refSec > 0 ? `${aid.refSec}s` : '0m';
+        const gapsHtml = aid.recallGaps?.length
+          ? `<div class="mc-aid-gaps">
+              <div class="mc-aid-gaps-head">
+                <small class="muted"><strong>Formula &amp; Concept Recall Gaps</strong> — topics where you opened Reference or Hints during exams</small>
+              </div>
+              <div class="mc-aid-gap-list">
+                ${aid.recallGaps.map((g) => {
+                  const refPart = g.refCount > 0
+                    ? `<span class="exam-hint-chip ${g.openBook ? 'is-info' : 'is-assisted'}">📖 Ref ${g.refCount}×${g.refSec >= 10 ? ` (${g.refSec >= 60 ? `${Math.round(g.refSec / 60)}m` : `${Math.round(g.refSec)}s`})` : ''}</span>`
+                    : '';
+                  const hintPart = g.hintCount > 0
+                    ? `<span class="exam-hint-chip is-assisted">💡 ${g.hintCount} hint${g.hintCount === 1 ? '' : 's'}</span>`
+                    : '';
+                  return `<div class="mc-aid-gap-row">
+                    <div class="mc-aid-gap-info">
+                      <span class="mc-aid-course-tag">${esc(g.courseCode)}</span>
+                      <strong>${esc(g.topicTitle)}</strong>
+                      <div class="mc-aid-gap-chips">${refPart}${hintPart}</div>
+                    </div>
+                    <button type="button" class="ghost-btn mc-aid-drill-btn" data-aid-drill-course="${esc(g.courseId)}" data-aid-drill-topic="${esc(g.topicId)}">Drill closed-book →</button>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>`
+          : `<p class="muted" style="font-size:12.5px;margin:8px 0 0">No formula or reference lookup gaps recorded yet — all logged exam questions were solved without notes or hints.</p>`;
+        return `
+          <section class="panel mc-chart-card mc-aid-card" id="mc-exam-aid-card">
+            <div class="mc-card-head">
+              <div>
+                <h3 class="mc-card-title">Closed-Book Independence &amp; Exam Aid Reliance</h3>
+                <p class="mc-card-sub">Tracks Reference book opens &amp; Hints during exams so you spot formulas you haven't memorized yet</p>
+              </div>
+              ${aid.independencePct != null ? `<span class="badge ${indTone}">${indLabel} unassisted</span>` : ''}
+            </div>
+            <div class="mc-aid-stats">
+              <div class="mc-aid-tile"><small>Closed-Book Independence</small><b>${indLabel}</b><span>${aid.closedBookQTotal ? `${aid.closedBookQClean}/${aid.closedBookQTotal} closed-book Qs` : `${aid.cleanSitCount}/${aid.sitCount} clean sits`}</span></div>
+              <div class="mc-aid-tile"><small>Exam Reference Lookups</small><b>${aid.refQs} Q${aid.refQs === 1 ? '' : 's'}</b><span>${refMinTxt} in notes during exams</span></div>
+              <div class="mc-aid-tile"><small>Exam Hints Used</small><b>${aid.hintsTotal}</b><span>Across logged exam runs</span></div>
+              <div class="mc-aid-tile"><small>Clean Exam Sits</small><b>${aid.cleanSitCount} / ${aid.sitCount}</b><span>0 hints &amp; 0 closed-book ref</span></div>
+            </div>
+            ${gapsHtml}
+          </section>`;
+      })()}
+
       <!-- FIXED SUBGROUP TABLES -->
       <div class="mc-two-col">
         <section class="panel mc-table-card">
@@ -1174,6 +1224,12 @@ window.StudyMetrics = (() => {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
       window.StudyUI?.toast?.('Exported raw verifiable Telemetry Ledger JSON!');
+    });
+
+    root.querySelectorAll('[data-aid-drill-course]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        ctx.onPracticeTopic?.(btn.dataset.aidDrillCourse, btn.dataset.aidDrillTopic);
+      });
     });
 
     root.querySelector('#btn-copy-ai-brief')?.addEventListener('click', async () => {
