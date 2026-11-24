@@ -11901,11 +11901,47 @@ html[data-theme="dark"] .prov-badge.exam-type-ai { color: #c4b5fd; }
 .exam-prog-fill.is-done {
   background: #10b981;
 }
+.exam-prog-fill.is-grade-a {
+  background: linear-gradient(90deg, #10b981 0%, #eab308 100%);
+}
+.exam-prog-fill.grade-b { background: #0d9488; }
+.exam-prog-fill.grade-c { background: #2563eb; }
+.exam-prog-fill.grade-d { background: #d97706; }
+.exam-prog-fill.grade-e { background: #ea580c; }
+.exam-prog-fill.grade-f { background: #dc2626; }
+.exam-prog-fill.is-builder {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 50%, #7c3aed), #7c3aed);
+  opacity: 0.45;
+}
 .exam-prog-revisit {
   position: absolute;
   top: 0;
   bottom: 0;
   background: #f59e0b;
+}
+.exam-pack-card.exam-pack-clickable {
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+.exam-pack-card.exam-pack-clickable:hover,
+.exam-pack-card.exam-pack-clickable:focus-visible {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+  box-shadow: 0 10px 24px -14px rgba(15, 23, 42, 0.28);
+  outline: none;
+}
+.exam-pack-card.exam-pack-clickable:active {
+  transform: translateY(0);
+}
+.exam-pack-card.is-grade-a {
+  background: linear-gradient(155deg, color-mix(in srgb, #eab308 10%, var(--panel)) 0%, color-mix(in srgb, #10b981 7%, var(--panel-alt)) 100%);
+  border-color: color-mix(in srgb, #eab308 46%, var(--line));
+}
+.exam-pack-card.is-grade-a:hover,
+.exam-pack-card.is-grade-a:focus-visible {
+  border-color: color-mix(in srgb, #eab308 75%, var(--line));
 }
 .exam-pack-card.is-completed {
   background: color-mix(in srgb, #10b981 6%, var(--panel-alt));
@@ -11917,6 +11953,259 @@ html[data-theme="dark"] .prov-badge.exam-type-ai { color: #c4b5fd; }
 .exam-pack-builder {
   border-style: dashed;
   border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+
+/* Gamified bottom progress bar slot (replaces repetitive Start buttons) */
+.exam-card-prog-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px 11px;
+  border-radius: 11px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+.exam-pack-clickable:hover .exam-card-prog-cta,
+.exam-pack-clickable:focus-visible .exam-card-prog-cta {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+.exam-card-prog-cta.is-grade-a {
+  border-color: color-mix(in srgb, #eab308 42%, var(--line));
+  background: color-mix(in srgb, #eab308 8%, var(--panel));
+}
+.exam-card-prog-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.exam-card-prog-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+  color: var(--muted);
+}
+.exam-card-prog-stat strong {
+  display: inline;
+  font-size: 12.5px;
+  font-weight: 750;
+  color: var(--ink);
+}
+.exam-card-prog-stat span {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.exam-card-prog-cue {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+  transition: transform 150ms ease;
+}
+.exam-pack-clickable:hover .exam-card-prog-cue,
+.exam-pack-clickable:focus-visible .exam-card-prog-cue {
+  transform: translateX(2px);
+}
+.exam-prog-track.is-card-cta {
+  height: 8px;
+  background: color-mix(in srgb, var(--muted) 15%, var(--panel-alt));
+}
+
+/* BI ECTS Letter Grade Medals (A–F) */
+.exam-grade-medal {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  white-space: nowrap;
+  border: 1px solid var(--line);
+}
+.exam-grade-medal b {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.exam-grade-medal small {
+  font-size: 10.5px;
+  font-weight: 650;
+  opacity: 0.88;
+}
+.exam-grade-medal.is-est {
+  border-style: dashed;
+  opacity: 0.9;
+}
+.exam-grade-medal.is-inline {
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.exam-grade-medal.grade-a,
+.exam-scale-chip.grade-a {
+  background: linear-gradient(135deg, color-mix(in srgb, #eab308 24%, var(--panel)), color-mix(in srgb, #10b981 20%, var(--panel)));
+  border-color: color-mix(in srgb, #eab308 55%, var(--line));
+  color: #854d0e;
+}
+.exam-grade-medal.grade-b,
+.exam-scale-chip.grade-b {
+  background: color-mix(in srgb, #0d9488 16%, var(--panel));
+  border-color: color-mix(in srgb, #0d9488 38%, var(--line));
+  color: #0f766e;
+}
+.exam-grade-medal.grade-c,
+.exam-scale-chip.grade-c {
+  background: color-mix(in srgb, #2563eb 14%, var(--panel));
+  border-color: color-mix(in srgb, #2563eb 34%, var(--line));
+  color: #1d4ed8;
+}
+.exam-grade-medal.grade-d,
+.exam-scale-chip.grade-d {
+  background: color-mix(in srgb, #d97706 16%, var(--panel));
+  border-color: color-mix(in srgb, #d97706 36%, var(--line));
+  color: #b45309;
+}
+.exam-grade-medal.grade-e,
+.exam-scale-chip.grade-e {
+  background: color-mix(in srgb, #ea580c 15%, var(--panel));
+  border-color: color-mix(in srgb, #ea580c 36%, var(--line));
+  color: #c2410c;
+}
+.exam-grade-medal.grade-f,
+.exam-scale-chip.grade-f {
+  background: color-mix(in srgb, #dc2626 14%, var(--panel));
+  border-color: color-mix(in srgb, #dc2626 36%, var(--line));
+  color: #b91c1c;
+}
+html[data-theme="dark"] .exam-grade-medal.grade-a,
+html[data-theme="dark"] .exam-scale-chip.grade-a { color: #fde047; }
+html[data-theme="dark"] .exam-grade-medal.grade-b,
+html[data-theme="dark"] .exam-scale-chip.grade-b { color: #2dd4bf; }
+html[data-theme="dark"] .exam-grade-medal.grade-c,
+html[data-theme="dark"] .exam-scale-chip.grade-c { color: #60a5fa; }
+html[data-theme="dark"] .exam-grade-medal.grade-d,
+html[data-theme="dark"] .exam-scale-chip.grade-d { color: #fbbf24; }
+html[data-theme="dark"] .exam-grade-medal.grade-e,
+html[data-theme="dark"] .exam-scale-chip.grade-e { color: #fb923c; }
+html[data-theme="dark"] .exam-grade-medal.grade-f,
+html[data-theme="dark"] .exam-scale-chip.grade-f { color: #f87171; }
+
+.exam-inline-grade.grade-a { color: #b45309; }
+.exam-inline-grade.grade-b { color: #0f766e; }
+.exam-inline-grade.grade-c { color: #1d4ed8; }
+.exam-inline-grade.grade-d { color: #b45309; }
+.exam-inline-grade.grade-e { color: #c2410c; }
+.exam-inline-grade.grade-f { color: #b91c1c; }
+html[data-theme="dark"] .exam-inline-grade.grade-a { color: #fde047; }
+html[data-theme="dark"] .exam-inline-grade.grade-b { color: #2dd4bf; }
+html[data-theme="dark"] .exam-inline-grade.grade-c { color: #60a5fa; }
+html[data-theme="dark"] .exam-inline-grade.grade-d { color: #fbbf24; }
+html[data-theme="dark"] .exam-inline-grade.grade-e { color: #fb923c; }
+html[data-theme="dark"] .exam-inline-grade.grade-f { color: #f87171; }
+
+.exam-stat-chip.is-gold {
+  background: linear-gradient(135deg, color-mix(in srgb, #eab308 14%, var(--panel)), color-mix(in srgb, #10b981 10%, var(--panel)));
+  border-color: color-mix(in srgb, #eab308 42%, var(--line));
+}
+.exam-stat-chip.is-gold b {
+  color: #a16207;
+}
+html[data-theme="dark"] .exam-stat-chip.is-gold b {
+  color: #fde047;
+}
+.exam-grade-scale-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  font-size: 11px;
+}
+.exam-scale-chip {
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Post-exam BI Grade Report Banner (inside Check-in / End Run modal) */
+.exam-result-grade-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--panel-alt);
+}
+.exam-result-grade-banner.grade-a {
+  background: linear-gradient(135deg, color-mix(in srgb, #eab308 16%, var(--panel)), color-mix(in srgb, #10b981 12%, var(--panel)));
+  border-color: color-mix(in srgb, #eab308 50%, var(--line));
+}
+.exam-result-medal {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 850;
+  border: 1px solid var(--line);
+}
+.exam-result-medal.grade-a { background: linear-gradient(135deg, #10b981, #eab308); color: #fff; border-color: transparent; box-shadow: 0 6px 18px -6px rgba(234, 179, 8, 0.55); }
+.exam-result-medal.grade-b { background: #0d9488; color: #fff; border-color: transparent; }
+.exam-result-medal.grade-c { background: #2563eb; color: #fff; border-color: transparent; }
+.exam-result-medal.grade-d { background: #d97706; color: #fff; border-color: transparent; }
+.exam-result-medal.grade-e { background: #ea580c; color: #fff; border-color: transparent; }
+.exam-result-medal.grade-f { background: #dc2626; color: #fff; border-color: transparent; }
+.exam-result-grade-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.exam-result-grade-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.exam-result-grade-top strong {
+  font-size: 16px;
+  color: var(--ink);
+}
+.exam-result-kind {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.exam-result-grade-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+#runner-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+#runner-notice[hidden] {
+  display: none;
 }
 
 

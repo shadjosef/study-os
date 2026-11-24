@@ -1776,11 +1776,24 @@ def finalize_site(
         course_entry["topicStats"] = [v for v in topic_map.values() if v["questionCount"] > 0]
         by_coll_qids: dict[str, list[str]] = {}
         by_coll_par: dict[str, float] = {}
+        by_coll_auto: dict[str, int] = {}
+        by_coll_pts: dict[str, float] = {}
         for q in cqs:
             col_id = str(q.get("collectionId") or "")
             if not col_id:
                 continue
             by_coll_qids.setdefault(col_id, []).append(q["id"])
+            is_auto_q = (
+                q.get("kind") == "mcq"
+                or bool(q.get("wiseflowFields"))
+                or bool(q.get("numericCheck"))
+            )
+            if is_auto_q:
+                by_coll_auto[col_id] = by_coll_auto.get(col_id, 0) + 1
+            q_pts = q.get("points")
+            by_coll_pts[col_id] = by_coll_pts.get(col_id, 0.0) + (
+                float(q_pts) if isinstance(q_pts, (int, float)) and q_pts > 0 else (2.0 if q.get("kind") == "mcq" else 10.0)
+            )
             p = q.get("pacing") or {}
             t_min = (p.get("exam") or {}).get("target") or (p.get("learning") or {}).get("target")
             by_coll_par[col_id] = by_coll_par.get(col_id, 0.0) + (
@@ -1791,18 +1804,25 @@ def finalize_site(
             c_copy = dict(col)
             cid_col = str(col.get("id") or "")
             qids_col = by_coll_qids.get(cid_col, [])
+            q_n = len(qids_col)
+            auto_n = by_coll_auto.get(cid_col, 0)
             c_copy["questionIds"] = qids_col
-            c_copy["questionCount"] = len(qids_col)
+            c_copy["questionCount"] = q_n
             c_copy["parMinutes"] = round(by_coll_par.get(cid_col, 0.0))
+            c_copy["totalPoints"] = round(by_coll_pts.get(cid_col, 0.0), 1)
+            c_copy["gradingMode"] = (
+                "auto" if q_n > 0 and auto_n == q_n else ("mixed" if auto_n > 0 else "rubric")
+            )
             enriched_colls.append(c_copy)
         course_entry["collections"] = enriched_colls
-    (static_dir / "bootstrap.json").write_text(
-        json.dumps(bootstrap, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    boot_bytes = (json.dumps(bootstrap, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    (static_dir / "bootstrap.json").write_bytes(boot_bytes)
+    boot_hash = hashlib.sha256(boot_bytes).hexdigest()[:8]
     index = out_dir / "index.html"
     html = index.read_text(encoding="utf-8")
     member_marker = ' data-member-library="1"' if member_archive else ''
     pdfcraft_marker = ' data-pdfcraft="1"' if pdfcraft_archive else ''
+    boot_marker = f' data-boot-v="{boot_hash}"'
     community_marker = ""
     config = ROOT_DIR / "site-pack" / "community.json"
     if config.is_file():
@@ -1811,11 +1831,11 @@ def finalize_site(
         if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ValueError("The community endpoint must be an HTTPS URL without credentials.")
         community_marker = f' data-community-api="{escape(endpoint, quote=True)}"'
-    html = html.replace("<html ", f'<html data-study-mode="web"{member_marker}{pdfcraft_marker}{community_marker} ', 1)
+    html = html.replace("<html ", f'<html data-study-mode="web"{boot_marker}{member_marker}{pdfcraft_marker}{community_marker} ', 1)
     html = html.replace(
         "</head>",
         '  <link rel="manifest" href="./app.webmanifest">\n'
-        '  <link rel="preload" href="./static-data/bootstrap.json" as="fetch" crossorigin>\n'
+        f'  <link rel="preload" href="./static-data/bootstrap.json?v={boot_hash}" as="fetch" crossorigin>\n'
         '</head>',
         1,
     )

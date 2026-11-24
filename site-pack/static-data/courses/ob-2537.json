@@ -12,7 +12,7 @@
     "mockDate": "2026-11-19",
     "format": "3-hour WISEflow BYOD digital school exam (100% MCQ)",
     "durationMinutes": 180,
-    "notes": "Official Mock Exam: Thu 2026-11-19 (25 MCQs, 90 min, ungraded WISEflow diagnostic) · Final Exam: Mon 2026-12-14 14:00–17:00 (50 MCQs × 2 pts = 100 pts, 5 options A–E, A = 85–100 / >=43 correct, zero negative marking)."
+    "notes": "Official Mock Exam: Thu 2026-11-19 (25 MCQs, 90 min, WISEflow FLOWmulti with 'I prefer not to answer' option; ~45% crisp definition traps + ~55% two-sentence applied vignettes) · Final Exam: Mon 2026-12-14 14:00–17:00 (50 MCQs × 2 pts = 100 pts, A = 85–100 / >=43 correct)."
   },
   "obsidian": {
     "vault": "Obsidian Vault",
@@ -268,6 +268,47 @@
     }
   ],
   "collections": [
+    {
+      "id": "wiseflow-mock-nov19-blueprint",
+      "title": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)",
+      "kind": "mock_exam",
+      "durationMinutes": 90,
+      "questionIds": [
+        "ob-2537:WF19-1",
+        "ob-2537:WF19-2",
+        "ob-2537:WF19-3",
+        "ob-2537:WF19-4",
+        "ob-2537:WF19-5",
+        "ob-2537:WF19-6",
+        "ob-2537:WF19-7",
+        "ob-2537:WF19-8",
+        "ob-2537:WF19-9",
+        "ob-2537:WF19-10",
+        "ob-2537:WF19-11",
+        "ob-2537:WF19-12",
+        "ob-2537:WF19-13",
+        "ob-2537:WF19-14",
+        "ob-2537:WF19-15",
+        "ob-2537:WF19-16",
+        "ob-2537:WF19-17",
+        "ob-2537:WF19-18",
+        "ob-2537:WF19-19",
+        "ob-2537:WF19-20",
+        "ob-2537:WF19-21",
+        "ob-2537:WF19-22",
+        "ob-2537:WF19-23",
+        "ob-2537:WF19-24",
+        "ob-2537:WF19-25"
+      ],
+      "questionCount": 25,
+      "parMinutes": 55,
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock"
+      }
+    },
     {
       "id": "sample-exam",
       "title": "Official Sample Exam (S1–S20)",
@@ -9437,6 +9478,1831 @@
         "synthetic": true,
         "llmModel": "LLM-generated (legacy — model unlogged)",
         "sourceDetail": "Nov 19 Official-Format Mock Exam (25 MCQs · 90m Timed Rehearsal)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-1",
+      "localId": "WF19-1",
+      "courseId": "ob-2537",
+      "topicId": "3",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 1,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q1",
+      "promptMarkdown": "Enduring, consistent patterns of thinking, feeling, and acting within a person—such as a habitual tendency to miss deadlines or stay calm in crises—are best termed _____.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "isolated behaviors",
+        "personality traits",
+        "situational competencies",
+        "learned reflexes",
+        "cognitive abilities"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 3. Lesson 3: Perception, Personality & Individual Differences and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: B (personality traits)** — Enduring internal tendencies that manifest across time and situations are defined as **traits**, whereas individual acts in a single moment are behaviors.\n\n**Exam Trap Check:** Do not confuse a single observable behavior with a stable internal pattern (trait) that recurs across situations.",
+      "solutionAssets": [],
+      "pitfall": "Do not confuse a single observable behavior with a stable internal pattern (trait) that recurs across situations.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "3. Lesson 3: Perception, Personality & Individual Differences"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-3",
+        "wiseflow-nov19-blueprint",
+        "recall"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-2",
+      "localId": "WF19-2",
+      "courseId": "ob-2537",
+      "topicId": "3",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q2",
+      "promptMarkdown": "Henrik thrives on pitching clients, debating strategic options, and rallying colleagues to back ambitious targets. Under Holland's personality-job fit typology, Henrik most closely matches the _____ type and fits roles such as _____.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "conventional; payroll auditor or records specialist",
+        "investigative; laboratory biochemist or data theorist",
+        "enterprising; corporate lawyer, sales director, or PR lead",
+        "artistic; industrial designer or editorial writer",
+        "social; guidance counselor or clinical nurse"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 3. Lesson 3: Perception, Personality & Individual Differences and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — Holland's **Enterprising** personality prefers verbal persuasion, leadership, and status-oriented influence, matching roles like lawyer, real estate/sales executive, or public relations lead.\n\n**Exam Trap Check:** Holland's Enterprising type seeks verbal influence, persuasion, and leadership—not Social (helping/teaching) or Conventional (rule-bound order).",
+      "solutionAssets": [],
+      "pitfall": "Holland's Enterprising type seeks verbal influence, persuasion, and leadership—not Social (helping/teaching) or Conventional (rule-bound order).",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "3. Lesson 3: Perception, Personality & Individual Differences"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-3",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-3",
+      "localId": "WF19-3",
+      "courseId": "ob-2537",
+      "topicId": "7",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 1,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q3",
+      "promptMarkdown": "Which aspect of an employee's workday can directly shape their emotional state at work?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "The intrinsic nature of daily job tasks",
+        "Interactions and support from coworkers",
+        "Deadline intensity and workload pressures",
+        "A supervisor's leadership and feedback style",
+        "All of the above aspects can affect workplace emotions"
+      ],
+      "answerIndex": 4,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 7. Lesson 7: Attitudes, Emotions & Workplace Stress and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: E** — Emotions at work arise from job tasks, coworker dynamics, workload pressures, and management styles alike.\n\n**Exam Trap Check:** Workplace emotions are multi-source: tasks, peers, workload, and supervisory style all act as emotional triggers.",
+      "solutionAssets": [],
+      "pitfall": "Workplace emotions are multi-source: tasks, peers, workload, and supervisory style all act as emotional triggers.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "7. Lesson 7: Attitudes, Emotions & Workplace Stress"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-7",
+        "wiseflow-nov19-blueprint",
+        "recall"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-4",
+      "localId": "WF19-4",
+      "courseId": "ob-2537",
+      "topicId": "7",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q4",
+      "promptMarkdown": "Maren has performed solidly in the same analyst role at an Oslo brokerage for five years and applies for a newly opened senior role. Management passes her over in favor of an external hire with slightly broader experience. Which reaction is most predictable from OB research on job attitudes?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Maren will ignore the rejection because five years of tenure guarantees permanent loyalty.",
+        "Maren is likely to experience lower job satisfaction and conclude that the firm limits her career progression.",
+        "Maren will automatically commit deliberate workplace sabotage against the new hire.",
+        "Maren's affective commitment will rise because external hiring signals high standards.",
+        "Maren will maintain identical satisfaction and never consider external offers."
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 7. Lesson 7: Attitudes, Emotions & Workplace Stress and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: B** — Being passed over after sustained tenure typically reduces job satisfaction and signals limited internal career growth, raising withdrawal/turnover risk rather than automatic sabotage.\n\n**Exam Trap Check:** Avoid extreme behavioral assumptions (sabotage or blind loyalty); OB links blocked promotion to declining satisfaction and perceived career ceilings.",
+      "solutionAssets": [],
+      "pitfall": "Avoid extreme behavioral assumptions (sabotage or blind loyalty); OB links blocked promotion to declining satisfaction and perceived career ceilings.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "7. Lesson 7: Attitudes, Emotions & Workplace Stress"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-7",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-5",
+      "localId": "WF19-5",
+      "courseId": "ob-2537",
+      "topicId": "10",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 1,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q5",
+      "promptMarkdown": "Why is formal structure considered foundational to how an organization operates?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "It exists primarily to satisfy corporate tax filing rules.",
+        "It clarifies employee roles, reporting lines, and performance expectations across tasks.",
+        "It removes the need for any informal communication among peers.",
+        "It eliminates the influence of organizational culture on decision making.",
+        "It guarantees high employee motivation regardless of leadership quality."
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 10. Lesson 10: Organizational Structure & HR Systems and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: B** — Structure establishes task allocation, authority lines, and role expectations so employees know what they own and how work coordinates.\n\n**Exam Trap Check:** Organizational structure defines how tasks are divided, grouped, and coordinated—clarifying roles and expectations.",
+      "solutionAssets": [],
+      "pitfall": "Organizational structure defines how tasks are divided, grouped, and coordinated—clarifying roles and expectations.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "10. Lesson 10: Organizational Structure & HR Systems"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-10",
+        "wiseflow-nov19-blueprint",
+        "recall"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-6",
+      "localId": "WF19-6",
+      "courseId": "ob-2537",
+      "topicId": "2",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q6",
+      "promptMarkdown": "Nordic Bakery Group recently appointed a new Chief Financial Officer who brings 28 years of finance industry experience but joined Nordic Bakery Group ten days ago. Which pair of internal subcultures is she most likely to belong to right now?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Frontline operations subculture and newcomer subculture",
+        "Executive leadership subculture and long-tenured veteran subculture",
+        "Executive leadership subculture and newly hired employee subculture",
+        "Administrative staff subculture and long-tenured veteran subculture",
+        "Frontline operations subculture and external regulator subculture"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 2. Lesson 2: Organizational Culture and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — Her rank places her in the **executive/upper-management subculture**, while her 10-day tenure at *this* firm places her in the **newly hired (newly tenured) employee subculture**, not the firm's seasoned-employee subculture.\n\n**Exam Trap Check:** Classic BI trap: 28 years of INDUSTRY experience does NOT make someone a long-tenured employee inside a company they joined 10 days ago!",
+      "solutionAssets": [],
+      "pitfall": "Classic BI trap: 28 years of INDUSTRY experience does NOT make someone a long-tenured employee inside a company they joined 10 days ago!",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "2. Lesson 2: Organizational Culture"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-2",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-7",
+      "localId": "WF19-7",
+      "courseId": "ob-2537",
+      "topicId": "9",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 1,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q7",
+      "promptMarkdown": "In organizational behaviour literature, cultural diversity across a workforce is also commonly referred to as _____.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "multiculturalism",
+        "monoculturism",
+        "ethnocentrism",
+        "social stratification",
+        "cultural assimilation"
+      ],
+      "answerIndex": 0,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 9. Lesson 9: Diversity and Creativity and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: A (multiculturalism)** — Cultural diversity in organizations is synonymously described as **multiculturalism**.\n\n**Exam Trap Check:** Multiculturalism refers to recognizing and valuing multiple cultural backgrounds within an organization (opposite of assimilation/ethnocentrism).",
+      "solutionAssets": [],
+      "pitfall": "Multiculturalism refers to recognizing and valuing multiple cultural backgrounds within an organization (opposite of assimilation/ethnocentrism).",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "9. Lesson 9: Diversity and Creativity"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-9",
+        "wiseflow-nov19-blueprint",
+        "recall"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-8",
+      "localId": "WF19-8",
+      "courseId": "ob-2537",
+      "topicId": "1",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 1,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q8",
+      "promptMarkdown": "Which statement provides the most complete definition of Organizational Behaviour (OB)?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "The administrative design of payroll, hiring contracts, and labor compliance.",
+        "The study of corporate finance strategies and competitive market positioning.",
+        "The study of organizational structure, management, and environments alongside the actions and interactions of individuals and groups within organizations.",
+        "The study of individual personality testing in clinical psychology settings.",
+        "The exclusive analysis of top-management strategic goal setting."
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 1. Lesson 1: Introduction to Organizational Behaviour and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — OB examines organizations' structures, management, and environments together with the behavior and interactions of individuals and groups inside them.\n\n**Exam Trap Check:** OB spans all three analytical levels—individual, group, and organizational structure/environment—not just HR or a single level.",
+      "solutionAssets": [],
+      "pitfall": "OB spans all three analytical levels—individual, group, and organizational structure/environment—not just HR or a single level.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "1. Lesson 1: Introduction to Organizational Behaviour"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-1",
+        "wiseflow-nov19-blueprint",
+        "recall"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-9",
+      "localId": "WF19-9",
+      "courseId": "ob-2537",
+      "topicId": "8",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q9",
+      "promptMarkdown": "What approach is generally most effective for persuading the majority of employees to embrace a major organizational change?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Issuing a mandatory top-down decree backed solely by formal authority.",
+        "Pitting departments against each other to force compliance through internal rivalry.",
+        "Communicating openly and transparently, building a guiding coalition of supporters, and addressing employee concerns directly.",
+        "Withholding details until after rollout so employees cannot form objections.",
+        "Relying exclusively on short-term cash bonuses without explaining the rationale."
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 8. Lesson 8: Communication and Organizational Change and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — Change adoption scales most reliably through **open communication, a credible coalition of supporters, and active engagement with concerns**.\n\n**Exam Trap Check:** Coercion and secrecy fuel cynicism; lasting majority buy-in comes from transparent communication, coalition building, and resolving objections.",
+      "solutionAssets": [],
+      "pitfall": "Coercion and secrecy fuel cynicism; lasting majority buy-in comes from transparent communication, coalition building, and resolving objections.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "8. Lesson 8: Communication and Organizational Change"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-8",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-10",
+      "localId": "WF19-10",
+      "courseId": "ob-2537",
+      "topicId": "1",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 1,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q10",
+      "promptMarkdown": "Unlike gut-feel intuition, systematic study in Organizational Behaviour relies on _____ to examine relationships and attribute causes and effects.",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "personal hunches",
+        "emotional impressions",
+        "empirical data",
+        "managerial premonitions",
+        "informal anecdotes"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 1. Lesson 1: Introduction to Organizational Behaviour and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C (empirical data)** — Systematic study analyzes patterns in **data** to infer cause-and-effect relationships rather than relying on intuition or feelings.\n\n**Exam Trap Check:** Systematic study replaces intuition/feelings with scientific evidence (data) gathered under controlled or observable conditions.",
+      "solutionAssets": [],
+      "pitfall": "Systematic study replaces intuition/feelings with scientific evidence (data) gathered under controlled or observable conditions.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "1. Lesson 1: Introduction to Organizational Behaviour"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-1",
+        "wiseflow-nov19-blueprint",
+        "recall"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-11",
+      "localId": "WF19-11",
+      "courseId": "ob-2537",
+      "topicId": "3",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q11",
+      "promptMarkdown": "A maritime robotics startup is forming a venture squad to invent novel product concepts for an uncharted market. Which Big Five trait is most directly linked to proposing unconventional solutions and testing unfamiliar paths?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "High conscientiousness, because strict procedural discipline automatically generates breakthrough ideas.",
+        "High agreeableness, because avoiding debate guarantees creative exploration.",
+        "High openness to experience, because it reflects intellectual curiosity, imagination, and receptiveness to novel approaches.",
+        "High neuroticism, because heightened anxiety drives risk-tolerant experimentation.",
+        "Low extraversion, because working silently prevents groupthink in all cases."
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 3. Lesson 3: Perception, Personality & Individual Differences and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — **Openness to experience** captures curiosity, imagination, and willingness to entertain unconventional ideas in ambiguous environments.\n\n**Exam Trap Check:** Conscientiousness predicts reliable execution/job performance overall, whereas Openness to Experience specifically drives curiosity and divergent creativity.",
+      "solutionAssets": [],
+      "pitfall": "Conscientiousness predicts reliable execution/job performance overall, whereas Openness to Experience specifically drives curiosity and divergent creativity.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "3. Lesson 3: Perception, Personality & Individual Differences"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-3",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-12",
+      "localId": "WF19-12",
+      "courseId": "ob-2537",
+      "topicId": "10",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q12",
+      "promptMarkdown": "A fast-scaling SaaS company requires its executive team to sign off on nearly every customer discount and service adjustment, creating slow response times and lost deals. Which structural adjustment directly solves this bottleneck?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Increasing formalization by adding two new compliance sign-off forms.",
+        "Narrowing span of control while keeping all final authority at headquarters.",
+        "Increasing decentralization by delegating operational decision authority closer to frontline teams.",
+        "Increasing work specialization without changing where decisions are approved.",
+        "Reinforcing the unity-of-command rule so every exception escalates to the CEO."
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 10. Lesson 10: Organizational Structure & HR Systems and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — **Decentralization** pushes decision-making discretion down to managers and employees closest to customer problems, cutting response lag.\n\n**Exam Trap Check:** Formalization and stricter chain of command worsen approval delays; decentralization speeds local responsiveness.",
+      "solutionAssets": [],
+      "pitfall": "Formalization and stricter chain of command worsen approval delays; decentralization speeds local responsiveness.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "10. Lesson 10: Organizational Structure & HR Systems"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-10",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-13",
+      "localId": "WF19-13",
+      "courseId": "ob-2537",
+      "topicId": "4",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q13",
+      "promptMarkdown": "Which statement accurately describes the effect of external competition between groups on internal group dynamics?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "External competition always destroys internal communication inside each team.",
+        "External competition typically increases internal group cohesiveness by sharpening shared identity and commitment to team goals.",
+        "External competition has zero measurable effect on intragroup bonding.",
+        "External competition lowers cohesiveness because members abandon group norms.",
+        "External competition eliminates all conformity pressure within the team."
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 4. Lesson 4: Groups and Teams and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: B** — Facing a shared external competitor rallies members around a common identity and goal, **increasing intragroup cohesiveness**.\n\n**Exam Trap Check:** Competition WITH OTHER GROUPS strengthens solidarity INSIDE the group (even though it can also spark intergroup hostility).",
+      "solutionAssets": [],
+      "pitfall": "Competition WITH OTHER GROUPS strengthens solidarity INSIDE the group (even though it can also spark intergroup hostility).",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "4. Lesson 4: Groups and Teams"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-4",
+        "wiseflow-nov19-blueprint",
+        "recall"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "recall",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-14",
+      "localId": "WF19-14",
+      "courseId": "ob-2537",
+      "topicId": "11",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q14",
+      "promptMarkdown": "A hospital deploys an AI triage tool to accelerate patient scheduling. Although accuracy tests are strong, senior clinicians resist using it because they feel it erodes their professional discretion. Which conclusion best fits an OB perspective on workplace technology?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Technology implementation succeeds purely on algorithmic accuracy, independent of workplace culture.",
+        "Resistance proves clinicians lack basic digital literacy and only need software tutorials.",
+        "Technology adoption is a sociotechnical process shaped by how employees perceive its impact on autonomy, status, and daily work.",
+        "Organizational structures never interact with new digital tools.",
+        "Mandatory surveillance guarantees enthusiastic adoption without altering job attitudes."
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 11. Lesson 11: Technology, Algorithmic Management & Work and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — From a **sociotechnical OB perspective**, technology adoption depends heavily on social meanings, perceived autonomy, and power shifts—not just technical specs.\n\n**Exam Trap Check:** OB rejects technological determinism: technical quality alone cannot secure adoption when perceived autonomy and professional identity are threatened.",
+      "solutionAssets": [],
+      "pitfall": "OB rejects technological determinism: technical quality alone cannot secure adoption when perceived autonomy and professional identity are threatened.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "11. Lesson 11: Technology, Algorithmic Management & Work"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-11",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-15",
+      "localId": "WF19-15",
+      "courseId": "ob-2537",
+      "topicId": "12",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q15",
+      "promptMarkdown": "An architecture studio introduces rigid cash bonuses tied strictly to billable design metrics to boost creativity. Within two quarters, designers stop experimenting with original concepts and focus narrowly on hitting bonus thresholds. How does Self-Determination Theory explain this shift?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Extrinsic financial rewards always amplify intrinsic curiosity once targets are explicit.",
+        "Intrinsic motivation ceases to matter whenever pay is linked to measurable outputs.",
+        "Controlling extrinsic rewards can crowd out intrinsic motivation by shifting perceived locus of causality from autonomous interest to external pressure.",
+        "Designers have permanently satisfied their physiological needs and can no longer be motivated.",
+        "Goal-setting theory proves creativity disappears whenever goals are clear."
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 12. Lesson 12: Motivation, Job Design & Organizational Justice and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — Under **Self-Determination Theory**, contingent extrinsic rewards experienced as controlling undermine perceived autonomy and **erode intrinsic motivation**.\n\n**Exam Trap Check:** SDT (Cognitive Evaluation effect): extrinsic rewards perceived as *controlling* undermine autonomy and crowd out intrinsic motivation.",
+      "solutionAssets": [],
+      "pitfall": "SDT (Cognitive Evaluation effect): extrinsic rewards perceived as *controlling* undermine autonomy and crowd out intrinsic motivation.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "12. Lesson 12: Motivation, Job Design & Organizational Justice"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-12",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-16",
+      "localId": "WF19-16",
+      "courseId": "ob-2537",
+      "topicId": "8",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q16",
+      "promptMarkdown": "Leadership announces a regional reorganization via a polished all-staff newsletter. Staff can read the new org chart, yet anxiety spreads because no one understands why the shift is happening or how daily duties will change. What communication strategy best resolves this gap?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Resend the identical newsletter weekly so employees memorize the chart.",
+        "Stop discussing the reorganization publicly until anxiety fades on its own.",
+        "Limit all updates to senior directors until every contract is finalized.",
+        "Create rich two-way forums where employees can ask questions, voice concerns, and hear the underlying rationale.",
+        "Replace written notices with automated dashboard alerts showing headcount ratios."
+      ],
+      "answerIndex": 3,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 8. Lesson 8: Communication and Organizational Change and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: D** — High-uncertainty change calls for **two-way communication** (town halls, Q&A, team dialogues) to surface concerns and build shared understanding.\n\n**Exam Trap Check:** Ambiguous, emotionally charged change requires high-richness two-way dialogue—not higher volume of one-way memos.",
+      "solutionAssets": [],
+      "pitfall": "Ambiguous, emotionally charged change requires high-richness two-way dialogue—not higher volume of one-way memos.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "8. Lesson 8: Communication and Organizational Change"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-8",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-17",
+      "localId": "WF19-17",
+      "courseId": "ob-2537",
+      "topicId": "13",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 1,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q17",
+      "promptMarkdown": "A product lead is convinced her redesign will be a hit. When user-testing transcripts come back, she highlights praise in her board deck and dismisses recurring usability complaints as 'outlier users.' Which decision bias is illustrated?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Anchoring bias",
+        "Confirmation bias",
+        "Availability heuristic",
+        "Hindsight bias",
+        "Randomness error"
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 13. Lesson 13: Decision Making, Biases & Organizational Learning and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: B (Confirmation bias)** — Actively highlighting feedback that affirms a prior conviction while dismissing disconfirming data is textbook **confirmation bias**.\n\n**Exam Trap Check:** Confirmation bias = selectively seeking/weighting information that confirms an existing belief while discounting contradicting evidence.",
+      "solutionAssets": [],
+      "pitfall": "Confirmation bias = selectively seeking/weighting information that confirms an existing belief while discounting contradicting evidence.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "13. Lesson 13: Decision Making, Biases & Organizational Learning"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-13",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-18",
+      "localId": "WF19-18",
+      "courseId": "ob-2537",
+      "topicId": "2",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q18",
+      "promptMarkdown": "A fintech firm prints 'Celebrate Bold Failure' on its office walls and slide decks, yet engineers quietly stick to safe incremental tweaks because past failed pilots stalled promotion prospects. Using Schein's model of organizational culture, what is happening?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Visible artifacts contradict the company's legal incorporation charter.",
+        "Employees lack the cognitive intelligence needed to generate creative ideas.",
+        "The firm's deep underlying assumptions contradict its espoused values.",
+        "The organization has no culture whatsoever.",
+        "Formal job descriptions completely replace cultural norms."
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 2. Lesson 2: Organizational Culture and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — In **Schein's model**, the stated slogan is an **espoused value**, while the unspoken career rule ('mistakes hurt promotions') is an **underlying assumption** that actually governs behavior.\n\n**Exam Trap Check:** Schein's 3 levels: Artifacts (posters) -> Espoused values (stated ideals) -> Basic underlying assumptions (unspoken taken-for-granted reality guiding real behavior).",
+      "solutionAssets": [],
+      "pitfall": "Schein's 3 levels: Artifacts (posters) -> Espoused values (stated ideals) -> Basic underlying assumptions (unspoken taken-for-granted reality guiding real behavior).",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "2. Lesson 2: Organizational Culture"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-2",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-19",
+      "localId": "WF19-19",
+      "courseId": "ob-2537",
+      "topicId": "7",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q19",
+      "promptMarkdown": "During a weekly stand-up, a team lead sarcastically shoots down a junior analyst's proposal in front of peers. The analyst feels humiliated and angry, and over the next month stops volunteering ideas in meetings. Which OB framework directly explains this event → emotion → behavior chain?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Dunning–Kruger effect",
+        "Bounded rationality",
+        "Affective Events Theory",
+        "Expectancy theory",
+        "Social loafing"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 7. Lesson 7: Attitudes, Emotions & Workplace Stress and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C (Affective Events Theory)** — **Affective Events Theory (AET)** explains how discrete workplace events trigger emotional reactions that subsequently shape job attitudes and behaviors (such as withdrawing voice).\n\n**Exam Trap Check:** Watch for the Nov 19 trap: public dismissal -> acute negative emotion -> behavioral withdrawal is Affective Events Theory (Weiss & Cropanzano), NOT Dunning-Kruger or bounded rationality!",
+      "solutionAssets": [],
+      "pitfall": "Watch for the Nov 19 trap: public dismissal -> acute negative emotion -> behavioral withdrawal is Affective Events Theory (Weiss & Cropanzano), NOT Dunning-Kruger or bounded rationality!",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "7. Lesson 7: Attitudes, Emotions & Workplace Stress"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-7",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-20",
+      "localId": "WF19-20",
+      "courseId": "ob-2537",
+      "topicId": "3",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 3,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q20",
+      "promptMarkdown": "A project manager notices Lukas misses every Tuesday internal sprint review, while all other team members attend reliably. However, Lukas is always punctual for external client workshops and one-on-one coaching sessions. Under Kelley's attribution theory, how are these three cues classified?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "High consensus, low consistency, low distinctiveness — pointing to a random external fluke.",
+        "Low consensus, high consistency, high distinctiveness — showing the behavior is consistent and unique to Lukas, yet specific to the Tuesday sprint-review context.",
+        "High consensus, high consistency, low distinctiveness — proving an internal personality flaw.",
+        "Low consensus, low consistency, low distinctiveness — indicating an external cause.",
+        "High distinctiveness proves consensus must also be high."
+      ],
+      "answerIndex": 1,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 3. Lesson 3: Perception, Personality & Individual Differences and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: B** — Others show up (**low consensus**), Lukas misses repeatedly (**high consistency**), and he is punctual everywhere else (**high distinctiveness**, signaling something specific about that meeting context).\n\n**Exam Trap Check:** Map each Kelley cue cleanly: others attend -> LOW consensus; happens every Tuesday -> HIGH consistency; punctual in other contexts -> HIGH distinctiveness!",
+      "solutionAssets": [],
+      "pitfall": "Map each Kelley cue cleanly: others attend -> LOW consensus; happens every Tuesday -> HIGH consistency; punctual in other contexts -> HIGH distinctiveness!",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "3. Lesson 3: Perception, Personality & Individual Differences"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-3",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 3,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-21",
+      "localId": "WF19-21",
+      "courseId": "ob-2537",
+      "topicId": "11",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q21",
+      "promptMarkdown": "An energy utility runs a highly efficient grid-operations division alongside a separate R&D lab creating green-tech prototypes. Both excel separately, yet lab prototypes almost never scale into core operations. Applying the concept of *adaptive space*, what should leaders do?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Shut down operational efficiency metrics because exploitation always destroys adaptability.",
+        "Isolate the R&D lab even further so operational managers never interact with researchers.",
+        "Build cross-boundary networks, brokers, and collaborative forums that connect entrepreneurial exploration to the operational core.",
+        "Centralize every technical handoff exclusively inside the executive boardroom.",
+        "Eliminate all exploratory projects until operational margins reach 100%."
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 11. Lesson 11: Technology, Algorithmic Management & Work and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — **Adaptive space** (Uhl-Bien & Arena) intentionally connects entrepreneurial exploration with operational exploitation through networks, brokers, and tension-managing interactions so innovations scale.\n\n**Exam Trap Check:** Adaptive space does NOT abolish operational exploitation or isolate exploration—it creates connective tissue (networks & brokerage) between the two systems.",
+      "solutionAssets": [],
+      "pitfall": "Adaptive space does NOT abolish operational exploitation or isolate exploration—it creates connective tissue (networks & brokerage) between the two systems.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "11. Lesson 11: Technology, Algorithmic Management & Work"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-11",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-22",
+      "localId": "WF19-22",
+      "courseId": "ob-2537",
+      "topicId": "9",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q22",
+      "promptMarkdown": "A Nordic bank staffs a strategy task force with specialists from five nationalities and four functional disciplines. Despite wide background variety, the team delivers routine recommendations because junior members hesitate to challenge senior viewpoints. What does OB research conclude about diversity and creativity here?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Team diversity automatically generates superior creativity regardless of interaction norms.",
+        "Surface-level demographic differences always outweigh deep-level cognitive perspectives.",
+        "Homogeneous groups are universally more innovative because they avoid disagreement.",
+        "Diversity supplies a broader pool of perspectives, but realizing creative gains requires inclusive processes that exchange and integrate dissenting ideas.",
+        "Adding more nationalities without changing meeting norms will solve the creativity gap."
+      ],
+      "answerIndex": 3,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 9. Lesson 9: Diversity and Creativity and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: D** — Diversity expands available viewpoints, but **creative output depends on team processes** (open debate, psychological safety, and integration of perspectives).\n\n**Exam Trap Check:** Diversity is a *potential* creative resource—without psychological safety and information elaboration, diverse teams underperform their potential.",
+      "solutionAssets": [],
+      "pitfall": "Diversity is a *potential* creative resource—without psychological safety and information elaboration, diverse teams underperform their potential.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "9. Lesson 9: Diversity and Creativity"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-9",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-23",
+      "localId": "WF19-23",
+      "courseId": "ob-2537",
+      "topicId": "1",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 1,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q23",
+      "promptMarkdown": "In the classic four managerial functions (planning, organizing, leading, controlling), which activity specifically belongs to the **planning** function?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Monitoring operational metrics and correcting deviations against targets",
+        "Motivating team members and resolving interpersonal friction",
+        "Defining an organization's goals and establishing an overall strategy to achieve them",
+        "Determining formal reporting hierarchies and allocating task authority",
+        "Auditing finished project budgets after completion"
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 1. Lesson 1: Introduction to Organizational Behaviour and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — **Planning** encompasses **defining organizational goals**, setting overall strategy, and developing plans to integrate activities.\n\n**Exam Trap Check:** Classic Nov 19 trap: Planning = DEFINING goals & strategy (not executing/coordinating tasks = Organizing, motivating = Leading, monitoring = Controlling).",
+      "solutionAssets": [],
+      "pitfall": "Classic Nov 19 trap: Planning = DEFINING goals & strategy (not executing/coordinating tasks = Organizing, motivating = Leading, monitoring = Controlling).",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "1. Lesson 1: Introduction to Organizational Behaviour"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-1",
+        "wiseflow-nov19-blueprint",
+        "recall"
+      ],
+      "dlpfcBase": 1,
+      "cognitiveType": "recall",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-24",
+      "localId": "WF19-24",
+      "courseId": "ob-2537",
+      "topicId": "5",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q24",
+      "promptMarkdown": "A regional operations director builds tight shift rosters, stays under budget, and tracks KPI dashboards impeccably. Yet staff report feeling uninspired and unclear on where the business unit is headed over the next three years. What does this illustrate about management versus leadership?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "Management and leadership are identical concepts, so the gap is meaningless.",
+        "The director shows strong leadership but weak operational management.",
+        "The director demonstrates solid managerial competence (order and control) but lacks leadership capacity to inspire commitment around a shared long-term vision.",
+        "Long-term direction is solely an HR responsibility, not a leadership function.",
+        "Focusing exclusively on tighter KPI tracking will create strategic commitment."
+      ],
+      "answerIndex": 2,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 5. Lesson 5: Leadership Part 1 — Theories and Styles and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: C** — The director excels at **management** (coordinating resources, schedules, and monitoring) while lacking **leadership** (articulating vision and inspiring voluntary commitment).\n\n**Exam Trap Check:** Kotter's distinction: Management produces predictability/order (budgets, schedules, control); Leadership produces change/direction (vision, alignment, inspiration).",
+      "solutionAssets": [],
+      "pitfall": "Kotter's distinction: Management produces predictability/order (budgets, schedules, control); Leadership produces change/direction (vision, alignment, inspiration).",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "5. Lesson 5: Leadership Part 1 — Theories and Styles"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-5",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
+      }
+    },
+    {
+      "id": "ob-2537:WF19-25",
+      "localId": "WF19-25",
+      "courseId": "ob-2537",
+      "topicId": "2",
+      "collectionId": "wiseflow-mock-nov19-blueprint",
+      "origin": "mock_exam",
+      "kind": "mcq",
+      "difficulty": 2,
+      "points": 4,
+      "title": "WISEflow Nov 19 Blueprint · Q25",
+      "promptMarkdown": "For three decades, a precision-engineering manufacturer promoted leaders based on zero-defect compliance and strict adherence to standard operating procedures. When executives launch an agile experimentation initiative, middle managers quietly stall the pilot. Which explanation best aligns with organizational culture theory?",
+      "promptAssets": [],
+      "contextMarkdown": "",
+      "contextAssets": [],
+      "svgDiagram": "",
+      "options": [
+        "A strong organizational culture always accelerates strategic transformation.",
+        "Culture only shapes employee behavior when written procedures do not exist.",
+        "Resistance proves employees lack the technical education to learn agile tools.",
+        "Deeply ingrained cultural assumptions foster stability and coordination, yet act as a barrier when new initiatives challenge established ways of working.",
+        "Strong cultures can be rewritten overnight through a single leadership memo."
+      ],
+      "answerIndex": 3,
+      "numericCheck": null,
+      "rubricChecks": [],
+      "hints": [
+        "Map this question to 2. Lesson 2: Organizational Culture and check the exact mechanism before scanning A–E.",
+        "Watch for classic BI WISEflow distractors that swap adjacent concepts (e.g., tenure vs industry experience, planning vs organizing, AET vs cognitive biases)."
+      ],
+      "solutionMarkdown": "**Correct Answer: D** — Deeply embedded **cultural assumptions** create efficiency and consistency in familiar conditions, yet become a **barrier to change** when new strategies contradict historic norms.\n\n**Exam Trap Check:** A strong culture is a double-edged sword: high alignment and predictability in stable environments, but strong inertia/liability during radical shifts.",
+      "solutionAssets": [],
+      "pitfall": "A strong culture is a double-edged sword: high alignment and predictability in stable environments, but strong inertia/liability during radical shifts.",
+      "obsidianLink": {
+        "file": "EXC3460-Obsidian/EXC3460 - Organizational Behavior and Leadership.md",
+        "heading": "2. Lesson 2: Organizational Culture"
+      },
+      "pacing": {
+        "learning": {
+          "target": 3.5,
+          "min": 2.0,
+          "max": 5.5
+        },
+        "exam": {
+          "target": 2.2,
+          "min": 1.2,
+          "max": 3.5
+        },
+        "stuckMinutes": 2.0,
+        "reviewMinutes": 1.0,
+        "hintHandicapSeconds": 30,
+        "rationale": "Calibrated directly to BI EXC 34601 Nov 19 WISEflow Mock Exam (25 MCQs in 90m: 11 definition traps + 14 two-sentence applied vignettes)."
+      },
+      "available": true,
+      "tags": [
+        "wiseflow-mock-nov19-blueprint",
+        "mock_exam",
+        "mcq",
+        "lesson-2",
+        "wiseflow-nov19-blueprint",
+        "application"
+      ],
+      "dlpfcBase": 2,
+      "cognitiveType": "application",
+      "sources": {},
+      "provenance": {
+        "category": "ai_mock",
+        "label": "AI Blueprint Mock",
+        "synthetic": true,
+        "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock",
+        "sourceDetail": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)"
       }
     }
   ]

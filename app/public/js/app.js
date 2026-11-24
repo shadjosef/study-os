@@ -129,7 +129,7 @@ window.StudyApp = (() => {
   }
 
   async function apiGet(url) {
-    const freshJson = /^(\.\/)?static-data\/(?:bootstrap|courses\/[^/]+)\.json$/.test(url);
+    const freshJson = /^(\.\/)?static-data\/(?:bootstrap|courses\/[^/]+)\.json(?:\?.*)?$/.test(url);
     const res = await fetch(url, freshJson ? { cache: 'no-cache' } : undefined);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
@@ -282,6 +282,113 @@ window.StudyApp = (() => {
     return { base, tier: base, chunked: false };
   }
 
+  const LOCAL_EXAM_RESULTS_KEY = 'study-os-exam-results-v1';
+
+  function gradeFromPct(pct) {
+    const p = Number(pct);
+    if (!Number.isFinite(p)) return null;
+    const clamped = Math.max(0, Math.min(100, Math.round(p * 10) / 10));
+    const rounded = Math.round(clamped);
+    if (clamped >= 85) return { letter: 'A', label: 'Excellent', cls: 'grade-a', points: 5, pct: rounded, toA: 0 };
+    if (clamped >= 77) return { letter: 'B', label: 'Very Good', cls: 'grade-b', points: 4, pct: rounded, toA: Math.max(1, Math.ceil(85 - clamped)) };
+    if (clamped >= 65) return { letter: 'C', label: 'Good', cls: 'grade-c', points: 3, pct: rounded, toA: Math.max(1, Math.ceil(85 - clamped)) };
+    if (clamped >= 50) return { letter: 'D', label: 'Satisfactory', cls: 'grade-d', points: 2, pct: rounded, toA: Math.max(1, Math.ceil(85 - clamped)) };
+    if (clamped >= 40) return { letter: 'E', label: 'Sufficient', cls: 'grade-e', points: 1, pct: rounded, toA: Math.max(1, Math.ceil(85 - clamped)) };
+    return { letter: 'F', label: 'Fail', cls: 'grade-f', points: 0, pct: rounded, toA: Math.max(1, Math.ceil(85 - clamped)) };
+  }
+
+  function loadExamResultsMap() {
+    if (isStaticWeb) {
+      const ws = loadWebState();
+      return isRecord(ws.examResults) ? ws.examResults : {};
+    }
+    try {
+      const raw = JSON.parse(localStorage.getItem(LOCAL_EXAM_RESULTS_KEY) || '{}');
+      return isRecord(raw) ? raw : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function mergeExamResultsMaps(baseMap, incMap) {
+    const base = isRecord(baseMap) ? baseMap : {};
+    const inc = isRecord(incMap) ? incMap : {};
+    const out = { ...base };
+    let changed = 0;
+    for (const [k, v] of Object.entries(inc)) {
+      if (typeof k !== 'string' || !k.includes(':') || !isRecord(v)) continue;
+      const cur = out[k];
+      if (!cur) {
+        out[k] = v;
+        changed++;
+        continue;
+      }
+      const curAt = backupTime(cur.completedAt);
+      const incAt = backupTime(v.completedAt);
+      const curBest = Number(cur.bestPct || 0);
+      const incBest = Number(v.bestPct || 0);
+      if (incAt > curAt || incBest > curBest || Number(v.attemptsCount || 0) > Number(cur.attemptsCount || 0)) {
+        const latest = incAt >= curAt ? v : cur;
+        const best = incBest >= curBest ? v : cur;
+        out[k] = {
+          ...latest,
+          bestPct: Math.max(curBest, incBest),
+          bestGrade: (gradeFromPct(Math.max(curBest, incBest))?.letter) || best.bestGrade || latest.lastGrade,
+          bestAt: best.bestAt || latest.completedAt || '',
+          attemptsCount: Math.max(Number(cur.attemptsCount || 1), Number(v.attemptsCount || 1)),
+        };
+        changed++;
+      }
+    }
+    return { merged: out, changed };
+  }
+
+  function recordExamResult(courseId, collectionId, summary) {
+    if (!courseId || !collectionId || !summary || !Number.isFinite(Number(summary.pct))) return null;
+    if (isDevSandbox()) return null;
+    const key = `${courseId}:${collectionId}`;
+    const pct = Math.max(0, Math.min(100, Math.round(Number(summary.pct) * 10) / 10));
+    const g = gradeFromPct(pct);
+    const nowIso = new Date().toISOString();
+    const saveInto = (map) => {
+      const prev = isRecord(map[key]) ? map[key] : null;
+      const prevBest = prev ? Number(prev.bestPct ?? prev.lastPct ?? -1) : -1;
+      const isNewBest = pct >= prevBest;
+      const bestPct = isNewBest ? pct : prevBest;
+      const bestG = gradeFromPct(bestPct);
+      const entry = {
+        courseId: String(courseId),
+        collectionId: String(collectionId),
+        lastPct: pct,
+        lastGrade: g.letter,
+        bestPct,
+        bestGrade: bestG.letter,
+        earnedPts: Math.round(Number(summary.earnedPts || 0) * 10) / 10,
+        totalPts: Math.round(Number(summary.totalPts || 0) * 10) / 10,
+        gradedCount: Math.max(0, Math.round(Number(summary.gradedCount || 0))),
+        totalCount: Math.max(0, Math.round(Number(summary.totalCount || 0))),
+        gradingKind: ['auto', 'rubric', 'mixed'].includes(summary.gradingKind) ? summary.gradingKind : 'mixed',
+        attemptsCount: Math.max(1, Number(prev?.attemptsCount || 0) + (summary.incrementAttempt ? 1 : prev ? 0 : 1)),
+        completedAt: nowIso,
+        bestAt: isNewBest ? nowIso : (prev?.bestAt || nowIso),
+      };
+      map[key] = entry;
+      return entry;
+    };
+    if (isStaticWeb) {
+      const ws = loadWebState();
+      if (!isRecord(ws.examResults)) ws.examResults = {};
+      const saved = saveInto(ws.examResults);
+      saveWebState(ws);
+      queueCloudSync();
+      return saved;
+    }
+    const localMap = loadExamResultsMap();
+    const saved = saveInto(localMap);
+    try { localStorage.setItem(LOCAL_EXAM_RESULTS_KEY, JSON.stringify(localMap)); } catch {}
+    return saved;
+  }
+
   function loadWebState() {
     try {
       const raw = JSON.parse(localStorage.getItem(WEB_STATE_KEY) || '{}');
@@ -292,9 +399,10 @@ window.StudyApp = (() => {
         customSchedule: raw.customSchedule || { enabled: false, prefs: {}, blocks: [] },
         canvasSnapshot: raw.canvasSnapshot || null,
         edSnapshot: raw.edSnapshot || null,
+        examResults: isRecord(raw.examResults) ? raw.examResults : {},
       };
     } catch {
-      return { records: {}, attempts: [], sessions: [], customSchedule: { enabled: false, prefs: {}, blocks: [] }, canvasSnapshot: null, edSnapshot: null };
+      return { records: {}, attempts: [], sessions: [], customSchedule: { enabled: false, prefs: {}, blocks: [] }, canvasSnapshot: null, edSnapshot: null, examResults: {} };
     }
   }
 
@@ -426,6 +534,10 @@ window.StudyApp = (() => {
     const screenMerged = isRecord(data.screenHistory)
       ? (window.StudyUI?.workClock?.mergeScreenHistory?.(data.screenHistory) || 0)
       : 0;
+    const examResMerge = isRecord(data.examResults)
+      ? mergeExamResultsMaps(ws.examResults, data.examResults)
+      : { merged: ws.examResults || {}, changed: 0 };
+    ws.examResults = examResMerge.merged;
     if (!saveWebState(ws)) return '';
 
     const restored = [
@@ -437,6 +549,7 @@ window.StudyApp = (() => {
       edChanged ? 'Ed Discussion posts' : '',
       addedSets ? `${addedSets} study set${addedSets === 1 ? '' : 's'}` : '',
       screenMerged ? 'Oslo screen-time history' : '',
+      examResMerge.changed ? `${examResMerge.changed} exam grade${examResMerge.changed === 1 ? '' : 's'}` : '',
     ].filter(Boolean);
     return restored.length ? `Restored ${restored.join(', ')}.` : 'This backup contains no newer study data.';
   }
@@ -1550,14 +1663,47 @@ window.StudyApp = (() => {
 
   async function refreshBootstrap(forceCalendar = false) {
     if (isStaticWeb) {
-      boot = await apiGet('./static-data/bootstrap.json');
+      const bootVer = document.documentElement.dataset.bootV || '';
+      boot = await apiGet(`./static-data/bootstrap.json${bootVer ? `?v=${encodeURIComponent(bootVer)}` : ''}`);
       if (members.isUnlocked()) {
         boot.catalog = boot.catalog.map((entry) => {
           const mCat = members.course(entry.courseId)?.catalog;
           if (!mCat) return entry;
+          const entryColls = Array.isArray(entry.collections) ? entry.collections : [];
+          const mColls = Array.isArray(mCat.collections) ? mCat.collections : [];
+          const entryById = new Map(entryColls.map((col) => [String(col.id), col]));
+          const seenCollIds = new Set();
+          const mergedColls = [];
+          for (const mc of mColls) {
+            const cid = String(mc.id || '');
+            const ec = entryById.get(cid);
+            seenCollIds.add(cid);
+            if (ec) {
+              const mergedQids = (Array.isArray(ec.questionIds) && ec.questionIds.length)
+                ? ec.questionIds
+                : (Array.isArray(mc.questionIds) ? mc.questionIds : []);
+              mergedColls.push({
+                ...mc,
+                ...ec,
+                questionIds: mergedQids,
+                questionCount: Math.max(Number(ec.questionCount || 0), Number(mc.questionCount || 0), mergedQids.length),
+                parMinutes: Number(ec.parMinutes || mc.parMinutes || 0),
+                totalPoints: Number(ec.totalPoints || mc.totalPoints || 0),
+                gradingMode: ec.gradingMode || mc.gradingMode || '',
+                durationMinutes: Number(ec.durationMinutes || mc.durationMinutes || 0) || undefined,
+              });
+            } else {
+              mergedColls.push(mc);
+            }
+          }
+          for (const ec of entryColls) {
+            const cid = String(ec.id || '');
+            if (!seenCollIds.has(cid)) mergedColls.push(ec);
+          }
           return {
             ...entry,
             ...mCat,
+            collections: mergedColls,
             questionCount: Math.max(Number(entry.questionCount || 0), Number(mCat.questionCount || 0)),
           };
         });
@@ -1632,6 +1778,7 @@ window.StudyApp = (() => {
       edSnapshot: ws.edSnapshot,
       customSets: window.StudySets?.exportForSync?.() || [],
       screenHistory: window.StudyUI?.workClock?.getScreenHistory?.() || {},
+      examResults: isRecord(ws.examResults) ? ws.examResults : {},
     };
   }
 
@@ -1657,6 +1804,7 @@ window.StudyApp = (() => {
       let cloudEdAt = 0;
       let cloudSetCount = 0;
       let cloudScreenTotal = 0;
+      let cloudExamResCount = 0;
       if (!pushOnly) {
         const remote = await window.StudyCommunity.fetchCloudBackup();
         if (remote?.hasBackup && remote.data) {
@@ -1668,6 +1816,7 @@ window.StudyApp = (() => {
           cloudEdAt = backupTime(remote.data.edSnapshot?.syncedAt);
           cloudSetCount = Array.isArray(remote.data.customSets) ? remote.data.customSets.length : 0;
           cloudScreenTotal = screenHistoryTotalSec(remote.data.screenHistory);
+          cloudExamResCount = isRecord(remote.data.examResults) ? Object.keys(remote.data.examResults).length : 0;
           const msg = restoreWebBackup(remote.data);
           if (msg && msg.startsWith('Restored ')) {
             mergedFromCloud = true;
@@ -1686,13 +1835,14 @@ window.StudyApp = (() => {
       const localSessionCount = (payload.sessions || []).length;
       const localSetCount = (payload.customSets || []).length;
       const localScreenTotal = screenHistoryTotalSec(payload.screenHistory);
+      const localExamResCount = isRecord(payload.examResults) ? Object.keys(payload.examResults).length : 0;
       const scheduleAt = backupTime(payload.customSchedule.updatedAt);
       const canvasAt = backupTime(payload.canvasSnapshot?.syncedAt);
       const edAt = backupTime(payload.edSnapshot?.syncedAt);
-      const hasLocalData = localRecCount > 0 || localAttemptCount > 0 || localSessionCount > 0 || localSetCount > 0 || localScreenTotal > 60 || scheduleAt > 0 || canvasAt > 0 || edAt > 0;
+      const hasLocalData = localRecCount > 0 || localAttemptCount > 0 || localSessionCount > 0 || localSetCount > 0 || localScreenTotal > 60 || localExamResCount > 0 || scheduleAt > 0 || canvasAt > 0 || edAt > 0;
       const shouldPush = pushOnly || interactive || (hasLocalData && (
         localRecCount !== cloudRecCount || localAttemptCount !== cloudAttemptCount || localSessionCount !== cloudSessionCount ||
-        localSetCount !== cloudSetCount || localScreenTotal > cloudScreenTotal + 60 || scheduleAt > cloudScheduleAt || canvasAt > cloudCanvasAt || edAt > cloudEdAt || mergedFromCloud
+        localSetCount !== cloudSetCount || localScreenTotal > cloudScreenTotal + 60 || localExamResCount !== cloudExamResCount || scheduleAt > cloudScheduleAt || canvasAt > cloudCanvasAt || edAt > cloudEdAt || mergedFromCloud
       ));
       if (shouldPush) {
         const res = await window.StudyCommunity.pushCloudBackup(payload);
@@ -3798,7 +3948,7 @@ window.StudyApp = (() => {
     };
   }
 
-  function computeExamPaperProgress(qIds, records, attemptsByQid) {
+  function computeExamPaperProgress(qIds, records, attemptsByQid, savedResult = null, col = null) {
     const total = qIds.length;
     let done = 0;
     let revisit = 0;
@@ -3831,14 +3981,61 @@ window.StudyApp = (() => {
     const touched = done + revisit + inProgress;
     const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
     const revisitPct = total > 0 ? Math.min(100 - pct, Math.round((revisit / total) * 100)) : 0;
-    const status = total > 0 && done >= total
+    const hasSavedSit = Boolean(savedResult && Number.isFinite(Number(savedResult.bestPct ?? savedResult.lastPct)));
+    const status = (total > 0 && done >= total) || (hasSavedSit && Number(savedResult.gradedCount || 0) >= Math.max(1, total))
       ? 'completed'
-      : touched > 0
+      : touched > 0 || hasSavedSit
       ? 'in_progress'
       : 'not_started';
     const avgAccPct = accCount > 0 ? Math.round((accSum / accCount) * 100) : null;
 
-    return { total, done, revisit, inProgress, touched, pct, revisitPct, status, avgAccPct, firstUndoneIdx };
+    // Resolve BI Letter Grade (official saved exam sit takes precedence; else derive from graded questions)
+    let grade = null;
+    let gradeSource = '';
+    let bestPct = null;
+    let lastPct = null;
+    if (hasSavedSit) {
+      bestPct = Math.round(Number(savedResult.bestPct ?? savedResult.lastPct));
+      lastPct = Math.round(Number(savedResult.lastPct ?? bestPct));
+      grade = gradeFromPct(bestPct);
+      gradeSource = 'official';
+    } else if (avgAccPct != null && total > 0) {
+      const fullCoverage = accCount >= total || status === 'completed';
+      bestPct = avgAccPct;
+      lastPct = avgAccPct;
+      grade = gradeFromPct(avgAccPct);
+      gradeSource = fullCoverage ? 'derived' : 'estimate';
+    }
+
+    const gradingMode = savedResult?.gradingKind || col?.gradingMode || '';
+    const gradingLabel = gradingMode === 'auto'
+      ? 'Auto-graded'
+      : gradingMode === 'rubric'
+      ? 'Rubric-graded'
+      : gradingMode === 'mixed'
+      ? 'Auto + Rubric'
+      : '';
+
+    return {
+      total,
+      done,
+      revisit,
+      inProgress,
+      touched,
+      pct: status === 'completed' ? 100 : pct,
+      revisitPct: status === 'completed' ? 0 : revisitPct,
+      status,
+      avgAccPct,
+      firstUndoneIdx,
+      grade,
+      gradeSource,
+      bestPct,
+      lastPct,
+      savedResult,
+      gradingMode,
+      gradingLabel,
+      isGradeA: Boolean(grade && gradeSource !== 'estimate' && grade.letter === 'A'),
+    };
   }
 
   function renderExamsHub(focusCourseId = '') {
@@ -3859,6 +4056,7 @@ window.StudyApp = (() => {
     });
 
     const records = boot.progress?.records || {};
+    const examResultsMap = loadExamResultsMap();
     const attemptsByQid = new Map();
     if (isStaticWeb) {
       const ws = loadWebState();
@@ -3867,14 +4065,24 @@ window.StudyApp = (() => {
           attemptsByQid.set(a.questionId, Number(a.qualityAccuracy));
         }
       }
+    } else {
+      for (const [qid, rec] of Object.entries(records)) {
+        if (Number.isFinite(Number(rec?.lastAccuracy))) {
+          attemptsByQid.set(qid, Number(rec.lastAccuracy));
+        }
+      }
     }
 
-    // Aggregate global exam progress across all active courses
+    // Aggregate global exam progress & BI grades across all active courses
     let globalPapersTotal = 0;
     let globalPapersDone = 0;
     let globalPapersInProg = 0;
     let globalFullPastTotal = 0;
     let globalFullPastDone = 0;
+    let globalAGrades = 0;
+    let globalNeedsA = 0;
+    let globalGradePctSum = 0;
+    let globalGradedPapers = 0;
     let globalQsTotal = 0;
     let globalQsDone = 0;
 
@@ -3884,7 +4092,8 @@ window.StudyApp = (() => {
       const rawColls = getExamPaperCollections(c);
       const papers = rawColls.map((col) => {
         const meta = classifyExamPaper(col, c);
-        const prog = computeExamPaperProgress(meta.qIds, records, attemptsByQid);
+        const savedRes = examResultsMap[`${c.courseId}:${col.id}`] || null;
+        const prog = computeExamPaperProgress(meta.qIds, records, attemptsByQid, savedRes, col);
         return { col, meta, prog };
       });
       if (!maintLocked) {
@@ -3896,80 +4105,108 @@ window.StudyApp = (() => {
             globalFullPastTotal++;
             if (p.prog.status === 'completed') globalFullPastDone++;
           }
+          if (p.prog.grade && p.prog.gradeSource !== 'estimate') {
+            globalGradedPapers++;
+            globalGradePctSum += Number(p.prog.bestPct || 0);
+            if (p.prog.grade.letter === 'A') globalAGrades++;
+            else globalNeedsA++;
+          } else {
+            globalNeedsA++;
+          }
           globalQsTotal += p.prog.total;
-          globalQsDone += p.prog.done;
+          globalQsDone += Math.min(p.prog.total, p.prog.done);
         }
       }
       return { c, maint, maintLocked, papers };
     });
 
     const globalQPct = globalQsTotal > 0 ? Math.min(100, Math.round((globalQsDone / globalQsTotal) * 100)) : 0;
+    const globalAvgPct = globalGradedPapers > 0 ? Math.round(globalGradePctSum / globalGradedPapers) : null;
+    const globalAvgGrade = globalAvgPct != null ? gradeFromPct(globalAvgPct) : null;
 
     const renderPackCard = (c, item) => {
       const { col, meta, prog } = item;
-      const statusBadge = prog.status === 'completed'
-        ? `<span class="exam-status-pill is-done">✓ Completed</span>`
-        : prog.status === 'in_progress'
-        ? `<span class="exam-status-pill is-prog">In progress</span>`
-        : `<span class="exam-status-pill is-todo">Not started</span>`;
+      const g = prog.grade;
+      const isOfficialOrFullGrade = Boolean(g && prog.gradeSource !== 'estimate');
+
+      let rightBadgeHtml = '';
+      if (isOfficialOrFullGrade) {
+        const star = g.letter === 'A' ? '★ ' : '';
+        const tip = `${prog.gradingLabel || 'Graded'} · Best ${prog.bestPct}% (BI Grade ${g.letter} · ${g.label})${prog.savedResult?.attemptsCount > 1 ? ` · ${prog.savedResult.attemptsCount} sits` : ''}`;
+        rightBadgeHtml = `<span class="exam-grade-medal ${g.cls}" title="${esc(tip)}"><b>${star}${g.letter}</b><small>${prog.bestPct}%</small></span>`;
+      } else if (g && prog.gradeSource === 'estimate') {
+        rightBadgeHtml = `<span class="exam-grade-medal is-est ${g.cls}" title="Projected BI grade from ${prog.touched} attempted question(s)"><b>Est. ${g.letter}</b><small>${prog.bestPct}%</small></span>`;
+      } else if (prog.status === 'in_progress') {
+        rightBadgeHtml = `<span class="exam-status-pill is-prog">In progress</span>`;
+      } else {
+        rightBadgeHtml = `<span class="exam-status-pill is-todo">Not started</span>`;
+      }
+
       const qUnit = c.courseId === 'prog-3021'
         ? (meta.qCount === 1 ? 'task' : 'tasks')
         : (meta.qCount === 1 ? 'Q' : 'Qs');
       const metaBits = [
         meta.qCount ? `${meta.qCount} ${qUnit}` : '',
         `${meta.durMin} min`,
-        prog.avgAccPct != null ? `${prog.avgAccPct}% acc` : '',
+        prog.gradingLabel,
         prog.revisit > 0 ? `${prog.revisit} revisit` : '',
       ].filter(Boolean).join(' · ');
 
       const cardClasses = [
         'exam-pack-card',
+        'exam-pack-clickable',
         meta.isPast ? 'exam-pack-official' : '',
-        prog.status === 'completed' ? 'is-completed' : prog.status === 'in_progress' ? 'is-in-progress' : '',
+        prog.isGradeA ? 'is-grade-a' : prog.status === 'completed' ? 'is-completed' : prog.status === 'in_progress' ? 'is-in-progress' : '',
       ].filter(Boolean).join(' ');
 
-      const btnClass = prog.status === 'completed' ? 'ghost-btn' : 'primary-btn';
-      const btnText = prog.status === 'completed'
-        ? 'Retake paper'
-        : prog.status === 'in_progress'
-        ? `Continue (${prog.done}/${prog.total})`
-        : meta.isPast
-        ? 'Start past exam'
-        : meta.tier === 'official_sample'
-        ? 'Start sample'
-        : 'Start mock exam';
-
-      const progBarHtml = prog.total > 0
-        ? `<div class="exam-prog-wrap">
-            <div class="exam-prog-meta">
-              <span>${prog.done} / ${prog.total} done</span>
-              <strong>${prog.pct}%</strong>
-            </div>
-            <div class="exam-prog-track" role="progressbar" aria-valuenow="${prog.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(examLabel(col.title))} completion">
-              <div class="exam-prog-fill ${prog.status === 'completed' ? 'is-done' : ''}" style="width:${prog.pct}%"></div>
-              ${prog.revisitPct > 0 ? `<div class="exam-prog-revisit" style="width:${prog.revisitPct}%;left:${prog.pct}%"></div>` : ''}
-            </div>
-          </div>`
+      const fillClass = prog.isGradeA
+        ? 'is-grade-a'
+        : isOfficialOrFullGrade
+        ? g.cls
+        : prog.status === 'completed'
+        ? 'is-done'
         : '';
 
-      return `<div class="${cardClasses}">
+      let slotLeft = '';
+      let slotRight = '';
+      if (prog.isGradeA) {
+        slotLeft = `<strong>★ Grade A · ${prog.bestPct}%</strong><span>${prog.total ? `${prog.done}/${prog.total} done` : 'Mastered'}</span>`;
+        slotRight = 'Retake ↻';
+      } else if (isOfficialOrFullGrade) {
+        slotLeft = `<strong>Grade ${g.letter} · ${prog.bestPct}%</strong><span>+${g.toA}% to A</span>`;
+        slotRight = 'Aim for A →';
+      } else if (prog.status === 'completed') {
+        slotLeft = `<strong>✓ Completed</strong><span>${prog.total}/${prog.total} done</span>`;
+        slotRight = 'Retake ↻';
+      } else if (prog.status === 'in_progress') {
+        slotLeft = `<strong>${prog.pct}%</strong><span>${prog.done}/${prog.total} done</span>`;
+        slotRight = 'Continue →';
+      } else {
+        slotLeft = `<strong>0%</strong><span>${meta.qCount ? `0/${meta.qCount} ${qUnit}` : 'Ready'} · Target A</span>`;
+        slotRight = 'Play →';
+      }
+
+      const barPct = prog.status === 'completed' ? 100 : prog.pct;
+      const startIdx = selectedExamStyle === 'guided' && prog.status === 'in_progress' ? prog.firstUndoneIdx : 0;
+
+      return `<div class="${cardClasses}" role="button" tabindex="0" aria-label="${esc(examLabel(col.title))} — ${esc(slotRight)}" data-sit-course="${esc(c.courseId)}" data-sit-coll="${esc(col.id)}" data-sit-dur="${meta.durMin}" data-sit-title="${esc(examLabel(col.title))}" data-sit-start-idx="${startIdx}">
         <div class="exam-pack-body">
           <div class="exam-pack-top">
             <span class="prov-badge ${meta.badgeClass}" title="${esc(meta.tooltip)}">${esc(meta.badgeText)}</span>
-            ${statusBadge}
+            ${rightBadgeHtml}
           </div>
           <strong class="exam-pack-title">${esc(examLabel(col.title))}</strong>
           <small class="muted exam-pack-meta">${esc(metaBits)}</small>
-          ${progBarHtml}
         </div>
-        <div class="row-actions">
-          <button type="button" class="${btnClass}" style="flex:1" data-sit-course="${esc(c.courseId)}" data-sit-coll="${esc(
-            col.id
-          )}" data-sit-dur="${meta.durMin}" data-sit-title="${esc(examLabel(col.title))}" data-sit-start-idx="${
-            selectedExamStyle === 'guided' && prog.status === 'in_progress' ? prog.firstUndoneIdx : 0
-          }">
-            ${esc(btnText)}
-          </button>
+        <div class="exam-card-prog-cta ${prog.isGradeA ? 'is-grade-a' : prog.status === 'in_progress' ? 'is-active' : ''}">
+          <div class="exam-card-prog-row">
+            <span class="exam-card-prog-stat">${slotLeft}</span>
+            <span class="exam-card-prog-cue">${esc(slotRight)}</span>
+          </div>
+          <div class="exam-prog-track is-card-cta" role="progressbar" aria-valuenow="${barPct}" aria-valuemin="0" aria-valuemax="100" aria-label="${esc(examLabel(col.title))} progress">
+            <div class="exam-prog-fill ${fillClass}" style="width:${barPct}%"></div>
+            ${prog.revisitPct > 0 ? `<div class="exam-prog-revisit" style="width:${prog.revisitPct}%;left:${barPct}%"></div>` : ''}
+          </div>
         </div>
       </div>`;
     };
@@ -3978,6 +4215,7 @@ window.StudyApp = (() => {
       if (selectedExamFilter === 'todo') return item.prog.status !== 'completed';
       if (selectedExamFilter === 'done') return item.prog.status === 'completed';
       if (selectedExamFilter === 'past') return item.meta.isPast;
+      if (selectedExamFilter === 'needs_a') return !item.prog.isGradeA;
       return true;
     };
 
@@ -4024,8 +4262,12 @@ window.StudyApp = (() => {
         const cPapersDone = papers.filter((p) => p.prog.status === 'completed').length;
         const cPastDone = cPastPapers.filter((p) => p.prog.status === 'completed').length;
         const cQsTotal = papers.reduce((s, p) => s + p.prog.total, 0);
-        const cQsDone = papers.reduce((s, p) => s + p.prog.done, 0);
+        const cQsDone = papers.reduce((s, p) => s + Math.min(p.prog.total, p.prog.done), 0);
         const cPct = cQsTotal > 0 ? Math.min(100, Math.round((cQsDone / cQsTotal) * 100)) : 0;
+        const cGraded = papers.filter((p) => p.prog.grade && p.prog.gradeSource !== 'estimate');
+        const cACount = cGraded.filter((p) => p.prog.grade.letter === 'A').length;
+        const cAvgPct = cGraded.length ? Math.round(cGraded.reduce((s, p) => s + Number(p.prog.bestPct || 0), 0) / cGraded.length) : null;
+        const cAvgGrade = cAvgPct != null ? gradeFromPct(cAvgPct) : null;
 
         if (selectedExamFilter !== 'all' && !visPast.length && !visMocks.length) {
           return '';
@@ -4042,7 +4284,7 @@ window.StudyApp = (() => {
             ? 'Full 50-question randomized WISEflow MCQ paper balanced across Lessons 1–14 (180m).'
             : '4-task Home Exam 2 blueprint: (1) Loop/Simulation, (2) Function/Dict/DateTime, (3) Pandas/Seaborn Table, (4) Time Series/Resample/Plot + 2 checks (180m).';
 
-        const showRandomBuilder = selectedExamFilter === 'all' || selectedExamFilter === 'todo';
+        const showRandomBuilder = selectedExamFilter === 'all' || selectedExamFilter === 'todo' || selectedExamFilter === 'needs_a';
 
         return `
           <section class="panel exam-course-card" id="exam-card-${esc(c.courseId)}" style="border-left-color:${esc(c.color)}">
@@ -4052,10 +4294,10 @@ window.StudyApp = (() => {
                 <h2>${esc(c.title)}</h2>
                 <div class="exam-course-prog">
                   <div class="exam-course-prog-meta">
-                    <span><strong>${cPapersDone}/${papers.length}</strong> papers completed${cPastPapers.length ? ` · <strong>${cPastDone}/${cPastPapers.length}</strong> past exams` : ''} · ${cQsDone}/${cQsTotal} Qs</span>
+                    <span><strong>${cPapersDone}/${papers.length}</strong> papers done${cPastPapers.length ? ` · <strong>${cPastDone}/${cPastPapers.length}</strong> past exams` : ''} · ${cQsDone}/${cQsTotal} Qs${cGraded.length ? ` · <strong class="exam-inline-grade ${cAvgGrade.cls}">★ ${cACount}/${papers.length} A · Avg ${cAvgGrade.letter} (${cAvgPct}%)</strong>` : ''}</span>
                     <strong>${cPct}%</strong>
                   </div>
-                  <div class="exam-prog-track"><div class="exam-prog-fill ${cPct >= 100 ? 'is-done' : ''}" style="width:${cPct}%"></div></div>
+                  <div class="exam-prog-track"><div class="exam-prog-fill ${cACount === papers.length && papers.length > 0 ? 'is-grade-a' : cPct >= 100 ? 'is-done' : ''}" style="width:${cPct}%"></div></div>
                 </div>
                 ${c.examInfo?.notes ? `<p class="muted" style="font-size:13px;margin:8px 0 0">${esc(c.examInfo.notes)}</p>` : ''}
                 <div class="row-actions" style="gap:12px;margin-top:6px;font-size:12.5px">
@@ -4073,7 +4315,7 @@ window.StudyApp = (() => {
             ${visPast.length ? `
               <div class="exam-group-head">
                 <span class="exam-group-label">Official BI Past Exams (${visPast.length})</span>
-                <small class="muted">Newest first · real BI exam papers</small>
+                <small class="muted">Click any paper to sit or continue · real BI exam papers</small>
               </div>
               <div class="exam-pack-grid">
                 ${visPast.map((p) => renderPackCard(c, p)).join('')}
@@ -4083,12 +4325,12 @@ window.StudyApp = (() => {
             ${(visMocks.length || showRandomBuilder) ? `
               <div class="exam-group-head">
                 <span class="exam-group-label">${visPast.length ? 'Mock Exams & Official Samples' : 'Official Samples & Mock Exams'}</span>
-                <small class="muted">${visMocks.length} paper${visMocks.length === 1 ? '' : 's'}${showRandomBuilder ? ' + custom builder' : ''}</small>
+                <small class="muted">${visMocks.length} paper${visMocks.length === 1 ? '' : 's'}${showRandomBuilder ? ' + randomized builder' : ''}</small>
               </div>
               <div class="exam-pack-grid">
                 ${visMocks.map((p) => renderPackCard(c, p)).join('')}
                 ${showRandomBuilder ? `
-                  <div class="exam-pack-card exam-pack-builder">
+                  <div class="exam-pack-card exam-pack-clickable exam-pack-builder" role="button" tabindex="0" aria-label="Build and launch randomized full mock exam for ${esc(c.title)}" data-gen-exam="${esc(c.courseId)}">
                     <div class="exam-pack-body">
                       <div class="exam-pack-top">
                         <span class="prov-badge exam-type-ai">Dynamic Generator</span>
@@ -4097,7 +4339,13 @@ window.StudyApp = (() => {
                       <strong class="exam-pack-title">Randomized Full Mock Exam</strong>
                       <small class="muted exam-pack-meta">${esc(customDesc)}</small>
                     </div>
-                    <button type="button" class="ghost-btn" data-gen-exam="${esc(c.courseId)}">Build &amp; Launch Paper →</button>
+                    <div class="exam-card-prog-cta is-builder">
+                      <div class="exam-card-prog-row">
+                        <span class="exam-card-prog-stat"><strong>Fresh draw</strong><span>Auto-graded · Target A</span></span>
+                        <span class="exam-card-prog-cue">Build &amp; Play →</span>
+                      </div>
+                      <div class="exam-prog-track is-card-cta"><div class="exam-prog-fill is-builder" style="width:100%"></div></div>
+                    </div>
                   </div>
                 ` : ''}
               </div>
@@ -4116,10 +4364,10 @@ window.StudyApp = (() => {
       <div class="hero-card" style="margin-bottom:20px">
         <div class="hero-top">
           <div style="flex:1;min-width:260px">
-            <span class="eyebrow">WISEflow &amp; Past Exam Simulator</span>
+            <span class="eyebrow">WISEflow &amp; Past Exam Simulator · Target A (85%+)</span>
             <h1 class="hero-title" style="margin-bottom:6px">Mock exams and past papers</h1>
             <p class="muted" style="margin:0;font-size:13.5px">
-              Every paper is verified and grouped honestly — full official past exams first, followed by official samples and AI mocks. Track completion across every paper.
+              Click any paper to play or resume. MCQs &amp; FLOWmulti sheets are auto-graded; written, math &amp; Python papers compute a live BI letter grade (A–F) from your verified rubric steps.
             </p>
           </div>
           <div>
@@ -4137,18 +4385,29 @@ window.StudyApp = (() => {
 
         <div class="exam-summary-bar">
           <div class="exam-summary-stats">
+            <div class="exam-stat-chip ${globalAGrades > 0 ? 'is-gold' : ''}"><b>★ ${globalAGrades} / ${globalPapersTotal}</b><span>A-Grades Earned</span></div>
             <div class="exam-stat-chip"><b>${globalPapersDone} / ${globalPapersTotal}</b><span>Papers Completed</span></div>
-            <div class="exam-stat-chip"><b>${globalFullPastDone} / ${globalFullPastTotal}</b><span>Full Past Exams Done</span></div>
-            <div class="exam-stat-chip"><b>${globalPapersInProg}</b><span>In Progress</span></div>
-            <div class="exam-stat-chip"><b>${globalQsDone} / ${globalQsTotal}</b><span>Exam Qs Mastered (${globalQPct}%)</span></div>
+            <div class="exam-stat-chip"><b>${globalFullPastDone} / ${globalFullPastTotal}</b><span>Full Past Exams</span></div>
+            <div class="exam-stat-chip"><b>${globalAvgGrade ? `<span class="exam-inline-grade ${globalAvgGrade.cls}">${globalAvgGrade.letter} · ${globalAvgPct}%</span>` : '—'}</b><span>Avg Exam Grade</span></div>
+            <div class="exam-stat-chip"><b>${globalQsDone} / ${globalQsTotal}</b><span>Exam Qs (${globalQPct}%)</span></div>
           </div>
-          <div class="exam-prog-track is-hero"><div class="exam-prog-fill ${globalQPct >= 100 ? 'is-done' : ''}" style="width:${globalQPct}%"></div></div>
+          <div class="exam-prog-track is-hero"><div class="exam-prog-fill ${globalAGrades === globalPapersTotal && globalPapersTotal > 0 ? 'is-grade-a' : globalQPct >= 100 ? 'is-done' : ''}" style="width:${globalQPct}%"></div></div>
+          <div class="exam-grade-scale-bar">
+            <span class="muted">BI Scale:</span>
+            <span class="exam-scale-chip grade-a">A ≥85%</span>
+            <span class="exam-scale-chip grade-b">B ≥77%</span>
+            <span class="exam-scale-chip grade-c">C ≥65%</span>
+            <span class="exam-scale-chip grade-d">D ≥50%</span>
+            <span class="exam-scale-chip grade-e">E ≥40%</span>
+            <span class="exam-scale-chip grade-f">F &lt;40%</span>
+          </div>
         </div>
 
         <div class="exam-toolbar-foot">
           <div class="exam-filter-row" role="group" aria-label="Filter exams">
             <button type="button" class="preset-chip ${selectedExamFilter === 'all' ? 'active' : ''}" data-exam-filter="all">All (${globalPapersTotal})</button>
             <button type="button" class="preset-chip ${selectedExamFilter === 'todo' ? 'active' : ''}" data-exam-filter="todo">Not Completed (${Math.max(0, globalPapersTotal - globalPapersDone)})</button>
+            <button type="button" class="preset-chip ${selectedExamFilter === 'needs_a' ? 'active' : ''}" data-exam-filter="needs_a">Needs A (${globalNeedsA})</button>
             <button type="button" class="preset-chip ${selectedExamFilter === 'past' ? 'active' : ''}" data-exam-filter="past">Past Exams Only</button>
             <button type="button" class="preset-chip ${selectedExamFilter === 'done' ? 'active' : ''}" data-exam-filter="done">Completed (${globalPapersDone})</button>
           </div>
@@ -4189,21 +4448,31 @@ window.StudyApp = (() => {
       });
     });
 
-    root.querySelectorAll('[data-sit-course]').forEach((btn) => {
-      btn.addEventListener('click', () =>
+    const bindCardTrigger = (el, handler) => {
+      el.addEventListener('click', handler);
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          handler();
+        }
+      });
+    };
+
+    root.querySelectorAll('[data-sit-course]').forEach((card) => {
+      bindCardTrigger(card, () =>
         launchCollectionExam(
-          btn.dataset.sitCourse,
-          btn.dataset.sitColl,
-          btn.dataset.sitTitle,
+          card.dataset.sitCourse,
+          card.dataset.sitColl,
+          card.dataset.sitTitle,
           selectedExamStyle,
-          Number(btn.dataset.sitDur || 0),
-          Number(btn.dataset.sitStartIdx || 0)
+          Number(card.dataset.sitDur || 0),
+          Number(card.dataset.sitStartIdx || 0)
         )
       );
     });
 
-    root.querySelectorAll('[data-gen-exam]').forEach((btn) => {
-      btn.addEventListener('click', () => launchRandomizedFullExam(btn.dataset.genExam, selectedExamStyle));
+    root.querySelectorAll('[data-gen-exam]').forEach((card) => {
+      bindCardTrigger(card, () => launchRandomizedFullExam(card.dataset.genExam, selectedExamStyle));
     });
 
     root.querySelectorAll('[data-exam-ref]').forEach((btn) => {
@@ -4254,6 +4523,7 @@ window.StudyApp = (() => {
       startIndex: examStyle === 'guided' ? startIndex : 0,
       mode: 'exam',
       examStyle,
+      examCollectionId: colObj?.id || collectionId,
       examTitle: title,
       durationMinutes: durMin,
       freshExamSit: examStyle === 'blind',
@@ -4338,6 +4608,7 @@ window.StudyApp = (() => {
       questionIds: picked.map((q) => q.id),
       mode: 'exam',
       examStyle,
+      examCollectionId: 'randomized-mock',
       examTitle: `${cMeta?.shortTitle || courseId} · Custom Randomized Mock Exam`,
       durationMinutes: cMeta?.examInfo?.durationMinutes || 180,
       freshExamSit: examStyle === 'blind',
@@ -9272,6 +9543,8 @@ window.StudyApp = (() => {
     effectiveDlpfc,
     calibratedParSec,
     computeWeightedUpi,
+    gradeFromPct,
+    recordExamResult,
     refreshBootstrap,
     refreshArchiveViews,
     syncSettingsRows,

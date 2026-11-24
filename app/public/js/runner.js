@@ -1149,11 +1149,13 @@ window.StudyRunner = (() => {
       index: Math.max(0, Math.min(validIds.length - 1, Number(config.startIndex) || 0)),
       mode: isExam ? 'exam' : 'practice',
       examStyle,
+      examCollectionId: config.examCollectionId || '',
       examTitle: config.examTitle || '',
       examBudgetSec,
       freshExamSit: Boolean(config.freshExamSit ?? (isExam && examStyle === 'blind')),
       paperSubmitted: false,
       paperScoreSummary: null,
+      examResultRecorded: false,
       profile: config.profile || (isExam ? 'exam' : 'learning'),
       calendarBlock: config.calendarBlock || null,
       consecutiveMisses: 0,
@@ -1172,7 +1174,7 @@ window.StudyRunner = (() => {
     syncRunnerStickyOffset();
     window.StudyApp.showRawView('runner');
 
-    enterQuestion(0);
+    enterQuestion(activeRun.index);
     tickInterval = setInterval(tickLiveClocks, 250);
   }
 
@@ -1898,6 +1900,102 @@ window.StudyRunner = (() => {
     return { total, reviewed, answeredCount, beatCount, avgAcc, avgPr, activeSec, wallSec, liveUpi };
   }
 
+  function fallbackGradeFromPct(pct) {
+    const p = Math.max(0, Math.min(100, Number(pct) || 0));
+    const r = Math.round(p);
+    if (p >= 85) return { letter: 'A', label: 'Excellent', cls: 'grade-a', points: 5, pct: r, toA: 0 };
+    if (p >= 77) return { letter: 'B', label: 'Very Good', cls: 'grade-b', points: 4, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
+    if (p >= 65) return { letter: 'C', label: 'Good', cls: 'grade-c', points: 3, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
+    if (p >= 50) return { letter: 'D', label: 'Satisfactory', cls: 'grade-d', points: 2, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
+    if (p >= 40) return { letter: 'E', label: 'Sufficient', cls: 'grade-e', points: 1, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
+    return { letter: 'F', label: 'Fail', cls: 'grade-f', points: 0, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
+  }
+
+  function recomputeExamRunGrade({ includeUnverifiedAsZero = false } = {}) {
+    if (!activeRun) return null;
+    let earnedPts = 0;
+    let totalPts = 0;
+    let gradedPts = 0;
+    let gradedCount = 0;
+    let autoCount = 0;
+    let rubricCount = 0;
+    let manualRemaining = 0;
+
+    for (const qid of activeRun.questionIds) {
+      const q = activeRun.questionsById[qid];
+      if (!q) continue;
+      const st = itemState(qid);
+      const qPts = Number(q.points || (q.kind === 'mcq' ? 2 : 10));
+      totalPts += qPts;
+
+      const isMcq = q.kind === 'mcq';
+      const isWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
+      const isAuto = isMcq || isWf;
+      if (isAuto) autoCount += 1;
+      else rubricCount += 1;
+
+      if (st.loggedAttempt && Number.isFinite(Number(st.loggedAttempt.qualityAccuracy))) {
+        const acc = Math.max(0, Math.min(1, Number(st.loggedAttempt.qualityAccuracy)));
+        earnedPts += acc * qPts;
+        gradedPts += qPts;
+        gradedCount += 1;
+      } else if (isMcq && (st.revealed || activeRun.paperSubmitted)) {
+        const acc = st.choice !== null && st.choice === q.answerIndex ? 1.0 : 0.0;
+        earnedPts += acc * qPts;
+        gradedPts += qPts;
+        gradedCount += 1;
+      } else if (isWf && (st.wfGrade || activeRun.paperSubmitted)) {
+        const g = st.wfGrade || evaluateWiseflowSheet(q, st);
+        earnedPts += Math.max(0, Math.min(1, Number(g.accuracy || 0))) * qPts;
+        gradedPts += qPts;
+        gradedCount += 1;
+      } else if (!isAuto && st.revealed && Array.isArray(st.checkedRubrics) && st.checkedRubrics.length > 0) {
+        const totalChecks = Math.max(1, (q.rubricChecks || []).length || 3);
+        const acc = Math.min(1, st.checkedRubrics.length / totalChecks);
+        earnedPts += acc * qPts;
+        gradedPts += qPts;
+        gradedCount += 1;
+      } else if (!isAuto) {
+        manualRemaining += 1;
+      }
+    }
+
+    const totalCount = activeRun.questionIds.length;
+    const denom = includeUnverifiedAsZero ? totalPts : (gradedPts || totalPts);
+    const pct = denom > 0 ? Math.max(0, Math.min(100, (earnedPts / denom) * 100)) : 0;
+    const grade = window.StudyApp?.gradeFromPct?.(pct) || fallbackGradeFromPct(pct);
+    const gradingKind = rubricCount === 0 ? 'auto' : autoCount === 0 ? 'rubric' : 'mixed';
+    return {
+      earnedPts,
+      totalPts,
+      gradedPts,
+      gradedCount,
+      totalCount,
+      manualCount: manualRemaining,
+      pct,
+      grade,
+      gradingKind,
+    };
+  }
+
+  function persistExamRunGradeIfReady(force = false) {
+    if (!activeRun || activeRun.mode !== 'exam') return null;
+    const colId = activeRun.examCollectionId;
+    if (!colId || colId === 'randomized-mock') return null;
+    const summary = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(activeRun.paperSubmitted) });
+    if (!summary || !summary.gradedCount) return null;
+    const ready = force
+      || (activeRun.paperSubmitted && summary.manualCount === 0)
+      || summary.gradedCount >= summary.totalCount;
+    if (!ready) return summary;
+    window.StudyApp?.recordExamResult?.(activeRun.courseMeta.courseId, colId, {
+      ...summary,
+      incrementAttempt: !activeRun.examResultRecorded,
+    });
+    activeRun.examResultRecorded = true;
+    return summary;
+  }
+
   function renderRunnerNotice(isBlindUnfinished) {
     const notice = document.getElementById('runner-notice');
     const score = activeRun.paperScoreSummary;
@@ -1907,9 +2005,15 @@ window.StudyRunner = (() => {
       const { answeredCount, total } = computeRunSummary();
       const flagged = Object.values(activeRun.items).filter((item) => item.flagged).length;
       notice.textContent = `${answeredCount} / ${total} answered${flagged ? ` · ${flagged} flagged` : ''}`;
+    } else if (score && score.totalPts > 0 && score.gradedCount > 0) {
+      const g = score.grade || fallbackGradeFromPct(score.pct);
+      const star = g.letter === 'A' ? '★ ' : '';
+      const modeTag = score.gradingKind === 'auto' ? 'Auto-graded' : score.gradingKind === 'rubric' ? 'Rubric-graded' : 'Auto + Rubric';
+      const pendingTag = score.manualCount > 0 ? ` · ${score.manualCount} written left` : g.toA > 0 ? ` · +${g.toA}% to A` : ' · Target A hit!';
+      notice.innerHTML = `<span class="exam-grade-medal is-inline ${g.cls}"><b>${star}${g.letter}</b><small>${Math.round(score.pct)}%</small></span><span>${score.earnedPts.toFixed(1)} / ${score.totalPts} pts · ${modeTag}${pendingTag}</span>`;
     } else if (score) {
-      notice.textContent = score.totalPts
-        ? `Auto-graded score: ${score.earnedPts.toFixed(1)} / ${score.totalPts} pts (${Math.round(score.pct)}%)`
+      notice.textContent = score.manualCount > 0
+        ? `Paper submitted — tick your marking checklist steps (${score.manualCount} written problem${score.manualCount === 1 ? '' : 's'}) to calculate your BI grade.`
         : 'Paper submitted';
     } else if (suggestBreak) {
       notice.innerHTML = '<span>Two misses in a row</span><button type="button" class="mini-tool-btn" id="btn-run-break-nudge">Take a break</button>';
@@ -3457,6 +3561,10 @@ window.StudyRunner = (() => {
         const checked = li.querySelector('input').checked;
         if (checked && !st.checkedRubrics.includes(idx)) st.checkedRubrics.push(idx);
         if (!checked) st.checkedRubrics = st.checkedRubrics.filter((x) => x !== idx);
+        if (activeRun.mode === 'exam' && (activeRun.paperSubmitted || activeRun.examStyle === 'guided')) {
+          activeRun.paperScoreSummary = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(activeRun.paperSubmitted) });
+          renderRunnerNotice(false);
+        }
       });
     });
 
@@ -3796,44 +3904,40 @@ window.StudyRunner = (() => {
     }
 
     toast('Grading full exam paper…');
-    let earnedPts = 0;
-    let totalPts = 0;
-    let manualCount = 0;
-
     for (const qid of activeRun.questionIds) {
       const q = activeRun.questionsById[qid];
       const st = itemState(qid);
       st.revealed = true;
-      const qPts = Number(q.points || (q.kind === 'mcq' ? 2 : 10));
 
       if (q.kind === 'mcq') {
         const acc = st.choice !== null && st.choice === q.answerIndex ? 1.0 : 0.0;
-        earnedPts += acc * qPts;
-        totalPts += qPts;
         await submitVerifiedAttempt(q, st, acc);
       } else if (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length) {
         st.wfGrade = evaluateWiseflowSheet(q, st);
-        earnedPts += st.wfGrade.accuracy * qPts;
-        totalPts += qPts;
         await submitVerifiedAttempt(q, st, st.wfGrade.accuracy);
-      } else {
-        manualCount += 1;
+      } else if (q.numericCheck && st.numericInput.trim() !== '') {
+        const parsed = parseWiseflowNumber(st.numericInput);
+        const exp = Number(q.numericCheck.expected);
+        const tol = Math.max(0.02 * Math.abs(exp), Number(q.numericCheck.tolerance || 0.02));
+        if (parsed.ok && Math.abs(parsed.value - exp) <= tol) {
+          const totalChecks = (q.rubricChecks || []).length || 3;
+          st.checkedRubrics = Array.from({ length: totalChecks }, (_, i) => i);
+          await submitVerifiedAttempt(q, st, 1.0);
+        }
       }
     }
 
     activeRun.paperSubmitted = true;
-    activeRun.paperScoreSummary = {
-      earnedPts,
-      totalPts,
-      pct: totalPts > 0 ? (earnedPts / totalPts) * 100 : 0,
-      manualCount,
-    };
+    const summary = recomputeExamRunGrade({ includeUnverifiedAsZero: true });
+    activeRun.paperScoreSummary = summary;
+    persistExamRunGradeIfReady(false);
 
     renderRunner();
+    const g = summary.grade || fallbackGradeFromPct(summary.pct);
     toast(
-      manualCount > 0
-        ? `Check your working against the marking checklists for ${manualCount} written problem(s).`
-        : `Exam graded: ${earnedPts.toFixed(1)} / ${totalPts} pts (${Math.round(activeRun.paperScoreSummary.pct)}%)! Review any question or click Finish Run.`
+      summary.manualCount > 0
+        ? `Check off your marking checklist on ${summary.manualCount} written problem(s) to finalize your BI Grade (currently ${g.letter} · ${Math.round(summary.pct)}%).`
+        : `${g.letter === 'A' ? '★ ' : ''}BI Grade ${g.letter} · ${Math.round(summary.pct)}% (${summary.earnedPts.toFixed(1)} / ${summary.totalPts} pts)${g.toA > 0 ? ` · +${g.toA}% to A` : ' — Target A achieved!'}`
     );
   }
 
@@ -3871,6 +3975,10 @@ window.StudyRunner = (() => {
     if (res?.attempt) {
       st.loggedAttempt = res.attempt;
       run.completedAttempts[q.id] = res.attempt;
+    }
+    if (run.mode === 'exam' && (run.paperSubmitted || run.examStyle === 'guided')) {
+      run.paperScoreSummary = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(run.paperSubmitted) });
+      persistExamRunGradeIfReady(false);
     }
   }
 
@@ -3995,8 +4103,11 @@ window.StudyRunner = (() => {
     if (!activeRun) return;
     pauseCurrentTimer();
     const m = computeRunSummary();
-    const isSubmittedExam = activeRun.mode === 'exam' && Boolean(activeRun.paperSubmitted);
-    const shouldPromptFeedback = isSubmittedExam || m.activeSec >= CHECKIN_MIN_ACTIVE_SEC;
+    if (activeRun.mode === 'exam' && (activeRun.paperSubmitted || m.reviewed > 0)) {
+      activeRun.paperScoreSummary = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(activeRun.paperSubmitted) });
+    }
+    const isGradedExam = activeRun.mode === 'exam' && (Boolean(activeRun.paperSubmitted) || (m.reviewed > 0 && m.reviewed >= m.total));
+    const shouldPromptFeedback = isGradedExam || m.activeSec >= CHECKIN_MIN_ACTIVE_SEC;
     if (!shouldPromptFeedback) {
       finalizeSession(false);
       return;
@@ -4004,15 +4115,31 @@ window.StudyRunner = (() => {
     const ps = activeRun.paperScoreSummary;
     const scr = workClock?.getScreenStats?.() || {};
     const hdr = document.getElementById('checkin-summary-header');
-    const examLine = ps?.totalPts
-      ? `<p style="margin:4px 0 8px"><strong>Auto-graded score: ${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts (${Math.round(
-          ps.pct
-        )}%)</strong></p>`
-      : '';
+    let examGradeHtml = '';
+    if (activeRun.mode === 'exam' && ps && ps.totalPts > 0 && ps.gradedCount > 0) {
+      const g = ps.grade || fallbackGradeFromPct(ps.pct);
+      const star = g.letter === 'A' ? '★ ' : '';
+      const modeTag = ps.gradingKind === 'auto' ? 'Auto-graded' : ps.gradingKind === 'rubric' ? 'Rubric-graded' : 'Auto + Rubric';
+      const targetMsg = g.letter === 'A'
+        ? 'Target A achieved! Locked onto your Exams board.'
+        : `+${g.toA}% to hit BI Grade A (85%) — review your weak questions and beat this score.`;
+      examGradeHtml = `
+        <div class="exam-result-grade-banner ${g.cls}">
+          <div class="exam-result-medal ${g.cls}"><span>${star}${g.letter}</span></div>
+          <div class="exam-result-grade-copy">
+            <div class="exam-result-grade-top">
+              <strong>BI Grade ${g.letter} · ${Math.round(ps.pct)}%</strong>
+              <span class="exam-result-kind">${esc(modeTag)}</span>
+            </div>
+            <div class="exam-result-grade-sub">${ps.earnedPts.toFixed(1)} / ${ps.totalPts} pts (${ps.gradedCount}/${ps.totalCount} graded) · ${esc(targetMsg)}</div>
+          </div>
+        </div>
+      `;
+    }
     hdr.innerHTML = `
-      <span class="eyebrow">${esc(activeRun.courseMeta.shortTitle)} · Run Summary</span>
+      <span class="eyebrow">${esc(activeRun.courseMeta.shortTitle)} · ${activeRun.mode === 'exam' ? 'Exam Grade Report' : 'Run Summary'}</span>
       <h2>${m.reviewed} / ${m.total} Verified · Run UPI ${m.liveUpi ?? '—'}</h2>
-      ${examLine}
+      ${examGradeHtml}
       <div class="metrics-grid" style="margin:12px 0 4px">
         <div class="metric-tile"><small>Beat Adamlite</small><b>${m.beatCount} / ${m.reviewed || 0}</b></div>
         <div class="metric-tile"><small>Accuracy</small><b>${m.reviewed ? Math.round(m.avgAcc * 100) + '%' : '—'}</b></div>
@@ -4044,6 +4171,12 @@ window.StudyRunner = (() => {
     }
 
     const wasExam = activeRun.mode === 'exam';
+    if (wasExam) {
+      const finalGrade = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(activeRun.paperSubmitted) });
+      if (finalGrade && (activeRun.paperSubmitted || finalGrade.gradedCount >= Math.max(1, Math.ceil(finalGrade.totalCount * 0.5)))) {
+        persistExamRunGradeIfReady(true);
+      }
+    }
     const highDlpfcSec = Object.entries(activeRun.items).reduce((sum, [qid, it]) => {
       const qo = activeRun.questionsById[qid];
       const t = window.StudyApp.effectiveDlpfc?.(qo)?.tier || Number(qo?.dlpfcBase || 2);

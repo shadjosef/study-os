@@ -161,6 +161,79 @@ function mergeScreenHistories(existingRaw, incomingRaw) {
   return merged;
 }
 
+const VALID_GRADES = new Set(['A', 'B', 'C', 'D', 'E', 'F']);
+const VALID_GRADING_KINDS = new Set(['auto', 'rubric', 'mixed']);
+
+function gradeForPctSync(pct) {
+  const p = Number(pct);
+  if (p >= 85) return 'A';
+  if (p >= 77) return 'B';
+  if (p >= 65) return 'C';
+  if (p >= 50) return 'D';
+  if (p >= 40) return 'E';
+  return 'F';
+}
+
+function cleanExamResults(raw) {
+  if (!isObj(raw)) return {};
+  const out = {};
+  let count = 0;
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof k !== 'string' || !k.includes(':') || k.length > 140 || !isObj(v)) continue;
+    const lastPct = Math.min(100, Math.max(0, Math.round(Number(v.lastPct ?? v.bestPct ?? 0) * 10) / 10));
+    const bestPct = Math.min(100, Math.max(lastPct, Math.round(Number(v.bestPct ?? lastPct) * 10) / 10));
+    const completedAt = typeof v.completedAt === 'string' && Number.isFinite(Date.parse(v.completedAt))
+      ? new Date(v.completedAt).toISOString()
+      : '';
+    const bestAt = typeof v.bestAt === 'string' && Number.isFinite(Date.parse(v.bestAt))
+      ? new Date(v.bestAt).toISOString()
+      : completedAt;
+    out[k] = {
+      courseId: typeof v.courseId === 'string' ? v.courseId.slice(0, 48) : k.split(':')[0].slice(0, 48),
+      collectionId: typeof v.collectionId === 'string' ? v.collectionId.slice(0, 80) : k.split(':').slice(1).join(':').slice(0, 80),
+      lastPct,
+      lastGrade: VALID_GRADES.has(v.lastGrade) ? v.lastGrade : gradeForPctSync(lastPct),
+      bestPct,
+      bestGrade: VALID_GRADES.has(v.bestGrade) ? v.bestGrade : gradeForPctSync(bestPct),
+      earnedPts: Math.max(0, Math.round(Number(v.earnedPts || 0) * 10) / 10),
+      totalPts: Math.max(0, Math.round(Number(v.totalPts || 0) * 10) / 10),
+      gradedCount: Math.max(0, Math.min(500, Math.round(Number(v.gradedCount || 0)))),
+      totalCount: Math.max(0, Math.min(500, Math.round(Number(v.totalCount || 0)))),
+      gradingKind: VALID_GRADING_KINDS.has(v.gradingKind) ? v.gradingKind : 'mixed',
+      attemptsCount: Math.max(1, Math.min(500, Math.round(Number(v.attemptsCount || 1)))),
+      completedAt,
+      bestAt,
+    };
+    if (++count >= 150) break;
+  }
+  return out;
+}
+
+function mergeExamResults(existingRaw, incomingRaw) {
+  const base = cleanExamResults(existingRaw);
+  const inc = cleanExamResults(incomingRaw);
+  const keys = [...new Set([...Object.keys(base), ...Object.keys(inc)])].slice(0, 150);
+  const merged = {};
+  for (const k of keys) {
+    const a = base[k];
+    const b = inc[k];
+    if (!a) { merged[k] = b; continue; }
+    if (!b) { merged[k] = a; continue; }
+    const aAt = Date.parse(a.completedAt || '') || 0;
+    const bAt = Date.parse(b.completedAt || '') || 0;
+    const latest = bAt >= aAt ? b : a;
+    const best = b.bestPct >= a.bestPct ? b : a;
+    merged[k] = {
+      ...latest,
+      bestPct: best.bestPct,
+      bestGrade: best.bestGrade,
+      bestAt: best.bestAt || latest.completedAt,
+      attemptsCount: Math.max(a.attemptsCount, b.attemptsCount),
+    };
+  }
+  return merged;
+}
+
 export async function handleSync({ request, db, me, now, data, reply }) {
   if (request.method === 'GET') {
     const row = await db.prepare(
@@ -212,14 +285,19 @@ export async function handleSync({ request, db, me, now, data, reply }) {
         }
       : { enabled: false, prefs: {}, blocks: [], completedEvents: {}, dismissedEvents: {} };
 
-    const prevScreenRow = await db.prepare(
-      "SELECT json_extract(payload, '$.screenHistory') AS sh FROM study_backups WHERE profile_id = ?"
+    const prevRow = await db.prepare(
+      "SELECT json_extract(payload, '$.screenHistory') AS sh, json_extract(payload, '$.examResults') AS er FROM study_backups WHERE profile_id = ?"
     ).bind(me.id).first();
     let existingScreenHistory = {};
-    if (prevScreenRow?.sh) {
-      try { existingScreenHistory = JSON.parse(prevScreenRow.sh); } catch {}
+    if (prevRow?.sh) {
+      try { existingScreenHistory = JSON.parse(prevRow.sh); } catch {}
+    }
+    let existingExamResults = {};
+    if (prevRow?.er) {
+      try { existingExamResults = JSON.parse(prevRow.er); } catch {}
     }
     const screenHistory = mergeScreenHistories(existingScreenHistory, data.screenHistory);
+    const examResults = mergeExamResults(existingExamResults, data.examResults);
 
     const cleanPayload = {
       format: 'study-os-backup-v1',
@@ -232,6 +310,7 @@ export async function handleSync({ request, db, me, now, data, reply }) {
       edSnapshot: cleanEdSnapshot(data.edSnapshot),
       customSets: cleanCustomSets(data.customSets),
       screenHistory,
+      examResults,
     };
 
     const serialized = JSON.stringify(cleanPayload);

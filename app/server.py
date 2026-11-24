@@ -228,6 +228,18 @@ class StudyStore:
                             **col,
                             "questionIds": [q["id"] for q in qs if str(q.get("collectionId") or "") == str(col.get("id") or "")],
                             "questionCount": sum(1 for q in qs if str(q.get("collectionId") or "") == str(col.get("id") or "")),
+                            "gradingMode": (
+                                "auto"
+                                if (
+                                    (c_qs := [q for q in qs if str(q.get("collectionId") or "") == str(col.get("id") or "")])
+                                    and all(q.get("kind") == "mcq" or q.get("wiseflowFields") or q.get("numericCheck") for q in c_qs)
+                                )
+                                else (
+                                    "mixed"
+                                    if any(q.get("kind") == "mcq" or q.get("wiseflowFields") or q.get("numericCheck") for q in c_qs)
+                                    else "rubric"
+                                )
+                            ),
                         }
                         for col in (b.get("collections") or [])
                     ],

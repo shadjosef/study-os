@@ -1549,13 +1549,13 @@
         "mockDate": "2026-11-19",
         "format": "3-hour WISEflow BYOD digital school exam (100% MCQ)",
         "durationMinutes": 180,
-        "notes": "Official Mock Exam: Thu 2026-11-19 (25 MCQs, 90 min, ungraded WISEflow diagnostic) · Final Exam: Mon 2026-12-14 14:00–17:00 (50 MCQs × 2 pts = 100 pts, 5 options A–E, A = 85–100 / >=43 correct, zero negative marking)."
+        "notes": "Official Mock Exam: Thu 2026-11-19 (25 MCQs, 90 min, WISEflow FLOWmulti with 'I prefer not to answer' option; ~45% crisp definition traps + ~55% two-sentence applied vignettes) · Final Exam: Mon 2026-12-14 14:00–17:00 (50 MCQs × 2 pts = 100 pts, A = 85–100 / >=43 correct)."
       },
-      "questionCount": 120,
+      "questionCount": 145,
       "officialCount": 45,
       "bookCount": 0,
       "aiSyntheticCount": 75,
-      "mcqCount": 108,
+      "mcqCount": 145,
       "writtenOrCalcCount": 12,
       "hardCount": 26,
       "highDlpfcCount": 26,
@@ -1811,6 +1811,47 @@
         }
       ],
       "collections": [
+        {
+          "id": "wiseflow-mock-nov19-blueprint",
+          "title": "WISEflow Nov 19 Blueprint Mock (25 MCQs · 90m)",
+          "kind": "mock_exam",
+          "durationMinutes": 90,
+          "questionIds": [
+            "ob-2537:WF19-1",
+            "ob-2537:WF19-2",
+            "ob-2537:WF19-3",
+            "ob-2537:WF19-4",
+            "ob-2537:WF19-5",
+            "ob-2537:WF19-6",
+            "ob-2537:WF19-7",
+            "ob-2537:WF19-8",
+            "ob-2537:WF19-9",
+            "ob-2537:WF19-10",
+            "ob-2537:WF19-11",
+            "ob-2537:WF19-12",
+            "ob-2537:WF19-13",
+            "ob-2537:WF19-14",
+            "ob-2537:WF19-15",
+            "ob-2537:WF19-16",
+            "ob-2537:WF19-17",
+            "ob-2537:WF19-18",
+            "ob-2537:WF19-19",
+            "ob-2537:WF19-20",
+            "ob-2537:WF19-21",
+            "ob-2537:WF19-22",
+            "ob-2537:WF19-23",
+            "ob-2537:WF19-24",
+            "ob-2537:WF19-25"
+          ],
+          "questionCount": 25,
+          "parMinutes": 55,
+          "provenance": {
+            "category": "ai_mock",
+            "label": "AI Blueprint Mock",
+            "synthetic": true,
+            "llmModel": "Calibrated from BI EXC 34601 Nov 19 WISEflow Mock"
+          }
+        },
         {
           "id": "sample-exam",
           "title": "Official Sample Exam (S1–S20)",
