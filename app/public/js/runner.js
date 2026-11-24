@@ -804,6 +804,7 @@ window.StudyRunner = (() => {
 
     document.getElementById('global-header').hidden = true;
     document.getElementById('runner-header').hidden = false;
+    syncRunnerStickyOffset();
     window.StudyApp.showRawView('runner');
 
     enterQuestion(0);
@@ -3022,6 +3023,35 @@ window.StudyRunner = (() => {
       renderRunner();
     });
 
+    // Keep ••• tools popover inside card & viewport bounds even in narrow 3-pane layouts
+    document.querySelectorAll('.runner-tools-menu').forEach((menu) => {
+      menu.addEventListener('toggle', () => {
+        if (!menu.open) return;
+        const pop = menu.querySelector('.runner-tools-popover');
+        if (!pop) return;
+        pop.style.left = '';
+        pop.style.right = '';
+        pop.style.maxWidth = '';
+        const bound = menu.closest('.runner-pane-right, .question-card') || document.documentElement;
+        const bRect = bound.getBoundingClientRect();
+        const boundLeft = Math.max(8, bRect.left + 6);
+        const boundRight = Math.min(window.innerWidth - 8, bRect.right - 6);
+        const availW = Math.max(170, boundRight - boundLeft);
+        if (pop.offsetWidth > availW) {
+          pop.style.maxWidth = `${Math.floor(availW)}px`;
+        }
+        const pRect = pop.getBoundingClientRect();
+        if (pRect.left < boundLeft) {
+          pop.style.right = 'auto';
+          pop.style.left = '0';
+          const p2 = pop.getBoundingClientRect();
+          if (p2.right > boundRight) {
+            pop.style.left = `${Math.round(boundRight - p2.right)}px`;
+          }
+        }
+      });
+    });
+
     // Blind Exam Flag button
     document.getElementById('btn-flag-exam')?.addEventListener('click', () => {
       st.flagged = !st.flagged;
@@ -3124,6 +3154,31 @@ window.StudyRunner = (() => {
         }
       };
 
+      const triggerPopPosition = (pop, anchor) => {
+        if (!pop || !anchor) return;
+        pop.style.left = '';
+        pop.style.right = '';
+        pop.style.maxWidth = '';
+        const bound = anchor.closest('.runner-pane-right, .question-card') || document.documentElement;
+        const bRect = bound.getBoundingClientRect();
+        const boundLeft = Math.max(8, bRect.left + 6);
+        const boundRight = Math.min(window.innerWidth - 8, bRect.right - 6);
+        const availW = Math.max(180, boundRight - boundLeft);
+        if (pop.offsetWidth > availW) {
+          pop.style.maxWidth = `${Math.floor(availW)}px`;
+        }
+        const pRect = pop.getBoundingClientRect();
+        if (pRect.left < boundLeft) {
+          pop.style.right = 'auto';
+          pop.style.left = '0';
+          const p2 = pop.getBoundingClientRect();
+          if (p2.right > boundRight) {
+            const shift = Math.round(boundRight - p2.right);
+            pop.style.left = `${shift}px`;
+          }
+        }
+      };
+
       trigger.addEventListener('click', (ev) => {
         ev.stopPropagation();
         if (!pop.hidden) {
@@ -3132,6 +3187,7 @@ window.StudyRunner = (() => {
         }
         pop.hidden = false;
         trigger.setAttribute('aria-expanded', 'true');
+        triggerPopPosition(pop, trigger);
         setTimeout(() => ta.focus(), 10);
         document.addEventListener('pointerdown', onOutside, true);
         document.addEventListener('keydown', onEsc, true);
@@ -3594,6 +3650,7 @@ window.StudyRunner = (() => {
     workClock?.ensureWorking?.();
     document.getElementById('global-header').hidden = true;
     document.getElementById('runner-header').hidden = false;
+    syncRunnerStickyOffset();
     window.StudyApp.showRawView('runner');
     resumeCurrentTimer();
     renderRunner();
@@ -3677,13 +3734,20 @@ window.StudyRunner = (() => {
     renderRunner();
   }
 
+  function syncRunnerStickyOffset() {
+    const runnerHeader = document.getElementById('runner-header');
+    if (!runnerHeader || runnerHeader.hidden) return;
+    const h = runnerHeader.offsetHeight || 72;
+    const topGap = window.innerWidth >= 721 ? 16 : 6;
+    document.body.style.setProperty('--runner-sticky-top', `${h + topGap}px`);
+  }
+
   function bindRunnerGlobals() {
     const runnerHeader = document.getElementById('runner-header');
     new ResizeObserver(() => {
-      if (!runnerHeader.hidden) {
-        document.body.style.setProperty('--runner-sticky-top', runnerHeader.offsetHeight + 8 + 'px');
-      }
+      syncRunnerStickyOffset();
     }).observe(runnerHeader);
+    window.addEventListener('resize', syncRunnerStickyOffset, { passive: true });
     document.getElementById('run-exit-btn')?.addEventListener('click', exitRunnerKeepPaused);
     document.getElementById('run-layout-btn')?.addEventListener('click', toggleSplitWorkspace);
     document.getElementById('run-ref-btn').addEventListener('click', toggleRunnerReference);

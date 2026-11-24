@@ -167,8 +167,54 @@ window.StudyMembers = (() => {
       const paper = entry.documents.find((doc) => doc.title === 'EXC 3430_Exam_2023.pdf');
       if (paper) bank.sources.E23F = paper;
     }
+    const bookFallbackTitle = courseId === 'acct-2527'
+      ? 'Atrill & McLaney · Accounting and Finance for Non-Specialists (12th ed.)'
+      : 'Course Textbook';
+
+    const convertTextbookToLocalRefs = (q, savedSources) => {
+      const refs = Array.isArray(q.sourceRefs) ? [...q.sourceRefs] : [];
+      const seenRef = new Set(refs.map((r) => `${r.sourceId}:${r.page || 1}:${r.role || ''}`));
+      const addAssetRef = (a, isSol) => {
+        if (!a || typeof a !== 'object') return;
+        const sid = a.sourceId || 'textbook-12e';
+        const page = Math.max(1, Number(a.page) || 1);
+        const role = isSol ? 'solution' : 'prompt';
+        const k = `${sid}:${page}:${role}`;
+        if (seenRef.has(k)) return;
+        seenRef.add(k);
+        const meta = savedSources[sid] || {};
+        refs.push({
+          sourceId: sid,
+          kind: 'book',
+          title: meta.title || bookFallbackTitle,
+          filename: meta.filename || (sid === 'textbook-12e' ? 'textbook-12e.pdf' : `${sid}.pdf`),
+          page,
+          role,
+          caption: a.caption || `Textbook · PDF p. ${page}`,
+          isSolution: isSol,
+        });
+      };
+      for (const a of q.promptAssets || []) addAssetRef(a, false);
+      for (const a of q.contextAssets || []) addAssetRef(a, false);
+      for (const a of q.solutionAssets || []) addAssetRef(a, true);
+      if (refs.length) q.sourceRefs = refs;
+
+      const pRef = refs.find((r) => !r.isSolution) || refs[0];
+      const sRef = refs.find((r) => r.isSolution);
+      const bookTitle = (pRef || sRef)?.title || bookFallbackTitle;
+      const pHint = pRef ? `p. ${pRef.page}` : 'matching chapter';
+      const sHint = sRef ? ` (answer reference: p. ${sRef.page})` : '';
+      if (!q.promptMarkdown || /original pages below/i.test(q.promptMarkdown)) {
+        q.promptMarkdown = `Complete **${q.title || 'this textbook exercise'}** from *${bookTitle}* (**${pHint}**${sHint}).\n\nAttach your own PDF copy of the textbook below — Study-OS jumps straight to **${pHint}** locally in your browser without uploading the file.`;
+      }
+      q.promptAssets = [];
+      q.contextAssets = [];
+      q.solutionAssets = [];
+    };
+
     if (session?.transient && String(courseId) !== 'econ-2522') {
       // Class access codes never unlock copyrighted publisher textbooks outside open-access Economics.
+      const savedSources = { ...(bank.sources || {}) };
       for (const [sid, meta] of Object.entries(bank.sources || {})) {
         if (sid === 'textbook-12e' || isRestrictedBook(courseId, meta)) {
           delete bank.sources[sid];
@@ -176,13 +222,25 @@ window.StudyMembers = (() => {
       }
       for (const q of bank.questions || []) {
         if (q.origin === 'textbook') {
-          q.promptAssets = [];
-          q.solutionAssets = [];
+          convertTextbookToLocalRefs(q, savedSources);
         }
       }
-    } else if (courseId === 'acct-2527' && !bank.sources['textbook-12e']) {
-      const textbook = sourceDocument(courseId, { sourceId: 'textbook-12e' });
-      if (textbook) bank.sources['textbook-12e'] = textbook;
+    } else {
+      if (courseId === 'acct-2527' && !bank.sources['textbook-12e']) {
+        const textbook = sourceDocument(courseId, { sourceId: 'textbook-12e' });
+        if (textbook) bank.sources['textbook-12e'] = textbook;
+      }
+      // Guard against ghost textbook tasks if textbook assets/PDF aren't bundled in the archive
+      const savedSources = { ...(bank.sources || {}) };
+      for (const q of bank.questions || []) {
+        if (q.origin !== 'textbook') continue;
+        const pAssets = Array.isArray(q.promptAssets) ? q.promptAssets : [];
+        const hasAnyImage = pAssets.some((a) => a?.src && entry.assets?.[a.src]);
+        const hasAnyPdf = pAssets.some((a) => a?.sourceId && bank.sources?.[a.sourceId]);
+        if (!hasAnyImage && !hasAnyPdf) {
+          convertTextbookToLocalRefs(q, savedSources);
+        }
+      }
     }
     return bank;
   }

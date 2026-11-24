@@ -4439,7 +4439,8 @@ html[data-theme="dark"] .course-code-pill {
   top: calc(100% + 6px);
   right: 0;
   z-index: 45;
-  min-width: 205px;
+  min-width: 188px;
+  max-width: min(236px, calc(100vw - 24px));
   padding: 6px;
   border-radius: 15px;
   background: var(--glass-bg-strong);
@@ -7938,6 +7939,36 @@ body.in-runner .ref-drawer {
 @media (max-width: 560px) {
   #run-header-kind {
     display: none;
+  }
+}
+
+/* Fixed Runner Topbar + Pace Timer (always stays pinned across desktop, mobile & installed Chrome App / PWA windows) */
+body.in-runner #runner-header {
+  position: fixed;
+  top: 8px;
+  left: var(--runner-rail-width, 0px);
+  right: 0;
+  z-index: 45;
+}
+body.in-runner main.container {
+  padding-top: calc(var(--runner-sticky-top, 94px) + 6px);
+}
+@media (min-width: 760px) {
+  body.in-runner.ai-pane-open.ai-pane-right #runner-header {
+    right: var(--ai-pane-w, 0px);
+  }
+  body.in-runner.ai-pane-open.ai-pane-left #runner-header {
+    left: calc(var(--runner-rail-width, 0px) + var(--ai-pane-w, 0px));
+  }
+}
+@media (max-width: 720px) {
+  body.in-runner #runner-header {
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+  body.in-runner main.container {
+    padding-top: calc(var(--runner-sticky-top, 78px) + 8px);
   }
 }
 
