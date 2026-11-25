@@ -1966,6 +1966,125 @@ window.StudyApp = (() => {
     };
   }
 
+  async function fetchReferenceSections(relFile, headings = []) {
+    const cleanList = Array.isArray(headings) ? headings.map((h) => String(h || '').trim()).filter(Boolean) : [];
+    if (!cleanList.length) {
+      const single = await fetchReferenceSection(relFile, '');
+      return {
+        ...single,
+        sections: single?.available
+          ? [{ heading: single.selectedHeading || '', title: single.selectedHeading || 'Full Reference', line: 0, level: 2, chapterHeading: '', markdown: single.markdown || '' }]
+          : [],
+      };
+    }
+    if (!isStaticWeb) {
+      const results = await Promise.all(cleanList.map((h) => fetchReferenceSection(relFile, h).catch(() => null)));
+      const firstOk = results.find((r) => r?.available);
+      if (!firstOk) return { available: false, error: 'Could not load reference sections.', toc: [], sections: [] };
+      const toc = firstOk.toc || [];
+      const seen = new Set();
+      const sections = [];
+      for (let i = 0; i < cleanList.length; i++) {
+        const r = results[i];
+        if (!r?.available || !r.markdown) continue;
+        const key = (r.selectedHeading || cleanList[i]).toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const tocEntry = toc.find((h) => h.title.toLowerCase() === key);
+        let chapterHeading = '';
+        if (tocEntry && tocEntry.level > 2) {
+          for (let j = toc.length - 1; j >= 0; j--) {
+            if (toc[j].line < tocEntry.line && toc[j].level <= 2) {
+              chapterHeading = toc[j].title;
+              break;
+            }
+          }
+        }
+        sections.push({
+          heading: r.selectedHeading || cleanList[i],
+          title: r.selectedHeading || cleanList[i],
+          line: tocEntry?.line ?? i,
+          level: tocEntry?.level ?? 3,
+          chapterHeading,
+          markdown: r.markdown,
+        });
+      }
+      return {
+        available: true,
+        toc,
+        sections,
+        obsidianUri: firstOk.obsidianUri || '',
+      };
+    }
+
+    const slug = refSlug(relFile);
+    if (!findPublicReference(relFile)) {
+      return { available: false, error: 'This source is available in the local archive or through your course.', toc: [], sections: [] };
+    }
+    if (!staticRefCache[slug]) {
+      staticRefCache[slug] = await apiGet(`./static-data/references/${encodeURIComponent(slug)}.json`);
+    }
+    const doc = staticRefCache[slug];
+    if (!doc || !doc.markdown) {
+      return { available: false, error: 'Reference sheet not bundled in this web build.', toc: [], sections: [] };
+    }
+    const lines = doc.markdown.split('\n');
+    const toc = doc.toc || [];
+    const matchedEntries = [];
+    const seenLines = new Set();
+    for (const rawH of cleanList) {
+      const qNorm = rawH.toLowerCase().replace(/^#+\s*/, '');
+      const match = toc.find((h) => h.title.toLowerCase() === qNorm) || toc.find((h) => {
+        const hNorm = h.title.toLowerCase();
+        return hNorm.includes(qNorm) || (hNorm.length >= 10 && qNorm.includes(hNorm));
+      });
+      if (!match || seenLines.has(match.line)) continue;
+      seenLines.add(match.line);
+      let endIdx = lines.length;
+      for (const h of toc) {
+        if (h.line > match.line && h.level <= match.level) {
+          endIdx = h.line;
+          break;
+        }
+      }
+      let chapterHeading = '';
+      if (match.level > 2) {
+        for (let j = toc.length - 1; j >= 0; j--) {
+          if (toc[j].line < match.line && toc[j].level <= 2) {
+            chapterHeading = toc[j].title;
+            break;
+          }
+        }
+      }
+      matchedEntries.push({
+        heading: match.title,
+        title: match.title,
+        line: match.line,
+        endLine: endIdx,
+        level: match.level,
+        chapterHeading,
+        markdown: lines.slice(match.line, endIdx).join('\n'),
+      });
+    }
+    // Avoid duplicating a child section already fully contained in an included parent span
+    const deduped = matchedEntries.filter((entry) => !matchedEntries.some(
+      (other) => other !== entry && other.line < entry.line && other.endLine >= entry.endLine
+    ));
+    return {
+      available: true,
+      toc,
+      sections: deduped,
+      obsidianUri: '',
+    };
+  }
+
+  function getTopicReadiness(courseId, topicNumOrId) {
+    const list = boot.analytics?.topicMatrix?.[courseId];
+    if (!Array.isArray(list) || !topicNumOrId) return null;
+    const needle = String(topicNumOrId).replace(/^0+/, '');
+    return list.find((t) => String(t.id).replace(/^0+/, '') === needle) || null;
+  }
+
   function readCourseFiltersFromSearch(searchStr = window.location.search) {
     const p = new URLSearchParams(searchStr || '');
     const dRaw = (p.get('diff') || '').trim().toLowerCase();
@@ -10329,6 +10448,8 @@ window.StudyApp = (() => {
     communityStats,
     publicReferenceUrl,
     fetchReferenceSection,
+    fetchReferenceSections,
+    getTopicReadiness,
     getProgressRecord,
     getLatestSavedWork,
     effectiveDifficulty,

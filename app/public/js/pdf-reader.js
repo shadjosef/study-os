@@ -398,6 +398,13 @@ window.StudyPdf = (() => {
       });
       const levelEl = root.querySelector('[data-pdf-level]');
       if (levelEl) levelEl.textContent = Math.round(state.zoom) + '%';
+      const resetBadge = root.querySelector('[data-pdf-zoom-reset]');
+      if (resetBadge) {
+        const isZoomed = Math.abs(state.zoom - 100) >= 2;
+        resetBadge.hidden = !isZoomed;
+        resetBadge.textContent = `${Math.round(state.zoom)}% · Reset`;
+      }
+      scroller.classList.toggle('is-pdf-zoomed', Math.abs(state.zoom - 100) >= 2);
       for (const button of root.querySelectorAll('[data-pdf-fit]')) {
         const selected = (button.dataset.pdfFit === 'content') === Boolean(state.trim);
         button.setAttribute('aria-pressed', String(selected));
@@ -407,7 +414,7 @@ window.StudyPdf = (() => {
 
     function setZoom(level, clientX, clientY) {
       const old = state.zoom;
-      const next = Math.max(60, Math.min(300, level));
+      const next = Math.max(60, Math.min(400, level));
       if (next === old || !paper.offsetWidth) return;
       const box = scroller.getBoundingClientRect();
       const x = Number.isFinite(clientX) ? clientX - box.left : scroller.clientWidth / 2;
@@ -431,11 +438,20 @@ window.StudyPdf = (() => {
         } else setZoom(Math.round(state.zoom) + (button.dataset.pdfScale === '+' ? 25 : -25));
       };
     }
+    const resetBadgeBtn = root.querySelector('[data-pdf-zoom-reset]');
+    if (resetBadgeBtn) {
+      resetBadgeBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        state.zoom = 100;
+        paint();
+        scroller.scrollTo(0, 0);
+      };
+    }
     const onWheel = (event) => {
       if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroller.clientHeight : 1;
-      setZoom(state.zoom * Math.exp(-event.deltaY * unit / 100), event.clientX, event.clientY);
+      setZoom(state.zoom * Math.exp(-event.deltaY * unit / 140), event.clientX, event.clientY);
     };
     scroller.addEventListener('wheel', onWheel, { passive: false });
 
@@ -459,6 +475,35 @@ window.StudyPdf = (() => {
     scroller.addEventListener('gesturechange', onGestureChange, { passive: false });
     scroller.addEventListener('gestureend', onGestureEnd, { passive: false });
 
+    // Two-finger touch pinch support on tablets/touchscreens
+    let touchPinchDist = 0;
+    let touchPinchZoom = 100;
+    const onTouchStart = (event) => {
+      if (event.touches.length === 2) {
+        touchPinchDist = Math.hypot(
+          event.touches[0].clientX - event.touches[1].clientX,
+          event.touches[0].clientY - event.touches[1].clientY
+        );
+        touchPinchZoom = state.zoom;
+      }
+    };
+    const onTouchMove = (event) => {
+      if (event.touches.length === 2 && touchPinchDist > 0) {
+        event.preventDefault();
+        const dist = Math.hypot(
+          event.touches[0].clientX - event.touches[1].clientX,
+          event.touches[0].clientY - event.touches[1].clientY
+        );
+        const midX = (event.touches[0].clientX + event.touches[1].clientX) / 2;
+        const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+        setZoom(touchPinchZoom * (dist / touchPinchDist), midX, midY);
+      }
+    };
+    const onTouchEnd = () => { touchPinchDist = 0; };
+    scroller.addEventListener('touchstart', onTouchStart, { passive: true });
+    scroller.addEventListener('touchmove', onTouchMove, { passive: false });
+    scroller.addEventListener('touchend', onTouchEnd, { passive: true });
+
     const observer = new ResizeObserver(() => {
       if (root.isConnected) paint();
       else observer.disconnect();
@@ -474,6 +519,9 @@ window.StudyPdf = (() => {
         scroller.removeEventListener('gesturestart', onGestureStart);
         scroller.removeEventListener('gesturechange', onGestureChange);
         scroller.removeEventListener('gestureend', onGestureEnd);
+        scroller.removeEventListener('touchstart', onTouchStart);
+        scroller.removeEventListener('touchmove', onTouchMove);
+        scroller.removeEventListener('touchend', onTouchEnd);
       },
     };
   }
@@ -686,7 +734,7 @@ window.StudyPdf = (() => {
           cropBtn.textContent = state.showFullPage ? 'Crop Q' : 'Full page';
         }
         if (fullBtn) {
-          fullBtn.textContent = `Full PDF (p.${state.page})`;
+          fullBtn.title = `Open full multi-page PDF reader (p.${state.page})`;
           fullBtn.dataset.openInlinePage = String(state.page);
         }
         const boundsGetter = (surf, w, h) => {
@@ -742,7 +790,7 @@ window.StudyPdf = (() => {
               if (nextBtn) nextBtn.disabled = clamped >= doc.numPages;
             }
             if (fullBtn) {
-              fullBtn.textContent = `Full PDF (p.${clamped})`;
+              fullBtn.title = `Open full multi-page PDF reader (p.${clamped})`;
               fullBtn.dataset.openInlinePage = String(clamped);
             }
 
@@ -857,6 +905,47 @@ window.StudyPdf = (() => {
             drawInlinePage(state.page, state.showFullPage);
           };
         }
+
+        // Seamless click-to-fullscreen on the inline PDF canvas (with crisp 2.6x background upgrade + Full PDF jump)
+        let downPt = null;
+        scroll.onpointerdown = (ev) => {
+          if (ev.button === 0) downPt = { x: ev.clientX, y: ev.clientY };
+        };
+        scroll.onclick = (ev) => {
+          if (ev.target?.closest?.('button, a, input, [data-pdf-zoom-reset]')) return;
+          if (downPt && Math.hypot(ev.clientX - downPt.x, ev.clientY - downPt.y) > 6) return;
+          const sel = window.getSelection?.()?.toString?.()?.trim();
+          if (sel) return;
+          if (!canvas.width || !canvas.height || !window.StudyUI?.openLightbox) return;
+          let quickUrl = '';
+          try { quickUrl = canvas.toDataURL('image/png'); } catch { return; }
+          const activePage = state.page || 1;
+          const wantFullPage = Boolean(state.showFullPage);
+          const upgradePromise = (async () => {
+            const doc = await getCachedDoc(item.source);
+            const pg = await doc.getPage(Math.max(1, Math.min(doc.numPages, activePage)));
+            const cropInfo = activePage === (Math.max(1, Number(item.page) || 1))
+              ? await resolveCropRange(item.source, pg)
+              : { range: [0, 1], isCropped: false };
+            const rng = (cropInfo.isCropped && !wantFullPage) ? cropInfo.range : [0, 1];
+            const vp = pg.getViewport({ scale: 2.6 });
+            const topPx = Math.floor(vp.height * rng[0]);
+            const botPx = Math.ceil(vp.height * rng[1]);
+            const hi = document.createElement('canvas');
+            hi.width = Math.ceil(vp.width);
+            hi.height = Math.max(1, botPx - topPx);
+            await pg.render({ canvas: hi, viewport: vp, transform: [1, 0, 0, 1, 0, -topPx] }).promise;
+            return hi.toDataURL('image/png');
+          })();
+          window.StudyUI.openLightbox(quickUrl, item.source?.label || `PDF page ${activePage}`, {
+            isPdf: true,
+            inverted: Boolean(state.invert),
+            caption: `${item.source?.label || 'PDF preview'} · Pinch to zoom`,
+            actionLabel: `Full PDF (p.${activePage})`,
+            onAction: () => fullBtn?.click(),
+            upgradePromise,
+          });
+        };
 
         await drawInlinePage(state.page, Boolean(state.showFullPage));
       })

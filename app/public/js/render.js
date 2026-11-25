@@ -228,20 +228,54 @@ window.StudyUI = (() => {
     'task', 'exam', 'autumn', 'spring', 'mock', 'session', 'tutoring', 'pts', 'points', 'total', 'above',
     'below', 'given', 'following', 'data', 'table', 'figure', 'ltd', 'company', 'firm', 'year', 'years',
     'topic', 'chapter', 'lecture', 'unit', 'core', 'micro', 'macro', 'slides', 'summary', 'overview',
+    // Generic math & structural terms that cause noisy false-positive chapter matches
+    'function', 'functions', 'graph', 'graphs', 'curve', 'curves', 'value', 'values', 'point', 'points',
+    'formula', 'formulas', 'equation', 'equations', 'expression', 'expressions', 'number', 'numbers',
+    'standard', 'form', 'forms', 'basic', 'rule', 'rules', 'method', 'methods', 'pattern', 'patterns',
+    'worked', 'example', 'examples', 'check', 'solve', 'solving', 'means', 'treat', 'whole', 'used',
+    'later', 'together', 'interpret', 'interpretation', 'valid', 'separate', 'right', 'other', 'different',
+    'first', 'second', 'third', 'one', 'two', 'three', 'step', 'steps', 'result', 'results', 'note', 'notes',
+    'variable', 'variables', 'general', 'special', 'case', 'cases', 'kind', 'kinds', 'read', 'sketch',
+    'inspect', 'without', 'inside', 'before', 'after', 'multiple', 'single', 'open', 'closed', 'word',
   ]);
   const META_HEADING_RE = /^(course index|method & formula finder|source map|verification|setup|exam strategy|coverage and sources|quick index|table of contents)/i;
+  const FOUNDATIONAL_HEADING_RE = /\b(basic derivatives|differentiation rules|tangents and differentiation|derivative as a limit|combining functions|lines and simultaneous|quadratic functions|polynomials,?\s*division|factorisation|algebraic|exponential and logarithmic rules|arithmetic|powers and roots|fractions|elementary|fundamentals|prerequisites|beginner map)\b/i;
+
+  function stemConceptToken(tok) {
+    let s = String(tok || '').toLowerCase();
+    if (s.length <= 4) return s;
+    if (s.endsWith('ies') && s.length > 5) return `${s.slice(0, -3)}y`;
+    if (s.endsWith('es') && /(ches|shes|xes|zes|ses)$/.test(s) && s.length > 5) return s.slice(0, -2);
+    if (s.endsWith('s') && !s.endsWith('ss') && !s.endsWith('us') && !s.endsWith('is')) return s.slice(0, -1);
+    return s;
+  }
 
   function tokenizeConceptText(str) {
-    const tokens = String(str || '')
+    const raw = String(str || '')
       .toLowerCase()
       .replace(/[^a-z0-9æøå]+/gi, ' ')
       .split(/\s+/)
       .filter((w) => w.length >= 3 && !OUTLINE_STOP_WORDS.has(w) && !/^\d+$/.test(w));
-    return [...new Set(tokens)];
+    const out = new Set();
+    for (const w of raw) {
+      out.add(w);
+      const st = stemConceptToken(w);
+      if (st.length >= 3 && !OUTLINE_STOP_WORDS.has(st)) out.add(st);
+    }
+    return [...out];
   }
 
   function findRelevantReferenceHeadings(question, courseMeta, toc = [], bank = null) {
-    const empty = { primaryHeading: '', primaryChapterLine: null, relatedHeadings: new Set(), relatedChapterLines: new Set() };
+    const empty = {
+      primaryHeading: '',
+      primaryChapterLine: null,
+      primaryChapterTitle: '',
+      coreHeadings: [],
+      backgroundHeadings: [],
+      relatedHeadings: new Set(),
+      relatedChapterLines: new Set(),
+      backgroundSet: new Set(),
+    };
     if (!question || !Array.isArray(toc) || !toc.length) return empty;
 
     const qHeading = String(question.obsidianLink?.heading || '').trim();
@@ -249,15 +283,22 @@ window.StudyUI = (() => {
     const topicNumMatch = String(question.topicId || '').match(/\d+/);
     const topicNum = topicNumMatch ? topicNumMatch[0] : '';
 
-    // Map each TOC entry to its enclosing H2 chapter line
+    // Map each TOC entry to its enclosing H2 chapter + count H3 children per H2
     const chapterLineFor = new Map();
-    let curH2Line = null;
+    const chapterTitleFor = new Map();
+    const chapterChildrenCount = new Map();
+    let curH2 = null;
     for (const h of toc) {
-      if (h.level <= 2) curH2Line = h.line;
-      chapterLineFor.set(h.line, curH2Line ?? h.line);
+      if (h.level <= 2) curH2 = h;
+      const chLine = curH2 ? curH2.line : h.line;
+      chapterLineFor.set(h.line, chLine);
+      chapterTitleFor.set(h.line, curH2 ? curH2.title : h.title);
+      if (h.level === 3 && curH2) {
+        chapterChildrenCount.set(curH2.line, (chapterChildrenCount.get(curH2.line) || 0) + 1);
+      }
     }
 
-    // 1. Resolve Primary heading
+    // 1. Resolve Primary heading (prefer specific H3 over whole H2 when prompt matches an H3 inside that chapter)
     let primary = null;
     if (qHeading) {
       const qNorm = qHeading.toLowerCase();
@@ -274,80 +315,174 @@ window.StudyUI = (() => {
         || toc.find((h) => h.level === 3 && topicRe.test(h.title));
     }
 
-    const primaryHeading = primary?.title || '';
-    const primaryChapterLine = primary ? chapterLineFor.get(primary.line) : null;
+    const basePrimaryChapterLine = primary ? chapterLineFor.get(primary.line) : null;
+    const basePrimaryChapterTitle = primary ? chapterTitleFor.get(primary.line) : '';
 
-    // 2. Score secondary related chapters/subchapters needed by this task
-    const qParts = [
+    // 2. Score all candidate chapters/subchapters with stem-aware precision + foundational/mastery balancing
+    const promptCoreText = [
       question.title || '',
       (question.tags || []).join(' '),
       (question.promptMarkdown || '').slice(0, 900),
-      (question.hints || []).join(' '),
       (question.wiseflowFields || []).map((f) => `${f.label || ''} ${f.group || ''}`).join(' '),
+    ].join(' ');
+    const hintAndTopicText = [
+      (question.hints || []).join(' '),
       topicObj?.title || '',
     ].join(' ');
 
-    const qTokens = new Set(tokenizeConceptText(qParts));
-    const qLower = qParts.toLowerCase();
+    const coreTokens = new Set(tokenizeConceptText(promptCoreText));
+    const auxTokens = new Set(tokenizeConceptText(hintAndTopicText));
+    const qLower = `${promptCoreText} ${hintAndTopicText}`.toLowerCase();
 
-    // Also catch explicit cross-references like "Ch. 8", "Topic 5", "§4.7"
+    // Catch explicit cross-references like "Ch. 8", "Topic 5"
     const explicitNums = new Set();
-    for (const m of qParts.matchAll(/\b(?:topic|ch\.?|chapter|lesson|unit|module)\s*0?(\d{1,2})\b/gi)) {
+    for (const m of `${promptCoreText} ${hintAndTopicText}`.matchAll(/\b(?:topic|ch\.?|chapter|lesson|unit|module)\s*0?(\d{1,2})\b/gi)) {
       explicitNums.add(m[1]);
     }
 
-    const scored = [];
+    // Score candidate subchapters (prefer H3s; include H2s only if they have no H3 children)
+    const candidates = [];
     for (const h of toc) {
       if (h.level < 2 || h.level > 3) continue;
       if (META_HEADING_RE.test(h.title)) continue;
-      if (primary && h.line === primary.line) continue;
+      const hasH3Children = h.level === 2 && (chapterChildrenCount.get(h.line) || 0) > 0;
       const hClean = cleanOutlineTitle(h.title);
-      const hTokens = tokenizeConceptText(hClean);
-      if (!hTokens.length) continue;
+      const rawTerms = String(hClean || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9æøå]+/gi, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 3 && !OUTLINE_STOP_WORDS.has(w) && !/^\d+$/.test(w));
+      const uniqueStems = [...new Set(rawTerms.map(stemConceptToken).filter((s) => s.length >= 3 && !OUTLINE_STOP_WORDS.has(s)))];
+      if (!uniqueStems.length) continue;
 
       let score = 0;
-      let matchedCount = 0;
-      for (const tok of hTokens) {
-        if (qTokens.has(tok)) {
-          score += tok.length >= 6 ? 3 : 2;
-          matchedCount++;
-        } else if (tok.length >= 5 && qLower.includes(tok)) {
-          score += 1.5;
-          matchedCount++;
+      let coreHits = 0;
+      let auxHits = 0;
+      for (const st of uniqueStems) {
+        if (coreTokens.has(st)) {
+          score += st.length >= 6 ? 4.2 : 2.6;
+          coreHits++;
+        } else if (st.length >= 5 && promptCoreText.toLowerCase().includes(st)) {
+          score += 3.0;
+          coreHits++;
+        } else if (auxTokens.has(st)) {
+          score += st.length >= 6 ? 1.8 : 1.1;
+          auxHits++;
+        } else if (st.length >= 6 && qLower.includes(st)) {
+          score += 1.0;
+          auxHits++;
         }
       }
-      // Boost explicit chapter/topic number cross-references
+
       const hNumMatch = hClean.match(/^(?:topic|ch\.?|chapter|lesson)?\s*0?(\d{1,2})(?:\.|\b)/i);
-      if (hNumMatch && explicitNums.has(hNumMatch[1]) && hNumMatch[1] !== topicNum) {
-        score += 5;
-        matchedCount++;
+      const hChapterNum = hNumMatch ? hNumMatch[1] : '';
+      const explicitCross = Boolean(hChapterNum && explicitNums.has(hChapterNum) && hChapterNum !== topicNum);
+      if (explicitCross) {
+        score += 5.5;
+        coreHits++;
       }
-      if (matchedCount >= 2 || score >= 4.5) {
-        // Prefer distinct chapters or distinct subchapters outside the primary line
-        const chLine = chapterLineFor.get(h.line);
-        const crossChapterBonus = chLine !== primaryChapterLine ? 1.2 : 0;
-        scored.push({ h, chLine, score: score + crossChapterBonus });
+
+      const chLine = chapterLineFor.get(h.line);
+      const inPrimaryChapter = basePrimaryChapterLine !== null && chLine === basePrimaryChapterLine;
+      if (inPrimaryChapter && h.level === 3 && (coreHits > 0 || auxHits > 0)) {
+        score += 1.8;
+      }
+
+      // Check whether this section is an assumed/foundational prerequisite (or already mastered outside primary chapter)
+      const isFoundationalTitle = FOUNDATIONAL_HEADING_RE.test(hClean) || FOUNDATIONAL_HEADING_RE.test(chapterTitleFor.get(h.line) || '');
+      const topicReady = (!inPrimaryChapter && hChapterNum && courseMeta?.courseId)
+        ? window.StudyApp?.getTopicReadiness?.(courseMeta.courseId, hChapterNum)
+        : null;
+      const isMasteredCrossChapter = Boolean(topicReady && (topicReady.status === 'ready' || Number(topicReady.coveragePct || 0) >= 70));
+      const isAssumedBackground = !inPrimaryChapter && !explicitCross && (isFoundationalTitle || isMasteredCrossChapter);
+
+      const minScore = inPrimaryChapter ? 2.4 : 4.2;
+      if ((coreHits >= 1 && score >= minScore) || (coreHits + auxHits >= 2 && score >= minScore + 1.0)) {
+        candidates.push({
+          h,
+          chLine,
+          hChapterNum,
+          hasH3Children,
+          inPrimaryChapter,
+          isAssumedBackground,
+          score: hasH3Children ? score * 0.72 : score,
+          coreHits,
+        });
       }
     }
 
-    scored.sort((a, b) => b.score - a.score || a.h.line - b.h.line);
-    const relatedHeadings = new Set();
-    const relatedChapterLines = new Set();
-    const usedChapters = new Set();
-    for (const item of scored) {
-      if (relatedHeadings.size >= 4) break;
-      // Avoid flooding with 4 H3s from the same chapter
-      const sameChCount = [...relatedHeadings].filter((t) => {
-        const entry = toc.find((x) => x.title === t);
-        return entry && chapterLineFor.get(entry.line) === item.chLine;
-      }).length;
-      if (sameChCount >= 2) continue;
-      relatedHeadings.add(item.h.title);
-      relatedChapterLines.add(item.chLine);
-      usedChapters.add(item.chLine);
+    // If primary was a broad H2 chapter with H3 children, narrow primary to its best matching H3 child!
+    const primaryH3Matches = candidates
+      .filter((c) => c.inPrimaryChapter && c.h.level === 3)
+      .sort((a, b) => b.score - a.score || a.h.line - b.h.line);
+    if (primary && primary.level === 2 && (chapterChildrenCount.get(primary.line) || 0) > 0 && primaryH3Matches.length > 0) {
+      primary = primaryH3Matches[0].h;
     }
 
-    return { primaryHeading, primaryChapterLine, relatedHeadings, relatedChapterLines };
+    const primaryHeading = primary?.title || '';
+    const primaryChapterLine = primary ? chapterLineFor.get(primary.line) : basePrimaryChapterLine;
+    const primaryChapterTitle = primary ? chapterTitleFor.get(primary.line) : basePrimaryChapterTitle;
+
+    // Select tight Core Needed (max 3 total including primary) vs Assumed Background (max 3)
+    const coreEntries = [];
+    const bgEntries = [];
+    const usedLines = new Set();
+    if (primary) {
+      coreEntries.push(primary);
+      usedLines.add(primary.line);
+    }
+
+    // Prefer specific H3 candidates over parent H2s that already have H3 matches
+    const matchedH3Chapters = new Set(candidates.filter((c) => c.h.level === 3).map((c) => c.chLine));
+    const filtered = candidates
+      .filter((c) => !usedLines.has(c.h.line))
+      .filter((c) => !(c.hasH3Children && matchedH3Chapters.has(c.chLine)))
+      .sort((a, b) => b.score - a.score || a.h.line - b.h.line);
+
+    const perChapterCore = new Map();
+    if (primary) perChapterCore.set(chapterLineFor.get(primary.line), 1);
+
+    for (const item of filtered) {
+      if (item.isAssumedBackground) {
+        if (bgEntries.length < 3 && !bgEntries.some((x) => x.line === item.h.line)) {
+          bgEntries.push(item.h);
+        }
+        continue;
+      }
+      if (coreEntries.length >= 3) {
+        if (bgEntries.length < 3 && item.score >= 4.0) bgEntries.push(item.h);
+        continue;
+      }
+      const chCount = perChapterCore.get(item.chLine) || 0;
+      if (chCount >= 2) {
+        if (bgEntries.length < 3 && item.score >= 4.0) bgEntries.push(item.h);
+        continue;
+      }
+      coreEntries.push(item.h);
+      usedLines.add(item.h.line);
+      perChapterCore.set(item.chLine, chCount + 1);
+    }
+
+    // Keep continuous reading order (ascending line order in the book!)
+    coreEntries.sort((a, b) => a.line - b.line);
+    bgEntries.sort((a, b) => a.line - b.line);
+
+    const coreHeadings = coreEntries.map((h) => h.title);
+    const backgroundHeadings = bgEntries.map((h) => h.title);
+    const relatedHeadings = new Set(coreHeadings.filter((t) => t !== primaryHeading));
+    const relatedChapterLines = new Set(coreEntries.map((h) => chapterLineFor.get(h.line)));
+    const backgroundSet = new Set(backgroundHeadings);
+
+    return {
+      primaryHeading,
+      primaryChapterLine,
+      primaryChapterTitle,
+      coreHeadings,
+      backgroundHeadings,
+      relatedHeadings,
+      relatedChapterLines,
+      backgroundSet,
+    };
   }
 
   function buildOutlineTreeHtml(toc = [], {
@@ -355,6 +490,7 @@ window.StudyUI = (() => {
     primaryHeading = '',
     relatedHeadings = new Set(),
     relatedChapterLines = new Set(),
+    backgroundHeadings = new Set(),
     primaryChapterLine = null,
     filter = '',
     collapsedByDefault = false,
@@ -412,16 +548,19 @@ window.StudyUI = (() => {
       const isActive = Boolean(activeNorm && tLow === activeNorm);
       const isPrimary = Boolean(primaryNorm && tLow === primaryNorm);
       const isRelated = !isPrimary && relatedHeadings.has(node.title);
+      const isBackground = !isPrimary && !isRelated && backgroundHeadings.has(node.title);
       const isChapterRel = depth === 0 && !isPrimary && !isRelated && relatedChapterLines.has(node.line);
       const visibleChildren = (node.children || []).filter(matchesFilter);
       const hasChildren = visibleChildren.length > 0;
 
       const badge = isPrimary
-        ? '<span class="obs-outline-tag is-primary">Current</span>'
+        ? '<span class="obs-outline-tag is-primary">Needed</span>'
         : isRelated
         ? '<span class="obs-outline-tag is-related">Needed</span>'
+        : isBackground
+        ? '<span class="obs-outline-tag is-bg" title="Assumed background — expandable if needed">Assumed</span>'
         : isChapterRel
-        ? '<span class="obs-outline-dot" title="Contains a related subchapter"></span>'
+        ? '<span class="obs-outline-dot" title="Contains a needed subchapter"></span>'
         : '';
 
       const btnCls = [
@@ -430,6 +569,7 @@ window.StudyUI = (() => {
         isActive ? 'is-active' : '',
         isPrimary ? 'is-primary' : '',
         isRelated ? 'is-related' : '',
+        isBackground ? 'is-bg' : '',
       ].filter(Boolean).join(' ');
 
       const linkBtn = `<button type="button" class="${btnCls}" data-outline-heading="${esc(node.title)}" data-outline-line="${node.line}" title="${esc(node.label)}"><span class="obs-outline-text">${esc(node.label)}</span>${badge}</button>`;
@@ -834,39 +974,103 @@ window.StudyUI = (() => {
     } catch {}
   }
 
-  function renderDrawerOutline() {
-    const wrap = document.getElementById('ref-drawer-outline-wrap');
-    const treeEl = document.getElementById('ref-drawer-outline-tree');
-    const relPill = document.getElementById('ref-drawer-relevant-pill');
-    const filterEl = document.getElementById('ref-drawer-outline-filter');
-    if (!wrap || !treeEl) return;
+  let drawerMode = 'needed'; // 'needed' | 'section'
+  let drawerShowBg = false;
+  let drawerTocOpen = false;
+  let drawerRel = null;
 
-    if (!drawerToc.length) {
-      wrap.hidden = true;
-      return;
+  function shortSectionChipLabel(title) {
+    const clean = cleanOutlineTitle(title || '');
+    const m = clean.match(/^(\d+(?:\.\d+)?)\.?\s+(.*)$/);
+    if (m) {
+      const rest = m[2].length > 22 ? `${m[2].slice(0, 21).trim()}…` : m[2];
+      return `${m[1]} ${rest}`;
     }
-    wrap.hidden = false;
+    return clean.length > 26 ? `${clean.slice(0, 25).trim()}…` : clean;
+  }
 
-    const rel = findRelevantReferenceHeadings(drawerContext.question, drawerCourseMeta, drawerToc, drawerContext.bank);
-    const relTotal = (rel.primaryHeading ? 1 : 0) + rel.relatedHeadings.size;
-    if (relPill) {
-      if (drawerContext.question && relTotal > 0) {
-        relPill.textContent = rel.relatedHeadings.size
-          ? `${relTotal} needed for task`
-          : 'Task section';
-        relPill.hidden = false;
+  function setDrawerTocOpen(open) {
+    drawerTocOpen = Boolean(open);
+    const panel = document.getElementById('ref-drawer-toc-panel');
+    const bodyEl = document.getElementById('ref-drawer-body');
+    const browseBtn = document.getElementById('ref-drawer-browse-btn');
+    const soloBtn = document.getElementById('ref-drawer-browse-solo');
+    const filterEl = document.getElementById('ref-drawer-outline-filter');
+    if (panel) panel.hidden = !drawerTocOpen;
+    if (bodyEl) bodyEl.hidden = drawerTocOpen;
+    browseBtn?.classList.toggle('active', drawerTocOpen);
+    browseBtn?.setAttribute('aria-expanded', String(drawerTocOpen));
+    soloBtn?.classList.toggle('active', drawerTocOpen);
+    soloBtn?.setAttribute('aria-expanded', String(drawerTocOpen));
+    if (drawerTocOpen) {
+      renderDrawerOutline();
+      setTimeout(() => filterEl?.focus(), 20);
+    }
+  }
+
+  function renderDrawerOutline() {
+    const treeEl = document.getElementById('ref-drawer-outline-tree');
+    const filterEl = document.getElementById('ref-drawer-outline-filter');
+    const modeTabs = document.getElementById('ref-drawer-mode-tabs');
+    const neededBtn = document.getElementById('ref-drawer-needed-btn');
+    const soloBtn = document.getElementById('ref-drawer-browse-solo');
+    const jumpStrip = document.getElementById('ref-drawer-jump-strip');
+    if (!treeEl) return;
+
+    const rel = drawerToc.length
+      ? findRelevantReferenceHeadings(drawerContext.question, drawerCourseMeta, drawerToc, drawerContext.bank)
+      : { primaryHeading: '', primaryChapterLine: null, primaryChapterTitle: '', coreHeadings: [], backgroundHeadings: [], relatedHeadings: new Set(), relatedChapterLines: new Set(), backgroundSet: new Set() };
+    drawerRel = rel;
+    const hasNeeded = Boolean(drawerContext.question && rel.coreHeadings.length > 0);
+    if (modeTabs) modeTabs.hidden = !hasNeeded;
+    if (soloBtn) soloBtn.hidden = hasNeeded || !drawerToc.length;
+    if (neededBtn && hasNeeded) {
+      const activeCount = rel.coreHeadings.length + (drawerShowBg ? rel.backgroundHeadings.length : 0);
+      neededBtn.textContent = `Needed (${activeCount})`;
+      neededBtn.classList.toggle('active', drawerMode === 'needed' && !drawerTocOpen);
+    }
+
+    if (jumpStrip) {
+      if (hasNeeded && drawerMode === 'needed' && !drawerTocOpen) {
+        const shownHeadings = drawerShowBg ? [...rel.coreHeadings, ...rel.backgroundHeadings] : rel.coreHeadings;
+        const chipsHtml = shownHeadings
+          .map((h, idx) => `<button type="button" class="ref-jump-chip${rel.backgroundSet.has(h) ? ' is-bg' : ''}" data-drawer-jump-idx="${idx}" title="${esc(cleanOutlineTitle(h))}">${esc(shortSectionChipLabel(h))}</button>`)
+          .join('');
+        const bgToggle = rel.backgroundHeadings.length
+          ? `<button type="button" class="ref-jump-chip is-bg-toggle${drawerShowBg ? ' active' : ''}" data-drawer-toggle-bg title="Toggle assumed background sections">${drawerShowBg ? 'Hide assumed' : `+${rel.backgroundHeadings.length} assumed`}</button>`
+          : '';
+        jumpStrip.innerHTML = `${chipsHtml}${bgToggle}`;
+        jumpStrip.hidden = false;
+        jumpStrip.querySelectorAll('[data-drawer-jump-idx]').forEach((btn) => {
+          btn.onclick = () => {
+            const target = document.querySelector(`#ref-drawer-body [data-ref-stream-idx="${btn.dataset.drawerJumpIdx}"]`);
+            target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          };
+        });
+        jumpStrip.querySelector('[data-drawer-toggle-bg]')?.addEventListener('click', () => {
+          drawerShowBg = !drawerShowBg;
+          loadDrawerSection(currentNoteFile, '', { forceNeeded: true });
+        });
+      } else if (!drawerTocOpen && drawerSelectedHeading && hasNeeded) {
+        jumpStrip.innerHTML = `<span class="ref-current-crumb" title="${esc(cleanOutlineTitle(drawerSelectedHeading))}">${esc(cleanOutlineTitle(drawerSelectedHeading))}</span>`;
+        jumpStrip.hidden = false;
       } else {
-        relPill.hidden = true;
+        jumpStrip.hidden = true;
       }
     }
 
-    treeEl.innerHTML = buildOutlineTreeHtml(drawerToc, {
-      activeHeading: drawerSelectedHeading,
+    const filterVal = filterEl?.value || '';
+    const fullNoteRow = !filterVal
+      ? `<div class="obs-outline-leaf depth-0"><button type="button" class="obs-outline-link depth-0${drawerMode === 'section' && !drawerSelectedHeading ? ' is-active' : ''}" data-outline-heading="" title="Full Note Overview"><span class="obs-outline-text">Full Note / All Chapters</span></button></div>`
+      : '';
+    treeEl.innerHTML = fullNoteRow + buildOutlineTreeHtml(drawerToc, {
+      activeHeading: drawerMode === 'section' ? drawerSelectedHeading : '',
       primaryHeading: rel.primaryHeading,
       primaryChapterLine: rel.primaryChapterLine,
       relatedHeadings: rel.relatedHeadings,
       relatedChapterLines: rel.relatedChapterLines,
-      filter: filterEl?.value || '',
+      backgroundHeadings: rel.backgroundSet,
+      filter: filterVal,
       collapsedByDefault: true,
     });
 
@@ -875,9 +1079,9 @@ window.StudyUI = (() => {
         ev.preventDefault();
         ev.stopPropagation();
         const heading = btn.dataset.outlineHeading || '';
-        const tocSel = document.getElementById('ref-drawer-toc-select');
-        if (tocSel) tocSel.value = heading;
-        loadDrawerSection(currentNoteFile, heading);
+        drawerMode = 'section';
+        setDrawerTocOpen(false);
+        loadDrawerSection(currentNoteFile, heading, { forceSection: true });
       });
     });
   }
@@ -887,11 +1091,13 @@ window.StudyUI = (() => {
     const backdrop = document.getElementById('ref-backdrop');
     const courseSel = document.getElementById('ref-drawer-course-select');
     const noteSel = document.getElementById('ref-drawer-note-select');
-    const tocSel = document.getElementById('ref-drawer-toc-select');
     const bodyEl = document.getElementById('ref-drawer-body');
     const titleEl = document.getElementById('ref-drawer-title');
     const filterEl = document.getElementById('ref-drawer-outline-filter');
-    const outlineWrap = document.getElementById('ref-drawer-outline-wrap');
+    const neededBtn = document.getElementById('ref-drawer-needed-btn');
+    const browseBtn = document.getElementById('ref-drawer-browse-btn');
+    const soloBtn = document.getElementById('ref-drawer-browse-solo');
+    const tocClose = document.getElementById('ref-drawer-toc-close');
 
     const catalog = window.StudyApp?.getCatalog?.() || [];
     if (!courseMeta && catalog.length) courseMeta = catalog[0];
@@ -900,12 +1106,15 @@ window.StudyUI = (() => {
       question: extraOpts?.question || null,
       bank: extraOpts?.bank || null,
     };
+    drawerMode = drawerContext.question && !targetHeading ? 'needed' : 'section';
+    drawerShowBg = false;
+    drawerTocOpen = false;
 
     const obs = courseMeta?.obsidian || {};
     drawerNotes = [];
-    if (obs.mainReference) drawerNotes.push({ label: 'Main Semester Reference', file: obs.mainReference });
+    if (obs.mainReference) drawerNotes.push({ label: 'Main Reference', file: obs.mainReference });
     if (obs.workedExamples) drawerNotes.push({ label: 'Worked Examples', file: obs.workedExamples });
-    if (obs.practiceNote) drawerNotes.push({ label: 'Vault Practice Note', file: obs.practiceNote });
+    if (obs.practiceNote) drawerNotes.push({ label: 'Practice Note', file: obs.practiceNote });
     if (targetFile && !drawerNotes.some((n) => n.file === targetFile)) {
       drawerNotes.unshift({ label: targetFile.split('/').pop(), file: targetFile });
     }
@@ -915,7 +1124,7 @@ window.StudyUI = (() => {
       return;
     }
 
-    // Course switcher: shown whenever opened outside an active exercise (so you can pull out notes for ANY subject!)
+    // Course switcher: shown whenever opened outside an active exercise
     if (courseSel) {
       const coursesWithNotes = catalog.filter((c) => c?.obsidian?.mainReference);
       const showCoursePicker = !drawerContext.question && coursesWithNotes.length > 1;
@@ -940,13 +1149,24 @@ window.StudyUI = (() => {
       filterEl.value = '';
       filterEl.oninput = () => renderDrawerOutline();
     }
+    if (neededBtn) {
+      neededBtn.onclick = () => {
+        drawerMode = 'needed';
+        setDrawerTocOpen(false);
+        loadDrawerSection(currentNoteFile, '', { forceNeeded: true });
+      };
+    }
+    const toggleBrowse = () => setDrawerTocOpen(!drawerTocOpen);
+    if (browseBtn) browseBtn.onclick = toggleBrowse;
+    if (soloBtn) soloBtn.onclick = toggleBrowse;
+    if (tocClose) tocClose.onclick = () => setDrawerTocOpen(false);
 
     clearTimeout(drawerCloseTimer);
     applySavedRefDrawerWidth();
+    setDrawerTocOpen(false);
     drawer.hidden = false;
     drawer.setAttribute('aria-hidden', 'false');
     backdrop.hidden = false;
-    // Trigger CSS transition on next frame for smooth ChatGPT-style slide
     void drawer.offsetWidth;
     drawer.classList.add('is-open');
     backdrop.classList.add('is-open');
@@ -956,18 +1176,11 @@ window.StudyUI = (() => {
     bodyEl.innerHTML = '<p class="muted">Loading course note…</p>';
 
     await loadDrawerSection(currentNoteFile, targetHeading);
-    // Auto-expand the smart outline if this task spans multiple related chapters!
-    if (outlineWrap && drawerContext.question) {
-      const rel = findRelevantReferenceHeadings(drawerContext.question, drawerCourseMeta, drawerToc, drawerContext.bank);
-      outlineWrap.open = rel.relatedHeadings.size > 0;
-    }
 
     noteSel.onchange = () => {
       currentNoteFile = noteSel.value;
-      loadDrawerSection(currentNoteFile, '');
-    };
-    tocSel.onchange = () => {
-      loadDrawerSection(currentNoteFile, tocSel.value);
+      setDrawerTocOpen(false);
+      loadDrawerSection(currentNoteFile, '', { forceNeeded: Boolean(drawerContext.question) });
     };
   }
 
@@ -976,14 +1189,47 @@ window.StudyUI = (() => {
     await openReferenceDrawer(
       courseMeta,
       question.obsidianLink?.file || '',
-      question.obsidianLink?.heading || '',
+      '',
       { question, bank }
     );
   }
 
-  async function loadDrawerSection(relFile, heading) {
+  function renderContinuousNeededSectionsHtml(sections = [], { backgroundHeadings = [], showBg = false, isDrawer = false } = {}) {
+    const attrExpand = isDrawer ? 'data-drawer-expand-heading' : 'data-inline-expand-heading';
+    const attrShowBg = isDrawer ? 'data-drawer-show-bg' : 'data-inline-show-bg';
+    const attrBrowse = isDrawer ? 'data-drawer-open-toc' : 'data-inline-open-toc';
+    const blocks = sections.map((sec, idx) => {
+      const chBtn = sec.chapterHeading && sec.chapterHeading !== sec.heading
+        ? `<button type="button" class="ref-stream-expand-btn" ${attrExpand}="${esc(sec.chapterHeading)}" title="Expand full chapter: ${esc(cleanOutlineTitle(sec.chapterHeading))}">Expand Ch. ↗</button>`
+        : '';
+      const isBg = sec.isBackground;
+      return `<section class="ref-stream-section${isBg ? ' is-bg-section' : ''}" data-ref-stream-idx="${idx}">
+        <div class="ref-stream-divider">
+          <span class="ref-stream-badge${isBg ? ' is-bg' : ''}">${isBg ? 'Assumed' : 'Needed'}</span>
+          <span class="ref-stream-label">${esc(cleanOutlineTitle(sec.title || sec.heading))}</span>
+          ${chBtn}
+        </div>
+        <div class="ref-stream-body">${renderMarkdownWithMath(sec.markdown || '')}</div>
+      </section>`;
+    }).join('');
+
+    const bgFooter = backgroundHeadings.length && !showBg
+      ? `<div class="ref-bg-footer">
+           <div class="ref-bg-footer-copy">
+             <strong>Assumed background hidden</strong>
+             <small class="muted">${esc(backgroundHeadings.map((h) => cleanOutlineTitle(h)).join(' · '))}</small>
+           </div>
+           <button type="button" class="mini-tool-btn" ${attrShowBg}>Show inline</button>
+         </div>`
+      : '';
+    const browseFooter = `<div class="ref-stream-footer-actions">
+      <button type="button" class="mini-tool-btn" ${attrBrowse}>Expand past needed · Browse all chapters</button>
+    </div>`;
+    return `${blocks}${bgFooter}${browseFooter}`;
+  }
+
+  async function loadDrawerSection(relFile, heading, opts = {}) {
     const bodyEl = document.getElementById('ref-drawer-body');
-    const tocSel = document.getElementById('ref-drawer-toc-select');
     const uriEl = document.getElementById('ref-drawer-obsidian-uri');
     uriEl.hidden = true;
     try {
@@ -999,29 +1245,47 @@ window.StudyUI = (() => {
         return;
       }
 
-      // During an exercise, if no explicit heading was specified, auto-resolve the question's best matching chapter!
-      if (!heading && drawerContext.question && Array.isArray(data.toc) && data.toc.length) {
-        const rel = findRelevantReferenceHeadings(drawerContext.question, drawerCourseMeta, data.toc, drawerContext.bank);
-        if (rel.primaryHeading) {
-          const targeted = window.StudyApp?.fetchReferenceSection
-            ? await window.StudyApp.fetchReferenceSection(relFile, rel.primaryHeading)
-            : await (await fetch(`/api/obsidian/section?file=${encodeURIComponent(relFile)}&heading=${encodeURIComponent(rel.primaryHeading)}`)).json();
-          if (targeted?.available) data = targeted;
+      drawerToc = data.toc || [];
+      const rel = drawerContext.question && drawerToc.length
+        ? findRelevantReferenceHeadings(drawerContext.question, drawerCourseMeta, drawerToc, drawerContext.bank)
+        : null;
+      const useNeededStream = Boolean(
+        !opts.forceSection
+        && (opts.forceNeeded || (!heading && drawerMode === 'needed'))
+        && rel && rel.coreHeadings.length > 0
+      );
+
+      if (useNeededStream && window.StudyApp?.fetchReferenceSections) {
+        drawerMode = 'needed';
+        drawerSelectedHeading = '';
+        const targetList = drawerShowBg ? [...rel.coreHeadings, ...rel.backgroundHeadings] : rel.coreHeadings;
+        const bundle = await window.StudyApp.fetchReferenceSections(relFile, targetList);
+        if (bundle?.available && bundle.sections?.length) {
+          const tagged = bundle.sections.map((s) => ({ ...s, isBackground: rel.backgroundSet.has(s.heading) }));
+          renderDrawerOutline();
+          bodyEl.innerHTML = renderContinuousNeededSectionsHtml(tagged, {
+            backgroundHeadings: rel.backgroundHeadings,
+            showBg: drawerShowBg,
+            isDrawer: true,
+          });
+          bodyEl.querySelectorAll('[data-drawer-expand-heading]').forEach((btn) => {
+            btn.onclick = () => {
+              drawerMode = 'section';
+              loadDrawerSection(currentNoteFile, btn.dataset.drawerExpandHeading, { forceSection: true });
+            };
+          });
+          bodyEl.querySelector('[data-drawer-show-bg]')?.addEventListener('click', () => {
+            drawerShowBg = true;
+            loadDrawerSection(currentNoteFile, '', { forceNeeded: true });
+          });
+          bodyEl.querySelector('[data-drawer-open-toc]')?.addEventListener('click', () => setDrawerTocOpen(true));
+          bodyEl.scrollTop = 0;
+          return;
         }
       }
 
-      drawerToc = data.toc || [];
-      drawerSelectedHeading = data.selectedHeading || '';
-
-      tocSel.innerHTML =
-        `<option value="">— Full Course Reference —</option>` +
-        drawerToc
-          .map((h) => {
-            const pad = '· '.repeat(Math.max(0, h.level - 1));
-            const sel = drawerSelectedHeading === h.title ? 'selected' : '';
-            return `<option value="${esc(h.title)}" ${sel}>${pad}${esc(cleanOutlineTitle(h.title))}</option>`;
-          })
-          .join('');
+      drawerMode = 'section';
+      drawerSelectedHeading = data.selectedHeading || heading || '';
       renderDrawerOutline();
 
       renderNoteProgressive(bodyEl, data.markdown || '', {
@@ -1030,10 +1294,10 @@ window.StudyUI = (() => {
         onLinkJump: (jumpFile, jumpHeading) => {
           const sameNote = !jumpFile || jumpFile.toLowerCase().includes(currentNoteFile.replace(/\.md$/i, '').toLowerCase());
           if (sameNote && jumpHeading) {
-            loadDrawerSection(currentNoteFile, jumpHeading);
+            loadDrawerSection(currentNoteFile, jumpHeading, { forceSection: true });
           } else if (jumpFile) {
             currentNoteFile = jumpFile.endsWith('.md') ? jumpFile : `${jumpFile}.md`;
-            loadDrawerSection(currentNoteFile, jumpHeading);
+            loadDrawerSection(currentNoteFile, jumpHeading, { forceSection: true });
           }
         },
       });
@@ -1062,18 +1326,93 @@ window.StudyUI = (() => {
     }, 210);
   }
 
-  function openLightbox(src, alt = '') {
+  let lightboxState = { zoom: 1, tx: 0, ty: 0, onAction: null, token: 0 };
+
+  function applyLightboxTransform() {
+    const img = document.getElementById('img-lightbox-target');
+    const stage = document.getElementById('img-lightbox-stage');
+    const resetBtn = document.getElementById('img-lightbox-zoom-reset');
+    if (!img) return;
+    if (lightboxState.zoom <= 1.01) {
+      lightboxState.zoom = 1;
+      lightboxState.tx = 0;
+      lightboxState.ty = 0;
+    }
+    img.style.transform = `translate3d(${Math.round(lightboxState.tx)}px, ${Math.round(lightboxState.ty)}px, 0) scale(${lightboxState.zoom.toFixed(4)})`;
+    stage?.classList.toggle('is-zoomed', lightboxState.zoom > 1.01);
+    if (resetBtn) {
+      resetBtn.hidden = lightboxState.zoom <= 1.01;
+      resetBtn.textContent = `${Math.round(lightboxState.zoom * 100)}% · Reset`;
+    }
+  }
+
+  function setLightboxZoom(nextZoom, clientX, clientY) {
+    const stage = document.getElementById('img-lightbox-stage');
+    const prev = lightboxState.zoom;
+    const clamped = Math.max(1, Math.min(4.5, Number(nextZoom) || 1));
+    if (clamped <= 1.01) {
+      lightboxState.zoom = 1;
+      lightboxState.tx = 0;
+      lightboxState.ty = 0;
+      applyLightboxTransform();
+      return;
+    }
+    if (stage && Number.isFinite(clientX) && Number.isFinite(clientY)) {
+      const r = stage.getBoundingClientRect();
+      const cx = clientX - (r.left + r.width / 2);
+      const cy = clientY - (r.top + r.height / 2);
+      const ratio = clamped / prev;
+      lightboxState.tx = cx - (cx - lightboxState.tx) * ratio;
+      lightboxState.ty = cy - (cy - lightboxState.ty) * ratio;
+    }
+    lightboxState.zoom = clamped;
+    applyLightboxTransform();
+  }
+
+  function openLightbox(src, alt = '', opts = {}) {
     const box = document.getElementById('img-lightbox');
     const img = document.getElementById('img-lightbox-target');
+    const capEl = document.getElementById('img-lightbox-caption');
+    const actBtn = document.getElementById('img-lightbox-action-btn');
     if (!box || !img || !src) return;
+    const tok = ++lightboxState.token;
+    lightboxState.zoom = 1;
+    lightboxState.tx = 0;
+    lightboxState.ty = 0;
+    lightboxState.onAction = typeof opts?.onAction === 'function' ? opts.onAction : null;
     img.src = src;
-    img.alt = alt || 'Zoomed figure';
+    img.alt = alt || 'Fullscreen figure';
+    img.classList.toggle('is-pdf-surface', Boolean(opts?.isPdf));
+    img.classList.toggle('is-pdf-inverted', Boolean(opts?.inverted));
+    if (capEl) capEl.textContent = opts?.caption || alt || '';
+    if (actBtn) {
+      if (opts?.actionLabel && lightboxState.onAction) {
+        actBtn.textContent = opts.actionLabel;
+        actBtn.hidden = false;
+      } else {
+        actBtn.hidden = true;
+      }
+    }
+    applyLightboxTransform();
     box.hidden = false;
+    if (opts?.upgradePromise && typeof opts.upgradePromise.then === 'function') {
+      opts.upgradePromise.then((hiResSrc) => {
+        if (hiResSrc && lightboxState.token === tok && !box.hidden) {
+          img.src = hiResSrc;
+        }
+      }).catch(() => {});
+    }
   }
 
   function closeLightbox() {
     const box = document.getElementById('img-lightbox');
     if (box) box.hidden = true;
+    lightboxState.zoom = 1;
+    lightboxState.tx = 0;
+    lightboxState.ty = 0;
+    lightboxState.onAction = null;
+    lightboxState.token++;
+    applyLightboxTransform();
   }
 
   // ---------------------------------------------------------------------------
@@ -3011,8 +3350,113 @@ window.StudyUI = (() => {
         refResizer.addEventListener('pointercancel', onUp);
       });
     }
-    document.getElementById('img-lightbox')?.addEventListener('click', closeLightbox);
+    const lbBox = document.getElementById('img-lightbox');
+    const lbStage = document.getElementById('img-lightbox-stage');
+    const lbImg = document.getElementById('img-lightbox-target');
     document.getElementById('img-lightbox-close')?.addEventListener('click', closeLightbox);
+    document.getElementById('img-lightbox-zoom-reset')?.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      setLightboxZoom(1);
+    });
+    document.getElementById('img-lightbox-action-btn')?.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const fn = lightboxState.onAction;
+      closeLightbox();
+      fn?.();
+    });
+    if (lbBox && lbStage && lbImg) {
+      let lbPanMoved = false;
+      lbStage.addEventListener('click', (ev) => {
+        if (lbPanMoved) { lbPanMoved = false; return; }
+        if (ev.target === lbStage || ev.target === lbBox) closeLightbox();
+      });
+      lbImg.addEventListener('dblclick', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        setLightboxZoom(lightboxState.zoom > 1.15 ? 1 : 2.1, ev.clientX, ev.clientY);
+      });
+      // Trackpad pinch-to-zoom (ctrlKey/metaKey wheel on macOS/Windows/Linux) + pan wheel
+      lbStage.addEventListener('wheel', (ev) => {
+        if (ev.ctrlKey || ev.metaKey) {
+          ev.preventDefault();
+          const unit = ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? lbStage.clientHeight : 1;
+          setLightboxZoom(lightboxState.zoom * Math.exp(-ev.deltaY * unit / 140), ev.clientX, ev.clientY);
+        } else if (lightboxState.zoom > 1.01) {
+          ev.preventDefault();
+          lightboxState.tx -= ev.deltaX;
+          lightboxState.ty -= ev.deltaY;
+          applyLightboxTransform();
+        }
+      }, { passive: false });
+      // Safari trackpad pinch gesture events
+      let lbGestureStart = null;
+      lbStage.addEventListener('gesturestart', (ev) => {
+        ev.preventDefault();
+        lbGestureStart = lightboxState.zoom;
+      }, { passive: false });
+      lbStage.addEventListener('gesturechange', (ev) => {
+        if (lbGestureStart == null || !Number.isFinite(ev.scale)) return;
+        ev.preventDefault();
+        setLightboxZoom(lbGestureStart * ev.scale, ev.clientX, ev.clientY);
+      }, { passive: false });
+      lbStage.addEventListener('gestureend', (ev) => {
+        if (lbGestureStart == null) return;
+        ev.preventDefault();
+        lbGestureStart = null;
+      }, { passive: false });
+      // Two-finger touch pinch in fullscreen lightbox
+      let lbTouchDist = 0;
+      let lbTouchZoom = 1;
+      lbStage.addEventListener('touchstart', (ev) => {
+        if (ev.touches.length === 2) {
+          lbTouchDist = Math.hypot(
+            ev.touches[0].clientX - ev.touches[1].clientX,
+            ev.touches[0].clientY - ev.touches[1].clientY
+          );
+          lbTouchZoom = lightboxState.zoom;
+        }
+      }, { passive: true });
+      lbStage.addEventListener('touchmove', (ev) => {
+        if (ev.touches.length === 2 && lbTouchDist > 0) {
+          ev.preventDefault();
+          const d = Math.hypot(
+            ev.touches[0].clientX - ev.touches[1].clientX,
+            ev.touches[0].clientY - ev.touches[1].clientY
+          );
+          const midX = (ev.touches[0].clientX + ev.touches[1].clientX) / 2;
+          const midY = (ev.touches[0].clientY + ev.touches[1].clientY) / 2;
+          setLightboxZoom(lbTouchZoom * (d / lbTouchDist), midX, midY);
+        }
+      }, { passive: false });
+      // Smooth 2D pointer drag-to-pan when zoomed in
+      lbStage.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== 0 || lightboxState.zoom <= 1.01) return;
+        if (ev.target !== lbImg) return;
+        const startX = ev.clientX;
+        const startY = ev.clientY;
+        const baseTx = lightboxState.tx;
+        const baseTy = lightboxState.ty;
+        lbPanMoved = false;
+        lbStage.classList.add('is-panning');
+        const onMove = (mEv) => {
+          const dx = mEv.clientX - startX;
+          const dy = mEv.clientY - startY;
+          if (!lbPanMoved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) lbPanMoved = true;
+          lightboxState.tx = baseTx + dx;
+          lightboxState.ty = baseTy + dy;
+          applyLightboxTransform();
+        };
+        const onUp = () => {
+          lbStage.classList.remove('is-panning');
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onUp);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+      });
+    }
 
     // iOS Settings Sheet Triggers & Controls
     ['hdr-settings-btn', 'run-settings-btn'].forEach((id) => {
@@ -3203,139 +3647,87 @@ window.StudyUI = (() => {
     clearInterval(workTickHandle);
     workTickHandle = setInterval(renderWorkClockDom, 1000);
 
-    // Inline figure enlargement within reference panes & notes (enlarges right inside the column, drag-to-pan, click to fit)
-    const MD_ZOOM_SCALES = [1, 1.85, 2.6];
-
-    function ensureInlineZoomFrame(img) {
+    // Seamless trackpad pinch-to-zoom on inline markdown images + 1-click fullscreen lightbox
+    function ensurePinchImgWrap(img) {
       const existing = img.closest('.md-img-zoom-frame');
       if (existing) return existing;
       const frame = document.createElement('span');
       frame.className = 'md-img-zoom-frame';
-      frame.dataset.zoomLevel = '0';
-
+      frame.dataset.zoomScale = '1';
       const scroll = document.createElement('span');
       scroll.className = 'md-img-zoom-scroll';
-
-      const bar = document.createElement('span');
-      bar.className = 'md-img-zoom-bar';
-      bar.hidden = true;
-      bar.innerHTML =
-        '<button type="button" class="md-img-zoom-btn" data-md-zoom="step" title="Toggle closer zoom" aria-label="Toggle closer zoom">2.6×</button>' +
-        '<button type="button" class="md-img-zoom-btn" data-md-zoom="reset" title="Fit back to column" aria-label="Fit back to column">Fit</button>' +
-        '<button type="button" class="md-img-zoom-btn" data-md-zoom="lightbox" title="Open full screen" aria-label="Open full screen">⤢</button>';
-
       img.replaceWith(frame);
       img.draggable = false;
       scroll.appendChild(img);
-      frame.append(scroll, bar);
+      frame.append(scroll);
       return frame;
     }
 
-    function applyInlineImgZoom(frame, nextLevel, focusRatioX = 0.5) {
+    function applyPinchImgScale(frame, nextScale, clientX) {
       if (!frame) return;
-      const clamped = Math.max(0, Math.min(MD_ZOOM_SCALES.length - 1, Number(nextLevel) || 0));
-      const scale = MD_ZOOM_SCALES[clamped];
       const scroll = frame.querySelector('.md-img-zoom-scroll');
       const img = scroll?.querySelector('img');
-      const bar = frame.querySelector('.md-img-zoom-bar');
-      const stepBtn = bar?.querySelector('[data-md-zoom="step"]');
       if (!scroll || !img) return;
-
-      frame.dataset.zoomLevel = String(clamped);
-      frame.classList.toggle('is-zoomed', clamped > 0);
-      if (bar) bar.hidden = clamped === 0;
-      if (stepBtn) stepBtn.textContent = clamped === 1 ? '2.6×' : '1.85×';
-
-      if (clamped === 0) {
+      const clamped = Math.max(1, Math.min(3.5, Number(nextScale) || 1));
+      const prev = Number(frame.dataset.zoomScale || 1) || 1;
+      frame.dataset.zoomScale = clamped.toFixed(3);
+      frame.classList.toggle('is-zoomed', clamped > 1.02);
+      if (clamped <= 1.02) {
+        frame.dataset.zoomScale = '1';
         img.style.width = '';
         img.style.maxWidth = '';
         scroll.scrollLeft = 0;
-      } else {
-        img.style.width = `${Math.round(scale * 100)}%`;
-        img.style.maxWidth = 'none';
-        requestAnimationFrame(() => {
-          const maxScroll = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
-          const target = Math.round(focusRatioX * scroll.scrollWidth - scroll.clientWidth / 2);
-          scroll.scrollLeft = Math.max(0, Math.min(maxScroll, target));
-        });
+        return;
       }
+      const box = scroll.getBoundingClientRect();
+      const x = Number.isFinite(clientX) ? clientX - box.left : scroll.clientWidth / 2;
+      const pageX = scroll.scrollLeft + x;
+      img.style.width = `${Math.round(clamped * 100)}%`;
+      img.style.maxWidth = 'none';
+      scroll.scrollLeft = Math.max(0, pageX * (clamped / prev) - x);
     }
 
-    // Horizontal drag-to-pan on enlarged inline reference figures
-    document.addEventListener('pointerdown', (ev) => {
-      if (ev.button !== 0) return;
-      if (ev.target?.closest?.('.md-img-zoom-bar')) return;
-      const scroll = ev.target?.closest?.('.md-img-zoom-frame.is-zoomed .md-img-zoom-scroll');
-      if (!scroll) return;
-      const frame = scroll.closest('.md-img-zoom-frame');
-      const startX = ev.clientX;
-      const startScroll = scroll.scrollLeft;
-      let moved = false;
+    document.addEventListener('wheel', (ev) => {
+      if (!ev.ctrlKey && !ev.metaKey) return;
+      const img = ev.target?.closest?.('.markdown-body img');
+      if (!img || !img.src || img.closest('.pdf-figure') || (img.clientWidth > 0 && img.clientWidth < 48)) return;
+      ev.preventDefault();
+      const frame = ensurePinchImgWrap(img);
+      const cur = Number(frame.dataset.zoomScale || 1) || 1;
+      const unit = ev.deltaMode === 1 ? 16 : 1;
+      applyPinchImgScale(frame, cur * Math.exp(-ev.deltaY * unit / 140), ev.clientX);
+    }, { passive: false });
 
-      const onMove = (mEv) => {
-        const dx = mEv.clientX - startX;
-        if (!moved && Math.abs(dx) > 5) {
-          moved = true;
-          scroll.classList.add('is-panning');
-        }
-        if (moved) {
-          scroll.scrollLeft = startScroll - dx;
-        }
-      };
-      const onUp = () => {
-        scroll.classList.remove('is-panning');
-        window.removeEventListener('pointermove', onMove);
-        window.removeEventListener('pointerup', onUp);
-        window.removeEventListener('pointercancel', onUp);
-        if (moved && frame) frame._suppressClickUntil = Date.now() + 260;
-      };
-      window.addEventListener('pointermove', onMove);
-      window.addEventListener('pointerup', onUp);
-      window.addEventListener('pointercancel', onUp);
-    });
+    let mdGestureFrame = null;
+    let mdGestureBase = 1;
+    document.addEventListener('gesturestart', (ev) => {
+      const img = ev.target?.closest?.('.markdown-body img');
+      if (!img || !img.src || img.closest('.pdf-figure') || (img.clientWidth > 0 && img.clientWidth < 48)) return;
+      ev.preventDefault();
+      mdGestureFrame = ensurePinchImgWrap(img);
+      mdGestureBase = Number(mdGestureFrame.dataset.zoomScale || 1) || 1;
+    }, { passive: false });
+    document.addEventListener('gesturechange', (ev) => {
+      if (!mdGestureFrame || !Number.isFinite(ev.scale)) return;
+      ev.preventDefault();
+      applyPinchImgScale(mdGestureFrame, mdGestureBase * ev.scale, ev.clientX);
+    }, { passive: false });
+    document.addEventListener('gestureend', () => {
+      mdGestureFrame = null;
+    }, { passive: true });
 
+    // Click directly on any figure or markdown image -> seamless fullscreen lightbox!
     document.addEventListener('click', (e) => {
       const figImg = e.target?.closest?.('.pdf-figure:not([data-pdf-excerpt]) img');
       if (figImg && figImg.src) {
-        openLightbox(figImg.src, figImg.alt);
+        openLightbox(figImg.src, figImg.alt, { isPdf: true });
         return;
       }
 
-      // Inline reference figure toolbar actions (+ / Fit / Fullscreen)
-      const zoomActionBtn = e.target?.closest?.('[data-md-zoom]');
-      if (zoomActionBtn) {
-        e.preventDefault();
-        e.stopPropagation();
-        const frame = zoomActionBtn.closest('.md-img-zoom-frame');
-        const scroll = frame?.querySelector('.md-img-zoom-scroll');
-        const img = scroll?.querySelector('img');
-        if (!frame || !img) return;
-        const action = zoomActionBtn.dataset.mdZoom;
-        if (action === 'reset') {
-          applyInlineImgZoom(frame, 0);
-        } else if (action === 'step') {
-          const cur = Number(frame.dataset.zoomLevel || 0);
-          const curCenterRatio = scroll.scrollWidth > 0
-            ? (scroll.scrollLeft + scroll.clientWidth / 2) / scroll.scrollWidth
-            : 0.5;
-          applyInlineImgZoom(frame, cur === 1 ? 2 : 1, curCenterRatio);
-        } else if (action === 'lightbox' && img.src) {
-          openLightbox(img.src, img.alt);
-        }
-        return;
-      }
-
-      // Click directly on any markdown figure/diagram image to enlarge inline (or fit back)
       const mdImg = e.target?.closest?.('.markdown-body img');
       if (mdImg && mdImg.src && !mdImg.closest('.pdf-figure') && !mdImg.closest('a[href]')) {
         if (mdImg.clientWidth > 0 && mdImg.clientWidth < 48) return;
-        const existingFrame = mdImg.closest('.md-img-zoom-frame');
-        if (existingFrame && Date.now() < (existingFrame._suppressClickUntil || 0)) return;
-        const rect = mdImg.getBoundingClientRect();
-        const ratioX = rect.width > 0 ? Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) : 0.5;
-        const frame = ensureInlineZoomFrame(mdImg);
-        const curLevel = Number(frame.dataset.zoomLevel || 0);
-        applyInlineImgZoom(frame, curLevel === 0 ? 1 : 0, ratioX);
+        openLightbox(mdImg.src, mdImg.alt);
       }
     });
     document.addEventListener('keydown', (e) => {
@@ -3347,7 +3739,7 @@ window.StudyUI = (() => {
         }
         const zoomedFrames = document.querySelectorAll('.md-img-zoom-frame.is-zoomed');
         if (zoomedFrames.length) {
-          zoomedFrames.forEach((f) => applyInlineImgZoom(f, 0));
+          zoomedFrames.forEach((f) => applyPinchImgScale(f, 1));
           e.preventDefault();
           return;
         }
@@ -3382,6 +3774,8 @@ window.StudyUI = (() => {
     renderNoteProgressive,
     findRelevantReferenceHeadings,
     buildOutlineTreeHtml,
+    renderContinuousNeededSectionsHtml,
+    shortSectionChipLabel,
     toast,
     applyTheme,
     setTheme,
@@ -3395,6 +3789,8 @@ window.StudyUI = (() => {
     closeReferenceDrawer,
     isReferenceDrawerOpen,
     syncReferenceDrawerForQuestion,
+    openLightbox,
+    closeLightbox,
     bindGlobalChrome,
     workClock,
     devMode,

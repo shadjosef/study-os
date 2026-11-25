@@ -643,18 +643,22 @@
     </div>
     <div class="ref-drawer-controls">
       <select id="ref-drawer-course-select" aria-label="Select subject" hidden></select>
-      <select id="ref-drawer-note-select" aria-label="Select course note"></select>
-      <select id="ref-drawer-toc-select" aria-label="Jump to section heading"></select>
-      <details id="ref-drawer-outline-wrap" class="ref-drawer-outline">
-        <summary>
-          <span class="ref-drawer-outline-summary-label">Chapters &amp; subchapters</span>
-          <span id="ref-drawer-relevant-pill" class="ref-rel-count-pill" hidden></span>
-        </summary>
-        <div class="ref-drawer-outline-inner">
-          <input type="search" id="ref-drawer-outline-filter" class="ref-outline-filter" placeholder="Filter chapters…" aria-label="Filter chapters and subchapters">
-          <div id="ref-drawer-outline-tree" class="obs-outline-tree"></div>
+      <div class="ref-compact-bar">
+        <select id="ref-drawer-note-select" aria-label="Select course note" class="ref-note-select-compact"></select>
+        <div class="ref-mode-tabs" id="ref-drawer-mode-tabs" hidden>
+          <button type="button" class="ref-mode-pill active" id="ref-drawer-needed-btn">Needed</button>
+          <button type="button" class="ref-mode-pill" id="ref-drawer-browse-btn" aria-expanded="false">Search / Chapters</button>
         </div>
-      </details>
+        <button type="button" class="mini-tool-btn ref-browse-trigger" id="ref-drawer-browse-solo" aria-expanded="false" hidden>Search / Chapters</button>
+      </div>
+      <div id="ref-drawer-jump-strip" class="ref-jump-strip" hidden></div>
+    </div>
+    <div id="ref-drawer-toc-panel" class="ref-toc-overlay" hidden>
+      <div class="ref-toc-search-row">
+        <input type="search" id="ref-drawer-outline-filter" class="ref-outline-filter" placeholder="Search chapters &amp; subchapters…" aria-label="Search chapters and subchapters" autocomplete="off">
+        <button type="button" class="mini-tool-btn" id="ref-drawer-toc-close" aria-label="Close chapters">Done</button>
+      </div>
+      <div id="ref-drawer-outline-tree" class="obs-outline-tree ref-toc-scroll"></div>
     </div>
     <div id="ref-drawer-body" class="ref-drawer-body markdown-body obs-prose"></div>
     <div id="ref-drawer-resizer" class="ref-drawer-resizer" aria-hidden="true" title="Drag to resize sidebar"></div>
@@ -1475,9 +1479,18 @@
   <dialog id="duel-challenge-dialog" class="member-dialog duel-challenge-dialog" tabindex="-1" aria-labelledby="duel-challenge-title"></dialog>
 
   <!-- RETINA FIGURE ZOOM LIGHTBOX -->
-  <div id="img-lightbox" class="img-lightbox" hidden role="dialog" aria-modal="true" aria-label="Zoomed figure preview">
-    <button type="button" class="ghost-btn img-lightbox-close" id="img-lightbox-close">✕ Close (Esc)</button>
-    <img id="img-lightbox-target" src="" alt="Zoomed course excerpt">
+  <div id="img-lightbox" class="img-lightbox" hidden role="dialog" aria-modal="true" aria-label="Fullscreen figure preview">
+    <div class="img-lightbox-bar">
+      <span id="img-lightbox-caption" class="img-lightbox-caption"></span>
+      <div class="img-lightbox-actions">
+        <button type="button" class="ghost-btn img-lightbox-zoom-pill" id="img-lightbox-zoom-reset" hidden title="Reset zoom to 100%">100%</button>
+        <button type="button" class="ghost-btn" id="img-lightbox-action-btn" hidden></button>
+        <button type="button" class="ghost-btn img-lightbox-close" id="img-lightbox-close">✕ Close (Esc)</button>
+      </div>
+    </div>
+    <div class="img-lightbox-stage" id="img-lightbox-stage">
+      <img id="img-lightbox-target" src="" alt="Zoomed course excerpt" draggable="false">
+    </div>
   </div>
 
   <script defer src="./vendor/marked.min.js"></script>
