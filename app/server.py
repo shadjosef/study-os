@@ -997,6 +997,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                         if reset_work:
                             for k in ("savedDraft", "savedChoice", "savedWiseflow", "checkedRubricIndices", "activeElapsedSec", "hintsUsed"):
                                 rec.pop(k, None)
+                            rec["draftResetAt"] = now_iso
                 STORE.save_progress(prog)
             self.send_json({"ok": True, "updated": len(qids), "status": new_status})
             return
@@ -1024,9 +1025,10 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 if "profile" in body:
                     rec["lastProfile"] = str(body["profile"])
                 has_wf = any(str(v).strip() != "" for v in (rec.get("savedWiseflow") or {}).values())
-                if (rec.get("status") in (None, "not_started")) and (
-                    rec.get("savedDraft", "").strip() or rec.get("savedChoice") is not None or has_wf
-                ):
+                has_work = bool(rec.get("savedDraft", "").strip() or rec.get("savedChoice") is not None or has_wf)
+                if has_work:
+                    rec.pop("draftResetAt", None)
+                if (rec.get("status") in (None, "not_started")) and has_work:
                     rec["status"] = "in_progress"
                 rec["updatedAt"] = datetime.now(OSLO_TZ).isoformat()
                 STORE.save_progress(prog)
@@ -1062,11 +1064,20 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 rec["lastAttemptAt"] = now.isoformat()
                 rec["lastAttempt"] = metrics
                 if body.get("draft") is not None:
-                    rec["savedDraft"] = str(body["draft"])
+                    draft_str = str(body["draft"])
+                    if draft_str.strip() or not body.get("freshExamSit"):
+                        rec["savedDraft"] = draft_str
+                    if draft_str.strip():
+                        rec.pop("draftResetAt", None)
                 if body.get("choice") is not None:
                     rec["savedChoice"] = body["choice"]
+                    rec.pop("draftResetAt", None)
                 if isinstance(body.get("wiseflowAnswers"), dict):
-                    rec["savedWiseflow"] = body["wiseflowAnswers"]
+                    has_incoming_wf = any(str(v).strip() != "" for v in body["wiseflowAnswers"].values())
+                    if has_incoming_wf or not body.get("freshExamSit"):
+                        rec["savedWiseflow"] = body["wiseflowAnswers"]
+                    if has_incoming_wf:
+                        rec.pop("draftResetAt", None)
                 if body.get("checkedRubricIndices") is not None:
                     rec["checkedRubricIndices"] = body["checkedRubricIndices"]
 

@@ -1132,13 +1132,20 @@ window.StudyRunner = (() => {
     if (!activeRun.items[qid]) {
       const q = activeRun.questionsById[qid];
       const rec = window.StudyApp.getProgressRecord(qid) || {};
-      const resumeDraft = !activeRun.freshExamSit && rec.status !== 'done'
-        && (rec.status === 'in_progress' || (!rec.lastAttemptAt && !rec.attemptCount && !rec.pbEffectiveSec));
+      const canRestoreWork = !activeRun.freshExamSit;
+      const savedWork = canRestoreWork ? (window.StudyApp.getLatestSavedWork?.(qid) || {}) : {};
+      const resumeStructured = canRestoreWork && (
+        activeRun.mode === 'exam'
+        || (rec.status !== 'done' && (rec.status === 'in_progress' || (!rec.lastAttemptAt && !rec.attemptCount && !rec.pbEffectiveSec)))
+      );
       const prof = activeRun.profile || 'learning';
       const pSpec = q?.pacing?.[prof] || q?.pacing?.learning || { target: 3, min: 2, max: 5 };
       const calPar = window.StudyApp.calibratedParSec
         ? window.StudyApp.calibratedParSec(q, prof)
         : Math.max(15, Math.round((Number(pSpec.target) || 3) * 60));
+      const restoredRubrics = Array.isArray(rec.checkedRubricIndices) && rec.checkedRubricIndices.length
+        ? rec.checkedRubricIndices
+        : (Array.isArray(savedWork.checkedRubrics) ? savedWork.checkedRubrics : []);
       activeRun.items[qid] = {
         elapsedMs: 0,
         runningSince: null,
@@ -1152,15 +1159,13 @@ window.StudyRunner = (() => {
         refOpenCount: 0,
         refSec: 0,
         refLastTickMs: null,
-        choice: resumeDraft ? rec.savedChoice ?? null : null,
-        draft: resumeDraft ? rec.savedDraft || '' : '',
-        draftImages: !activeRun.freshExamSit && Array.isArray(rec.savedDraftImages) ? [...rec.savedDraftImages] : [],
-        wiseflow: resumeDraft ? { ...rec.savedWiseflow } : {},
+        choice: resumeStructured ? (rec.savedChoice ?? savedWork.choice ?? null) : null,
+        draft: canRestoreWork ? (rec.savedDraft || savedWork.draft || '') : '',
+        draftImages: canRestoreWork && Array.isArray(rec.savedDraftImages) ? [...rec.savedDraftImages] : [],
+        wiseflow: resumeStructured ? { ...(savedWork.wiseflow || {}), ...(rec.savedWiseflow || {}) } : {},
         wfGrade: null,
         numericInput: '',
-        checkedRubrics: resumeDraft && Array.isArray(rec.checkedRubricIndices)
-          ? [...rec.checkedRubricIndices]
-          : [],
+        checkedRubrics: resumeStructured ? [...restoredRubrics] : [],
         flagged: false,
         revealed: false,
         solutionPeeked: false,
@@ -1396,6 +1401,7 @@ window.StudyRunner = (() => {
   function onBreakStateChange(inBreak, endedSession = false) {
     if (!activeRun) return;
     if (inBreak) {
+      window.StudyApp.flushPendingDrafts?.();
       const q = currentQuestion();
       if (q) closePauseRecord(itemState(q.id), 1.5);
       pauseCurrentTimer();
@@ -1438,7 +1444,10 @@ window.StudyRunner = (() => {
       return;
     }
 
-    if (activeRun) pauseCurrentTimer();
+    if (activeRun) {
+      window.StudyApp.flushPendingDrafts?.();
+      pauseCurrentTimer();
+    }
     clearInterval(tickInterval);
 
     const isExam = config.mode === 'exam';
@@ -1496,6 +1505,7 @@ window.StudyRunner = (() => {
 
   function enterQuestion(newIndex) {
     if (!activeRun) return;
+    window.StudyApp.flushPendingDrafts?.();
     pauseCurrentTimer();
     activeRun.index = Math.max(0, Math.min(activeRun.questionIds.length - 1, newIndex));
     resumeCurrentTimer();
@@ -3828,6 +3838,7 @@ window.StudyRunner = (() => {
         });
       });
       inp.addEventListener('keydown', (ev) => {
+        if (ev.isComposing) return;
         if (ev.key === 'Enter' && !isBlindUnfinished && !st.revealed) {
           ev.preventDefault();
           document.getElementById('btn-check-wf')?.click();
@@ -4574,6 +4585,7 @@ window.StudyRunner = (() => {
 
   async function submitVerifiedAttempt(q, st, qualityAccuracy) {
     const run = activeRun;
+    window.StudyApp.flushPendingDrafts?.();
     closePauseRecord(st, 1.5);
     const dlpfcTier = window.StudyApp.effectiveDlpfc?.(q)?.tier || Number(q.dlpfcBase || 2);
     const autoGraded = Boolean(q.kind === 'mcq' || (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length) || q.numericCheck);
@@ -4587,6 +4599,7 @@ window.StudyRunner = (() => {
       autoGraded,
       dlpfcTier,
       profile: run.profile,
+      freshExamSit: Boolean(run.freshExamSit),
       activeSec: Math.max(1, itemActiveSec(st)),
       aiParSec: st.targetSec,
       hintsUsed: st.hintsUsed,
@@ -4603,6 +4616,7 @@ window.StudyRunner = (() => {
       focusSwitches: st.focusSwitches,
       choice: st.choice,
       draft: st.draft,
+      draftImages: Array.isArray(st.draftImages) ? st.draftImages : [],
       attachedImageCount: Array.isArray(st.draftImages) ? st.draftImages.length : 0,
       attachedImageIds: Array.isArray(st.draftImages) ? st.draftImages.map((m) => m.id) : [],
       wiseflowAnswers: st.wiseflow,
@@ -4911,6 +4925,7 @@ window.StudyRunner = (() => {
   }
 
   function exitRunnerKeepPaused() {
+    window.StudyApp.flushPendingDrafts?.();
     pauseCurrentTimer();
     window.StudyPdf.dispose();
     document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-split-ref', 'runner-foveal-compact');
@@ -5115,6 +5130,7 @@ window.StudyRunner = (() => {
 
       // Cmd/Ctrl + Enter works even while typing inside the answer textarea:
       // 1st press -> Reveal Solution / Check Answer; 2nd press -> Got It Right & Next Question!
+      if (e.isComposing) return;
       if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key === 'Enter') {
         const primary =
           document.getElementById('btn-check-mcq') ||

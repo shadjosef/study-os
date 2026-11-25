@@ -228,6 +228,54 @@ window.StudyApp = (() => {
     return boot.progress?.records?.[qid] || null;
   }
 
+  function getLatestSavedWork(qid) {
+    const rec = getProgressRecord(qid) || {};
+    const out = {
+      draft: typeof rec.savedDraft === 'string' ? rec.savedDraft : '',
+      choice: rec.savedChoice ?? null,
+      wiseflow: isRecord(rec.savedWiseflow) ? { ...rec.savedWiseflow } : {},
+      checkedRubrics: Array.isArray(rec.checkedRubricIndices) ? [...rec.checkedRubricIndices] : [],
+    };
+    if (!isStaticWeb) return out;
+    const resetMs = backupTime(rec.draftResetAt);
+    const recUpdatedMs = backupTime(rec.updatedAt);
+    const hasWf = Object.values(out.wiseflow).some((v) => String(v ?? '').trim() !== '');
+    const needDraft = !out.draft.trim();
+    const needWf = !hasWf;
+    const needChoice = out.choice === null || out.choice === undefined;
+    const needRubric = !out.checkedRubrics.length;
+    if (!needDraft && !needWf && !needChoice && !needRubric) return out;
+    const ws = loadWebState();
+    for (let i = (ws.attempts || []).length - 1; i >= 0; i--) {
+      const a = ws.attempts[i];
+      if (!a || a.questionId !== qid) continue;
+      const tMs = backupTime(a.timestamp);
+      if (resetMs && tMs && tMs <= resetMs) break;
+      const draftExplicitlyClearedAfter = rec.savedDraft === '' && recUpdatedMs > tMs;
+      if (needDraft && !draftExplicitlyClearedAfter && typeof a.draft === 'string' && a.draft.trim() && !out.draft.trim()) {
+        out.draft = a.draft;
+      }
+      if (
+        needWf
+        && isRecord(a.wiseflowAnswers)
+        && Object.values(a.wiseflowAnswers).some((v) => String(v ?? '').trim() !== '')
+        && !Object.values(out.wiseflow).some((v) => String(v ?? '').trim() !== '')
+      ) {
+        out.wiseflow = { ...a.wiseflowAnswers };
+      }
+      if (needChoice && a.choice !== undefined && a.choice !== null && out.choice === null) {
+        out.choice = a.choice;
+      }
+      if (needRubric && Array.isArray(a.checkedRubricIndices) && a.checkedRubricIndices.length && !out.checkedRubrics.length) {
+        out.checkedRubrics = [...a.checkedRubricIndices];
+      }
+      if (out.draft.trim() || Object.values(out.wiseflow).some((v) => String(v ?? '').trim() !== '') || out.choice !== null) {
+        break;
+      }
+    }
+    return out;
+  }
+
   function effectiveDifficulty(q, rec = getProgressRecord(q?.id) || {}) {
     const authored = Number(q?.difficulty || 2);
     if (rec?.personalDifficulty && [1, 2, 3].includes(Number(rec.personalDifficulty))) {
@@ -665,7 +713,21 @@ window.StudyApp = (() => {
       if (!qid.includes(':') || !isRecord(incoming)) continue;
       const existing = mergedRecords.get(qid);
       if (!existing || timeOf(incoming, incomingTimes.get(qid)) > timeOf(existing, existingTimes.get(qid))) {
-        mergedRecords.set(qid, incoming);
+        const merged = { ...incoming };
+        if (existing) {
+          const incomingResetMs = backupTime(incoming.draftResetAt);
+          const existingTimeMs = timeOf(existing, existingTimes.get(qid));
+          if (!Array.isArray(merged.savedDraftImages) && Array.isArray(existing.savedDraftImages) && existing.savedDraftImages.length) {
+            merged.savedDraftImages = existing.savedDraftImages;
+          }
+          if ((!merged.savedDraft || !String(merged.savedDraft).trim()) && existing.savedDraft && String(existing.savedDraft).trim() && (!incomingResetMs || incomingResetMs < existingTimeMs)) {
+            merged.savedDraft = existing.savedDraft;
+          }
+          if (!isRecord(merged.savedWiseflow) && isRecord(existing.savedWiseflow) && (!incomingResetMs || incomingResetMs < existingTimeMs)) {
+            merged.savedWiseflow = existing.savedWiseflow;
+          }
+        }
+        mergedRecords.set(qid, merged);
         changed++;
       }
     }
@@ -4358,6 +4420,7 @@ window.StudyApp = (() => {
     });
 
     const records = boot.progress?.records || {};
+    const pausedRun = window.StudyRunner?.getRun?.() || null;
     const examResultsMap = loadExamResultsMap();
     const attemptsByQid = new Map();
     if (isStaticWeb) {
@@ -4536,6 +4599,18 @@ window.StudyApp = (() => {
         slotRight = 'Play →';
       }
 
+      const isPausedThisPaper = Boolean(
+        pausedRun
+        && !pausedRun.paperSubmitted
+        && pausedRun.mode === 'exam'
+        && pausedRun.courseMeta?.courseId === c.courseId
+        && String(pausedRun.examCollectionId || '') === String(col.id)
+        && pausedRun.examStyle === selectedExamStyle
+      );
+      if (isPausedThisPaper) {
+        slotRight = 'Resume paused →';
+      }
+
       const barPct = prog.status === 'completed' ? 100 : prog.pct;
       const startIdx = selectedExamStyle === 'guided' && prog.status === 'in_progress' ? prog.firstUndoneIdx : 0;
 
@@ -4712,7 +4787,17 @@ window.StudyApp = (() => {
       ? `<div class="panel" style="text-align:center;padding:28px"><p class="muted" style="margin:0 0 10px">No exam papers match this filter yet.</p><button type="button" class="ghost-btn" data-exam-filter="all">Show all exams</button></div>`
       : '';
 
+    const pausedExamBannerHtml = pausedRun
+      ? `<section class="resume-card" style="margin-bottom:16px">
+          <div>
+            <strong>Active Run Open:</strong> ${esc(pausedRun.examTitle || pausedRun.courseMeta?.title || 'Study Run')} (${pausedRun.index + 1} of ${pausedRun.questionIds.length})
+          </div>
+          <button type="button" class="primary-btn" id="btn-exams-resume-paused">Resume Run →</button>
+        </section>`
+      : '';
+
     root.innerHTML = `
+      ${pausedExamBannerHtml}
       <div class="hero-card" style="margin-bottom:20px">
         <div class="hero-top">
           <div style="flex:1;min-width:260px">
@@ -4780,6 +4865,9 @@ window.StudyApp = (() => {
       ${cardsHtml || emptyFilterHtml}
     `;
 
+    root.querySelector('#btn-exams-resume-paused')?.addEventListener('click', () => {
+      window.StudyRunner.resumePausedRun();
+    });
     root.querySelector('#btn-exams-sync-bi')?.addEventListener('click', () => {
       openBiSyncHub();
     });
@@ -5014,6 +5102,20 @@ window.StudyApp = (() => {
     const durMin = Number(customDurationMin || colObj?.durationMinutes || cMeta?.examInfo?.durationMinutes || 180);
     if (members.course(courseId) && questions.some((q) => !['synthetic_drill', 'mock_exam'].includes(q.origin))) {
       examStyle = 'guided';
+    }
+    const resolvedCollId = String(colObj?.id || collectionId);
+    const paused = window.StudyRunner?.getRun?.();
+    if (
+      paused
+      && !paused.paperSubmitted
+      && paused.mode === 'exam'
+      && paused.courseMeta?.courseId === courseId
+      && String(paused.examCollectionId || '') === resolvedCollId
+      && paused.examStyle === examStyle
+    ) {
+      window.StudyRunner.resumePausedRun();
+      toast('Resumed paused exam run.');
+      return;
     }
     window.StudyRunner.startRun({
       courseMeta: cMeta,
@@ -8467,10 +8569,16 @@ window.StudyApp = (() => {
       rec.status = status;
       if (isStaticWeb) rec.updatedAt = updatedAt;
       if (resetWork) {
+        const pending = pendingDrafts.get(qid);
+        if (pending) {
+          clearTimeout(pending.timer);
+          pendingDrafts.delete(qid);
+        }
         delete rec.savedDraft;
         delete rec.savedChoice;
         delete rec.savedWiseflow;
         delete rec.checkedRubricIndices;
+        rec.draftResetAt = updatedAt;
       }
     }
     if (ws) {
@@ -8494,8 +8602,22 @@ window.StudyApp = (() => {
       ...(fields.draft !== undefined ? { savedDraft: fields.draft } : {}),
       ...(fields.choice !== undefined ? { savedChoice: fields.choice } : {}),
       ...(fields.wiseflowAnswers !== undefined ? { savedWiseflow: fields.wiseflowAnswers } : {}),
+      ...(fields.checkedRubricIndices !== undefined ? { checkedRubricIndices: Array.isArray(fields.checkedRubricIndices) ? [...fields.checkedRubricIndices] : [] } : {}),
       ...(fields.draftImages !== undefined ? { savedDraftImages: Array.isArray(fields.draftImages) ? fields.draftImages.slice(0, 8) : [] } : {}),
     });
+    const hasWf = isRecord(rec.savedWiseflow) && Object.values(rec.savedWiseflow).some((v) => String(v ?? '').trim() !== '');
+    const hasWork = Boolean(
+      (typeof rec.savedDraft === 'string' && rec.savedDraft.trim())
+      || (rec.savedChoice !== undefined && rec.savedChoice !== null)
+      || hasWf
+      || (Array.isArray(rec.savedDraftImages) && rec.savedDraftImages.length)
+    );
+    if (hasWork) {
+      delete rec.draftResetAt;
+      if (!rec.status || rec.status === 'not_started') {
+        rec.status = 'in_progress';
+      }
+    }
     if (ws) {
       rec.updatedAt = new Date().toISOString();
       if (saveWebState(ws)) boot.progress.records = ws.records;
@@ -8542,6 +8664,11 @@ window.StudyApp = (() => {
       return { ok: true, devMode: true, attempt, record, analytics: boot.analytics };
     }
     if (isStaticWeb) {
+      const pending = pendingDrafts.get(payload.questionId);
+      if (pending) {
+        clearTimeout(pending.timer);
+        pendingDrafts.delete(payload.questionId);
+      }
       const ws = loadWebState();
       const qAcc = Number(payload.qualityAccuracy || 0);
       const effSec = Number(payload.activeSec || 1) + Number(payload.hintsUsed || 0) * Number(payload.hintHandicapSec || 30);
@@ -8562,6 +8689,30 @@ window.StudyApp = (() => {
       );
       const rec = (ws.records[payload.questionId] = ws.records[payload.questionId] || {});
       const timestamp = new Date().toISOString();
+      if (payload.draft !== undefined && payload.draft !== null) {
+        const draftStr = String(payload.draft);
+        if (draftStr.trim() || !payload.freshExamSit) {
+          rec.savedDraft = draftStr;
+        }
+        if (draftStr.trim()) delete rec.draftResetAt;
+      }
+      if (payload.choice !== undefined && payload.choice !== null) {
+        rec.savedChoice = payload.choice;
+        delete rec.draftResetAt;
+      }
+      if (isRecord(payload.wiseflowAnswers)) {
+        const hasIncomingWf = Object.values(payload.wiseflowAnswers).some((v) => String(v ?? '').trim() !== '');
+        if (hasIncomingWf || !payload.freshExamSit) {
+          rec.savedWiseflow = { ...payload.wiseflowAnswers };
+        }
+        if (hasIncomingWf) delete rec.draftResetAt;
+      }
+      if (Array.isArray(payload.checkedRubricIndices)) {
+        rec.checkedRubricIndices = [...payload.checkedRubricIndices];
+      }
+      if (Array.isArray(payload.draftImages) && payload.draftImages.length) {
+        rec.savedDraftImages = payload.draftImages.slice(0, 8);
+      }
       rec.status = payload.explicitStatus || (qAcc >= 0.75 ? 'done' : 'revisit');
       if (payload.dlpfcTier) rec.dlpfcTier = Number(payload.dlpfcTier);
       rec.updatedAt = timestamp;
@@ -10179,6 +10330,7 @@ window.StudyApp = (() => {
     publicReferenceUrl,
     fetchReferenceSection,
     getProgressRecord,
+    getLatestSavedWork,
     effectiveDifficulty,
     effectiveDlpfc,
     calibratedParSec,
