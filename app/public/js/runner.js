@@ -3093,15 +3093,15 @@ window.StudyRunner = (() => {
         : '';
 
     const toolsMenuHtml = isBlindUnfinished
-      ? `<details class="runner-tools-menu">
-           <summary class="st-btn runner-more-btn" title="Question tools" aria-label="More question tools">•••</summary>
-           <div class="runner-tools-popover">
+      ? `<div class="runner-tools-menu">
+           <button type="button" class="st-btn runner-more-btn" id="btn-runner-tools" popovertarget="runner-tools-popover" title="Question tools" aria-label="More question tools">•••</button>
+           <div class="runner-tools-popover" id="runner-tools-popover" popover="auto">
              <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Adamlite</span></button>
            </div>
-         </details>`
-      : `<details class="runner-tools-menu">
-           <summary class="st-btn runner-more-btn" title="Question tools" aria-label="More question tools">•••</summary>
-           <div class="runner-tools-popover">
+         </div>`
+      : `<div class="runner-tools-menu">
+           <button type="button" class="st-btn runner-more-btn" id="btn-runner-tools" popovertarget="runner-tools-popover" title="Question tools" aria-label="More question tools">•••</button>
+           <div class="runner-tools-popover" id="runner-tools-popover" popover="auto">
              <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Adamlite</span></button>
              <button type="button" class="runner-menu-item" id="btn-open-tutor"><span>Desktop MCP Tutor</span></button>
              ${instantMcqToggleHtml}
@@ -3118,7 +3118,7 @@ window.StudyRunner = (() => {
              </label>
              <button type="button" class="runner-menu-item" id="btn-retry-fresh"><span>Retry fresh</span></button>
            </div>
-         </details>`;
+         </div>`;
 
     const customTask = window.StudyProvenance?.describe(q, activeRun.bank).synthetic
       ? `<span class="runner-custom-task" role="img" aria-label="Custom practice task" title="Custom practice task">
@@ -3142,12 +3142,12 @@ window.StudyRunner = (() => {
               : `<button type="button" class="st-btn runner-pill-tool ${status === 'revisit' ? 'active-revisit' : ''}" data-set-status="revisit" title="Flag for Revisit (F)">${status === 'revisit' ? 'Flagged' : 'Flag'}</button>`
           }
           <div class="quick-fix-wrap">
-            <button type="button" class="st-btn runner-pill-tool quick-fix-trigger" id="btn-quick-fix" title="Report an issue with this exercise or page" aria-label="Report issue" aria-expanded="false" aria-controls="quick-fix-popover">
+            <button type="button" class="st-btn runner-pill-tool quick-fix-trigger" id="btn-quick-fix" popovertarget="quick-fix-popover" title="Report an issue with this exercise or page" aria-label="Report issue" aria-expanded="false" aria-controls="quick-fix-popover">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M10.4 2.4a3.2 3.2 0 0 0-3.7 4.7L2.6 11.2a1.3 1.3 0 1 0 1.8 1.8l4.1-4.1a3.2 3.2 0 0 0 4.7-3.7l-1.9 1.9-1.8-1.8 1.9-1.9Z"/>
               </svg>
             </button>
-            <div class="quick-fix-popover" id="quick-fix-popover" hidden>
+            <div class="quick-fix-popover" id="quick-fix-popover" popover="auto">
               <textarea id="quick-fix-text" rows="3" maxlength="1500" placeholder="What's broken or wrong here? Paste or attach a screenshot…"></textarea>
               <div class="quick-fix-thumb-row" id="quick-fix-thumb-row" hidden>
                 <img id="quick-fix-thumb" alt="Screenshot preview">
@@ -4080,7 +4080,7 @@ window.StudyRunner = (() => {
       }
     });
     document.getElementById('btn-toggle-math-par-answers')?.addEventListener('click', (ev) => {
-      ev.currentTarget.closest('details')?.removeAttribute('open');
+      ev.currentTarget.closest('[popover]')?.hidePopover?.();
       setMathParAutoRevealEnabled(!isMathParAutoRevealEnabled());
       const btn = document.getElementById('btn-toggle-math-par-answers');
       const nowOn = isMathParAutoRevealEnabled();
@@ -4232,34 +4232,39 @@ window.StudyRunner = (() => {
       renderRunner();
     });
 
-    // Keep ••• tools popover inside card & viewport bounds even in narrow 3-pane layouts
-    document.querySelectorAll('.runner-tools-menu').forEach((menu) => {
-      menu.addEventListener('toggle', () => {
-        if (!menu.open) return;
-        const pop = menu.querySelector('.runner-tools-popover');
-        if (!pop) return;
-        pop.style.left = '';
-        pop.style.right = '';
-        pop.style.maxWidth = '';
-        const bound = menu.closest('.runner-pane-right, .question-card') || document.documentElement;
-        const bRect = bound.getBoundingClientRect();
-        const boundLeft = Math.max(8, bRect.left + 6);
-        const boundRight = Math.min(window.innerWidth - 8, bRect.right - 6);
-        const availW = Math.max(170, boundRight - boundLeft);
-        if (pop.offsetWidth > availW) {
-          pop.style.maxWidth = `${Math.floor(availW)}px`;
-        }
-        const pRect = pop.getBoundingClientRect();
-        if (pRect.left < boundLeft) {
-          pop.style.right = 'auto';
-          pop.style.left = '0';
-          const p2 = pop.getBoundingClientRect();
-          if (p2.right > boundRight) {
-            pop.style.left = `${Math.round(boundRight - p2.right)}px`;
-          }
-        }
+    // Fallback positioning for browsers without native CSS Anchor Positioning (`position-area`)
+    const supportsAnchorArea = typeof CSS !== 'undefined' && typeof CSS.supports === 'function' && CSS.supports('position-area: block-end');
+    const positionPopoverFallback = (pop, anchor) => {
+      if (!pop || !anchor || supportsAnchorArea) return;
+      const aRect = anchor.getBoundingClientRect();
+      const pad = 8;
+      pop.style.margin = '0';
+      pop.style.right = 'auto';
+      pop.style.bottom = 'auto';
+      const pRect = pop.getBoundingClientRect();
+      const w = pRect.width || 220;
+      const h = pRect.height || 180;
+      let left = aRect.left;
+      if (left + w > window.innerWidth - pad) {
+        left = aRect.right - w;
+      }
+      left = Math.max(pad, Math.min(window.innerWidth - w - pad, left));
+      let top = aRect.bottom + 6;
+      if (top + h > window.innerHeight - pad && aRect.top - h - 6 >= pad) {
+        top = aRect.top - h - 6;
+      }
+      top = Math.max(pad, Math.min(window.innerHeight - h - pad, top));
+      pop.style.left = `${Math.round(left)}px`;
+      pop.style.top = `${Math.round(top)}px`;
+    };
+
+    const toolsPop = document.getElementById('runner-tools-popover');
+    const toolsTrigger = document.getElementById('btn-runner-tools');
+    if (toolsPop && toolsTrigger) {
+      toolsPop.addEventListener('toggle', (ev) => {
+        if (ev.newState === 'open') positionPopoverFallback(toolsPop, toolsTrigger);
       });
-    });
+    }
 
     // Blind Exam Flag button
     document.getElementById('btn-flag-exam')?.addEventListener('click', () => {
@@ -4343,63 +4348,19 @@ window.StudyRunner = (() => {
       };
 
       const closePop = () => {
-        if (pop.hidden) return;
-        pop.hidden = true;
+        if (pop.matches?.(':popover-open')) {
+          pop.hidePopover?.();
+        }
         trigger.setAttribute('aria-expanded', 'false');
-        document.removeEventListener('pointerdown', onOutside, true);
-        document.removeEventListener('keydown', onEsc, true);
       };
 
-      const onOutside = (ev) => {
-        if (!pop.isConnected) { closePop(); return; }
-        if (pop.contains(ev.target) || trigger.contains(ev.target)) return;
-        closePop();
-      };
-
-      const onEsc = (ev) => {
-        if (ev.key === 'Escape') {
-          ev.stopPropagation();
-          closePop();
+      pop.addEventListener('toggle', (ev) => {
+        const isOpen = ev.newState === 'open';
+        trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        if (isOpen) {
+          positionPopoverFallback(pop, trigger);
+          setTimeout(() => ta.focus(), 10);
         }
-      };
-
-      const triggerPopPosition = (pop, anchor) => {
-        if (!pop || !anchor) return;
-        pop.style.left = '';
-        pop.style.right = '';
-        pop.style.maxWidth = '';
-        const bound = anchor.closest('.runner-pane-right, .question-card') || document.documentElement;
-        const bRect = bound.getBoundingClientRect();
-        const boundLeft = Math.max(8, bRect.left + 6);
-        const boundRight = Math.min(window.innerWidth - 8, bRect.right - 6);
-        const availW = Math.max(180, boundRight - boundLeft);
-        if (pop.offsetWidth > availW) {
-          pop.style.maxWidth = `${Math.floor(availW)}px`;
-        }
-        const pRect = pop.getBoundingClientRect();
-        if (pRect.left < boundLeft) {
-          pop.style.right = 'auto';
-          pop.style.left = '0';
-          const p2 = pop.getBoundingClientRect();
-          if (p2.right > boundRight) {
-            const shift = Math.round(boundRight - p2.right);
-            pop.style.left = `${shift}px`;
-          }
-        }
-      };
-
-      trigger.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (!pop.hidden) {
-          closePop();
-          return;
-        }
-        pop.hidden = false;
-        trigger.setAttribute('aria-expanded', 'true');
-        triggerPopPosition(pop, trigger);
-        setTimeout(() => ta.focus(), 10);
-        document.addEventListener('pointerdown', onOutside, true);
-        document.addEventListener('keydown', onEsc, true);
       });
 
       shotBtn.addEventListener('click', () => fileInp.click());
@@ -5055,11 +5016,10 @@ window.StudyRunner = (() => {
     document.getElementById('run-submit-exam-btn')?.addEventListener('click', () => promptSubmitFullExam());
     document.getElementById('run-live-pill')?.addEventListener('click', toggleManualPause);
     document.addEventListener('click', (ev) => {
-      document.querySelectorAll('.runner-tools-menu[open]').forEach((menu) => {
-        if (!menu.contains(ev.target) || ev.target.closest('.runner-menu-item')) {
-          menu.open = false;
-        }
-      });
+      const item = ev.target?.closest?.('.runner-menu-item');
+      if (item) {
+        item.closest('[popover]')?.hidePopover?.();
+      }
     });
 
     // Automatic Display / Window / Tab Focus-Loss Pause & Resume
@@ -5125,7 +5085,7 @@ window.StudyRunner = (() => {
     document.addEventListener('keydown', (e) => {
       if (document.querySelector('dialog[open]')) return;
       if (!activeRun || document.getElementById('view-runner').hidden || !document.getElementById('checkin-modal').hidden) return;
-      if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-reader-bar, .pdf-zoom-tools, #ai-tutor-pane, #quick-fix-popover')) return;
+      if (e.target?.closest?.('.pdf-zoom-scroll, .pdf-reader-bar, .pdf-zoom-tools, #ai-tutor-pane, #quick-fix-popover, #runner-tools-popover')) return;
       if (!document.getElementById('img-lightbox')?.hidden) return;
 
       // Cmd/Ctrl + Enter works even while typing inside the answer textarea:
