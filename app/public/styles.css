@@ -383,14 +383,49 @@ textarea {
 .resume-card {
   background: var(--gold-soft);
   border: 1px solid color-mix(in srgb, var(--gold) 45%, var(--line));
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 13px 18px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+.resume-card[hidden] {
+  display: none;
+}
+.resume-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.resume-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.resume-card-meta {
+  font-size: 12.5px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.resume-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.hdr-resume-btn {
+  padding: 5px 11px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.hdr-resume-btn[hidden] {
+  display: none;
 }
 
 /* Courses Grid */

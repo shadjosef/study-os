@@ -1208,6 +1208,273 @@ window.StudyRunner = (() => {
     return Object.values(activeRun.items).reduce((s, st) => s + itemActiveSec(st, now), 0);
   }
 
+  function getRemainingExamSec(now = Date.now()) {
+    if (!activeRun || !activeRun.examBudgetSec || activeRun.paperSubmitted) return null;
+    return Math.max(0, Math.round(activeRun.examBudgetSec - totalExamActiveSec(now)));
+  }
+
+  const ACTIVE_RUN_KEY = 'study-os-active-run-v1';
+  const ACTIVE_RUN_MAX_AGE_MS = 48 * 3600 * 1000;
+  let lastPersistMs = 0;
+
+  function serializeRunSnapshot(inRunnerFlag) {
+    if (!activeRun || devMode.isActive()) return null;
+    const now = Date.now();
+    const items = {};
+    for (const [qid, st] of Object.entries(activeRun.items || {})) {
+      if (!st) continue;
+      const liveDelta = st.runningSince != null ? Math.max(0, now - st.runningSince) : 0;
+      items[qid] = {
+        elapsedMs: Math.round((Number(st.elapsedMs) || 0) + liveDelta),
+        hintsUsed: Number(st.hintsUsed) || 0,
+        refUsed: Boolean(st.refUsed),
+        refOpenCount: Number(st.refOpenCount) || 0,
+        refSec: Math.round(Number(st.refSec) || 0),
+        choice: st.choice ?? null,
+        draft: typeof st.draft === 'string' ? st.draft : '',
+        draftImages: Array.isArray(st.draftImages) ? st.draftImages : [],
+        wiseflow: st.wiseflow && typeof st.wiseflow === 'object' ? st.wiseflow : {},
+        wfGrade: st.wfGrade || null,
+        numericInput: typeof st.numericInput === 'string' ? st.numericInput : '',
+        checkedRubrics: Array.isArray(st.checkedRubrics) ? st.checkedRubrics : [],
+        flagged: Boolean(st.flagged),
+        revealed: Boolean(st.revealed),
+        solutionPeeked: Boolean(st.solutionPeeked),
+        earlyPeekConfirmed: Boolean(st.earlyPeekConfirmed),
+        answerTrayOpen: Boolean(st.answerTrayOpen),
+        peekedAnswers: st.peekedAnswers ? [...st.peekedAnswers] : [],
+        autoRevealedAnswers: st.autoRevealedAnswers ? [...st.autoRevealedAnswers] : [],
+        hiddenAnswers: st.hiddenAnswers ? [...st.hiddenAnswers] : [],
+        loggedAttempt: st.loggedAttempt || null,
+        focusSwitches: Array.isArray(st.focusSwitches) ? st.focusSwitches.slice(-40) : [],
+        awayElapsedMs: Number(st.awayElapsedMs) || 0,
+        manualPauseCount: Number(st.manualPauseCount) || 0,
+        layoutOverride: st.layoutOverride || null,
+        readerTab: st.readerTab || 'task',
+        selectedPdfIdx: Number(st.selectedPdfIdx) || 0,
+        invertPdfFrame: Boolean(st.invertPdfFrame),
+        inlineRefMode: st.inlineRefMode || 'needed',
+        inlineRefShowBg: Boolean(st.inlineRefShowBg),
+      };
+    }
+    return {
+      v: 1,
+      savedAtMs: now,
+      inRunner: Boolean(inRunnerFlag),
+      sessionId: activeRun.sessionId,
+      startedAtIso: activeRun.startedAtIso,
+      startedAtMs: activeRun.startedAtMs,
+      courseId: activeRun.courseMeta?.courseId || '',
+      questionIds: [...activeRun.questionIds],
+      index: activeRun.index || 0,
+      mode: activeRun.mode,
+      examStyle: activeRun.examStyle,
+      examCollectionId: activeRun.examCollectionId || '',
+      examTitle: activeRun.examTitle || '',
+      examBudgetSec: activeRun.examBudgetSec ?? null,
+      freshExamSit: Boolean(activeRun.freshExamSit),
+      paperSubmitted: Boolean(activeRun.paperSubmitted),
+      paperScoreSummary: activeRun.paperScoreSummary || null,
+      examResultRecorded: Boolean(activeRun.examResultRecorded),
+      examBreakCount: Number(activeRun.examBreakCount) || 0,
+      examBreakSec: Number(activeRun.examBreakSec) || 0,
+      profile: activeRun.profile || 'learning',
+      calendarBlock: activeRun.calendarBlock || null,
+      consecutiveMisses: Number(activeRun.consecutiveMisses) || 0,
+      sessionFocusSwitches: Number(activeRun.sessionFocusSwitches) || 0,
+      sessionAwayMs: Number(activeRun.sessionAwayMs) || 0,
+      completedAttempts: activeRun.completedAttempts || {},
+      items,
+    };
+  }
+
+  function persistActiveRun(inRunnerOverride = null) {
+    if (!activeRun || devMode.isActive()) return;
+    const inRunner = inRunnerOverride !== null
+      ? Boolean(inRunnerOverride)
+      : !document.getElementById('view-runner')?.hidden;
+    const snap = serializeRunSnapshot(inRunner);
+    if (!snap) return;
+    lastPersistMs = snap.savedAtMs;
+    try {
+      localStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(snap));
+    } catch {}
+  }
+
+  function clearPersistedRun() {
+    try { localStorage.removeItem(ACTIVE_RUN_KEY); } catch {}
+  }
+
+  function syncGlobalResumeUi() {
+    const hdrBtn = document.getElementById('hdr-resume-run-btn');
+    if (!hdrBtn) return;
+    const runnerHidden = Boolean(document.getElementById('view-runner')?.hidden);
+    if (!activeRun || !runnerHidden) {
+      hdrBtn.hidden = true;
+      return;
+    }
+    const isExam = activeRun.mode === 'exam';
+    const remSec = getRemainingExamSec();
+    const title = activeRun.examTitle || activeRun.courseMeta?.shortTitle || activeRun.courseMeta?.title || 'Run';
+    hdrBtn.hidden = false;
+    hdrBtn.textContent = isExam
+      ? (remSec != null ? `Resume Exam (${clockSec(remSec)}) →` : 'Resume Exam →')
+      : `Resume Q${(activeRun.index || 0) + 1}/${activeRun.questionIds.length} →`;
+    hdrBtn.title = `Resume ${title} (Question ${(activeRun.index || 0) + 1} of ${activeRun.questionIds.length})`;
+  }
+
+  function discardPausedRun() {
+    if (!activeRun) {
+      clearPersistedRun();
+      syncGlobalResumeUi();
+      return false;
+    }
+    const isUnsentExam = activeRun.mode === 'exam' && !activeRun.paperSubmitted;
+    const hasWork = Object.keys(activeRun.completedAttempts || {}).length > 0
+      || Object.values(activeRun.items || {}).some((st) => st && (st.choice != null || (st.draft || '').trim() || Object.keys(st.wiseflow || {}).length));
+    if (isUnsentExam && hasWork && !window.confirm('Close this paused exam run? Your written drafts remain auto-saved in the browser, but the exam timer will reset next time.')) {
+      return false;
+    }
+    clearInterval(tickInterval);
+    closeFloatingParBar();
+    activeRun = null;
+    clearPersistedRun();
+    syncGlobalResumeUi();
+    toast('Closed paused run.');
+    return true;
+  }
+
+  async function restorePersistedRun(opts = {}) {
+    const autoOpen = opts.autoOpen !== false;
+    if (activeRun || devMode.isActive()) return { restored: Boolean(activeRun), opened: false };
+    let saved = null;
+    try {
+      const raw = localStorage.getItem(ACTIVE_RUN_KEY);
+      if (!raw) return { restored: false, opened: false };
+      saved = JSON.parse(raw);
+    } catch {
+      clearPersistedRun();
+      return { restored: false, opened: false };
+    }
+    if (!saved || !saved.courseId || !Array.isArray(saved.questionIds) || !saved.questionIds.length) {
+      clearPersistedRun();
+      return { restored: false, opened: false };
+    }
+    if (saved.savedAtMs && Date.now() - Number(saved.savedAtMs) > ACTIVE_RUN_MAX_AGE_MS) {
+      clearPersistedRun();
+      return { restored: false, opened: false };
+    }
+    const catalog = window.StudyApp?.getCatalog?.() || [];
+    const courseMeta = catalog.find((c) => c.courseId === saved.courseId);
+    if (!courseMeta || !window.StudyApp?.ensureCourseBank) {
+      return { restored: false, opened: false };
+    }
+    let bank = null;
+    try {
+      bank = await window.StudyApp.ensureCourseBank(courseMeta.courseId);
+    } catch {
+      return { restored: false, opened: false };
+    }
+    const questionsById = Object.fromEntries((bank?.questions || []).map((q) => [q.id, q]));
+    const validIds = saved.questionIds.filter((id) => questionsById[id]);
+    if (!validIds.length) {
+      clearPersistedRun();
+      return { restored: false, opened: false };
+    }
+
+    activeRun = {
+      sessionId: saved.sessionId || `ses-${Date.now()}`,
+      startedAtIso: saved.startedAtIso || new Date().toISOString(),
+      startedAtMs: Number(saved.startedAtMs) || Date.now(),
+      courseMeta,
+      bank,
+      questionsById,
+      questionIds: validIds,
+      index: Math.max(0, Math.min(validIds.length - 1, Number(saved.index) || 0)),
+      mode: saved.mode === 'exam' ? 'exam' : 'practice',
+      examStyle: saved.examStyle === 'blind' ? 'blind' : 'guided',
+      examCollectionId: saved.examCollectionId || '',
+      examTitle: saved.examTitle || '',
+      examBudgetSec: saved.examBudgetSec != null ? Number(saved.examBudgetSec) : null,
+      freshExamSit: Boolean(saved.freshExamSit),
+      paperSubmitted: Boolean(saved.paperSubmitted),
+      paperScoreSummary: saved.paperScoreSummary || null,
+      examResultRecorded: Boolean(saved.examResultRecorded),
+      examBreakCount: Number(saved.examBreakCount) || 0,
+      examBreakSec: Number(saved.examBreakSec) || 0,
+      examBreakStartedMs: null,
+      profile: saved.profile || (saved.mode === 'exam' ? 'exam' : 'learning'),
+      calendarBlock: saved.calendarBlock || null,
+      consecutiveMisses: Number(saved.consecutiveMisses) || 0,
+      sessionFocusSwitches: Number(saved.sessionFocusSwitches) || 0,
+      sessionAwayMs: Number(saved.sessionAwayMs) || 0,
+      items: {},
+      completedAttempts: saved.completedAttempts && typeof saved.completedAttempts === 'object' ? saved.completedAttempts : {},
+    };
+
+    // Hydrate saved per-question item states cleanly
+    const savedItems = saved.items && typeof saved.items === 'object' ? saved.items : {};
+    for (const [qid, rawSt] of Object.entries(savedItems)) {
+      if (!questionsById[qid] || !rawSt || typeof rawSt !== 'object') continue;
+      const st = itemState(qid);
+      st.elapsedMs = Math.max(0, Number(rawSt.elapsedMs) || 0);
+      st.runningSince = null;
+      st.hintsUsed = Number(rawSt.hintsUsed) || 0;
+      st.refUsed = Boolean(rawSt.refUsed);
+      st.refOpenCount = Number(rawSt.refOpenCount) || 0;
+      st.refSec = Number(rawSt.refSec) || 0;
+      if (rawSt.choice !== undefined && rawSt.choice !== null) st.choice = rawSt.choice;
+      if (typeof rawSt.draft === 'string' && rawSt.draft.trim()) st.draft = rawSt.draft;
+      if (Array.isArray(rawSt.draftImages) && rawSt.draftImages.length) st.draftImages = rawSt.draftImages;
+      if (rawSt.wiseflow && typeof rawSt.wiseflow === 'object' && Object.keys(rawSt.wiseflow).length) {
+        st.wiseflow = { ...st.wiseflow, ...rawSt.wiseflow };
+      }
+      if (rawSt.wfGrade) st.wfGrade = rawSt.wfGrade;
+      if (typeof rawSt.numericInput === 'string' && rawSt.numericInput) st.numericInput = rawSt.numericInput;
+      if (Array.isArray(rawSt.checkedRubrics) && rawSt.checkedRubrics.length) st.checkedRubrics = rawSt.checkedRubrics;
+      st.flagged = Boolean(rawSt.flagged);
+      st.revealed = Boolean(rawSt.revealed);
+      st.solutionPeeked = Boolean(rawSt.solutionPeeked);
+      st.earlyPeekConfirmed = Boolean(rawSt.earlyPeekConfirmed);
+      st.answerTrayOpen = Boolean(rawSt.answerTrayOpen);
+      st.peekedAnswers = new Set(Array.isArray(rawSt.peekedAnswers) ? rawSt.peekedAnswers : []);
+      st.autoRevealedAnswers = new Set(Array.isArray(rawSt.autoRevealedAnswers) ? rawSt.autoRevealedAnswers : []);
+      st.hiddenAnswers = new Set(Array.isArray(rawSt.hiddenAnswers) ? rawSt.hiddenAnswers : []);
+      if (rawSt.loggedAttempt) st.loggedAttempt = rawSt.loggedAttempt;
+      if (Array.isArray(rawSt.focusSwitches)) st.focusSwitches = rawSt.focusSwitches;
+      st.awayElapsedMs = Number(rawSt.awayElapsedMs) || 0;
+      st.manualPauseCount = Number(rawSt.manualPauseCount) || 0;
+      st.layoutOverride = rawSt.layoutOverride || null;
+      st.readerTab = rawSt.readerTab || 'task';
+      st.selectedPdfIdx = Number(rawSt.selectedPdfIdx) || 0;
+      st.invertPdfFrame = Boolean(rawSt.invertPdfFrame);
+      st.inlineRefMode = rawSt.inlineRefMode || 'needed';
+      st.inlineRefShowBg = Boolean(rawSt.inlineRefShowBg);
+    }
+
+    if (autoOpen && saved.inRunner) {
+      workClock?.ensureWorking?.();
+      window.StudyPdf?.warm?.();
+      document.getElementById('global-header').hidden = true;
+      document.getElementById('runner-header').hidden = false;
+      syncRunnerStickyOffset();
+      window.StudyApp.showRawView('runner');
+      clearInterval(tickInterval);
+      enterQuestion(activeRun.index);
+      tickInterval = setInterval(tickLiveClocks, 250);
+      syncGlobalResumeUi();
+      const label = activeRun.examTitle || activeRun.courseMeta.shortTitle || activeRun.courseMeta.title;
+      toast(`Restored ${label} · Q${activeRun.index + 1} of ${activeRun.questionIds.length}`);
+      return { restored: true, opened: true };
+    }
+
+    clearInterval(tickInterval);
+    tickInterval = setInterval(tickLiveClocks, 250);
+    persistActiveRun(false);
+    syncGlobalResumeUi();
+    return { restored: true, opened: false };
+  }
+
   const AUTOPAUSE_KEY = 'study-os-autopause-v3';
   let autoPauseMode = (() => {
     try {
@@ -1506,6 +1773,8 @@ window.StudyRunner = (() => {
 
     enterQuestion(activeRun.index);
     tickInterval = setInterval(tickLiveClocks, 250);
+    persistActiveRun(true);
+    syncGlobalResumeUi();
   }
 
   function enterQuestion(newIndex) {
@@ -1515,6 +1784,7 @@ window.StudyRunner = (() => {
     activeRun.index = Math.max(0, Math.min(activeRun.questionIds.length - 1, newIndex));
     resumeCurrentTimer();
     renderRunner();
+    persistActiveRun(true);
     const curQ = currentQuestion();
     if (curQ) {
       window.StudyRooms?.reportCurrentQuestion?.(curQ, activeRun);
@@ -4683,6 +4953,7 @@ window.StudyRunner = (() => {
     const summary = recomputeExamRunGrade({ includeUnverifiedAsZero: true });
     activeRun.paperScoreSummary = summary;
     persistExamRunGradeIfReady(false);
+    persistActiveRun(true);
 
     renderRunner();
     const g = summary.grade || fallbackGradeFromPct(summary.pct);
@@ -4878,6 +5149,9 @@ window.StudyRunner = (() => {
       examCd.classList.toggle('urgent', remSec <= 600);
       examCd.classList.toggle('paused', isPausedExam);
     }
+    if (Date.now() - lastPersistMs >= 10000) {
+      persistActiveRun();
+    }
   }
 
   const CHECKIN_MIN_ACTIVE_SEC = 45 * 60; // Only ask for session feedback on long 45m+ study blocks or full submitted exams
@@ -5015,6 +5289,8 @@ window.StudyRunner = (() => {
     clearInterval(tickInterval);
     closeFloatingParBar();
     activeRun = null;
+    clearPersistedRun();
+    syncGlobalResumeUi();
     document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-split-ref', 'runner-foveal-compact');
     document.getElementById('runner-header').hidden = true;
     document.getElementById('global-header').hidden = false;
@@ -5037,12 +5313,14 @@ window.StudyRunner = (() => {
   function exitRunnerKeepPaused() {
     window.StudyApp.flushPendingDrafts?.();
     pauseCurrentTimer();
+    persistActiveRun(false);
     window.StudyPdf.dispose();
     document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-split-ref', 'runner-foveal-compact');
     document.getElementById('runner-header').hidden = true;
     document.getElementById('global-header').hidden = false;
     const obsLink = document.getElementById('run-obsidian-app-link');
     if (obsLink) obsLink.hidden = true;
+    syncGlobalResumeUi();
     window.StudyApp.navigate('home');
   }
 
@@ -5054,6 +5332,8 @@ window.StudyRunner = (() => {
     syncRunnerStickyOffset();
     window.StudyApp.showRawView('runner');
     resumeCurrentTimer();
+    persistActiveRun(true);
+    syncGlobalResumeUi();
     renderRunner();
   }
 
@@ -5179,6 +5459,7 @@ window.StudyRunner = (() => {
     }).observe(runnerHeader);
     window.addEventListener('resize', syncRunnerStickyOffset, { passive: true });
     document.getElementById('run-exit-btn')?.addEventListener('click', exitRunnerKeepPaused);
+    document.getElementById('hdr-resume-run-btn')?.addEventListener('click', resumePausedRun);
     document.getElementById('run-share-btn')?.addEventListener('click', openShareCurrentRun);
     document.getElementById('run-layout-btn')?.addEventListener('click', toggleSplitWorkspace);
     document.getElementById('run-ref-btn').addEventListener('click', toggleRunnerReference);
@@ -5195,11 +5476,20 @@ window.StudyRunner = (() => {
       }
     });
 
-    // Automatic Display / Window / Tab Focus-Loss Pause & Resume
+    // Automatic Display / Window / Tab Focus-Loss Pause & Resume + Safe Reload Persistence
+    window.addEventListener('pagehide', () => {
+      if (!activeRun) return;
+      window.StudyApp?.flushPendingDrafts?.();
+      persistActiveRun();
+    });
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         clearTimeout(blurTimer);
         triggerFocusAutoPause('tab_hidden');
+        if (activeRun) {
+          window.StudyApp?.flushPendingDrafts?.();
+          persistActiveRun();
+        }
       } else if (autoPauseMode === 'tab' || document.hasFocus()) {
         clearFocusAutoPause();
       }
@@ -5374,6 +5664,10 @@ window.StudyRunner = (() => {
   return {
     getRun,
     getShareSpec: currentRunShareSpec,
+    getRemainingExamSec,
+    restorePersistedRun,
+    discardPausedRun,
+    syncGlobalResumeUi,
     getActiveCourseId: () => activeRun?.courseMeta?.courseId || '',
     isInExam: () => Boolean(activeRun && activeRun.mode === 'exam' && !document.getElementById('view-runner')?.hidden),
     isIdeCodingFocusExempt,

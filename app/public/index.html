@@ -159,6 +159,7 @@
       </nav>
 
       <div class="topbar-stats">
+        <button type="button" class="primary-btn topbar-action-btn hdr-resume-btn" id="hdr-resume-run-btn" hidden title="Resume your paused exam or study run">Resume Exam →</button>
         <span class="live-clock-pill" id="global-work-pill" title="Universal non-pausable working interval (capped at 75:00 · 1:5 recovery break)">0:00 / 75m</span>
         <button type="button" class="ghost-btn topbar-action-btn" id="global-work-action-btn" title="Start 75m working interval or take scaled 1:5 recovery break">Start 75m</button>
         <button type="button" class="ghost-btn topbar-action-btn" id="evening-break-tools-btn" hidden>Break tools</button>
@@ -434,6 +435,9 @@
 
     <!-- VIEW 1: COMMAND CENTER (Zero-Decision-Fatigue Calendar Queue + All Courses) -->
     <section id="view-home" class="view-section">
+      <!-- Active Resume Banner (always top of Home whenever an exam or study run is paused) -->
+      <section id="resume-banner" class="resume-card" hidden></section>
+
       <!-- Zero-Decision-Fatigue Calendar Hero (SSR-ready fallback replaced on hydrate) -->
       <section id="up-next-hero" class="hero-card">
         <div class="hero-top">
@@ -454,9 +458,6 @@
 
       <!-- Global Quick Metrics Strip -->
       <section id="home-metrics-strip" class="metrics-grid"></section>
-
-      <!-- Active Resume Banner if a run is paused in memory -->
-      <section id="resume-banner" class="resume-card" hidden></section>
 
       <!-- Canvas-Archive Cookie-Sync & Onboarding Strip -->
       <section id="canvas-bridge-strip"></section>

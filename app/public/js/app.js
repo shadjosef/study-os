@@ -2936,22 +2936,48 @@ window.StudyApp = (() => {
     `;
   }
 
+  function renderResumeBannerHtml(paused, resumeBtnId, discardBtnId) {
+    if (!paused) return '';
+    const isExam = paused.mode === 'exam';
+    const title = paused.examTitle || paused.courseMeta?.title || 'Study Run';
+    const coursePrefix = paused.examTitle && paused.courseMeta?.shortTitle
+      ? `${paused.courseMeta.shortTitle} · `
+      : '';
+    const remSec = window.StudyRunner?.getRemainingExamSec?.();
+    const posTxt = `Question ${(paused.index || 0) + 1} of ${paused.questionIds.length}`;
+    const timeTxt = isExam && remSec != null ? ` · ${clockSec(remSec)} left` : isExam && paused.paperSubmitted ? ' · Submitted (grading)' : '';
+    const badgeTxt = isExam ? (paused.examStyle === 'blind' ? 'Exam Paused' : 'Guided Exam') : 'Run Paused';
+    const ctaTxt = isExam ? 'Resume Exam →' : 'Resume Run →';
+    return `
+      <div class="resume-card-copy">
+        <div class="resume-card-top">
+          <span class="badge ${isExam ? 'gold' : 'live'}">${badgeTxt}</span>
+          <strong>${esc(coursePrefix + title)}</strong>
+        </div>
+        <span class="resume-card-meta">${esc(posTxt + timeTxt)}</span>
+      </div>
+      <div class="resume-card-actions">
+        <button type="button" class="primary-btn" id="${resumeBtnId}">${ctaTxt}</button>
+        <button type="button" class="ghost-btn" id="${discardBtnId}" style="padding:7px 11px;font-size:12.5px">Close</button>
+      </div>
+    `;
+  }
+
   function renderHome() {
     ensureExamCountdownTicker();
     syncSettingsRows();
+    window.StudyRunner?.syncGlobalResumeUi?.();
     document.getElementById('home-metrics-strip').hidden = isStaticWeb && !boot.analytics.totalAttempts;
-    // 1. Paused Run Banner
+    // 1. Paused Run / Exam Banner (always pinned at the very top of Home)
     const paused = window.StudyRunner.getRun();
     const resumeEl = document.getElementById('resume-banner');
     if (paused) {
       resumeEl.hidden = false;
-      resumeEl.innerHTML = `
-        <div>
-          <strong>Active Run Open:</strong> ${esc(paused.courseMeta.title)} (${paused.index + 1} of ${paused.questionIds.length})
-        </div>
-        <button type="button" class="primary-btn" id="btn-resume-paused">Resume Run →</button>
-      `;
+      resumeEl.innerHTML = renderResumeBannerHtml(paused, 'btn-resume-paused', 'btn-discard-paused');
       document.getElementById('btn-resume-paused').onclick = () => window.StudyRunner.resumePausedRun();
+      document.getElementById('btn-discard-paused').onclick = () => {
+        if (window.StudyRunner.discardPausedRun?.()) renderHome();
+      };
     } else {
       resumeEl.hidden = true;
     }
@@ -4910,12 +4936,7 @@ window.StudyApp = (() => {
       : '';
 
     const pausedExamBannerHtml = pausedRun
-      ? `<section class="resume-card" style="margin-bottom:16px">
-          <div>
-            <strong>Active Run Open:</strong> ${esc(pausedRun.examTitle || pausedRun.courseMeta?.title || 'Study Run')} (${pausedRun.index + 1} of ${pausedRun.questionIds.length})
-          </div>
-          <button type="button" class="primary-btn" id="btn-exams-resume-paused">Resume Run →</button>
-        </section>`
+      ? `<section class="resume-card" style="margin-bottom:16px">${renderResumeBannerHtml(pausedRun, 'btn-exams-resume-paused', 'btn-exams-discard-paused')}</section>`
       : '';
 
     root.innerHTML = `
@@ -4989,6 +5010,9 @@ window.StudyApp = (() => {
 
     root.querySelector('#btn-exams-resume-paused')?.addEventListener('click', () => {
       window.StudyRunner.resumePausedRun();
+    });
+    root.querySelector('#btn-exams-discard-paused')?.addEventListener('click', () => {
+      if (window.StudyRunner.discardPausedRun?.()) renderExamsHub();
     });
     root.querySelector('#btn-exams-sync-bi')?.addEventListener('click', () => {
       openBiSyncHub();
@@ -10113,6 +10137,22 @@ window.StudyApp = (() => {
     };
 
     const sharedPlaylistSpec = parseSharedPlaylistFromParams(params, resolveCourseIdParam);
+    const hasExplicitDeepLink = Boolean(
+      sharedPlaylistSpec
+      || /^[A-F0-9]{8}$/.test(joinRoomCode)
+      || (params.get('ide_complete') === '1' && params.get('qid'))
+      || qView
+      || autoEvent
+      || qCourse
+    );
+    const restoredRun = await window.StudyRunner?.restorePersistedRun?.({ autoOpen: !hasExplicitDeepLink });
+    if (restoredRun?.opened) {
+      return;
+    }
+    if (restoredRun?.restored) {
+      renderHome();
+    }
+
     if (sharedPlaylistSpec) {
       window.history.replaceState({}, '', window.location.pathname);
       await navigate('home');
