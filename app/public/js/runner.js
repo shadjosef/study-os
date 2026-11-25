@@ -2459,15 +2459,23 @@ window.StudyRunner = (() => {
                   .map((opt, idx) => {
                     const isPicked = rawVal !== '' && rawVal !== null && rawVal !== undefined && Number(rawVal) === idx;
                     let cls = 'wf-choice-btn';
+                    let copyTag = '';
                     if (g) {
-                      if (idx === Number(f.answerIndex)) cls += ' correct';
-                      else if (isPicked) cls += ' wrong';
+                      if (idx === Number(f.answerIndex)) {
+                        cls += ' correct';
+                        copyTag = isPicked ? 'Selected · Correct' : 'Correct Answer';
+                      } else if (isPicked) {
+                        cls += ' wrong';
+                        copyTag = 'Selected · Wrong';
+                      }
                     } else if (isPicked) {
                       cls += ' selected';
+                      copyTag = 'Selected';
                     }
-                    return `<button type="button" class="${cls}" data-wf-choice-id="${esc(f.id)}" data-wf-choice-idx="${idx}" ${
-                      st.revealed ? 'disabled' : ''
-                    }>${esc(opt)}</button>`;
+                    const copyHtml = copyTag ? `<span class="copy-only"> [${copyTag}]</span>` : '';
+                    return `<button type="button" class="${cls}" data-wf-choice-id="${esc(f.id)}" data-wf-choice-idx="${idx}" aria-pressed="${
+                      isPicked ? 'true' : 'false'
+                    }" ${st.revealed ? 'disabled' : ''}>${esc(opt)}${copyHtml}</button>`;
                   })
                   .join('') +
                 `</div>`;
@@ -3131,15 +3139,24 @@ window.StudyRunner = (() => {
         q.options
           .map((opt, idx) => {
             const letter = 'ABCDEF'[idx] || String(idx + 1);
+            const isPicked = st.choice === idx;
             let cls = 'mcq-option';
+            let copyTag = '';
             if (st.revealed) {
-              if (idx === q.answerIndex) cls += ' correct';
-              else if (st.choice === idx) cls += ' wrong';
-            } else if (st.choice === idx) {
+              if (idx === q.answerIndex) {
+                cls += ' correct';
+                copyTag = isPicked ? 'Selected · Correct' : 'Correct Answer';
+              } else if (isPicked) {
+                cls += ' wrong';
+                copyTag = 'Selected · Wrong';
+              }
+            } else if (isPicked) {
               cls += ' selected';
+              copyTag = 'Selected';
             }
-            return `<div class="${cls}" data-mcq-idx="${idx}" role="button" tabindex="0">
-              <span class="mcq-key">${letter}</span>
+            const copyHtml = copyTag ? `<span class="copy-only"> [${copyTag}]</span>` : '';
+            return `<div class="${cls}" data-mcq-idx="${idx}" role="button" tabindex="0" aria-pressed="${isPicked ? 'true' : 'false'}">
+              <span class="mcq-key">${letter}${copyHtml}</span>
               <div class="markdown-body" style="flex:1">${renderMarkdownWithMath(opt)}</div>
             </div>`;
           })
@@ -3308,10 +3325,13 @@ window.StudyRunner = (() => {
             <ul class="rubric-list">
               ${checks
                 .map(
-                  (c, idx) => `<li class="rubric-item" data-rubric-idx="${idx}">
-                    <input type="checkbox" ${st.checkedRubrics.includes(idx) ? 'checked' : ''} style="margin-top:4px">
-                    <span class="markdown-body">${renderMarkdownWithMath(c)}</span>
-                  </li>`
+                  (c, idx) => {
+                    const isChecked = st.checkedRubrics.includes(idx);
+                    return `<li class="rubric-item" data-rubric-idx="${idx}">
+                    <input type="checkbox" ${isChecked ? 'checked' : ''} style="margin-top:4px">
+                    <span class="markdown-body"><span class="copy-only">${isChecked ? '[Checked] ' : '[Unchecked] '}</span>${renderMarkdownWithMath(c)}</span>
+                  </li>`;
+                  }
                 )
                 .join('')}
             </ul>
@@ -4234,7 +4254,20 @@ window.StudyRunner = (() => {
         const pillGroup = btn.closest('.wf-choice-pills');
         if (pillGroup) {
           pillGroup.querySelectorAll('[data-wf-choice-id]').forEach((sib) => {
-            sib.classList.toggle('selected', Number(sib.dataset.wfChoiceIdx) === pickedIdx);
+            const isSel = Number(sib.dataset.wfChoiceIdx) === pickedIdx;
+            sib.classList.toggle('selected', isSel);
+            sib.setAttribute('aria-pressed', isSel ? 'true' : 'false');
+            let tag = sib.querySelector('.copy-only');
+            if (isSel) {
+              if (!tag) {
+                tag = document.createElement('span');
+                tag.className = 'copy-only';
+                sib.appendChild(tag);
+              }
+              tag.textContent = ' [Selected]';
+            } else if (tag) {
+              tag.remove();
+            }
           });
         }
         if (isBlindUnfinished) {
@@ -4626,6 +4659,8 @@ window.StudyRunner = (() => {
         const checked = li.querySelector('input').checked;
         if (checked && !st.checkedRubrics.includes(idx)) st.checkedRubrics.push(idx);
         if (!checked) st.checkedRubrics = st.checkedRubrics.filter((x) => x !== idx);
+        const copyTag = li.querySelector('.copy-only');
+        if (copyTag) copyTag.textContent = checked ? '[Checked] ' : '[Unchecked] ';
         if (activeRun.mode === 'exam' && (activeRun.paperSubmitted || activeRun.examStyle === 'guided')) {
           activeRun.paperScoreSummary = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(activeRun.paperSubmitted) });
           renderRunnerNotice(false);

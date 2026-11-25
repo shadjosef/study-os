@@ -1206,6 +1206,19 @@ html[data-theme="dark"] .wf-choice-btn.selected {
 .wf-feedback.good { color: var(--good); font-weight: 600; }
 .wf-feedback.bad { color: var(--bad); font-weight: 600; }
 
+/* Visually invisible inline state tags included in Cmd/Ctrl+A -> Copy for LLMs & screen readers */
+.copy-only {
+  font-size: 0;
+  line-height: 0;
+  letter-spacing: 0;
+  color: transparent;
+  pointer-events: none;
+}
+.copy-only::selection {
+  background: transparent;
+  color: transparent;
+}
+
 /* --------------------------------------------------------------------------
    Exam Simulator Hub & Countdown Clock
    -------------------------------------------------------------------------- */
