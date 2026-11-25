@@ -2765,7 +2765,7 @@ window.StudyRunner = (() => {
           ${thumbsHtml}
         </div>
         <div class="row-between draft-foot-row">
-          <span class="muted">${autoSaveTxt} · Paste (<kbd>⌘V</kbd>) or drop paper photos</span>
+          <span class="muted" data-study-help>${autoSaveTxt} · Paste (<kbd>⌘V</kbd>) or drop paper photos</span>
           <div class="draft-foot-right">
             <label class="mini-tool-btn draft-img-add-btn" title="Attach or paste photo of handwritten work">
               📷 Add image
@@ -2939,10 +2939,10 @@ window.StudyRunner = (() => {
         ? `
           <div class="row-actions" style="gap:6px">
             <button type="button" class="primary-btn btn-got-it-next" style="padding:6px 12px;font-size:12.5px" title="Confirm 100% right, log verified score &amp; jump straight to next question (Shortcut: G)">
-              ✓ Got It &amp; ${nextShortLbl} (G)
+              ✓ Got It &amp; ${nextShortLbl}<span data-study-help> (G)</span>
             </button>
             <button type="button" class="ghost-btn btn-missed-next" style="padding:6px 10px;font-size:12.5px" title="Mark Revisit (0%) &amp; jump to next question (Shortcut: X)">
-              Revisit &amp; ${nextShortLbl} (X)
+              Revisit &amp; ${nextShortLbl}<span data-study-help> (X)</span>
             </button>
           </div>
         `
@@ -2966,7 +2966,7 @@ window.StudyRunner = (() => {
               ];
         verificationHtml = `
           <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-            <strong>Self-Verify Your Attempt (${st.loggedAttempt ? 'Logged' : 'Press G if 100% right, or tick partial checks'}):</strong>
+            <strong>Self-Verify Your Attempt${st.loggedAttempt ? ' (Logged)' : '<span data-study-help> (Press G if 100% right, or tick partial checks)</span>'}:</strong>
             <ul class="rubric-list">
               ${checks
                 .map(
@@ -2979,13 +2979,13 @@ window.StudyRunner = (() => {
             </ul>
             <div class="row-actions" style="gap:8px;flex-wrap:wrap">
               <button type="button" class="primary-btn btn-got-it-next" title="Check all 100%, log verified score &amp; jump to next question (Shortcut: G)">
-                ✓ Got It Right (100%) &amp; ${nextShortLbl} (G)
+                ✓ Got It Right (100%) &amp; ${nextShortLbl}<span data-study-help> (G)</span>
               </button>
               <button type="button" class="ghost-btn" id="btn-verify-and-next" title="Log currently ticked rubric checks &amp; jump to next question (Shortcut: N / Enter)">
-                Log Checked &amp; ${nextShortLbl} (N)
+                Log Checked &amp; ${nextShortLbl}<span data-study-help> (N)</span>
               </button>
               <button type="button" class="ghost-btn btn-missed-next" title="Mark Revisit (0%) &amp; jump to next question (Shortcut: X)">
-                Revisit &amp; ${nextShortLbl} (X)
+                Revisit &amp; ${nextShortLbl}<span data-study-help> (X)</span>
               </button>
               <button type="button" class="ghost-btn" id="btn-submit-rubric" style="font-size:12.5px">
                 ${st.loggedAttempt ? 'Update Score Only' : 'Log Score Only'}
