@@ -4467,7 +4467,12 @@ window.StudyApp = (() => {
       : 'not_started';
     const avgAccPct = accCount > 0 ? Math.round((accSum / accCount) * 100) : null;
 
-    // Resolve BI Letter Grade (official saved exam sit takes precedence; else derive from graded questions)
+    const completedAttempts = savedResult
+      ? inferCompletedAttempts(savedResult)
+      : (status === 'completed' ? 1 : 0);
+    const hasCompletedSit = Boolean(hasSavedSit && (completedAttempts > 0 || status === 'completed'));
+
+    // Resolve BI Letter Grade (only official/full when the paper is actually completed; partial sits stay 'estimate')
     let grade = null;
     let gradeSource = '';
     let bestPct = null;
@@ -4476,7 +4481,7 @@ window.StudyApp = (() => {
       bestPct = Math.round(Number(savedResult.bestPct ?? savedResult.lastPct));
       lastPct = Math.round(Number(savedResult.lastPct ?? bestPct));
       grade = gradeFromPct(bestPct);
-      gradeSource = 'official';
+      gradeSource = hasCompletedSit ? 'official' : 'estimate';
     } else if (avgAccPct != null && total > 0) {
       const fullCoverage = accCount >= total || status === 'completed';
       bestPct = avgAccPct;
@@ -4493,10 +4498,6 @@ window.StudyApp = (() => {
       : gradingMode === 'mixed'
       ? 'Auto + Rubric'
       : '';
-
-    const completedAttempts = savedResult
-      ? inferCompletedAttempts(savedResult)
-      : (status === 'completed' ? 1 : 0);
     const bestHintsUsed = savedResult && savedResult.bestHintsUsed != null && Number.isFinite(Number(savedResult.bestHintsUsed))
       ? Math.max(0, Math.round(Number(savedResult.bestHintsUsed)))
       : null;
@@ -4657,8 +4658,6 @@ window.StudyApp = (() => {
         const rawNote = prog.bestRawPct && prog.bestRawPct !== prog.bestPct ? ` (raw ${prog.bestRawPct}%)` : '';
         const tip = `${prog.gradingLabel || 'Graded'} · Best ${prog.bestPct}%${rawNote} (BI Grade ${g.letter} · ${g.label})${aidBits.length ? ` · ${aidBits.join(', ')}` : ''} · ${compCount} completed attempt${compCount === 1 ? '' : 's'}`;
         rightBadgeHtml = `<span class="exam-grade-medal ${g.cls}" title="${esc(tip)}"><b>${star}${g.letter}</b><small>${prog.bestPct}%</small></span>`;
-      } else if (g && prog.gradeSource === 'estimate') {
-        rightBadgeHtml = `<span class="exam-grade-medal is-est ${g.cls}" title="Projected BI grade from ${prog.touched} attempted question(s)"><b>Est. ${g.letter}</b><small>${prog.bestPct}%</small></span>`;
       } else if (prog.status === 'in_progress') {
         rightBadgeHtml = `<span class="exam-status-pill is-prog">In progress</span>`;
       } else {
@@ -4690,8 +4689,8 @@ window.StudyApp = (() => {
           chips.push(`<span class="exam-hint-chip ${openBook ? 'is-info' : 'is-assisted'}" title="Reference consulted on ${bestRefs} Q${bestRefs === 1 ? '' : 's'}${prog.bestRefSec ? ` (${formatAttemptDuration(prog.bestRefSec)})` : ''}${openBook ? ' · open-book exam (0% penalty)' : ' · -10%/Q closed-book adjustment'}">📖 ${bestRefs} ref</span>`);
         }
         bestSummaryHtml = `<span class="exam-best-label">Best <b class="exam-inline-grade ${g.cls}">${bestStar}${g.letter} · ${prog.bestPct}%</b></span>${chips.join('')}`;
-      } else if (g && prog.gradeSource === 'estimate') {
-        bestSummaryHtml = `<span class="exam-best-label muted">Est. <b class="exam-inline-grade ${g.cls}">${g.letter} · ${prog.bestPct}%</b></span>`;
+      } else if (prog.status === 'in_progress') {
+        bestSummaryHtml = `<span class="exam-best-label muted">Not completed yet</span>`;
       } else {
         bestSummaryHtml = `<span class="exam-best-label muted">No completed attempt yet</span>`;
       }
