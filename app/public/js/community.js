@@ -39,6 +39,10 @@ window.StudyCommunity = (() => {
     clearTimeout(syncTimer);
     window.StudyApp?.syncSettingsRows?.();
     window.StudyDuels?.onAuthChanged?.();
+    sharesEndpointUnavailable = false;
+    lastSharePollAt = 0;
+    if (key) setTimeout(() => pollSharesNow().catch(() => {}), 800);
+    else hideSharePopup();
   }
 
   async function hashAccessCode(rawCode) {
@@ -973,6 +977,9 @@ window.StudyCommunity = (() => {
     if (token) {
       const state = timerStatus();
       if (state.mode !== 'idle' || (lastPresence && lastPresence !== 'idle')) syncPresence(state).catch(() => {});
+      if (!document.hidden && !sharesEndpointUnavailable && Date.now() - lastSharePollAt >= 25_000) {
+        pollSharesNow().catch(() => {});
+      }
     }
     const root = document.getElementById('community-root');
     if (document.getElementById('view-community').hidden) return;
@@ -3251,6 +3258,7 @@ window.StudyCommunity = (() => {
           </div>
         </div>
       </section>
+      <section class="panel" id="community-shared-inbox" hidden></section>
       ${edDiscussionSectionHtml()}
       ${me ? `<section class="panel">
         <div class="community-identity">
@@ -3280,6 +3288,7 @@ window.StudyCommunity = (() => {
     });
     mountEdDiscussionSection(root);
     if (!me) return;
+    mountSharedInboxSection(root);
     profileActions(root);
     bindProfileEditor(root, me, () => render());
     bindFeedbackPanel(root);
@@ -3293,11 +3302,55 @@ window.StudyCommunity = (() => {
     return '—';
   }
 
+  const SEEN_SHARES_KEY = 'study-os-seen-shares-v1';
+  let lastSharePollAt = 0;
+  let sharePollInFlight = false;
+  let sharesEndpointUnavailable = false;
+  let activeSharePopupId = '';
+
+  function readSeenShares() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(SEEN_SHARES_KEY) || '[]');
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch {
+      return new Set();
+    }
+  }
+
+  function markShareSeen(id) {
+    if (!id) return;
+    const set = readSeenShares();
+    set.add(String(id));
+    try { localStorage.setItem(SEEN_SHARES_KEY, JSON.stringify([...set].slice(-120))); } catch {}
+  }
+
+  function extractPlaylistShare(text) {
+    const raw = String(text || '');
+    const m = raw.match(/(https?:\/\/[^\s]+[?&]play=[^\s]+|\/\?[^\s]*play=[^\s]+)/i);
+    if (!m) return null;
+    const url = m[1].replace(/[).,;!?]+$/, '');
+    const cleanText = raw.replace(m[1], '').replace(/\n{2,}/g, '\n').trim();
+    const isPod = /[?&]join_room=[A-F0-9]{8}\b/i.test(url);
+    return { url, cleanText, isPod };
+  }
+
   function roomInviteChipHtml(text) {
+    const share = extractPlaylistShare(text);
+    if (share) {
+      return `<div class="chat-playlist-card">
+        <span class="chat-playlist-tag">${share.isPod ? '📚 Study Together + Playlist' : '📚 Study Playlist'}</span>
+        <button type="button" class="primary-btn" style="padding:4px 11px;font-size:12px" data-chat-open-playlist="${esc(share.url)}">${share.isPod ? 'Open & Join Pod →' : 'Open Playlist →'}</button>
+      </div>`;
+    }
     const m = String(text || '').match(/(?:join_room=|\broom\s+)([A-F0-9]{8})\b/i);
     if (!m) return '';
     const roomCode = m[1].toUpperCase();
     return `<div style="margin-top:6px"><button type="button" class="primary-btn" style="padding:4px 11px;font-size:12px" data-chat-join-room="${esc(roomCode)}">Join Room ${esc(roomCode)} →</button></div>`;
+  }
+
+  function displayMessageBody(text) {
+    const share = extractPlaylistShare(text);
+    return share ? (share.cleanText || 'Shared a Study-OS playlist') : String(text || '');
   }
 
   function bindChatJoinButtons(container) {
@@ -3308,6 +3361,165 @@ window.StudyCommunity = (() => {
         if (btn.isConnected) btn.disabled = false;
       };
     });
+    container?.querySelectorAll('[data-chat-open-playlist]').forEach((btn) => {
+      btn.onclick = async () => {
+        const parsed = window.StudyApp?.parseSharedPlaylistUrl?.(btn.dataset.chatOpenPlaylist);
+        if (!parsed) {
+          toast('Could not open that playlist link.');
+          return;
+        }
+        btn.disabled = true;
+        try {
+          await window.StudyApp.openSharedPlaylistPrompt(parsed);
+        } finally {
+          if (btn.isConnected) btn.disabled = false;
+        }
+      };
+    });
+  }
+
+  function hideSharePopup() {
+    const host = document.getElementById('share-floating-host');
+    if (host) {
+      host.innerHTML = '';
+      host.hidden = true;
+    }
+    activeSharePopupId = '';
+  }
+
+  function showIncomingSharePopup(row) {
+    const host = document.getElementById('share-floating-host');
+    if (!host || !row?.id) return;
+    if (window.StudyRunner?.isInExam?.()) return; // Never interrupt an active exam
+    if (activeSharePopupId === row.id && !host.hidden) return;
+    const share = extractPlaylistShare(row.message);
+    if (!share) return;
+    activeSharePopupId = row.id;
+    const label = share.cleanText.replace(/^📚\s*(?:Shared playlist|Study Together invite)\s*:\s*/i, '') || 'Study-OS Playlist';
+    const ageMin = Math.max(0, Math.round((Date.now() - Number(row.createdAt || Date.now())) / 60_000));
+    const ageTxt = ageMin < 1 ? 'Just now' : ageMin < 60 ? `${ageMin}m ago` : ageMin < 1440 ? `${Math.round(ageMin / 60)}h ago` : `${Math.round(ageMin / 1440)}d ago`;
+
+    host.innerHTML = `
+      <div class="share-live-card" role="status" aria-live="polite">
+        <div class="duel-card-top">
+          ${avatarHtml(row.senderName, row.senderAvatar, 34)}
+          <div class="duel-card-copy">
+            <div class="share-card-eyebrow">${share.isPod ? '📚 Study Together Invite' : '📚 Playlist Shared With You'} · ${esc(ageTxt)}</div>
+            <strong>${esc(row.senderName)} sent you a set</strong>
+            <small class="muted">${esc(label.slice(0, 110))}</small>
+          </div>
+          <button type="button" class="mini-tool-btn" id="share-pop-dismiss-x" aria-label="Dismiss" style="align-self:flex-start">×</button>
+        </div>
+        <div class="duel-card-actions">
+          <button type="button" class="primary-btn" id="share-pop-open" style="padding:6px 12px;font-size:12.5px">${share.isPod ? 'Preview & Join Pod →' : 'Preview & Start →'}</button>
+          <button type="button" class="ghost-btn" id="share-pop-later" style="padding:6px 11px;font-size:12px">Save in chat</button>
+        </div>
+      </div>
+    `;
+    host.hidden = false;
+
+    const dismiss = () => {
+      markShareSeen(row.id);
+      hideSharePopup();
+    };
+    host.querySelector('#share-pop-dismiss-x')?.addEventListener('click', dismiss);
+    host.querySelector('#share-pop-later')?.addEventListener('click', () => {
+      dismiss();
+      toast('Saved in Community → Messages.');
+    });
+    host.querySelector('#share-pop-open')?.addEventListener('click', async () => {
+      dismiss();
+      const parsed = window.StudyApp?.parseSharedPlaylistUrl?.(share.url);
+      if (parsed) await window.StudyApp.openSharedPlaylistPrompt(parsed);
+    });
+  }
+
+  function inspectIncomingShares(rows) {
+    if (!Array.isArray(rows) || !rows.length) return;
+    const seen = readSeenShares();
+    const cutoff = Date.now() - 7 * 86_400_000;
+    const fresh = rows.find((r) =>
+      r?.id
+      && !seen.has(String(r.id))
+      && Number(r.createdAt || 0) >= cutoff
+      && extractPlaylistShare(r.message)
+    );
+    if (fresh) showIncomingSharePopup(fresh);
+  }
+
+  async function pollSharesNow() {
+    if (!api || !token || sharePollInFlight || sharesEndpointUnavailable) return null;
+    sharePollInFlight = true;
+    lastSharePollAt = Date.now();
+    try {
+      const res = await request('/shares');
+      if (res && Array.isArray(res.incoming)) {
+        inspectIncomingShares(res.incoming);
+      }
+      return res;
+    } catch (err) {
+      if (err?.status === 404) sharesEndpointUnavailable = true;
+      return null;
+    } finally {
+      sharePollInFlight = false;
+    }
+  }
+
+  async function mountSharedInboxSection(root) {
+    const el = root?.querySelector('#community-shared-inbox');
+    if (!el || !api || !token) return;
+    const res = await pollSharesNow();
+    if (!el.isConnected || !res?.recent?.length) return;
+    const myId = currentProfile?.id || '';
+    el.hidden = false;
+    el.innerHTML = `
+      <div class="row-between" style="margin-bottom:8px">
+        <h2 style="margin:0;font-size:16px">Shared Playlists &amp; Study Invites</h2>
+        <span class="badge">${res.recent.length} saved</span>
+      </div>
+      <ul class="community-messages">${res.recent.slice(0, 12).map((row) => {
+        const isOut = myId && row.sender === myId;
+        const peerName = isOut ? row.recipientName : row.senderName;
+        const peerAvatar = isOut ? row.recipientAvatar : row.senderAvatar;
+        return `<li>
+          <div class="row-between"><span class="community-member-inline">${avatarHtml(peerName, peerAvatar, 22)}<strong>${isOut ? 'To ' + esc(row.recipientName) : 'From ' + esc(row.senderName)}</strong></span>
+          <small>${esc(new Date(row.createdAt).toLocaleString())}</small></div>
+          <p>${esc(displayMessageBody(row.message))}</p>${roomInviteChipHtml(row.message)}
+        </li>`;
+      }).join('')}</ul>`;
+    bindChatJoinButtons(el);
+  }
+
+  async function listClassmates() {
+    if (!api || !token) return [];
+    const res = await duelRequest('/opponents');
+    return Array.isArray(res?.opponents) ? res.opponents : [];
+  }
+
+  async function sendPlaylistToMember({ recipientId, title, url, note = '' }) {
+    if (!api || !token) return { ok: false, error: 'Sign in first to send directly to a classmate.' };
+    try {
+      const res = await request('/shares', {
+        recipient: recipientId,
+        title: String(title || 'Shared Playlist').slice(0, 100),
+        url: String(url || '').slice(0, 900),
+        note: String(note || '').slice(0, 180),
+      });
+      return { ok: true, id: res?.id, recipientName: res?.recipientName || '', via: 'shares' };
+    } catch (err) {
+      // Fallback to /message if the Worker hasn't been redeployed with /shares yet
+      if (err?.status === 404) {
+        const prefix = /[?&]join_room=[A-F0-9]{8}\b/i.test(url) ? '📚 Study Together invite' : '📚 Shared playlist';
+        const msg = `${prefix}: ${String(title || 'Playlist').slice(0, 90)}${note ? ` — “${String(note).slice(0, 140)}”` : ''}\n${url}`;
+        try {
+          await request('/message', { recipient: recipientId, message: msg.slice(0, 1500) });
+          return { ok: true, via: 'message' };
+        } catch (err2) {
+          return { ok: false, fallbackCopy: err2?.status === 423, error: err2?.message || 'Could not send message right now.' };
+        }
+      }
+      return { ok: false, error: err?.message || 'Could not send playlist.' };
+    }
   }
 
   async function refreshChat(root) {
@@ -3321,7 +3533,7 @@ window.StudyCommunity = (() => {
         list.innerHTML = messages.map((message) => `
           <li><div class="row-between"><span class="community-member-inline">${avatarHtml(message.nickname, message.avatar, 24)}<strong>${esc(message.nickname)}</strong></span>
             <small>${esc(new Date(message.createdAt).toLocaleString())}</small></div>
-            <p>${esc(message.message)}</p>${roomInviteChipHtml(message.message)}</li>`).join('') || '<li>No messages yet.</li>';
+            <p>${esc(displayMessageBody(message.message))}</p>${roomInviteChipHtml(message.message)}</li>`).join('') || '<li>No messages yet.</li>';
         bindChatJoinButtons(list);
       }
     } finally {
@@ -3702,10 +3914,11 @@ window.StudyCommunity = (() => {
       <li>
         <div class="row-between"><span class="community-member-inline">${avatarHtml(peerName, peerAvatar, 24)}<strong>${row.sender === me.id ? 'To ' + esc(row.recipientName) : 'From ' + esc(row.senderName)}</strong></span>
         <small>${esc(new Date(row.createdAt).toLocaleString())}</small></div>
-        <p>${esc(row.message)}</p>${roomInviteChipHtml(row.message)}
+        <p>${esc(displayMessageBody(row.message))}</p>${roomInviteChipHtml(row.message)}
         ${row.sender === me.id ? '' : `<button type="button" class="ghost-btn" data-block-profile="${esc(row.sender)}">Block sender</button>`}
       </li>`;
     }).join('');
+    inspectIncomingShares(messages.filter((row) => row.recipient === me.id));
     root.innerHTML = `
       <section class="panel" id="community-social">
         <div class="row-between">
@@ -4067,6 +4280,9 @@ window.StudyCommunity = (() => {
     deleteMaterial,
     openMaterial,
     postChatMessage: (message) => request('/chat', { message: String(message || '').trim() }),
+    listClassmates,
+    sendPlaylistToMember,
+    pollSharesNow,
     saveAdminMemberKey: (memberKey) => request('/admin/settings', { memberKey: String(memberKey || '').trim() }),
     redeemAccessCode,
   };

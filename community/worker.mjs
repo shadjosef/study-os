@@ -336,6 +336,49 @@ export default {
     if (path === '/duels' || path.startsWith('/duels/')) {
       return handleDuels({ request, url, db, me, now, data, reply });
     }
+    if (path === '/shares') {
+      if (request.method === 'GET') {
+        const { results } = await db.prepare(`
+          SELECT m.id, m.sender, m.recipient, a.nickname AS senderName, a.avatar AS senderAvatar,
+            b.nickname AS recipientName, b.avatar AS recipientAvatar,
+            m.message, m.created_at AS createdAt
+          FROM messages m JOIN profiles a ON a.id = m.sender JOIN profiles b ON b.id = m.recipient
+          WHERE (m.recipient = ? OR m.sender = ?)
+            AND (m.message LIKE '%?play=%' OR m.message LIKE '%&play=%')
+            AND NOT EXISTS (SELECT 1 FROM blocks WHERE (owner = ? AND blocked IN (m.sender, m.recipient))
+              OR (blocked = ? AND owner IN (m.sender, m.recipient)))
+          ORDER BY m.created_at DESC LIMIT 30
+        `).bind(me.id, me.id, me.id, me.id).all();
+        const incoming = (results || []).filter((r) => r.recipient === me.id);
+        return reply({ now, incoming, recent: results || [] });
+      }
+      if (request.method === 'POST') {
+        const recipient = typeof data.recipient === 'string' ? data.recipient.trim() : '';
+        const shareUrl = typeof data.url === 'string' ? data.url.trim().slice(0, 900) : '';
+        const title = typeof data.title === 'string' ? data.title.trim().replace(/\s+/g, ' ').slice(0, 100) : 'Shared Study Playlist';
+        const note = typeof data.note === 'string' ? data.note.trim().replace(/\s+/g, ' ').slice(0, 180) : '';
+        const hasValidUrl = /^(?:https:\/\/[^\s]+|\/\?)[^\s]*[?&](?:play|join_room)=/i.test(shareUrl);
+        if (!idPattern.test(recipient) || recipient === me.id || !hasValidUrl) {
+          return reply({ error: 'Choose a classmate and a valid Study-OS playlist link.' }, 400);
+        }
+        const target = await db.prepare('SELECT id, nickname FROM profiles WHERE id = ?').bind(recipient).first();
+        if (!target) return reply({ error: 'Classmate not found.' }, 404);
+        const prefix = /[?&]join_room=[A-F0-9]{8}\b/i.test(shareUrl) ? '📚 Study Together invite' : '📚 Shared playlist';
+        const bodyText = `${prefix}: ${title}${note ? ` — “${note}”` : ''}\n${shareUrl}`.slice(0, 1500);
+        const id = crypto.randomUUID();
+        const result = await db.prepare(`
+          INSERT INTO messages(id, sender, recipient, message, created_at)
+          SELECT ?, ?, id, ?, ? FROM profiles WHERE id = ?
+            AND NOT EXISTS (SELECT 1 FROM blocks WHERE (owner = ? AND blocked = profiles.id)
+              OR (owner = profiles.id AND blocked = ?))
+            AND (SELECT COUNT(*) FROM messages WHERE sender = ? AND created_at >= ?) < 10
+        `).bind(id, me.id, bodyText, now, recipient, me.id, me.id, me.id, now - 60_000).run();
+        return result.meta.changes
+          ? reply({ ok: true, id, recipientName: target.nickname }, 201)
+          : reply({ error: 'Could not send right now (rate limit or blocked).' }, 409);
+      }
+      return reply({ error: 'Invalid share action.' }, 405);
+    }
     if (breakRequired.has(path) || path === '/rooms' || path.startsWith('/rooms/')) {
       const breakAccess = isEveningOsloWindow(now) || (me.break_ends_at > now && me.expires_at > now);
       const canUseCommunity = breakAccess && !await runningStudyRoom(db, me.id, now);

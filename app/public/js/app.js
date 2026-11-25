@@ -5372,6 +5372,15 @@ window.StudyApp = (() => {
     };
   }
 
+  function parseSharedPlaylistUrl(rawUrl) {
+    try {
+      const parsed = new URL(String(rawUrl || ''), window.location.origin);
+      return parseSharedPlaylistFromParams(parsed.searchParams);
+    } catch {
+      return null;
+    }
+  }
+
   async function resolvePlaylistSpec(spec) {
     if (!spec?.courseId) return null;
     const cMeta = (boot.catalog || []).find((c) => c.courseId === spec.courseId);
@@ -5595,6 +5604,29 @@ window.StudyApp = (() => {
            </div>`
       : '';
 
+    const classmateSectionHtml = canCommunity
+      ? `<div class="share-sheet-section">
+           <div class="row-between" style="margin:0 0 6px;gap:8px;flex-wrap:wrap">
+             <strong>Send directly to a classmate</strong>
+             <span class="badge">Popup + Chat log</span>
+           </div>
+           <p class="muted" style="margin:0 0 8px;font-size:12px">Pops up calmly on their screen when they’re on Study-OS (or next time they log in) and saves to your Messages log.</p>
+           ${window.StudyCommunity.isSignedIn()
+             ? `<div class="share-member-picker">
+                  <div class="share-member-inputs">
+                    <input type="search" id="sr-member-search" placeholder="Search classmate…" aria-label="Search classmate">
+                    <input type="text" id="sr-member-note" maxlength="120" placeholder="Optional note (e.g. start at Q4)" aria-label="Optional note">
+                  </div>
+                  <label class="room-vis-toggle" style="margin:4px 0 6px">
+                    <input type="checkbox" id="sr-include-pod"${inGroupPod ? ' checked' : ''}>
+                    <span>${inGroupPod ? `Include active Study Together pod (${esc(podCode)})` : 'Also start a synced Study Together pod'}</span>
+                  </label>
+                  <div id="sr-member-list" class="share-member-list"><span class="muted" style="font-size:12px">Loading classmates…</span></div>
+                </div>`
+             : `<button type="button" class="ghost-btn" id="sr-signin-classmates" style="font-size:12.5px">Sign in to send directly to classmates →</button>`}
+         </div>`
+      : '';
+
     body.innerHTML = `
       <div class="playlist-sheet-head">
         <div>
@@ -5611,6 +5643,7 @@ window.StudyApp = (() => {
           ${singleUrl && qids.length > 1 ? `<button type="button" class="ghost-btn" id="sr-copy-single">Copy just this exercise${curQTitle ? ` (${esc(curQTitle.slice(0, 24))})` : ''}</button>` : ''}
         </div>
       </div>
+      ${classmateSectionHtml}
       ${podSectionHtml}
       <div class="row-actions playlist-sheet-actions">
         <button type="button" class="ghost-btn" id="sr-done">Close</button>
@@ -5663,6 +5696,105 @@ window.StudyApp = (() => {
         if (btn.isConnected) btn.disabled = false;
       }
     });
+
+    body.querySelector('#sr-signin-classmates')?.addEventListener('click', async () => {
+      close();
+      if (await window.StudyCommunity.requireProfile({ allowDemo: false, forcePrompt: true })) {
+        openShareRunDialog(spec);
+      }
+    });
+
+    const memberListEl = body.querySelector('#sr-member-list');
+    const memberSearchEl = body.querySelector('#sr-member-search');
+    if (memberListEl && window.StudyCommunity?.listClassmates) {
+      let cachedMembers = [];
+      let sentIds = new Set();
+      let sharedPodCode = podCode || '';
+
+      const paintMembers = () => {
+        if (!memberListEl.isConnected) return;
+        const q = String(memberSearchEl?.value || '').trim().toLowerCase();
+        const filtered = cachedMembers.filter((m) => !q || `${m.nickname} ${m.school || ''} ${m.major || ''}`.toLowerCase().includes(q));
+        if (!filtered.length) {
+          memberListEl.innerHTML = `<span class="muted" style="font-size:12px">${cachedMembers.length ? 'No classmate matches that search.' : 'No classmates yet — send them the direct link above!'}</span>`;
+          return;
+        }
+        memberListEl.innerHTML = filtered.slice(0, 20).map((m) => {
+          const online = m.mode === 'break' || m.mode === 'working';
+          const stLbl = m.mode === 'break' ? 'On break' : m.mode === 'working' ? 'Studying now' : 'Offline · gets popup on login';
+          const isSent = sentIds.has(m.id);
+          return `<div class="share-member-row">
+            <div class="share-member-info">
+              ${window.StudyCommunity.avatarHtml(m.nickname, m.avatar, 26)}
+              <div style="min-width:0">
+                <div class="share-member-name">
+                  <span class="share-online-dot ${online ? 'is-online' : ''}" aria-hidden="true"></span>
+                  <strong>${esc(m.nickname)}</strong>
+                </div>
+                <small class="muted">${esc(stLbl)}</small>
+              </div>
+            </div>
+            <button type="button" class="${isSent ? 'ghost-btn' : 'primary-btn'} share-send-btn" data-sr-send-to="${esc(m.id)}" data-sr-send-name="${esc(m.nickname)}" ${isSent ? 'disabled' : ''}>${isSent ? 'Sent ✓' : 'Send →'}</button>
+          </div>`;
+        }).join('');
+
+        memberListEl.querySelectorAll('[data-sr-send-to]').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const targetId = btn.dataset.srSendTo;
+            const targetName = btn.dataset.srSendName || 'classmate';
+            const note = String(body.querySelector('#sr-member-note')?.value || '').trim();
+            const wantPod = Boolean(body.querySelector('#sr-include-pod')?.checked);
+            btn.disabled = true;
+            btn.textContent = 'Sending…';
+            try {
+              let sendUrl = playlistUrl;
+              if (wantPod) {
+                if (!sharedPodCode) {
+                  sharedPodCode = await window.StudyRooms.createPodWithPlaylist(spec);
+                }
+                if (sharedPodCode) {
+                  sendUrl = buildPlaylistShareUrl({ ...spec, roomCode: sharedPodCode });
+                }
+              }
+              const res = await window.StudyCommunity.sendPlaylistToMember({
+                recipientId: targetId,
+                title: spec.title || 'Shared Study Playlist',
+                url: sendUrl,
+                note,
+              });
+              if (res?.ok) {
+                sentIds.add(targetId);
+                btn.textContent = 'Sent ✓';
+                btn.className = 'ghost-btn share-send-btn';
+                toast(`Sent to ${targetName} ✓ (saved in Messages)`);
+              } else if (res?.fallbackCopy) {
+                await copyUrlWithToast(sendUrl, `Copied link for ${targetName} (in-app messaging opens on breaks until Worker update).`);
+                btn.disabled = false;
+                btn.textContent = 'Send →';
+              } else {
+                toast(res?.error || 'Could not send to classmate.');
+                btn.disabled = false;
+                btn.textContent = 'Send →';
+              }
+            } catch {
+              toast('Could not send right now.');
+              if (btn.isConnected) {
+                btn.disabled = false;
+                btn.textContent = 'Send →';
+              }
+            }
+          });
+        });
+      };
+
+      memberSearchEl?.addEventListener('input', paintMembers);
+      window.StudyCommunity.listClassmates().then((list) => {
+        cachedMembers = list || [];
+        paintMembers();
+      }).catch(() => {
+        if (memberListEl.isConnected) memberListEl.innerHTML = '<span class="muted" style="font-size:12px">Could not load classmates right now.</span>';
+      });
+    }
 
     if (!dlg.open) dlg.showModal();
   }
@@ -10043,6 +10175,7 @@ window.StudyApp = (() => {
       const signedIn = await window.StudyCommunity.requireProfile({ allowDemo: true, silent: true });
       if (signedIn) {
         await window.StudyRooms.restore();
+        window.StudyCommunity.pollSharesNow?.().catch?.(() => {});
         await members.restore();
         const prof = window.StudyCommunity.getCurrentProfile?.();
         if (prof?.isAdmin && prof?.memberKey && members.enabled && !members.isUnlocked()) {
@@ -10909,6 +11042,7 @@ window.StudyApp = (() => {
     getCatalog: () => boot.catalog || [],
     ensureCourseBank,
     buildPlaylistShareUrl,
+    parseSharedPlaylistUrl,
     launchSharedPlaylist,
     openSharedPlaylistPrompt,
     openShareRunDialog,

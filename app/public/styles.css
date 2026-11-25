@@ -14145,6 +14145,151 @@ html[data-theme="dark"] .pod-q-dot.is-done {
   white-space: nowrap;
 }
 
+/* Direct In-App Classmate Sharing, Chat Playlist Cards & Calm Incoming Popup */
+.share-member-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.share-member-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 6px;
+}
+
+.share-member-inputs input {
+  font-size: 12.5px;
+  padding: 6px 10px;
+}
+
+.share-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 170px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.share-member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.share-member-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.share-member-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.share-member-name strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-member-info small {
+  display: block;
+  font-size: 11px;
+}
+
+.share-online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--muted);
+  opacity: 0.45;
+  flex-shrink: 0;
+}
+
+.share-online-dot.is-online {
+  background: #10b981;
+  opacity: 1;
+}
+
+.share-send-btn {
+  padding: 5px 11px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.chat-playlist-card {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chat-playlist-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.share-floating-host {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 91;
+  width: min(360px, calc(100vw - 28px));
+  pointer-events: auto;
+  animation: duel-slide-in 220ms cubic-bezier(0.2, 0.85, 0.3, 1);
+}
+
+.share-floating-host[hidden] {
+  display: none !important;
+}
+
+.share-live-card {
+  background: var(--glass-bg-strong, var(--panel));
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line));
+  border-radius: 16px;
+  padding: 13px 14px;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.share-card-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .share-floating-host {
+    left: 12px;
+    right: 12px;
+    bottom: 70px;
+    width: auto;
+  }
+}
+
 
 
 
