@@ -3482,16 +3482,20 @@ window.StudyRunner = (() => {
               : `<button type="button" class="st-btn runner-pill-tool ${status === 'revisit' ? 'active-revisit' : ''}" data-set-status="revisit" title="Flag for Revisit (F)">${status === 'revisit' ? 'Flagged' : 'Flag'}</button>`
           }
           <div class="quick-fix-wrap">
-            <button type="button" class="st-btn runner-pill-tool quick-fix-trigger" id="btn-quick-fix" popovertarget="quick-fix-popover" title="Report an issue with this exercise or page" aria-label="Report issue" aria-expanded="false" aria-controls="quick-fix-popover">
+            <button type="button" class="st-btn runner-pill-tool quick-fix-trigger${(st.quickFixDraft || st.quickFixShot) ? ' has-draft' : ''}" id="btn-quick-fix" popovertarget="quick-fix-popover" title="Report an issue with this exercise or page" aria-label="Report issue" aria-expanded="${st.quickFixOpen ? 'true' : 'false'}" aria-controls="quick-fix-popover">
               <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M10.4 2.4a3.2 3.2 0 0 0-3.7 4.7L2.6 11.2a1.3 1.3 0 1 0 1.8 1.8l4.1-4.1a3.2 3.2 0 0 0 4.7-3.7l-1.9 1.9-1.8-1.8 1.9-1.9Z"/>
               </svg>
             </button>
-            <div class="quick-fix-popover" id="quick-fix-popover" popover="auto">
-              <textarea id="quick-fix-text" rows="3" maxlength="1500" placeholder="What's broken or wrong here? Paste or attach a screenshot…"></textarea>
-              <div class="quick-fix-thumb-row" id="quick-fix-thumb-row" hidden>
-                <img id="quick-fix-thumb" alt="Screenshot preview">
-                <span class="quick-fix-thumb-name" id="quick-fix-thumb-name"></span>
+            <div class="quick-fix-popover" id="quick-fix-popover" popover="manual">
+              <div class="quick-fix-head">
+                <span>Report issue</span>
+                <button type="button" class="quick-fix-close-btn" id="quick-fix-close-btn" aria-label="Close issue report">&times;</button>
+              </div>
+              <textarea id="quick-fix-text" rows="3" maxlength="1500" placeholder="What's broken or wrong here? Paste (⌘V) or attach a screenshot…">${esc(st.quickFixDraft || '')}</textarea>
+              <div class="quick-fix-thumb-row" id="quick-fix-thumb-row"${st.quickFixShot ? '' : ' hidden'}>
+                <img id="quick-fix-thumb" alt="Screenshot preview"${st.quickFixShot?.dataUrl ? ` src="${esc(st.quickFixShot.dataUrl)}"` : ''}>
+                <span class="quick-fix-thumb-name" id="quick-fix-thumb-name">${esc(st.quickFixShot?.label || '')}</span>
                 <button type="button" class="quick-fix-thumb-rm" id="quick-fix-thumb-rm" aria-label="Remove screenshot">&times;</button>
               </div>
               <div class="quick-fix-actions">
@@ -4691,10 +4695,11 @@ window.StudyRunner = (() => {
       renderRunner();
     });
 
-    // Seamless in-exercise bug / fix report popover (message + screenshot -> Send)
+    // Seamless in-exercise bug / fix report popover (manual-dismiss + draft & screenshot persistence)
     (() => {
       const trigger = document.getElementById('btn-quick-fix');
       const pop = document.getElementById('quick-fix-popover');
+      const closeBtn = document.getElementById('quick-fix-close-btn');
       const ta = document.getElementById('quick-fix-text');
       const shotBtn = document.getElementById('quick-fix-shot-btn');
       const fileInp = document.getElementById('quick-fix-file');
@@ -4705,7 +4710,10 @@ window.StudyRunner = (() => {
       const thumbRm = document.getElementById('quick-fix-thumb-rm');
       if (!trigger || !pop || !ta || !shotBtn || !fileInp || !sendBtn) return;
 
-      let screenshotData = '';
+      let screenshotData = st.quickFixShot?.dataUrl || '';
+      const syncTriggerDraftDot = () => {
+        trigger.classList.toggle('has-draft', Boolean((st.quickFixDraft || '').trim() || st.quickFixShot));
+      };
 
       const compressImageFile = (file) => new Promise((resolve, reject) => {
         if (!file || !String(file.type || '').startsWith('image/')) {
@@ -4748,25 +4756,32 @@ window.StudyRunner = (() => {
 
       const clearShot = () => {
         screenshotData = '';
+        st.quickFixShot = null;
         fileInp.value = '';
         if (thumbRow) thumbRow.hidden = true;
         if (thumbImg) thumbImg.removeAttribute('src');
         if (thumbName) thumbName.textContent = '';
+        syncTriggerDraftDot();
       };
 
       const attachFile = async (file) => {
         try {
           const res = await compressImageFile(file);
           screenshotData = res.dataUrl;
+          st.quickFixShot = { dataUrl: res.dataUrl, label: res.label };
           if (thumbImg) thumbImg.src = res.dataUrl;
           if (thumbName) thumbName.textContent = res.label;
           if (thumbRow) thumbRow.hidden = false;
+          syncTriggerDraftDot();
         } catch (err) {
           toast(err?.message || 'Could not attach screenshot.');
         }
       };
 
+      activeRun._attachQuickFixFile = attachFile;
+
       const closePop = () => {
+        st.quickFixOpen = false;
         if (pop.matches?.(':popover-open')) {
           pop.hidePopover?.();
         }
@@ -4775,12 +4790,27 @@ window.StudyRunner = (() => {
 
       pop.addEventListener('toggle', (ev) => {
         const isOpen = ev.newState === 'open';
+        st.quickFixOpen = isOpen;
         trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         if (isOpen) {
           positionPopoverFallback(pop, trigger);
           setTimeout(() => ta.focus(), 10);
         }
       });
+
+      closeBtn?.addEventListener('click', closePop);
+      ta.addEventListener('input', () => {
+        st.quickFixDraft = ta.value;
+        syncTriggerDraftDot();
+      });
+
+      // Restore open state seamlessly across runner re-renders (e.g. clicking Flag or toggling layout)
+      if (st.quickFixOpen && typeof pop.showPopover === 'function') {
+        try {
+          pop.showPopover();
+          positionPopoverFallback(pop, trigger);
+        } catch {}
+      }
 
       shotBtn.addEventListener('click', () => fileInp.click());
       fileInp.addEventListener('change', () => {
@@ -4838,6 +4868,7 @@ window.StudyRunner = (() => {
             screenshot: screenshotData,
           });
           ta.value = '';
+          st.quickFixDraft = '';
           clearShot();
           closePop();
           toast('Report sent — thanks!');
@@ -5642,18 +5673,26 @@ window.StudyRunner = (() => {
       }
     });
 
-    // Global clipboard image paste anywhere inside an active runner question (except inside AI Tutor or other inputs)
+    // Global clipboard image paste anywhere inside an active runner question (routes to open bug report popover if active!)
     window.addEventListener('paste', (ev) => {
-      if (!activeRun || !activeRun._attachImageBlobs || document.getElementById('view-runner')?.hidden) return;
+      if (!activeRun || document.getElementById('view-runner')?.hidden) return;
       const target = ev.target;
-      if (target?.id === 'inp-written-draft') return; // handled directly on the textarea
-      if (target?.closest?.('#ai-tutor-pane, #ai-tutor-drawer, dialog')) return;
-      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
+      const quickFixOpen = Boolean(document.getElementById('quick-fix-popover')?.matches?.(':popover-open'));
       const items = Array.from(ev.clipboardData?.items || []);
       const imgFiles = items
         .filter((it) => it.kind === 'file' && /^image\//i.test(it.type))
         .map((it) => it.getAsFile())
         .filter(Boolean);
+      if (quickFixOpen && imgFiles.length && activeRun._attachQuickFixFile) {
+        if (target?.id === 'quick-fix-text') return; // handled directly on quick-fix textarea
+        ev.preventDefault();
+        activeRun._attachQuickFixFile(imgFiles[0]);
+        return;
+      }
+      if (!activeRun._attachImageBlobs) return;
+      if (target?.id === 'inp-written-draft') return; // handled directly on the textarea
+      if (target?.closest?.('#ai-tutor-pane, #ai-tutor-drawer, dialog')) return;
+      if (target && ['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
       if (imgFiles.length) {
         ev.preventDefault();
         activeRun._attachImageBlobs(imgFiles);

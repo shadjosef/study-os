@@ -3128,6 +3128,36 @@ html:not([data-show-screen]) [data-layout-screen] { display: none; }
 .quick-fix-trigger[aria-expanded="true"] {
   color: var(--ink);
 }
+.quick-fix-trigger.has-draft {
+  color: var(--accent);
+}
+.quick-fix-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted);
+}
+.quick-fix-close-btn {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.quick-fix-close-btn:hover {
+  background: var(--panel-alt);
+  color: var(--ink);
+}
 .quick-fix-popover {
   width: min(310px, calc(100vw - 16px));
   max-height: calc(100dvh - 24px);
