@@ -1515,6 +1515,10 @@ window.StudyRunner = (() => {
     activeRun.index = Math.max(0, Math.min(activeRun.questionIds.length - 1, newIndex));
     resumeCurrentTimer();
     renderRunner();
+    const curQ = currentQuestion();
+    if (curQ) {
+      window.StudyRooms?.reportCurrentQuestion?.(curQ, activeRun);
+    }
     window.scrollTo({ top: 0, behavior: 'instant' });
     if (window.StudyUI.isReferenceDrawerOpen?.()) {
       const q = currentQuestion();
@@ -3160,12 +3164,14 @@ window.StudyRunner = (() => {
       ? `<div class="runner-tools-menu">
            <button type="button" class="st-btn runner-more-btn" id="btn-runner-tools" popovertarget="runner-tools-popover" title="Question tools" aria-label="More question tools">•••</button>
            <div class="runner-tools-popover" id="runner-tools-popover" popover="auto">
+             <button type="button" class="runner-menu-item" id="btn-share-run-item"><span>Share / Study together</span></button>
              <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Adamlite</span></button>
            </div>
          </div>`
       : `<div class="runner-tools-menu">
            <button type="button" class="st-btn runner-more-btn" id="btn-runner-tools" popovertarget="runner-tools-popover" title="Question tools" aria-label="More question tools">•••</button>
            <div class="runner-tools-popover" id="runner-tools-popover" popover="auto">
+             <button type="button" class="runner-menu-item" id="btn-share-run-item"><span>Share / Study together</span></button>
              <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Adamlite</span></button>
              <button type="button" class="runner-menu-item" id="btn-open-tutor"><span>Desktop MCP Tutor</span></button>
              ${instantMcqToggleHtml}
@@ -3662,6 +3668,7 @@ window.StudyRunner = (() => {
       });
     });
 
+    document.getElementById('btn-share-run-item')?.addEventListener('click', openShareCurrentRun);
     document.getElementById('btn-toggle-instant-mcq')?.addEventListener('click', () => {
       const nextInstant = !isInstantMcqEnabled();
       saveRunnerUiPrefs({ instantMcq: nextInstant });
@@ -5142,6 +5149,29 @@ window.StudyRunner = (() => {
     document.body.style.setProperty('--runner-sticky-top', `${h + topGap}px`);
   }
 
+  function currentRunShareSpec() {
+    if (!activeRun) return null;
+    const q = currentQuestion();
+    return {
+      courseId: activeRun.courseMeta?.courseId || '',
+      courseLabel: activeRun.courseMeta ? `${activeRun.courseMeta.code} · ${activeRun.courseMeta.shortTitle || activeRun.courseMeta.title}` : '',
+      title: activeRun.examTitle || `${activeRun.courseMeta?.shortTitle || activeRun.courseMeta?.title || 'Study'} · Playlist (${activeRun.questionIds.length})`,
+      questionIds: [...activeRun.questionIds],
+      startIndex: activeRun.index || 0,
+      currentQid: q?.id || '',
+      currentTitle: q?.title || '',
+      mode: activeRun.mode || 'practice',
+      examStyle: activeRun.examStyle || 'guided',
+      examCollectionId: activeRun.examCollectionId || '',
+    };
+  }
+
+  function openShareCurrentRun() {
+    const spec = currentRunShareSpec();
+    if (!spec) return;
+    window.StudyApp?.openShareRunDialog?.(spec);
+  }
+
   function bindRunnerGlobals() {
     const runnerHeader = document.getElementById('runner-header');
     new ResizeObserver(() => {
@@ -5149,6 +5179,7 @@ window.StudyRunner = (() => {
     }).observe(runnerHeader);
     window.addEventListener('resize', syncRunnerStickyOffset, { passive: true });
     document.getElementById('run-exit-btn')?.addEventListener('click', exitRunnerKeepPaused);
+    document.getElementById('run-share-btn')?.addEventListener('click', openShareCurrentRun);
     document.getElementById('run-layout-btn')?.addEventListener('click', toggleSplitWorkspace);
     document.getElementById('run-ref-btn').addEventListener('click', toggleRunnerReference);
     document.getElementById('run-al-btn').addEventListener('click', () => window.StudyAiTutor?.toggle?.());
@@ -5342,6 +5373,7 @@ window.StudyRunner = (() => {
 
   return {
     getRun,
+    getShareSpec: currentRunShareSpec,
     getActiveCourseId: () => activeRun?.courseMeta?.courseId || '',
     isInExam: () => Boolean(activeRun && activeRun.mode === 'exam' && !document.getElementById('view-runner')?.hidden),
     isIdeCodingFocusExempt,

@@ -4679,7 +4679,10 @@ window.StudyApp = (() => {
       const attemptStripHtml = `
         <div class="exam-attempt-strip">
           <div class="exam-attempt-best">${bestSummaryHtml}</div>
-          ${attemptsBadgeHtml}
+          <div class="row-actions" style="gap:4px">
+            <button type="button" class="exam-share-pill" data-share-exam-course="${esc(c.courseId)}" data-share-exam-coll="${esc(col.id)}" data-share-exam-title="${esc(examLabel(col.title))}" title="Share exam playlist or study together" aria-label="Share ${esc(examLabel(col.title))}">↗ Share</button>
+            ${attemptsBadgeHtml}
+          </div>
         </div>
       `;
 
@@ -5010,17 +5013,38 @@ window.StudyApp = (() => {
 
     const bindCardTrigger = (el, handler) => {
       el.addEventListener('click', (ev) => {
-        if (ev.target?.closest?.('[data-exam-history]')) return;
+        if (ev.target?.closest?.('[data-exam-history], [data-share-exam-coll]')) return;
         handler();
       });
       el.addEventListener('keydown', (ev) => {
-        if (ev.target?.closest?.('[data-exam-history]')) return;
+        if (ev.target?.closest?.('[data-exam-history], [data-share-exam-coll]')) return;
         if (ev.key === 'Enter' || ev.key === ' ') {
           ev.preventDefault();
           handler();
         }
       });
     };
+
+    root.querySelectorAll('[data-share-exam-coll]').forEach((btn) => {
+      btn.addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        const cid = btn.dataset.shareExamCourse || '';
+        const coll = btn.dataset.shareExamColl || '';
+        const title = btn.dataset.shareExamTitle || 'Exam Paper';
+        const cMeta = (boot.catalog || []).find((c) => c.courseId === cid);
+        const bank = await ensureCourseBank(cid);
+        const qids = (bank.questions || []).filter((q) => q.available !== false && String(q.collectionId) === String(coll)).map((q) => q.id);
+        openShareRunDialog({
+          courseId: cid,
+          courseLabel: cMeta ? `${cMeta.code} · ${cMeta.shortTitle || cMeta.title}` : cid,
+          title,
+          questionIds: qids,
+          examCollectionId: coll,
+          mode: 'exam',
+          examStyle: selectedExamStyle,
+        });
+      });
+    });
 
     root.querySelectorAll('[data-exam-history]').forEach((btn) => {
       btn.addEventListener('click', (ev) => {
@@ -5249,6 +5273,374 @@ window.StudyApp = (() => {
       freshExamSit: examStyle === 'blind',
       profile: 'exam',
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // SHAREABLE EXERCISE & PLAYLIST LINKS + CALM "START WHENEVER" LAUNCH SHEET
+  // ---------------------------------------------------------------------------
+  function compactQid(qid, courseId) {
+    const s = String(qid || '').trim();
+    const prefix = courseId ? `${courseId}:` : '';
+    return prefix && s.startsWith(prefix) ? s.slice(prefix.length) : s;
+  }
+
+  function expandQid(shortId, courseId) {
+    const s = String(shortId || '').trim();
+    if (!s) return '';
+    return s.includes(':') || !courseId ? s : `${courseId}:${s}`;
+  }
+
+  function buildPlaylistShareUrl(spec = {}) {
+    const courseId = String(spec.courseId || '').trim();
+    const params = new URLSearchParams();
+    if (spec.roomCode) params.set('join_room', String(spec.roomCode).trim().toUpperCase());
+    if (courseId) params.set('play', courseId);
+    const qids = Array.isArray(spec.questionIds) ? spec.questionIds.filter(Boolean) : [];
+    const singleOnly = Boolean(spec.singleOnly);
+    if (singleOnly && qids.length) {
+      params.set('q', compactQid(qids[0], courseId));
+    } else if (spec.examCollectionId && !spec.forceIds) {
+      params.set('coll', String(spec.examCollectionId).trim());
+      if (spec.examStyle === 'blind') params.set('style', 'blind');
+      if (Number(spec.startIndex) > 0) params.set('i', String(Number(spec.startIndex)));
+    } else if (qids.length === 1) {
+      params.set('q', compactQid(qids[0], courseId));
+    } else if (qids.length > 1) {
+      params.set('qs', qids.slice(0, 60).map((id) => compactQid(id, courseId)).join(','));
+      if (Number(spec.startIndex) > 0) params.set('i', String(Number(spec.startIndex)));
+      if (spec.mode === 'exam') {
+        params.set('mode', 'exam');
+        if (spec.examStyle === 'blind') params.set('style', 'blind');
+      }
+      if (spec.title) params.set('title', String(spec.title).trim().slice(0, 80));
+    }
+    return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+  }
+
+  function parseSharedPlaylistFromParams(params, resolveCourseIdParam) {
+    const rawPlay = (params.get('play') || '').trim();
+    const rawQ = (params.get('q') || '').trim();
+    const rawQs = (params.get('qs') || '').trim();
+    const rawColl = (params.get('coll') || '').trim();
+    if (!rawPlay && !rawQ && !rawQs) return null;
+    const inferredCourse = rawPlay || (rawQ.includes(':') ? rawQ.split(':')[0] : rawQs.includes(':') ? rawQs.split(',')[0].split(':')[0] : '');
+    const courseId = resolveCourseIdParam ? resolveCourseIdParam(inferredCourse) : inferredCourse;
+    if (!courseId) return null;
+    const questionIds = rawQ
+      ? [expandQid(rawQ, courseId)]
+      : rawQs
+      ? rawQs.split(',').map((s) => expandQid(s, courseId)).filter(Boolean).slice(0, 60)
+      : [];
+    const startIndex = Math.max(0, Number(params.get('i') || 0) || 0);
+    const mode = rawColl || params.get('mode') === 'exam' ? 'exam' : 'practice';
+    const examStyle = params.get('style') === 'blind' ? 'blind' : 'guided';
+    const title = (params.get('title') || '').trim().slice(0, 90);
+    const roomCode = (params.get('join_room') || '').trim().toUpperCase();
+    return {
+      courseId,
+      examCollectionId: rawColl,
+      questionIds,
+      startIndex,
+      mode,
+      examStyle,
+      title,
+      roomCode: /^[A-F0-9]{8}$/.test(roomCode) ? roomCode : '',
+    };
+  }
+
+  async function resolvePlaylistSpec(spec) {
+    if (!spec?.courseId) return null;
+    const cMeta = (boot.catalog || []).find((c) => c.courseId === spec.courseId);
+    if (!cMeta) return null;
+    const bank = await ensureCourseBank(cMeta.courseId);
+    const byId = Object.fromEntries((bank.questions || []).map((q) => [q.id, q]));
+    let questions = [];
+    let resolvedTitle = spec.title || '';
+    let durMin = Number(spec.durationMinutes || 0);
+    if (spec.examCollectionId && !(spec.questionIds && spec.questionIds.length)) {
+      const colObj = (bank.collections || []).find((c) => String(c.id) === String(spec.examCollectionId));
+      questions = (bank.questions || []).filter((q) => q.available !== false && String(q.collectionId) === String(spec.examCollectionId));
+      if (!resolvedTitle) resolvedTitle = colObj ? examLabel(colObj.title) : spec.examCollectionId;
+      if (!durMin) durMin = Number(colObj?.durationMinutes || cMeta?.examInfo?.durationMinutes || 180);
+    } else {
+      questions = (spec.questionIds || []).map((id) => byId[id]).filter((q) => q && q.available !== false);
+      if (!resolvedTitle) {
+        resolvedTitle = questions.length === 1
+          ? questions[0].title
+          : `${cMeta.shortTitle || cMeta.title} · Shared Playlist (${questions.length})`;
+      }
+      if (!durMin) {
+        const sumPar = questions.reduce((s, q) => s + Number(q?.pacing?.learning?.target || 4), 0);
+        durMin = Math.max(15, Math.round(sumPar));
+      }
+    }
+    if (!questions.length) return null;
+    return {
+      cMeta,
+      bank,
+      questions,
+      questionIds: questions.map((q) => q.id),
+      title: resolvedTitle,
+      mode: spec.mode === 'exam' ? 'exam' : 'practice',
+      examStyle: spec.examStyle === 'blind' ? 'blind' : 'guided',
+      examCollectionId: spec.examCollectionId || '',
+      durationMinutes: durMin,
+      startIndex: Math.max(0, Math.min(questions.length - 1, Number(spec.startIndex) || 0)),
+      roomCode: spec.roomCode || '',
+    };
+  }
+
+  async function launchSharedPlaylist(spec, overrideStartIdx = null) {
+    const resolved = await resolvePlaylistSpec(spec);
+    if (!resolved) {
+      toast('Could not find those exercises in this course.');
+      return false;
+    }
+    const startIdx = overrideStartIdx !== null
+      ? Math.max(0, Math.min(resolved.questionIds.length - 1, Number(overrideStartIdx) || 0))
+      : resolved.startIndex;
+    let examStyle = resolved.examStyle;
+    if (resolved.mode === 'exam' && members.course(resolved.cMeta.courseId) && resolved.questions.some((q) => !['synthetic_drill', 'mock_exam'].includes(q.origin))) {
+      examStyle = 'guided';
+    }
+    window.StudyRunner.startRun({
+      courseMeta: resolved.cMeta,
+      bank: resolved.bank,
+      questionIds: resolved.questionIds,
+      startIndex: startIdx,
+      mode: resolved.mode,
+      examStyle,
+      examCollectionId: resolved.examCollectionId,
+      examTitle: resolved.title,
+      durationMinutes: resolved.durationMinutes,
+      freshExamSit: resolved.mode === 'exam' && examStyle === 'blind',
+      profile: resolved.mode === 'exam' ? 'exam' : 'learning',
+    });
+    return true;
+  }
+
+  async function openSharedPlaylistPrompt(spec) {
+    const dlg = document.getElementById('shared-playlist-dialog');
+    const body = document.getElementById('shared-playlist-body');
+    if (!dlg || !body) {
+      await launchSharedPlaylist(spec);
+      return;
+    }
+    const resolved = await resolvePlaylistSpec(spec);
+    if (!resolved) {
+      toast('That shared playlist could not be found.');
+      return;
+    }
+    const isSingle = resolved.questions.length === 1;
+    const topicById = Object.fromEntries((resolved.bank.topics || []).map((t) => [String(t.id), t.title]));
+    const rowsHtml = resolved.questions.map((q, idx) => {
+      const rec = getProgressRecord(q.id);
+      const isDone = rec?.status === 'done';
+      const isStart = idx === resolved.startIndex && !isSingle;
+      const tLbl = topicById[String(q.topicId)] || '';
+      return `<button type="button" class="playlist-preview-row${isStart ? ' is-start' : ''}" data-pl-start-idx="${idx}">
+        <span class="playlist-row-num">${idx + 1}</span>
+        <span class="playlist-row-copy">
+          <strong>${esc(q.title)}</strong>
+          ${tLbl ? `<small class="muted">${esc(tLbl)}</small>` : ''}
+        </span>
+        <span class="playlist-row-meta">
+          ${isStart ? '<span class="badge">Start here</span>' : ''}
+          ${isDone ? '<span class="badge good">✓ Done</span>' : ''}
+        </span>
+      </button>`;
+    }).join('');
+
+    const hasRoom = Boolean(resolved.roomCode && isStaticWeb && window.StudyCommunity?.enabled);
+    body.innerHTML = `
+      <div class="playlist-sheet-head">
+        <div>
+          <span class="eyebrow">${esc(resolved.cMeta.code)} · ${isSingle ? 'Shared Exercise' : 'Shared Study Playlist'}</span>
+          <h1 id="shared-playlist-title" class="playlist-sheet-title">${esc(resolved.title)}</h1>
+        </div>
+        <button type="button" class="mini-tool-btn" id="pl-close-x" aria-label="Close">×</button>
+      </div>
+      <p class="muted" style="margin:6px 0 12px;font-size:13px">
+        ${hasRoom
+          ? `Attached to Study Together pod <strong>${esc(resolved.roomCode)}</strong> — join to quietly sync exercises &amp; progress, or open solo at your own pace.`
+          : 'Start whenever you’re ready — click any exercise below to jump straight there, or start from the top.'}
+      </p>
+      <div class="playlist-preview-list">${rowsHtml}</div>
+      <div class="row-actions playlist-sheet-actions">
+        ${hasRoom ? `<button type="button" class="primary-btn" id="pl-join-and-start" autofocus>Join Study Pod &amp; Start →</button>` : ''}
+        <button type="button" class="${hasRoom ? 'ghost-btn' : 'primary-btn'}" id="pl-start-solo"${hasRoom ? '' : ' autofocus'}>${isSingle ? 'Open exercise →' : `Start playlist (${resolved.questions.length}) →`}</button>
+        <button type="button" class="ghost-btn" id="pl-dismiss">Later</button>
+      </div>
+    `;
+
+    const close = () => { if (dlg.open) dlg.close(); };
+    body.querySelector('#pl-close-x')?.addEventListener('click', close);
+    body.querySelector('#pl-dismiss')?.addEventListener('click', close);
+    body.querySelector('#pl-start-solo')?.addEventListener('click', async () => {
+      close();
+      await launchSharedPlaylist(resolved, resolved.startIndex);
+    });
+    body.querySelector('#pl-join-and-start')?.addEventListener('click', async (ev) => {
+      const btn = ev.currentTarget;
+      btn.disabled = true;
+      try {
+        if (await window.StudyCommunity.requireProfile({ allowDemo: false, forcePrompt: true })) {
+          const joined = await window.StudyRooms.joinByCode(resolved.roomCode, { stayInView: true, fallbackPlaylist: resolved });
+          close();
+          if (joined) {
+            const podPl = window.StudyRooms.getState?.()?.playlist;
+            await launchSharedPlaylist(podPl?.courseId ? podPl : resolved, resolved.startIndex);
+            toast(`Joined Study Together pod ${resolved.roomCode} · quiet sync on.`);
+          } else {
+            await launchSharedPlaylist(resolved, resolved.startIndex);
+          }
+        }
+      } finally {
+        if (btn.isConnected) btn.disabled = false;
+      }
+    });
+    body.querySelectorAll('[data-pl-start-idx]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const idx = Number(btn.dataset.plStartIdx || 0);
+        close();
+        await launchSharedPlaylist(resolved, idx);
+      });
+    });
+    if (!dlg.open) dlg.showModal();
+  }
+
+  async function copyUrlWithToast(url, label = 'Link copied!') {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast(label);
+    } catch {
+      window.prompt('Copy this shareable Study-OS link:', url);
+    }
+  }
+
+  function openShareRunDialog(spec = {}) {
+    const dlg = document.getElementById('share-run-dialog');
+    const body = document.getElementById('share-run-body');
+    if (!dlg || !body) {
+      copyUrlWithToast(buildPlaylistShareUrl(spec), 'Playlist link copied!');
+      return;
+    }
+    const qids = Array.isArray(spec.questionIds) ? spec.questionIds.filter(Boolean) : [];
+    const curQid = spec.currentQid || qids[spec.startIndex || 0] || '';
+    const curQTitle = spec.currentTitle || '';
+    const playlistUrl = buildPlaylistShareUrl(spec);
+    const singleUrl = curQid ? buildPlaylistShareUrl({ courseId: spec.courseId, questionIds: [curQid], singleOnly: true }) : '';
+    const canCommunity = Boolean(isStaticWeb && window.StudyCommunity?.enabled);
+    const inGroupPod = Boolean(window.StudyRooms?.isInGroupPod?.());
+    const podState = inGroupPod ? window.StudyRooms.getState?.() : null;
+    const podCode = podState?.code || '';
+
+    const partnersHtml = inGroupPod && Array.isArray(podState?.players)
+      ? `<div class="pod-quiet-members">${podState.players.map((p) => {
+          const statusTxt = p.currentLabel || p.activity || (p.progress ? `${p.progress} done` : 'studying');
+          return `<div class="pod-quiet-row">
+            <span class="pod-quiet-name">${esc(p.name)}${p.current ? ' (you)' : ''}</span>
+            <span class="muted">${esc(statusTxt)}</span>
+          </div>`;
+        }).join('')}</div>`
+      : '';
+
+    const podSectionHtml = canCommunity
+      ? inGroupPod
+        ? `<div class="share-sheet-section">
+             <div class="row-between" style="margin:0 0 6px">
+               <strong>Study Together Pod · <code>${esc(podCode)}</code></strong>
+               <span class="badge">Quiet sync</span>
+             </div>
+             ${partnersHtml}
+             <div class="row-actions" style="flex-wrap:wrap;gap:6px;margin-top:8px">
+               <button type="button" class="primary-btn" id="sr-sync-pod">Sync this playlist to pod</button>
+               <button type="button" class="ghost-btn" id="sr-copy-pod-link">Copy pod + playlist link</button>
+               <button type="button" class="ghost-btn" id="sr-open-pod">Pick exercises in pod →</button>
+             </div>
+           </div>`
+        : `<div class="share-sheet-section">
+             <div class="row-between" style="margin:0 0 4px">
+               <strong>Study Together (Synced &amp; Quiet)</strong>
+               <span class="badge">Not a duel</span>
+             </div>
+             <p class="muted" style="margin:0 0 10px;font-size:12.5px">Share one link so a friend syncs to your playlist, picks exercises together, and sees quiet progress without any competitive scoreboard.</p>
+             <div class="row-actions" style="flex-wrap:wrap;gap:6px">
+               <button type="button" class="primary-btn" id="sr-create-pod">Start Study Together with this playlist →</button>
+             </div>
+           </div>`
+      : '';
+
+    body.innerHTML = `
+      <div class="playlist-sheet-head">
+        <div>
+          <span class="eyebrow">Share &amp; Study Together</span>
+          <h1 id="share-run-title" class="playlist-sheet-title">${esc(spec.title || 'Current Study Playlist')}</h1>
+        </div>
+        <button type="button" class="mini-tool-btn" id="sr-close-x" aria-label="Close">×</button>
+      </div>
+      <div class="share-sheet-section">
+        <strong style="display:block;margin-bottom:4px">Send direct link</strong>
+        <p class="muted" style="margin:0 0 10px;font-size:12.5px">They hop right to these exercises and start whenever they want — no sign-in needed.</p>
+        <div class="row-actions" style="flex-wrap:wrap;gap:6px">
+          <button type="button" class="primary-btn" id="sr-copy-playlist" autofocus>Copy playlist link (${qids.length || 1} ${qids.length === 1 ? 'exercise' : 'exercises'})</button>
+          ${singleUrl && qids.length > 1 ? `<button type="button" class="ghost-btn" id="sr-copy-single">Copy just this exercise${curQTitle ? ` (${esc(curQTitle.slice(0, 24))})` : ''}</button>` : ''}
+        </div>
+      </div>
+      ${podSectionHtml}
+      <div class="row-actions playlist-sheet-actions">
+        <button type="button" class="ghost-btn" id="sr-done">Close</button>
+      </div>
+    `;
+
+    const close = () => { if (dlg.open) dlg.close(); };
+    body.querySelector('#sr-close-x')?.addEventListener('click', close);
+    body.querySelector('#sr-done')?.addEventListener('click', close);
+    body.querySelector('#sr-copy-playlist')?.addEventListener('click', async () => {
+      await copyUrlWithToast(playlistUrl, `Playlist link copied (${qids.length || 1} exercises)!`);
+    });
+    body.querySelector('#sr-copy-single')?.addEventListener('click', async () => {
+      await copyUrlWithToast(singleUrl, 'Direct exercise link copied!');
+    });
+    body.querySelector('#sr-copy-pod-link')?.addEventListener('click', async () => {
+      const url = buildPlaylistShareUrl({ ...spec, roomCode: podCode });
+      await copyUrlWithToast(url, `Study Together link (${podCode}) copied!`);
+    });
+    body.querySelector('#sr-sync-pod')?.addEventListener('click', async (ev) => {
+      const btn = ev.currentTarget;
+      btn.disabled = true;
+      try {
+        const ok = await window.StudyRooms.syncPlaylist(spec);
+        if (ok) {
+          toast('Synced playlist to your Study Together pod!');
+          close();
+        }
+      } finally {
+        if (btn.isConnected) btn.disabled = false;
+      }
+    });
+    body.querySelector('#sr-open-pod')?.addEventListener('click', () => {
+      close();
+      if (!document.getElementById('view-runner')?.hidden) document.getElementById('run-exit-btn')?.click();
+      navigate('room');
+    });
+    body.querySelector('#sr-create-pod')?.addEventListener('click', async (ev) => {
+      const btn = ev.currentTarget;
+      btn.disabled = true;
+      try {
+        if (!(await window.StudyCommunity.requireProfile({ allowDemo: false, forcePrompt: true }))) return;
+        const createdCode = await window.StudyRooms.createPodWithPlaylist(spec);
+        if (createdCode) {
+          const url = buildPlaylistShareUrl({ ...spec, roomCode: createdCode });
+          await copyUrlWithToast(url, `Study Together pod ${createdCode} live — invite link copied!`);
+          close();
+        }
+      } finally {
+        if (btn.isConnected) btn.disabled = false;
+      }
+    });
+
+    if (!dlg.open) dlg.showModal();
   }
 
   async function launchRandomizedFullExam(courseId, examStyle = 'blind') {
@@ -5945,6 +6337,7 @@ window.StudyApp = (() => {
             <option value="done">Done</option>
           </select>
           <button type="button" class="primary-btn" id="btn-start-filtered">Start Selected Run →</button>
+          <button type="button" class="ghost-btn" id="btn-share-filtered" title="Share these exercises as a playlist or start studying together">Share Playlist</button>
         </div>
 
         <div class="row-between" style="margin:8px 0 0">
@@ -6759,6 +7152,27 @@ window.StudyApp = (() => {
         profile: prof,
       });
     };
+
+    document.getElementById('btn-share-filtered')?.addEventListener('click', () => {
+      const matches = getMatching();
+      const { list, mode, examStyle } = buildRunIds(matches);
+      if (!list.length) {
+        toast('No matching exercises to share.');
+        return;
+      }
+      const topicVal = document.getElementById('flt-topic')?.value || 'all';
+      const topicTitle = topicVal !== 'all'
+        ? (bank.topics || []).find((t) => String(t.id) === String(topicVal))?.title || ''
+        : '';
+      openShareRunDialog({
+        courseId: cMeta.courseId,
+        courseLabel: `${cMeta.code} · ${cMeta.shortTitle || cMeta.title}`,
+        title: topicTitle ? `${cMeta.shortTitle || cMeta.title} · ${topicTitle}` : `${cMeta.shortTitle || cMeta.title} · Selected Playlist (${list.length})`,
+        questionIds: list.map((q) => q.id),
+        mode,
+        examStyle,
+      });
+    });
 
     document.getElementById('btn-bulk-uncomplete').onclick = async () => {
       const matches = getMatching();
@@ -8855,7 +9269,7 @@ window.StudyApp = (() => {
         window.StudyCommunity.queueStatsSync();
         const cMeta = (boot.catalog || []).find((c) => c.courseId === payload.courseId);
         const actLabel = cMeta ? `${cMeta.code} · ${cMeta.shortTitle || cMeta.title}` : '';
-        window.StudyRooms.recordAttempt(actLabel);
+        window.StudyRooms.recordAttempt(actLabel, { questionId: payload.questionId });
         queueCloudSync();
       }
       recomputeWebAnalytics();
@@ -9457,10 +9871,11 @@ window.StudyApp = (() => {
     const mobExams = document.getElementById('mobile-dock-exams');
     if (mobComm) mobComm.hidden = !window.StudyCommunity.enabled;
     if (mobExams) mobExams.hidden = Boolean(window.StudyCommunity.enabled);
-    document.getElementById('runner-room-btn').onclick = () => {
-      document.getElementById('run-exit-btn').click();
-      navigate('room');
-    };
+    document.getElementById('runner-room-popover')?.addEventListener('toggle', (ev) => {
+      if (ev.newState === 'open') {
+        window.StudyRooms?.renderRunnerPopover?.();
+      }
+    });
     window.StudyCommunity.queueStatsSync();
     window.StudyDuels?.init?.();
     if (isStaticWeb) window.addEventListener('pagehide', flushPendingDrafts);
@@ -9696,6 +10111,14 @@ window.StudyApp = (() => {
       if (v === '2plus' || v === 'med_high') return '2plus';
       return '';
     };
+
+    const sharedPlaylistSpec = parseSharedPlaylistFromParams(params, resolveCourseIdParam);
+    if (sharedPlaylistSpec) {
+      window.history.replaceState({}, '', window.location.pathname);
+      await navigate('home');
+      await openSharedPlaylistPrompt(sharedPlaylistSpec);
+      return;
+    }
 
     if (/^[A-F0-9]{8}$/.test(joinRoomCode) && isStaticWeb && window.StudyCommunity?.enabled) {
       window.history.replaceState({}, '', window.location.pathname);
@@ -10444,6 +10867,11 @@ window.StudyApp = (() => {
   return {
     isStaticMode,
     getCatalog: () => boot.catalog || [],
+    ensureCourseBank,
+    buildPlaylistShareUrl,
+    launchSharedPlaylist,
+    openSharedPlaylistPrompt,
+    openShareRunDialog,
     launchCourseBlock: (courseId, mins = 50) => launchSmartCourseRun(courseId, mins, 'learning', '', getResolvedFocusMode()),
     communityStats,
     publicReferenceUrl,

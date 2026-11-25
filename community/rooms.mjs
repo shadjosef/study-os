@@ -3,7 +3,57 @@ const lobbyDuration = 60 * 60_000;
 export const duelDuration = 5 * 60_000;
 const rematchWindow = 15 * 60_000;
 export const ALLOWED_SUBJECTS = new Set(['mixed', 'math', 'accounting', 'economics']);
-const ALLOWED_GROUP_MINS = new Set([25, 50, 75]);
+const ALLOWED_GROUP_MINS = new Set([25, 50, 75, 120, 180]);
+
+function cleanPlaylist(raw, fallbackCourseId = '', fallbackCourseLabel = '', updatedBy = '', now = 0) {
+  if (!raw || typeof raw !== 'object') return null;
+  const courseId = typeof raw.courseId === 'string' ? raw.courseId.trim().slice(0, 40) : fallbackCourseId;
+  const courseLabel = typeof raw.courseLabel === 'string' ? raw.courseLabel.trim().slice(0, 64) : fallbackCourseLabel;
+  const title = typeof raw.title === 'string' ? raw.title.trim().slice(0, 100) : '';
+  const examCollectionId = typeof raw.examCollectionId === 'string' ? raw.examCollectionId.trim().slice(0, 64) : '';
+  const mode = raw.mode === 'exam' ? 'exam' : 'practice';
+  const examStyle = raw.examStyle === 'blind' ? 'blind' : 'guided';
+  const rawIds = Array.isArray(raw.questionIds) ? raw.questionIds : [];
+  const questionIds = [];
+  const seen = new Set();
+  for (const id of rawIds) {
+    const clean = typeof id === 'string' ? id.trim().slice(0, 80) : '';
+    if (!clean || seen.has(clean)) continue;
+    seen.add(clean);
+    questionIds.push(clean);
+    if (questionIds.length >= 60) break;
+  }
+  if (!courseId && !questionIds.length && !examCollectionId) return null;
+  return {
+    title: title || courseLabel || 'Shared Playlist',
+    courseId,
+    courseLabel,
+    mode,
+    examStyle,
+    examCollectionId,
+    questionIds,
+    updatedBy: String(updatedBy || raw.updatedBy || '').trim().slice(0, 40),
+    updatedAt: Number(now || raw.updatedAt || 0),
+  };
+}
+
+function parseMemberActivity(raw) {
+  if (typeof raw !== 'string' || !raw) return { activity: '', currentQid: '', currentLabel: '', doneIds: [] };
+  if (raw.startsWith('{')) {
+    try {
+      const p = JSON.parse(raw);
+      if (p && typeof p === 'object') {
+        return {
+          activity: typeof p.a === 'string' ? p.a.slice(0, 64) : '',
+          currentQid: typeof p.q === 'string' ? p.q.slice(0, 80) : '',
+          currentLabel: typeof p.l === 'string' ? p.l.slice(0, 48) : '',
+          doneIds: Array.isArray(p.d) ? p.d.filter((x) => typeof x === 'string').slice(0, 60) : [],
+        };
+      }
+    } catch {}
+  }
+  return { activity: raw.slice(0, 64), currentQid: '', currentLabel: '', doneIds: [] };
+}
 
 export const SUBJECT_LABELS = {
   mixed: 'BI Mixed Blitz',
@@ -145,6 +195,7 @@ function parseRoomDeck(raw, mode = 'group') {
     isPublic: true,
     courseId: '',
     courseLabel: '',
+    playlist: null,
     questions: [],
     rematchCode: '',
   };
@@ -158,6 +209,7 @@ function parseRoomDeck(raw, mode = 'group') {
       return {
         ...fallback,
         ...parsed,
+        playlist: parsed.playlist && typeof parsed.playlist === 'object' ? parsed.playlist : null,
         questions: Array.isArray(parsed.questions) ? parsed.questions : [],
       };
     }
@@ -213,7 +265,11 @@ async function roomState(db, code, me, now, canUseCommunity, reply) {
   if (!room || (!room.starts_at && room.created_at <= now - lobbyDuration)) {
     return reply({ error: 'This room has closed.' }, 404);
   }
-  if (!room.starts_at && !canUseCommunity) return reply({ error: 'Open the lobby on a break or 18:00–22:30 Oslo time.' }, 423);
+  const initialMeta = parseRoomDeck(room.deck, room.mode);
+  const isStudyTogetherPod = room.mode === 'group' && (!initialMeta.isPublic || Boolean(initialMeta.playlist));
+  if (!room.starts_at && !canUseCommunity && !isStudyTogetherPod) {
+    return reply({ error: 'Open the lobby on a break or 18:00–22:30 Oslo time.' }, 423);
+  }
   await db.prepare(`
     UPDATE study_rooms SET closed_at = ?
     WHERE code = ? AND starts_at > 0 AND closed_at = 0
@@ -246,24 +302,31 @@ async function roomState(db, code, me, now, canUseCommunity, reply) {
     isPublic: Boolean(meta.isPublic),
     courseId: meta.courseId || '',
     courseLabel: meta.courseLabel || '',
+    playlist: meta.playlist || null,
     rematchCode: meta.rematchCode || '',
-    players: players.map((player) => ({
-      name: player.nickname,
-      avatar: player.avatar || '',
-      current: player.profile === me.id,
-      ready: Boolean(player.ready),
-      finished: Boolean(player.finished),
-      rating: Number(player.rating || 1200),
-      matches: Number(player.matches || 0),
-      activity: player.activity || '',
-      progress: room.mode === 'duel' ? player.submitted : player.completed,
-      ...(ended && room.mode === 'duel'
-        ? {
-            score: player.score,
-            ratingChange: result ? result.first_change * (result.first_player === player.profile ? 1 : -1) : null,
-          }
-        : {}),
-    })),
+    players: players.map((player) => {
+      const act = parseMemberActivity(player.activity || '');
+      return {
+        name: player.nickname,
+        avatar: player.avatar || '',
+        current: player.profile === me.id,
+        ready: Boolean(player.ready),
+        finished: Boolean(player.finished),
+        rating: Number(player.rating || 1200),
+        matches: Number(player.matches || 0),
+        activity: act.activity,
+        currentQid: act.currentQid,
+        currentLabel: act.currentLabel,
+        doneIds: act.doneIds,
+        progress: room.mode === 'duel' ? player.submitted : player.completed,
+        ...(ended && room.mode === 'duel'
+          ? {
+              score: player.score,
+              ratingChange: result ? result.first_change * (result.first_player === player.profile ? 1 : -1) : null,
+            }
+          : {}),
+      };
+    }),
     questions: questions.map(({ prompt, answer, tag }) => (ended ? { prompt, answer, tag: tag || '' } : { prompt, tag: tag || '' })),
     answers: mine.map(({ question, correct, submitted_value }) =>
       ended ? { question, correct: Boolean(correct), submitted: submitted_value || '' } : { question }
@@ -348,10 +411,23 @@ export async function handleRooms({ request, url, db, me, now, data, canUseCommu
   }
 
   if (!code && request.method === 'POST') {
-    if (!canUseCommunity) return reply({ error: 'Join or create a room during breaks or 18:00–22:30 Oslo time.' }, 423);
     const candidate = typeof data.code === 'string' ? data.code.trim().toUpperCase() : '';
     if (candidate && !roomCode.test(candidate)) return reply({ error: 'Enter the eight-character room code.' }, 400);
     if (!candidate && !['group', 'duel'].includes(data.mode)) return reply({ error: 'Choose group or duel.' }, 400);
+
+    // Allow creating or joining a private/playlist Study Together group pod anytime (studying together isn't break-only!)
+    let allowAnytimeGroup = !candidate && data.mode === 'group' && (data.isPublic === false || Boolean(data.playlist));
+    if (candidate) {
+      const targetRow = await db.prepare('SELECT mode, deck FROM study_rooms WHERE code = ? AND closed_at = 0').bind(candidate).first();
+      if (targetRow && targetRow.mode === 'group') {
+        const tMeta = parseRoomDeck(targetRow.deck, 'group');
+        if (!tMeta.isPublic || Boolean(tMeta.playlist)) allowAnytimeGroup = true;
+      }
+    }
+    if (!canUseCommunity && !allowAnytimeGroup) {
+      return reply({ error: 'Join or create a room during breaks or 18:00–22:30 Oslo time.' }, 423);
+    }
+
     const existing = await db.prepare(activeRoom).bind(me.id, now - lobbyDuration, now).first();
     if (existing) return existing.code === candidate ? reply(existing) : reply({ error: 'Finish or leave your current room first.' }, 409);
 
@@ -360,30 +436,40 @@ export async function handleRooms({ request, url, db, me, now, data, canUseCommu
       const isDuel = data.mode === 'duel';
       const subject = ALLOWED_SUBJECTS.has(data.subject) ? data.subject : 'mixed';
       const rawDur = Number(data.durationMin);
-      const durationMin = isDuel ? 5 : (ALLOWED_GROUP_MINS.has(rawDur) ? rawDur : 50);
+      const durationMin = isDuel ? 5 : (ALLOWED_GROUP_MINS.has(rawDur) ? rawDur : 120);
       const isPublic = data.isPublic !== false;
       const courseId = typeof data.courseId === 'string' ? data.courseId.trim().slice(0, 32) : '';
       const courseLabel = typeof data.courseLabel === 'string' ? data.courseLabel.trim().slice(0, 60) : '';
+      const playlist = isDuel ? null : cleanPlaylist(data.playlist, courseId, courseLabel, me.nickname, now);
+      const autoStart = !isDuel && Boolean(data.autoStart);
+      const startsAt = autoStart ? now : 0;
+      const endsAt = autoStart ? now + durationMin * 60_000 : 0;
       const deckMeta = JSON.stringify({
         v: 2,
         subject,
         durationMin,
         isPublic,
-        courseId,
-        courseLabel,
+        courseId: playlist?.courseId || courseId,
+        courseLabel: playlist?.courseLabel || courseLabel,
+        playlist,
         questions: [],
         rematchCode: '',
       });
       const result = await db.prepare(`
-        INSERT OR IGNORE INTO study_rooms(code, owner, mode, created_at, deck)
-        SELECT ?, ?, ?, ?, ? WHERE NOT EXISTS (${activeRoom})
-      `).bind(generated, me.id, data.mode, now, deckMeta, me.id, now - lobbyDuration, now).run();
+        INSERT OR IGNORE INTO study_rooms(code, owner, mode, created_at, starts_at, ends_at, deck)
+        SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (${activeRoom})
+      `).bind(generated, me.id, data.mode, now, startsAt, endsAt, deckMeta, me.id, now - lobbyDuration, now).run();
       return result.meta.changes ? reply({ code: generated }, 201) : reply({ error: 'Try creating the room again.' }, 409);
     }
 
+    // Group Study Together pods allow joining both in lobby AND while already running so partners can start whenever they want!
     const result = await db.prepare(`
       INSERT OR IGNORE INTO room_members(code, profile)
-      SELECT r.code, ? FROM study_rooms r WHERE r.code = ? AND r.starts_at = 0 AND r.created_at > ?
+      SELECT r.code, ? FROM study_rooms r WHERE r.code = ? AND r.closed_at = 0
+        AND (
+          (r.starts_at = 0 AND r.created_at > ?)
+          OR (r.mode = 'group' AND r.starts_at > 0 AND r.ends_at > ?)
+        )
         AND (SELECT COUNT(*) FROM room_members WHERE code = r.code) < CASE WHEN r.mode = 'duel' THEN 2 ELSE 8 END
         AND NOT EXISTS (${activeRoom})
         AND NOT EXISTS (
@@ -391,7 +477,7 @@ export async function handleRooms({ request, url, db, me, now, data, canUseCommu
             ON (b.owner = ? AND b.blocked = other.profile) OR (b.blocked = ? AND b.owner = other.profile)
           WHERE other.code = r.code
         )
-    `).bind(me.id, candidate, now - lobbyDuration, me.id, now - lobbyDuration, now, me.id, me.id).run();
+    `).bind(me.id, candidate, now - lobbyDuration, now, me.id, now - lobbyDuration, now, me.id, me.id).run();
     return result.meta.changes ? reply({ code: candidate }, 201) : reply({ error: 'This room is full, started, or no longer open.' }, 409);
   }
 
@@ -404,8 +490,27 @@ export async function handleRooms({ request, url, db, me, now, data, canUseCommu
   `).bind(code, me.id).first();
   if (!room) return reply({ error: 'You are not in this room.' }, 404);
 
+  // Collaborative shared playlist update inside any active Study Together group pod (lobby OR running)
+  if (action === 'playlist' && room.mode === 'group' && !room.closed_at) {
+    const meta = parseRoomDeck(room.deck, room.mode);
+    const nextPlaylist = cleanPlaylist(data.playlist ?? data, meta.courseId, meta.courseLabel, me.nickname, now);
+    if (!nextPlaylist) return reply({ error: 'Select at least one exercise or course for the playlist.' }, 400);
+    const nextDeck = JSON.stringify({
+      ...meta,
+      courseId: nextPlaylist.courseId || meta.courseId || '',
+      courseLabel: nextPlaylist.courseLabel || meta.courseLabel || '',
+      playlist: nextPlaylist,
+    });
+    await db.prepare('UPDATE study_rooms SET deck = ? WHERE code = ? AND closed_at = 0').bind(nextDeck, code).run();
+    return roomState(db, code, me, now, canUseCommunity, reply);
+  }
+
   if (!room.starts_at) {
-    if (!canUseCommunity || room.created_at <= now - lobbyDuration) return reply({ error: 'This lobby is unavailable.' }, 423);
+    const lobbyMeta = parseRoomDeck(room.deck, room.mode);
+    const isStudyTogetherPod = room.mode === 'group' && (!lobbyMeta.isPublic || Boolean(lobbyMeta.playlist));
+    if ((!canUseCommunity && !isStudyTogetherPod) || room.created_at <= now - lobbyDuration) {
+      return reply({ error: 'This lobby is unavailable.' }, 423);
+    }
     if (action === 'ready') {
       await db.prepare(`
         UPDATE room_members SET ready = ? WHERE code = ? AND profile = ?
@@ -427,19 +532,32 @@ export async function handleRooms({ request, url, db, me, now, data, canUseCommu
     if (action === 'start' && room.owner === me.id) {
       const duel = room.mode === 'duel';
       const meta = parseRoomDeck(room.deck, room.mode);
-      const durationMs = duel ? duelDuration : (ALLOWED_GROUP_MINS.has(meta.durationMin) ? meta.durationMin : 50) * 60_000;
+      const durationMs = duel ? duelDuration : (ALLOWED_GROUP_MINS.has(meta.durationMin) ? meta.durationMin : 120) * 60_000;
       const nextDeck = JSON.stringify({
         ...meta,
         questions: duel ? makeDuel(meta.subject) : [],
       });
+      if (duel) {
+        const result = await db.prepare(`
+          UPDATE study_rooms SET starts_at = ?, ends_at = ?, deck = ?
+          WHERE code = ? AND starts_at = 0 AND (SELECT COUNT(*) FROM room_members WHERE code = ?) >= 2
+            AND NOT EXISTS (SELECT 1 FROM room_members WHERE code = ? AND ready = 0)
+        `).bind(now, now + durationMs, nextDeck, code, code, code).run();
+        return result.meta.changes ? reply({ ok: true }) : reply({ error: 'Everyone must be ready, with at least two members.' }, 409);
+      }
+      // Study Together pod can start right away even if partner joins shortly after
       const result = await db.prepare(`
         UPDATE study_rooms SET starts_at = ?, ends_at = ?, deck = ?
-        WHERE code = ? AND starts_at = 0 AND (SELECT COUNT(*) FROM room_members WHERE code = ?) >= 2
-          AND NOT EXISTS (SELECT 1 FROM room_members WHERE code = ? AND ready = 0)
-      `).bind(now, now + durationMs, nextDeck, code, code, code).run();
-      return result.meta.changes ? reply({ ok: true }) : reply({ error: 'Everyone must be ready, with at least two members.' }, 409);
+        WHERE code = ? AND starts_at = 0
+      `).bind(now, now + durationMs, nextDeck, code).run();
+      return result.meta.changes ? reply({ ok: true }) : reply({ error: 'Could not start study pod.' }, 409);
     }
     return reply({ error: 'This action requires a running room.' }, 409);
+  }
+
+  if (action === 'leave' && room.mode === 'group') {
+    await db.prepare('UPDATE room_members SET finished = 1 WHERE code = ? AND profile = ?').bind(code, me.id).run();
+    return reply({ ok: true });
   }
 
   if (action === 'finish') {
@@ -491,10 +609,29 @@ export async function handleRooms({ request, url, db, me, now, data, canUseCommu
 
   if (action === 'progress' && room.mode === 'group') {
     if (!Number.isInteger(data.completed) || data.completed < 0 || data.completed > 500) return reply({ error: 'Invalid study total.' }, 400);
-    const activity = typeof data.activity === 'string' ? data.activity.trim().slice(0, 48) : '';
-    if (activity) {
+    const activityTxt = typeof data.activity === 'string' ? data.activity.trim().slice(0, 64) : '';
+    const currentQid = typeof data.currentQid === 'string' ? data.currentQid.trim().slice(0, 80) : '';
+    const currentLabel = typeof data.currentLabel === 'string' ? data.currentLabel.trim().slice(0, 48) : '';
+    const doneIds = Array.isArray(data.doneIds)
+      ? [...new Set(data.doneIds.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 80)))].slice(0, 60)
+      : null;
+
+    const existingRow = await db.prepare('SELECT activity FROM room_members WHERE code = ? AND profile = ?').bind(code, me.id).first();
+    const prevAct = parseMemberActivity(existingRow?.activity || '');
+    const mergedDone = doneIds ? [...new Set([...prevAct.doneIds, ...doneIds])].slice(0, 60) : prevAct.doneIds;
+    const hasStructured = Boolean(currentQid || currentLabel || mergedDone.length);
+    const storedActivity = hasStructured
+      ? JSON.stringify({
+          a: activityTxt || prevAct.activity || '',
+          q: currentQid || prevAct.currentQid || '',
+          l: currentLabel || prevAct.currentLabel || '',
+          d: mergedDone,
+        })
+      : (activityTxt || prevAct.activity || '');
+
+    if (storedActivity) {
       await db.prepare('UPDATE room_members SET completed = MAX(completed, ?), activity = ? WHERE code = ? AND profile = ? AND finished = 0')
-        .bind(data.completed, activity, code, me.id).run();
+        .bind(data.completed, storedActivity, code, me.id).run();
     } else {
       await db.prepare('UPDATE room_members SET completed = MAX(completed, ?) WHERE code = ? AND profile = ? AND finished = 0')
         .bind(data.completed, code, me.id).run();

@@ -193,7 +193,11 @@
         <button type="button" class="primary-btn" id="run-submit-exam-btn" hidden style="padding:6px 13px;font-size:13px">Submit Paper</button>
         <span class="live-clock-pill" id="run-work-pill" title="Universal working interval (capped at 75:00)">0:00 / 75m</span>
         <button type="button" class="ghost-btn" id="run-break-btn" title="Take scaled 1:5 off-screen recovery break (B)">Break (3m)</button>
-        <button type="button" class="ghost-btn" id="runner-room-btn" hidden>Room</button>
+        <div class="runner-room-wrap">
+          <button type="button" class="ghost-btn runner-pod-pill" id="runner-room-btn" popovertarget="runner-room-popover" hidden>Pod</button>
+          <div id="runner-room-popover" class="runner-room-popover" popover="auto"></div>
+        </div>
+        <button type="button" class="ghost-btn" id="run-share-btn" title="Send playlist or study together">Share</button>
         <button type="button" class="ghost-btn" id="run-layout-btn" title="Switch between Split and Focus (V)">Split</button>
         <span class="runner-domain runner-domain-desktop">StudyOS.no</span>
         <button type="button" class="runner-icon-btn adamlite-run-btn" id="run-al-btn" title="Adamlite (T)" aria-label="Adamlite AI" aria-expanded="false" aria-controls="ai-tutor-pane" hidden>
@@ -1479,6 +1483,13 @@
   <dialog id="duel-challenge-dialog" class="member-dialog duel-challenge-dialog" tabindex="-1" aria-labelledby="duel-challenge-title"></dialog>
 
   <!-- RETINA FIGURE ZOOM LIGHTBOX -->
+  <dialog id="shared-playlist-dialog" class="member-dialog playlist-sheet" closedby="any" aria-labelledby="shared-playlist-title">
+    <div id="shared-playlist-body"></div>
+  </dialog>
+  <dialog id="share-run-dialog" class="member-dialog playlist-sheet" closedby="any" aria-labelledby="share-run-title">
+    <div id="share-run-body"></div>
+  </dialog>
+
   <div id="img-lightbox" class="img-lightbox" hidden role="dialog" aria-modal="true" aria-label="Fullscreen figure preview">
     <div class="img-lightbox-bar">
       <span id="img-lightbox-caption" class="img-lightbox-caption"></span>
