@@ -200,12 +200,16 @@ pairForm.addEventListener('submit', async (event) => {
   }
 });
 
-autoSyncCheckbox.addEventListener('change', () => {
-  chrome.runtime.sendMessage({ action: 'setAutoSync', autoSyncEnabled: autoSyncCheckbox.checked });
+autoSyncCheckbox.addEventListener('change', async () => {
+  try {
+    await chrome.runtime.sendMessage({ action: 'setAutoSync', autoSyncEnabled: autoSyncCheckbox.checked });
+  } catch {}
 });
 
-shareCheckbox.addEventListener('change', () => {
-  chrome.runtime.sendMessage({ action: 'setSharePublic', sharePublic: shareCheckbox.checked });
+shareCheckbox.addEventListener('change', async () => {
+  try {
+    await chrome.runtime.sendMessage({ action: 'setSharePublic', sharePublic: shareCheckbox.checked });
+  } catch {}
 });
 
 telemetryCheckbox?.addEventListener('change', async () => {
@@ -217,15 +221,21 @@ telemetryCheckbox?.addEventListener('change', async () => {
       return;
     }
   }
-  chrome.runtime.sendMessage({ action: 'setFocusTelemetry', enabled: want });
+  try {
+    await chrome.runtime.sendMessage({ action: 'setFocusTelemetry', enabled: want });
+  } catch {}
 });
 
 syncBtn.addEventListener('click', runSync);
 
 disconnectBtn.addEventListener('click', async () => {
-  await chrome.storage.local.remove(['cloudToken', 'cloudNickname', 'token']).catch(() => {});
-  await chrome.runtime.sendMessage({ action: 'disconnect' });
+  try {
+    await chrome.storage.local.remove(['cloudToken', 'cloudNickname', 'token']);
+    await chrome.runtime.sendMessage({ action: 'disconnect' });
+  } catch {}
   showPair('Disconnected. Paste a new 6-char code anytime to reconnect.');
 });
 
-refreshState(true);
+refreshState(true).catch((err) => {
+  statusEl.textContent = err?.message || 'Could not connect to extension background worker. Try reopening popup.';
+});

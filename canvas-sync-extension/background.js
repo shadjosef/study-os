@@ -800,17 +800,60 @@ async function fetchCanvasFileDirect(courseId, fileId, originOverride = '') {
   return { ok: true, filename, dataBase64: bytesToBase64(bytes) };
 }
 
-async function flashSuccessBadge() {
+const LOCK_TTL_MS = 60 * 1000;
+const BADGE_TTL_MS = 5000;
+
+async function acquireSessionLock(key) {
   try {
-    await chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
-    await chrome.action.setBadgeText({ text: '✓' });
-    setTimeout(() => {
-      chrome.action.setBadgeText({ text: '' }).catch(() => {});
-    }, 5000);
+    const now = Date.now();
+    const { syncLocks = {} } = await chrome.storage.session.get('syncLocks');
+    const existing = Number(syncLocks[key] || 0);
+    if (existing && now - existing < LOCK_TTL_MS) return false;
+    await chrome.storage.session.set({ syncLocks: { ...syncLocks, [key]: now } });
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+async function releaseSessionLock(key) {
+  try {
+    const { syncLocks = {} } = await chrome.storage.session.get('syncLocks');
+    if (key in syncLocks) {
+      delete syncLocks[key];
+      await chrome.storage.session.set({ syncLocks });
+    }
   } catch {}
 }
 
+async function clearStaleBadgeIfNeeded() {
+  try {
+    const { badgeClearAt = 0 } = await chrome.storage.session.get('badgeClearAt');
+    if (badgeClearAt && Date.now() >= badgeClearAt) {
+      await chrome.action.setBadgeText({ text: '' });
+      await chrome.storage.session.remove('badgeClearAt');
+    }
+  } catch {}
+}
+
+async function flashSuccessBadge() {
+  try {
+    const clearAt = Date.now() + BADGE_TTL_MS;
+    await chrome.storage.session.set({ badgeClearAt: clearAt });
+    await chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
+    await chrome.action.setBadgeText({ text: '✓' });
+    chrome.alarms?.create?.('studyOsClearBadge', { delayInMinutes: 0.1 });
+    setTimeout(() => {
+      clearStaleBadgeIfNeeded().catch(() => {});
+    }, BADGE_TTL_MS + 100);
+  } catch {}
+}
+
+chrome.runtime.onStartup.addListener(() => { clearStaleBadgeIfNeeded(); });
+chrome.runtime.onInstalled.addListener(() => { clearStaleBadgeIfNeeded(); });
+
 async function maybeAutoSyncTab(tabId, urlStr) {
+  await clearStaleBadgeIfNeeded();
   const site = detectSite(urlStr);
   if (!site || site === 'other') return;
   // Skip login / auth redirect URLs on BI Canvas or Ed
@@ -833,6 +876,7 @@ async function maybeAutoSyncTab(tabId, urlStr) {
   const cooldown = AUTO_SYNC_COOLDOWN_MS[site] || (12 * 60 * 60 * 1000);
   if (Date.now() - lastAt < cooldown) return;
 
+  if (!(await acquireSessionLock(`auto:${site}`))) return;
   autoSyncInFlight.add(site);
   try {
     const tab = await chrome.tabs.get(tabId).catch(() => null);
@@ -849,6 +893,7 @@ async function maybeAutoSyncTab(tabId, urlStr) {
     // Fail silently in background if user isn't logged in on that BI tab yet
   } finally {
     autoSyncInFlight.delete(site);
+    await releaseSessionLock(`auto:${site}`);
   }
 }
 
@@ -905,6 +950,7 @@ async function handle(message) {
       'lastCanvasOrigin',
       'lastCanvasSchool',
       'lastTimeEditUrl',
+      'focusTelemetryEnabled',
     ]);
     const openTabs = await findOpenStudyTabs();
     const activeCanvasOrigin = openTabs.canvas?.url ? new URL(openTabs.canvas.url).origin : '';
@@ -1056,33 +1102,56 @@ async function sampleActiveTabCategory() {
 chrome.alarms?.onAlarm?.addListener((alarm) => {
   if (alarm?.name === 'studyOsFocusSample') {
     sampleActiveTabCategory().catch(() => {});
+  } else if (alarm?.name === 'studyOsClearBadge') {
+    clearStaleBadgeIfNeeded().catch(() => {});
   }
 });
 
-chrome.storage.local.get(['focusTelemetryEnabled']).then(({ focusTelemetryEnabled }) => {
-  if (focusTelemetryEnabled) {
-    chrome.alarms?.create?.('studyOsFocusSample', { periodInMinutes: 0.5 });
-  }
-}).catch(() => {});
+(async () => {
+  try {
+    const { focusTelemetryEnabled } = await chrome.storage.local.get(['focusTelemetryEnabled']);
+    if (focusTelemetryEnabled) {
+      chrome.alarms?.create?.('studyOsFocusSample', { periodInMinutes: 0.5 });
+    }
+    await clearStaleBadgeIfNeeded();
+  } catch {}
+})();
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (message?.action === 'getFocusTelemetry' && isTrustedBridgeSender(sender)) {
-    chrome.storage.local.get(['focusTelemetryEnabled', 'focusTelemetryDaily']).then((d) => {
-      respond({ ok: true, enabled: Boolean(d.focusTelemetryEnabled), daily: d.focusTelemetryDaily || {} });
-    }, () => respond({ ok: false, daily: {} }));
+    (async () => {
+      try {
+        const d = await chrome.storage.local.get(['focusTelemetryEnabled', 'focusTelemetryDaily']);
+        respond({ ok: true, enabled: Boolean(d.focusTelemetryEnabled), daily: d.focusTelemetryDaily || {} });
+      } catch {
+        respond({ ok: false, daily: {} });
+      }
+    })();
     return true;
   }
   if (message?.action === 'fetchCanvasFile' && isTrustedBridgeSender(sender)) {
-    fetchCanvasFileDirect(message.courseId, message.fileId, message.canvasOrigin || '').then(respond, (error) => {
-      respond({ ok: false, error: error?.message || 'Could not load PDF from Canvas.' });
-    });
+    (async () => {
+      try {
+        await clearStaleBadgeIfNeeded();
+        const result = await fetchCanvasFileDirect(message.courseId, message.fileId, message.canvasOrigin || '');
+        respond(result);
+      } catch (error) {
+        respond({ ok: false, error: error?.message || 'Could not load PDF from Canvas.' });
+      }
+    })();
     return true;
   }
   if (sender.url !== chrome.runtime.getURL('popup.html')) return false;
-  handle(message).then(respond, async (error) => {
-    if (error.needsPair) await chrome.storage.local.remove(['cloudToken', 'cloudNickname']);
-    if (error.needsDesktopPair) await chrome.storage.local.remove('token');
-    respond({ error: error.message, needsPair: Boolean(error.needsPair) });
-  });
+  (async () => {
+    try {
+      await clearStaleBadgeIfNeeded();
+      const result = await handle(message);
+      respond(result);
+    } catch (error) {
+      if (error?.needsPair) await chrome.storage.local.remove(['cloudToken', 'cloudNickname']).catch(() => {});
+      if (error?.needsDesktopPair) await chrome.storage.local.remove('token').catch(() => {});
+      respond({ error: error?.message || 'Sync failed.', needsPair: Boolean(error?.needsPair) });
+    }
+  })();
   return true;
 });
