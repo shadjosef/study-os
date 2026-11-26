@@ -8,6 +8,14 @@
 
 window.StudyRunner = (() => {
   const { esc, examLabel, clockSec, minLabel, renderMarkdownWithMath, toast, openReferenceDrawer, workClock, devMode } = window.StudyUI;
+  const {
+    parseWiseflowNumber,
+    formatWfNum,
+    gradeSingleWiseflowField,
+    evaluateWiseflowSheet,
+    evaluateNumericCheck,
+    gradeFromPct: coreGradeFromPct,
+  } = window.StudyCore;
 
   let activeRun = null;
   let parkedRun = null;
@@ -824,135 +832,7 @@ window.StudyRunner = (() => {
     return activeRun.questionsById[qid] || null;
   }
 
-  // ---------------------------------------------------------------------------
-  // WISEFLOW FLOWMULTI NUMBER PARSER & ±2% / 2-DECIMAL GRADER
-  // ---------------------------------------------------------------------------
-  function parseWiseflowNumber(raw) {
-    const str = String(raw ?? '').trim();
-    if (!str) return { ok: false, empty: true };
-    if (/^\(\s*[\d.,\s]+\s*\)$/.test(str)) {
-      return { ok: false, parensError: true };
-    }
-    // Strip currency/unit symbols & spaces
-    let clean = str.replace(/[£$€%\s]/g, '').replace(/^kr/i, '').replace(/kr$/i, '');
-    if (clean.includes(',') && clean.includes('.')) {
-      clean = clean.replace(/,/g, '');
-    } else if (clean.includes(',')) {
-      // Distinguish thousand separator `40,700` or `1,520,000` from decimal comma `7,20` / `-4857,25`
-      // Per 2026 BI WISEflow Title Page: decimal operator MUST be a dot (`.`), NEVER a comma (`,`)!
-      if (/^[+-]?\d{1,3}(,\d{3})+$/.test(clean)) {
-        clean = clean.replace(/,/g, '');
-      } else {
-        return { ok: false, commaError: true };
-      }
-    }
-    clean = clean.replace(/^\+/, '');
-    if (!/^-?\d+(\.\d+)?$/.test(clean)) {
-      return { ok: false, invalidFormat: true };
-    }
-    const val = Number(clean);
-    if (!Number.isFinite(val)) return { ok: false, invalidFormat: true };
-    return { ok: true, value: val };
-  }
-
-  function formatWfNum(n) {
-    const v = Number(n);
-    if (!Number.isFinite(v)) return String(n);
-    if (Number.isInteger(v)) return v.toLocaleString('en-US');
-    const has3Dec = Math.abs(Math.round(v * 100) - v * 100) > 1e-4;
-    return v.toLocaleString('en-US', {
-      minimumFractionDigits: has3Dec ? 3 : 2,
-      maximumFractionDigits: 3,
-    });
-  }
-
-  function gradeSingleWiseflowField(f, rawVal) {
-    const pts = Number(f.points ?? 1);
-    if (f.type === 'choice') {
-      const picked = rawVal !== undefined && rawVal !== null && rawVal !== '' ? Number(rawVal) : null;
-      const passed = picked !== null && picked === Number(f.answerIndex);
-      return {
-        id: f.id,
-        type: 'choice',
-        passed,
-        earned: passed ? pts : 0,
-        points: pts,
-        picked,
-        expectedLabel: (f.options || [])[f.answerIndex] ?? '',
-      };
-    }
-
-    const parsed = parseWiseflowNumber(rawVal);
-    const primaryExp = Number(f.expected);
-    const relTol = Number(f.relTol ?? 0.02);
-    const absTol = Number(f.absTol ?? 0.02);
-    const primaryBand = Math.max(relTol * Math.abs(primaryExp), absTol);
-
-    if (!parsed.ok) {
-      return {
-        id: f.id,
-        type: 'number',
-        passed: false,
-        earned: 0,
-        points: pts,
-        expected: primaryExp,
-        band: primaryBand,
-        empty: !!parsed.empty,
-        parensError: !!parsed.parensError,
-        commaError: !!parsed.commaError,
-        invalidFormat: !!parsed.invalidFormat,
-      };
-    }
-
-    const targets = [primaryExp, ...(Array.isArray(f.altExpected) ? f.altExpected.map(Number) : [])];
-    for (const t of targets) {
-      const band = Math.max(relTol * Math.abs(t), absTol);
-      const diff = Math.abs(parsed.value - t);
-      if (diff <= band + 1e-9) {
-        const exact = diff <= 0.015;
-        const pctDiff = t !== 0 ? (diff / Math.abs(t)) * 100 : 0;
-        return {
-          id: f.id,
-          type: 'number',
-          passed: true,
-          earned: pts,
-          points: pts,
-          userValue: parsed.value,
-          expected: primaryExp,
-          matchedTarget: t,
-          band: primaryBand,
-          exact,
-          pctDiff,
-        };
-      }
-    }
-
-    return {
-      id: f.id,
-      type: 'number',
-      passed: false,
-      earned: 0,
-      points: pts,
-      userValue: parsed.value,
-      expected: primaryExp,
-      band: primaryBand,
-    };
-  }
-
-  function evaluateWiseflowSheet(q, st) {
-    const fields = Array.isArray(q.wiseflowFields) ? q.wiseflowFields : [];
-    const details = {};
-    let earned = 0;
-    let total = 0;
-    for (const f of fields) {
-      const res = gradeSingleWiseflowField(f, st.wiseflow?.[f.id]);
-      details[f.id] = res;
-      earned += res.earned;
-      total += res.points;
-    }
-    const accuracy = total > 0 ? earned / total : 0;
-    return { earned, total, accuracy, details };
-  }
+  // WISEflow FLOWmulti parser & ±2% / 2-decimal grader delegated to window.StudyCore (js/core/grading.js)
 
   // ---------------------------------------------------------------------------
   // PAPER / CLIPBOARD IMAGE ATTACHMENTS (IndexedDB vault — zero localStorage bloat)
@@ -2573,14 +2453,7 @@ window.StudyRunner = (() => {
   }
 
   function fallbackGradeFromPct(pct) {
-    const p = Math.max(0, Math.min(100, Number(pct) || 0));
-    const r = Math.round(p);
-    if (p >= 85) return { letter: 'A', label: 'Excellent', cls: 'grade-a', points: 5, pct: r, toA: 0 };
-    if (p >= 77) return { letter: 'B', label: 'Very Good', cls: 'grade-b', points: 4, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
-    if (p >= 65) return { letter: 'C', label: 'Good', cls: 'grade-c', points: 3, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
-    if (p >= 50) return { letter: 'D', label: 'Satisfactory', cls: 'grade-d', points: 2, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
-    if (p >= 40) return { letter: 'E', label: 'Sufficient', cls: 'grade-e', points: 1, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
-    return { letter: 'F', label: 'Fail', cls: 'grade-f', points: 0, pct: r, toA: Math.max(1, Math.ceil(85 - p)) };
+    return coreGradeFromPct(Number(pct) || 0);
   }
 
   const EXAM_HINT_PENALTY_PER_HINT = 0.15;   // -15% of a question's earned points per hint used during an exam
@@ -4592,10 +4465,8 @@ window.StudyRunner = (() => {
         st.wfGrade = evaluateWiseflowSheet(q, st);
         await submitVerifiedAttempt(q, st, st.wfGrade.accuracy);
       } else if (q.numericCheck && st.numericInput.trim() !== '') {
-        const parsed = parseWiseflowNumber(st.numericInput);
-        const exp = Number(q.numericCheck.expected);
-        const tol = Math.max(0.02 * Math.abs(exp), Number(q.numericCheck.tolerance || 0.02));
-        if (parsed.ok && Math.abs(parsed.value - exp) <= tol) {
+        const chk = evaluateNumericCheck(st.numericInput, q.numericCheck.expected, Number(q.numericCheck.tolerance || 0.02));
+        if (chk.passed) {
           const totalChecks = (q.rubricChecks || []).length || 3;
           st.checkedRubrics = Array.from({ length: totalChecks }, (_, i) => i);
           toast('Numeric answer accepted. Verify your steps below.');
@@ -5004,10 +4875,8 @@ window.StudyRunner = (() => {
         st.wfGrade = evaluateWiseflowSheet(q, st);
         await submitVerifiedAttempt(q, st, st.wfGrade.accuracy);
       } else if (q.numericCheck && st.numericInput.trim() !== '') {
-        const parsed = parseWiseflowNumber(st.numericInput);
-        const exp = Number(q.numericCheck.expected);
-        const tol = Math.max(0.02 * Math.abs(exp), Number(q.numericCheck.tolerance || 0.02));
-        if (parsed.ok && Math.abs(parsed.value - exp) <= tol) {
+        const chk = evaluateNumericCheck(st.numericInput, q.numericCheck.expected, Number(q.numericCheck.tolerance || 0.02));
+        if (chk.passed) {
           const totalChecks = (q.rubricChecks || []).length || 3;
           st.checkedRubrics = Array.from({ length: totalChecks }, (_, i) => i);
           await submitVerifiedAttempt(q, st, 1.0);

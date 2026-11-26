@@ -8,6 +8,26 @@
 
 window.StudyApp = (() => {
   const { esc, examLabel, clockSec, minLabel, toast, openReferenceDrawer, bindGlobalChrome } = window.StudyUI;
+  const {
+    HIGH_DLPFC_CAP_MIN,
+    SCHED_DEBT_WINDOW_MS,
+    parseHmToMins,
+    minsToHm,
+    deriveSleepWindow,
+    computeClientStudyEstimate,
+    getCircadianAutoTarget: coreGetCircadianAutoTarget,
+    computeBlockTimingState,
+    isBlockStudyDebt,
+    evaluateBlockEffectiveState,
+    inferBlockDlpfcMode,
+    formatDurationShort,
+    scheduleAttemptFsrs,
+    applyDifficultyOverrideFsrs,
+    isFsrsDue,
+    effectiveDifficulty: coreEffectiveDifficulty,
+    effectiveDlpfc: coreEffectiveDlpfc,
+    gradeFromPct,
+  } = window.StudyCore;
 
   let boot = {
     mode: 'local',
@@ -76,34 +96,11 @@ window.StudyApp = (() => {
   })();
   const pendingDrafts = new Map();
 
-  const HIGH_DLPFC_CAP_MIN = 270; // 4.5h/day max-intensity novel synthesis budget
-
   function getCircadianAutoTarget() {
-    const hr = new Date().getHours();
-    const usedHighMin = Number(boot.analytics?.dlpfcBudget?.todayHighMinutes || 0);
-    if (hr >= 6 && hr < 15) {
-      if (usedHighMin >= HIGH_DLPFC_CAP_MIN) {
-        return {
-          mode: 'med_dlpfc',
-          windowLabel: 'Pre-15:00 · 4.5h Cap Reached',
-          explain: 'Switched to Med after reaching the 4.5h High practice limit.',
-        };
-      }
-      return {
-        mode: 'high_dlpfc',
-        windowLabel: '08:00–15:00 Peak Capacity Window',
-      };
-    }
-    if (hr >= 15 && hr < 18) {
-      return {
-        mode: 'med_dlpfc',
-        windowLabel: '15:00–18:00 Procedural Window',
-      };
-    }
-    return {
-      mode: 'low_dlpfc',
-      windowLabel: 'Evening Consolidation Window',
-    };
+    return coreGetCircadianAutoTarget(
+      new Date().getHours(),
+      Number(boot.analytics?.dlpfcBudget?.todayHighMinutes || 0)
+    );
   }
 
   function getResolvedFocusMode() {
@@ -277,67 +274,14 @@ window.StudyApp = (() => {
   }
 
   function effectiveDifficulty(q, rec = getProgressRecord(q?.id) || {}) {
-    const authored = Number(q?.difficulty || 2);
-    if (rec?.personalDifficulty && [1, 2, 3].includes(Number(rec.personalDifficulty))) {
-      return Number(rec.personalDifficulty);
-    }
-    const lastG = rec?.fsrs?.lastGrade;
-    if (lastG === 1 || lastG === 2) return Math.min(3, authored + 1);
-    if (lastG === 4) return Math.max(1, authored - 1);
-    return authored;
+    return coreEffectiveDifficulty(q, rec);
   }
 
   function effectiveDlpfc(q, rec = getProgressRecord(q?.id)) {
-    if (!q) return { base: 2, tier: 2, chunked: false };
-    const rawBase = Number(q.dlpfcBase);
-    const base =
-      [1, 2, 3].includes(rawBase)
-        ? rawBase
-        : q.kind === 'mcq'
-        ? Number(q.difficulty || 1) >= 3
-          ? 2
-          : 1
-        : Number(q.difficulty || 2) >= 3 || (q.wiseflowFields || []).length >= 4
-        ? 3
-        : 2;
-
-    if (!rec) return { base, tier: base, chunked: false };
-    const st = rec.status || 'not_started';
-    const pDiff = Number(rec.personalDifficulty || 0);
-    const fsrs = rec.fsrs || {};
-    const lastG = fsrs.lastGrade != null ? Number(fsrs.lastGrade) : null;
-    const reps = Number(fsrs.reps || 0);
-    const stab = Number(fsrs.stability || 0);
-
-    if (pDiff === 3 || st === 'revisit' || lastG === 1) {
-      const escalated = Math.min(3, Math.max(base, q.kind === 'mcq' ? 2 : 3));
-      return { base, tier: escalated, chunked: false };
-    }
-    if (st === 'done' && (lastG === null || lastG >= 3)) {
-      if (pDiff === 1 || (reps >= 2 && stab >= 5.0)) {
-        return { base, tier: 1, chunked: base > 1 };
-      }
-      if (base === 3 && reps >= 1) {
-        return { base, tier: 2, chunked: true };
-      }
-    }
-    return { base, tier: base, chunked: false };
+    return coreEffectiveDlpfc(q, rec);
   }
 
   const LOCAL_EXAM_RESULTS_KEY = 'study-os-exam-results-v1';
-
-  function gradeFromPct(pct) {
-    const p = Number(pct);
-    if (!Number.isFinite(p)) return null;
-    const clamped = Math.max(0, Math.min(100, Math.round(p * 10) / 10));
-    const rounded = Math.round(clamped);
-    if (clamped >= 85) return { letter: 'A', label: 'Excellent', cls: 'grade-a', points: 5, pct: rounded, toA: 0 };
-    if (clamped >= 77) return { letter: 'B', label: 'Very Good', cls: 'grade-b', points: 4, pct: rounded, toA: Math.max(1, Math.ceil(85 - clamped)) };
-    if (clamped >= 65) return { letter: 'C', label: 'Good', cls: 'grade-c', points: 3, pct: rounded, toA: Math.max(1, Math.ceil(85 - clamped)) };
-    if (clamped >= 50) return { letter: 'D', label: 'Satisfactory', cls: 'grade-d', points: 2, pct: rounded, toA: Math.max(1, Math.ceil(85 - clamped)) };
-    if (clamped >= 40) return { letter: 'E', label: 'Sufficient', cls: 'grade-e', points: 1, pct: rounded, toA: Math.max(1, Math.ceil(85 - clamped)) };
-    return { letter: 'F', label: 'Fail', cls: 'grade-f', points: 0, pct: rounded, toA: Math.max(1, Math.ceil(85 - clamped)) };
-  }
 
   function loadExamResultsMap() {
     if (isStaticWeb) {
@@ -888,7 +832,6 @@ window.StudyApp = (() => {
     return totalW > 0 ? Math.round(weightedSum / totalW) : null;
   }
 
-  const SCHED_DEBT_WINDOW_MS = 14 * 86_400_000;
   const LOCAL_SCHED_STATUS_KEY = 'study-os-local-sched-status-v1';
   const sandboxSchedCompleted = new Map();
   const sandboxSchedDismissed = new Set();
@@ -942,7 +885,7 @@ window.StudyApp = (() => {
         courseProgress[cid].in_progress++;
         if (tb) tb.in_progress++;
       }
-      if (rec.fsrs?.due && rec.fsrs.due <= nowIso) {
+      if (isFsrsDue(rec.fsrs, nowIso)) {
         courseProgress[cid].dueFsrs++;
         if (tb) tb.dueFsrs++;
       }
@@ -1365,19 +1308,12 @@ window.StudyApp = (() => {
       const savedCompleted = isRecord(ws.customSchedule.completedEvents) ? ws.customSchedule.completedEvents : {};
       const savedDismissed = isRecord(ws.customSchedule.dismissedEvents) ? ws.customSchedule.dismissedEvents : {};
       const at = Date.parse(nowIso);
-      const debtCutoff = at - SCHED_DEBT_WINDOW_MS;
       boot.calendar = {
         updatedAt: ws.customSchedule.updatedAt || nowIso,
         source: ws.customSchedule.source || 'browser_schedule',
         estimate: ws.customSchedule.estimate || null,
         blocks: ws.customSchedule.blocks.map((block) => {
-          const start = Date.parse(block.startIso);
-          const end = Date.parse(block.endIso);
-          const timingState = Number.isFinite(end) && end <= at
-            ? 'past'
-            : Number.isFinite(start) && start <= at
-            ? 'live_now'
-            : 'upcoming';
+          const { timingState, startMs: start, endMs: end } = computeBlockTimingState(block, at, false);
           const compInfo = savedCompleted[block.eventId] || completedFromSessions.get(block.eventId) || null;
           const completed = Boolean(compInfo) || Boolean(block.completed);
           const completedAt = compInfo?.at || block.completedAt || '';
@@ -1385,8 +1321,7 @@ window.StudyApp = (() => {
             completed && (compInfo?.early || (completedAt && Number.isFinite(start) && Date.parse(completedAt) < start))
           );
           const dismissed = !completed && Boolean(savedDismissed[block.eventId]);
-          const isStudy = block.blockKind === 'study_block' || block.blockKind === 'recall_sprint';
-          const isDebt = Boolean(isStudy && !block.optional && timingState === 'past' && !completed && !dismissed && Number.isFinite(end) && end >= debtCutoff);
+          const isDebt = isBlockStudyDebt(block, timingState, completed, dismissed, end, at, SCHED_DEBT_WINDOW_MS);
           return { ...block, timingState, completed, completedAt, completedEarly, dismissed, isDebt };
         }),
       };
@@ -1425,47 +1360,18 @@ window.StudyApp = (() => {
 
   function getBlockEffectiveState(block) {
     const id = String(block?.eventId || '');
-    const nowMs = Date.now();
-    const startMs = Date.parse(block?.startIso || '');
-    const endMs = Date.parse(block?.endIso || '');
-    const timingState = Number.isFinite(endMs) && endMs <= nowMs
-      ? 'past'
-      : Number.isFinite(startMs) && startMs <= nowMs
-      ? 'live_now'
-      : block?.timingState || 'upcoming';
-
-    let completed = Boolean(block?.completed);
-    let completedAt = block?.completedAt || '';
-    let completedEarly = Boolean(block?.completedEarly);
-    let dismissed = Boolean(block?.dismissed);
-
-    if (!isStaticWeb) {
-      const loc = readLocalSchedStatus();
-      if (loc.completed[id]) {
-        completed = true;
-        completedAt = loc.completed[id].at || completedAt;
-        completedEarly = Boolean(loc.completed[id].early);
-      } else if (loc.completed[id] === false) {
-        completed = false;
-      }
-      if (!completed && loc.dismissed[id]) dismissed = true;
-    }
-
-    if (isDevSandbox()) {
-      if (sandboxSchedCompleted.has(id)) {
-        const s = sandboxSchedCompleted.get(id);
-        completed = Boolean(s);
-        completedEarly = Boolean(s?.early);
-        completedAt = s?.at || '';
-      }
-      if (sandboxSchedDismissed.has(id)) dismissed = true;
-    }
-
-    const isStudy = block?.blockKind === 'study_block' || block?.blockKind === 'recall_sprint';
-    const isDebt = Boolean(
-      isStudy && !block.optional && timingState === 'past' && !completed && !dismissed && Number.isFinite(endMs) && endMs >= nowMs - SCHED_DEBT_WINDOW_MS
-    );
-    return { timingState, completed, completedAt, completedEarly, dismissed, isDebt, startMs, endMs };
+    return evaluateBlockEffectiveState(block, {
+      nowMs: Date.now(),
+      debtWindowMs: SCHED_DEBT_WINDOW_MS,
+      localStatus: !isStaticWeb ? readLocalSchedStatus() : null,
+      sandboxOverride: isDevSandbox()
+        ? {
+            hasCompleted: sandboxSchedCompleted.has(id),
+            completedValue: sandboxSchedCompleted.get(id),
+            dismissed: sandboxSchedDismissed.has(id),
+          }
+        : null,
+    });
   }
 
   function setScheduleBlockCompleted(eventId, done, block = null, method = 'manual') {
@@ -1554,16 +1460,6 @@ window.StudyApp = (() => {
     else if (currentView === 'schedule') renderScheduleStudio();
   }
 
-  function formatDurationShort(minutes) {
-    const m = Math.max(0, Math.round(Number(minutes) || 0));
-    if (m >= 60) {
-      const h = Math.floor(m / 60);
-      const r = m % 60;
-      return r ? `${h}h ${r}m` : `${h}h`;
-    }
-    return `${m}m`;
-  }
-
   function formatRelativeScheduleWhen(block, st) {
     const osloDayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
     const shortDateFmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Oslo', weekday: 'short', day: 'numeric', month: 'short' });
@@ -1597,20 +1493,7 @@ window.StudyApp = (() => {
   ]);
 
   function inferBlockDlpfc(block) {
-    const rawMode = block.dlpfcMode || block.autoQueue?.cognitiveMode || '';
-    const sum = String(block.summary || '');
-    let mode = rawMode;
-    if (!mode) {
-      if (/\b(high\s*dlpfc|hard)\b/i.test(sum)) mode = 'high_dlpfc';
-      else if (/\b(low\s*dlpfc|easy|recall)\b/i.test(sum) || block.blockKind === 'recall_sprint') mode = 'low_dlpfc';
-      else if (/\b(med(?:ium)?\s*dlpfc|medium)\b/i.test(sum)) mode = 'med_dlpfc';
-      else {
-        const h = Number(String(block.startLabel || '').split(':')[0]);
-        if (Number.isFinite(h)) mode = h < 15 ? 'high_dlpfc' : h < 18 ? 'med_dlpfc' : 'low_dlpfc';
-        else mode = getResolvedFocusMode();
-      }
-    }
-    const tier = mode === 'high_dlpfc' ? 3 : mode === 'low_dlpfc' ? 1 : 2;
+    const { mode, tier } = inferBlockDlpfcMode(block, getResolvedFocusMode());
     const label = window.StudyLayout?.label?.(tier) || (tier === 3 ? 'High DLPFC' : tier === 2 ? 'Med DLPFC' : 'Low DLPFC');
     return { mode, tier, label };
   }
@@ -8138,20 +8021,7 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   // VIEW 6: SCHEDULE STUDIO (TimeEdit .ics + Work Hours Auto-Adjuster + Any-LLM Importer)
   // ---------------------------------------------------------------------------
-  function computeClientStudyEstimate(workH, classH, courseCount) {
-    const w = Math.max(0, Math.min(60, Number(workH) || 0));
-    const c = Math.max(0, Math.min(35, Number(classH) || 0));
-    const baseAcad = Math.max(12, Math.min(42, Math.max(1, courseCount) * 8));
-    const rawSelf = Math.max(6, baseAcad - c);
-    const penalty = Math.max(0, w - 6) * 0.6;
-    const rec = Math.round(Math.max(5, Math.min(36, rawSelf - penalty)) * 10) / 10;
-    return {
-      recommendedStudyHours: rec,
-      weeklyWorkHours: w,
-      weeklyClassHours: Math.round(c * 10) / 10,
-      totalCommittedHours: Math.round((w + c + rec) * 10) / 10,
-    };
-  }
+  // computeClientStudyEstimate, parseHmToMins, minsToHm, deriveSleepWindow delegated to window.StudyCore (js/core/schedule.js)
 
   function parseClientSchedulePayload(rawText) {
     let cleaned = String(rawText || '').trim();
@@ -8291,29 +8161,6 @@ window.StudyApp = (() => {
     ]
       .filter(Boolean)
       .join('\n');
-  }
-
-  function parseHmToMins(hm, fallback = 450) {
-    const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(hm || '').trim());
-    return m ? Number(m[1]) * 60 + Number(m[2]) : fallback;
-  }
-
-  function minsToHm(mins) {
-    const n = ((Math.round(mins) % 1440) + 1440) % 1440;
-    return `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
-  }
-
-  function deriveSleepWindow(wakeTime, sleepHours = 8) {
-    const wakeMins = parseHmToMins(wakeTime, 7 * 60 + 30);
-    const sleep = Math.max(6, Math.min(10, Number(sleepHours) || 8));
-    const bedMins = wakeMins - Math.round(sleep * 60);
-    return {
-      wakeTime: minsToHm(wakeMins),
-      bedTime: minsToHm(bedMins),
-      studyStart: minsToHm(wakeMins + 30),
-      studyEnd: minsToHm(bedMins - 30),
-      sleepHours: sleep,
-    };
   }
 
   function formatRelativePostAge(iso) {
@@ -9522,15 +9369,8 @@ window.StudyApp = (() => {
       rec.attemptCount = (rec.attemptCount || 0) + 1;
       if (beatAi) rec.beatAiCount = (rec.beatAiCount || 0) + 1;
       if (qAcc >= 0.85 && (!rec.pbEffectiveSec || effSec < rec.pbEffectiveSec)) rec.pbEffectiveSec = effSec;
-      const daysOut = qAcc >= 0.85 ? 4 : 1;
       delete rec.lastUserGrade;
-      rec.fsrs = {
-        reps: (rec.fsrs?.reps || 0) + 1,
-        stability: daysOut,
-        scheduledDays: daysOut,
-        lastGrade: qAcc >= 0.85 ? 3 : 1,
-        due: new Date(Date.now() + daysOut * 86400000).toISOString(),
-      };
+      rec.fsrs = scheduleAttemptFsrs(rec.fsrs, qAcc, Date.now());
       const attempt = { ...payload, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio, verificationTier };
       ws.attempts.push(attempt);
       const saved = saveWebState(ws);
@@ -9561,30 +9401,11 @@ window.StudyApp = (() => {
     if (isStaticWeb) {
       const ws = loadWebState();
       const rec = (ws.records[questionId] = ws.records[questionId] || {});
-      const grade = Math.max(1, Math.min(4, Math.round(Number(fsrsGrade) || 3)));
-      const prevStab = Math.max(1, Number(rec.fsrs?.stability) || 1);
-      const scheduledDays = grade === 1
-        ? 1
-        : grade === 2
-        ? Math.max(1, Math.min(3, Math.round(prevStab * 0.6) || 2))
-        : grade === 3
-        ? Math.max(3, Math.round(prevStab * 1.5))
-        : Math.max(7, Math.round(prevStab * 2.5));
-      rec.lastUserGrade = grade;
-      rec.personalDifficulty = grade <= 2 ? 3 : grade === 4 ? 1 : 2;
-      if (grade === 1) {
-        rec.status = 'revisit';
-      } else if (!rec.status || rec.status === 'not_started' || rec.status === 'revisit') {
-        rec.status = 'done';
-      }
-      rec.fsrs = {
-        ...(rec.fsrs || {}),
-        reps: Math.max(1, Number(rec.fsrs?.reps || 0)),
-        lastGrade: grade,
-        scheduledDays,
-        stability: scheduledDays,
-        due: new Date(Date.now() + scheduledDays * 86_400_000).toISOString(),
-      };
+      const override = applyDifficultyOverrideFsrs(rec.fsrs, fsrsGrade, rec.status, Date.now());
+      rec.lastUserGrade = override.grade;
+      rec.personalDifficulty = override.personalDifficulty;
+      rec.status = override.status;
+      rec.fsrs = override.fsrs;
       rec.updatedAt = new Date().toISOString();
       saveWebState(ws);
       queueCloudSync();
