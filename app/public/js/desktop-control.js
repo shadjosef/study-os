@@ -14,8 +14,12 @@
 window.StudyDesktopControl = (() => {
   const REPO_URL = 'https://github.com/shadjosef/study-os';
   const RELEASES_URL = `${REPO_URL}/releases`;
+  const DL_MAC_URL = `${REPO_URL}/releases/latest/download/Study-OS-Desktop-macOS.zip`;
+  const DL_WIN_URL = `${REPO_URL}/releases/latest/download/Study-OS-Desktop-Windows.zip`;
+  const DL_SUMS_URL = `${REPO_URL}/releases/latest/download/SHA256SUMS.txt`;
   const AUDIT_DOC_URL = `${REPO_URL}/blob/main/docs/DESKTOP_TELEMETRY.md`;
   const QUICK_CLONE_CMD = 'git clone https://github.com/shadjosef/study-os.git && cd study-os && python3 app/server.py --open';
+  const VERIFY_SUMS_CMD = 'shasum -a 256 -c SHA256SUMS.txt';
 
   const CATEGORY_META = [
     { key: 'deep_study', label: 'Deep Study / IDE', color: '#0f766e' },
@@ -584,11 +588,14 @@ window.StudyDesktopControl = (() => {
         <div class="dc-proof-bar">
           <div class="dc-proof-meta">
             <span class="dc-proof-badge">0 network uploads · 0 keystrokes · 0 screenshots</span>
-            <span>Verify downloads against <code>SHA256SUMS.txt</code></span>
+            <span>Verify with <code title="${esc(VERIFY_SUMS_CMD)}">shasum -a 256 -c SHA256SUMS.txt</code></span>
           </div>
           <div class="dc-actions">
-            <a class="dc-action-btn is-primary" href="${esc(RELEASES_URL)}" target="_blank" rel="noopener">GitHub Releases (SHA256SUMS) ↗</a>
-            <a class="dc-action-btn" href="${esc(AUDIT_DOC_URL)}" target="_blank" rel="noopener">Privacy &amp; Audit Spec ↗</a>
+            <a class="dc-action-btn is-primary" href="${esc(DL_MAC_URL)}" target="_blank" rel="noopener">Download macOS (.zip)</a>
+            <a class="dc-action-btn" href="${esc(DL_WIN_URL)}" target="_blank" rel="noopener">Download Windows (.zip)</a>
+            <a class="dc-action-btn" href="${esc(DL_SUMS_URL)}" target="_blank" rel="noopener">SHA256SUMS.txt</a>
+            <a class="dc-action-btn" href="${esc(RELEASES_URL)}" target="_blank" rel="noopener">Releases ↗</a>
+            <a class="dc-action-btn" href="${esc(AUDIT_DOC_URL)}" target="_blank" rel="noopener">Audit Spec ↗</a>
           </div>
         </div>
       </section>
@@ -685,6 +692,54 @@ window.StudyDesktopControl = (() => {
             : 'Desktop tracking is strictly OFF by default. Enable local OS app tracking above to measure real time spent in IDEs, PDFs, and notes — stored only on this computer.'
         }</div>`;
 
+    const cfg = st.config || {};
+    const cfgCats = cfg.categories || {};
+    const shieldApps = Array.isArray(cfg.distractionApps) ? cfg.distractionApps : [];
+    const ruleSections = [
+      { key: 'deep_study', label: 'Deep Study / IDE', apps: Array.isArray(cfgCats.deep_study) ? cfgCats.deep_study : [] },
+      { key: 'reading_notes', label: 'Reading / Notes', apps: Array.isArray(cfgCats.reading_notes) ? cfgCats.reading_notes : [] },
+      { key: 'browser', label: 'Browser', apps: Array.isArray(cfgCats.browser) ? cfgCats.browser : [] },
+      { key: 'distractionApps', label: 'Focus Shield Distractions', apps: shieldApps },
+    ];
+    const rulesHtml = `
+      <details class="dc-rules-details" style="margin:12px 0 0;border:1px solid var(--border,var(--line,rgba(17,22,21,.1)));border-radius:12px;padding:10px 13px;background:var(--panel-alt,#eef2f5)">
+        <summary style="cursor:pointer;font-size:12.5px;font-weight:700;color:var(--text,var(--ink,#111615))">
+          Customize App Categories &amp; Focus Shield List
+          <small style="font-weight:500;color:var(--muted,#4e5c59);margin-left:6px">Stored only in local state/desktop_tracker_config.json</small>
+        </summary>
+        <div style="display:grid;gap:10px;margin-top:10px">
+          ${ruleSections
+            .map(
+              (sec) => `
+            <div>
+              <div style="font-size:11.5px;font-weight:700;color:var(--muted,#4e5c59);margin-bottom:5px">${esc(sec.label)}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                ${sec.apps
+                  .map(
+                    (appName) => `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:999px;font-size:11.5px;background:var(--panel,#fff);border:1px solid var(--border,var(--line,rgba(17,22,21,.12)))">
+                      ${esc(appName)}
+                      <button type="button" data-dc-rm-group="${esc(sec.key)}" data-dc-rm-app="${esc(appName)}" aria-label="Remove ${esc(appName)} from ${esc(sec.label)}" style="border:0;background:transparent;color:var(--muted,#4e5c59);cursor:pointer;font-size:12px;padding:0 2px;line-height:1">×</button>
+                    </span>`
+                  )
+                  .join('')}
+              </div>
+            </div>`
+            )
+            .join('')}
+          <form id="dc-add-rule-form" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px">
+            <input type="text" id="dc-rule-app-input" aria-label="Application name" placeholder="App name (e.g. RStudio, Discord, Notion)" maxlength="60" style="flex:1 1 180px;min-width:0;padding:7px 10px;border-radius:8px;border:1px solid var(--border,var(--line,rgba(17,22,21,.18)));background:var(--panel,#fff);color:var(--text,var(--ink,#111615));font-size:12.5px" />
+            <select id="dc-rule-group-select" aria-label="Category for application" style="padding:7px 10px;border-radius:8px;border:1px solid var(--border,var(--line,rgba(17,22,21,.18)));background:var(--panel,#fff);color:var(--text,var(--ink,#111615));font-size:12.5px">
+              <option value="deep_study">Deep Study / IDE</option>
+              <option value="reading_notes">Reading / Notes</option>
+              <option value="browser">Browser</option>
+              <option value="distractionApps">Focus Shield Distractions</option>
+            </select>
+            <button type="submit" class="dc-action-btn is-primary" ${state.busy ? 'disabled' : ''}>+ Add app</button>
+          </form>
+        </div>
+      </details>
+    `;
+
     const shieldArmed = enabled && shield && sessionActive && !paused;
 
     container.innerHTML = `
@@ -746,6 +801,8 @@ window.StudyDesktopControl = (() => {
           ${appsHtml}
         </div>
 
+        ${rulesHtml}
+
         ${state.error ? `<p class="dc-error" role="alert">${esc(state.error)}</p>` : ''}
 
         <div class="dc-proof-bar">
@@ -778,6 +835,43 @@ window.StudyDesktopControl = (() => {
     });
     container.querySelector('#dc-copy-hash')?.addEventListener('click', () => {
       copyText(fullHash, 'Copied app/desktop_tracker.py SHA-256 hash!');
+    });
+    container.querySelectorAll('[data-dc-rm-group]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const grp = btn.dataset.dcRmGroup;
+        const appName = btn.dataset.dcRmApp;
+        if (!grp || !appName) return;
+        if (grp === 'distractionApps') {
+          const nextShield = shieldApps.filter((x) => x !== appName);
+          const nextDistCat = (Array.isArray(cfgCats.distraction) ? cfgCats.distraction : []).filter((x) => x !== appName);
+          patchDesktopConfig({
+            distractionApps: nextShield,
+            categories: { ...cfgCats, distraction: nextDistCat },
+          });
+        } else {
+          const curList = Array.isArray(cfgCats[grp]) ? cfgCats[grp] : [];
+          patchDesktopConfig({ categories: { ...cfgCats, [grp]: curList.filter((x) => x !== appName) } });
+        }
+      });
+    });
+    container.querySelector('#dc-add-rule-form')?.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      const inp = container.querySelector('#dc-rule-app-input');
+      const sel = container.querySelector('#dc-rule-group-select');
+      const name = String(inp?.value || '').trim();
+      const grp = String(sel?.value || 'deep_study');
+      if (!name) return;
+      if (grp === 'distractionApps') {
+        const nextShield = [...new Set([...shieldApps, name])];
+        const nextDistCat = [...new Set([...(Array.isArray(cfgCats.distraction) ? cfgCats.distraction : []), name])];
+        patchDesktopConfig({
+          distractionApps: nextShield,
+          categories: { ...cfgCats, distraction: nextDistCat },
+        });
+      } else {
+        const curList = Array.isArray(cfgCats[grp]) ? cfgCats[grp] : [];
+        patchDesktopConfig({ categories: { ...cfgCats, [grp]: [...new Set([...curList, name])] } });
+      }
     });
   }
 

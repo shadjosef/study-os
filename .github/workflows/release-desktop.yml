@@ -62,7 +62,7 @@ jobs:
               "smoke_test_e2e.mjs",
               "offline-worker.js",
           }
-          EXCLUDED_DIRS = {".git", "__pycache__", "data", "site-pack", "community", "pdfcraft", ".pytest_cache"}
+          EXCLUDED_DIRS = {".git", "__pycache__", "data", "community", "pdfcraft", ".pytest_cache"}
           EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".DS_Store"}
 
           FIXED_ZIP_TIME = (2026, 1, 1, 0, 0, 0)
@@ -76,6 +76,8 @@ jobs:
               if rel_path.name == ".DS_Store" or rel_path.suffix in EXCLUDED_SUFFIXES:
                   return True
               if parts[0] == "tools" and len(parts) == 2 and parts[1] in EXCLUDED_TOOLS:
+                  return True
+              if parts[0] == "site-pack" and len(parts) == 2 and parts[1] not in ("community.json", "static-data"):
                   return True
               if platform_kind == "windows" and parts[0] == "tools" and rel_path.suffix == ".swift":
                   return True
@@ -116,6 +118,8 @@ jobs:
               "Study OS.app",
               "OPEN_STUDY_OS.command",
               "app",
+              "site-pack/static-data",
+              "site-pack/community.json",
               "tools",
               "examples",
               "docs",
@@ -126,6 +130,8 @@ jobs:
           win_items = [
               "OPEN_STUDY_OS.cmd",
               "app",
+              "site-pack/static-data",
+              "site-pack/community.json",
               "tools",
               "examples",
               "docs",
@@ -145,8 +151,12 @@ jobs:
                   for n in names:
                       assert "/data/" not in f"/{n}", f"Forbidden data/ entry in {zpath.name}: {n}"
                       assert not n.endswith("build_member_library.py"), f"Forbidden private builder in {zpath.name}: {n}"
+                      assert not n.endswith("member-archive.json"), f"Forbidden member-archive.json in {zpath.name}: {n}"
                       assert "__pycache__" not in n and not n.endswith(".pyc"), f"Bytecode leaked into {zpath.name}: {n}"
                   assert any(n.endswith("/app/desktop_tracker.py") for n in names), f"Missing desktop_tracker.py in {zpath.name}"
+                  assert any(n.endswith("/site-pack/static-data/courses/acct-2527.json") for n in names), f"Missing bundled public courses in {zpath.name}"
+                  if zpath == mac_zip:
+                      assert any(n.endswith("/Study OS.app/Contents/Resources/StudyOS.icns") for n in names), "Missing Retina StudyOS.icns in macOS bundle"
 
           # Generate verifiable SHA256SUMS.txt covering the exact uploaded release archives
           checksum_lines = []

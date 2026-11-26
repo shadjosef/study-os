@@ -18,7 +18,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-147d64?style=flat-square&labelColor=334155" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/built%20with-Zero--dep%20JS%20%26%20Python-147d64?style=flat-square&labelColor=334155" alt="Built with zero-dep JS & Python" /><br/>
   <img src="https://img.shields.io/badge/runs%20on-Web%20%C2%B7%20macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-147d64?style=flat-square&labelColor=334155" alt="Runs on Web, macOS, Windows, Linux" />
-  <img src="https://img.shields.io/badge/tests-110%20passing-0f5f4c?style=flat-square&labelColor=334155" alt="110 automated tests passing" /><br/>
+  <img src="https://img.shields.io/badge/tests-111%20passing-0f5f4c?style=flat-square&labelColor=334155" alt="111 automated tests passing" /><br/>
   <img src="https://img.shields.io/badge/local--first-EU%20GDPR-0f5f4c?style=flat-square&labelColor=334155" alt="Local-first EU GDPR" />
   <a href="https://github.com/shadjosef/study-os/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/shadjosef/study-os/ci.yml?style=flat-square&label=CI&labelColor=334155" alt="Study-OS CI" /></a>
   <a href="https://github.com/shadjosef/study-os/actions/workflows/pages.yml"><img src="https://img.shields.io/github/actions/workflow/status/shadjosef/study-os/pages.yml?style=flat-square&label=Pages&labelColor=334155" alt="Deploy Static Hub" /></a>
@@ -26,6 +26,7 @@
 
 <p>
   <a href="https://studyos.no/"><img src="https://img.shields.io/badge/OPEN%20STUDYOS.NO-147d64?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Open Study-OS on studyos.no" /></a>
+  <a href="https://github.com/shadjosef/study-os/releases/latest"><img src="https://img.shields.io/badge/DOWNLOAD%20DESKTOP%20v1.0.0-334155?style=for-the-badge&logo=apple&logoColor=white" alt="Download Study-OS Desktop Edition" /></a>
 </p>
 
 <p>
@@ -237,7 +238,7 @@ python3 app/server.py
 
 ```bash
 node --test tests/core.test.mjs tests/analytics.test.mjs tests/metrics-reconcile.test.mjs tests/worker/security.test.mjs  # 75 zero-dep core, telemetry & edge-security tests
-python3 -m unittest discover -s tests/python -v # 35 stdlib backend, desktop tracker, HTTP security & FSRS parity tests
+python3 -m unittest discover -s tests/python -v # 36 stdlib backend, desktop tracker, turnkey fallback, HTTP security & FSRS parity tests
 python3 tools/cli.py rebuild-catalog            # Validate schemas, assets & refresh catalog
 python3 tools/cli.py status                     # Print live UPI & course telemetry JSON
 python3 tools/build_public_site.py --out dist   # Build static website bundle + PWA precache

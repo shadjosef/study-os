@@ -6,14 +6,18 @@
 	<string>Study OS</string>
 	<key>CFBundleExecutable</key>
 	<string>StudyOS</string>
+	<key>CFBundleIconFile</key>
+	<string>StudyOS</string>
 	<key>CFBundleIdentifier</key>
-	<string>local.personal.study-os</string>
+	<string>no.studyos.desktop</string>
 	<key>CFBundleName</key>
 	<string>Study OS</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
 	<key>CFBundleVersion</key>
-	<string>1.0</string>
+	<string>1.0.0</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>

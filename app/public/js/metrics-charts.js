@@ -1227,6 +1227,9 @@ window.StudyMetrics = (() => {
           <button type="button" class="mini-tool-btn" id="btn-mc-export-csv" title="Download RFC-4180 CSV of daily ledger and logged attempts">
             Export CSV
           </button>
+          <button type="button" class="mini-tool-btn" id="btn-mc-desktop-jump" title="Open Full-Control Local Desktop Telemetry, Focus Shield &amp; verifiable download options">
+            Desktop Edition
+          </button>
           <span class="mc-live-pill"><i aria-hidden="true"></i>LIVE · Oslo</span>
         </div>
       </div>
@@ -1781,6 +1784,11 @@ window.StudyMetrics = (() => {
       );
       const shortHash = digestHex !== 'unavailable' ? ` (SHA-256: ${digestHex.slice(0, 10)}…)` : '';
       window.StudyUI?.toast?.(`Exported verifiable Telemetry Ledger JSON${shortHash}`);
+    });
+
+    root.querySelector('#btn-mc-desktop-jump')?.addEventListener('click', () => {
+      const slot = root.querySelector('#mc-desktop-control-slot');
+      slot?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
     });
 
     root.querySelector('#btn-mc-export-csv')?.addEventListener('click', () => {

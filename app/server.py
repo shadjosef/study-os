@@ -232,15 +232,30 @@ class StudyStore:
         ):
             return None
         courses_root = self.courses_dir.resolve()
+        bank_file: Path | None = None
         try:
-            bank_file = (courses_root / course_id / "bank.json").resolve()
+            cand = (courses_root / course_id / "bank.json").resolve()
+            if courses_root in cand.parents and cand.is_file():
+                bank_file = cand
         except OSError:
-            return None
-        if courses_root not in bank_file.parents or not bank_file.is_file():
+            bank_file = None
+
+        # Turnkey Desktop fallback: load bundled copyright-safe public course pack when no custom bank exists in data/courses/
+        if bank_file is None:
+            bundled_root = (self.root / "site-pack" / "static-data" / "courses").resolve()
+            try:
+                bundled = (bundled_root / f"{course_id}.json").resolve()
+                if bundled_root in bundled.parents and bundled.is_file():
+                    bank_file = bundled
+            except OSError:
+                bank_file = None
+
+        if bank_file is None:
             return None
         supplement_file = self.root / "examples" / "math-2588" / "bank.json"
-        has_supplement = course_id == "math-2588" and supplement_file.is_file()
+        has_supplement = course_id == "math-2588" and supplement_file.is_file() and bank_file.parent.parent == courses_root
         signature = (
+            str(bank_file),
             bank_file.stat().st_mtime_ns,
             supplement_file.stat().st_mtime_ns if has_supplement else 0,
         )
@@ -268,6 +283,17 @@ class StudyStore:
                 if not sub.is_dir():
                     continue
                 bank = self.load_course_bank(sub.name)
+                if bank and bank.get("courseId"):
+                    courses_by_id[bank["courseId"]] = bank
+
+        # Turnkey Desktop fallback: expose bundled copyright-safe public courses if not already overridden in data/courses/
+        bundled_dir = self.root / "site-pack" / "static-data" / "courses"
+        if bundled_dir.is_dir():
+            for jf in sorted(bundled_dir.glob("*.json")):
+                cid = jf.stem
+                if cid in courses_by_id:
+                    continue
+                bank = self.load_course_bank(cid)
                 if bank and bank.get("courseId"):
                     courses_by_id[bank["courseId"]] = bank
 
@@ -362,6 +388,83 @@ class StudyStore:
             self.root, days_ahead=14, data_dir=self.data_dir, courses_by_id=courses_by_id
         )
 
+    def load_bundled_references_meta(self) -> list[dict[str, Any]]:
+        boot_file = self.root / "site-pack" / "static-data" / "bootstrap.json"
+        if not boot_file.is_file():
+            return []
+        try:
+            payload = json.loads(boot_file.read_text(encoding="utf-8"))
+            refs = payload.get("references")
+            return refs if isinstance(refs, list) else []
+        except Exception:
+            return []
+
+    def extract_bundled_reference_section(self, rel_file: str, heading_query: str = "") -> dict[str, Any] | None:
+        refs_dir = (self.root / "site-pack" / "static-data" / "references").resolve()
+        if not refs_dir.is_dir():
+            return None
+        want = rel_file.strip().lstrip("/\\")
+        if not want or "\x00" in want:
+            return None
+        doc = None
+        for jf in sorted(refs_dir.glob("*.json")):
+            try:
+                parsed = json.loads(jf.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if str(parsed.get("file") or "").lstrip("/\\") == want:
+                doc = parsed
+                break
+        if not isinstance(doc, dict):
+            return None
+        markdown = str(doc.get("markdown") or "")
+        toc = doc.get("toc") if isinstance(doc.get("toc"), list) else []
+        selected_heading = ""
+        slice_md = markdown
+        if heading_query and markdown:
+            lines = markdown.splitlines()
+            headings = []
+            for idx, ln in enumerate(lines):
+                m = re.match(r"^(#{1,6})\s+(.+?)\s*$", ln)
+                if m:
+                    headings.append({"level": len(m.group(1)), "title": m.group(2).strip(), "line": idx})
+            q_norm = re.sub(r"\s+", " ", heading_query.strip().lower().lstrip("#").strip())
+            norm_titles = [re.sub(r"\s+", " ", h["title"].lower()) for h in headings]
+            match_idx = None
+            for idx, t_norm in enumerate(norm_titles):
+                if t_norm == q_norm:
+                    match_idx = idx
+                    break
+            if match_idx is None:
+                for idx, t_norm in enumerate(norm_titles):
+                    if q_norm and q_norm in t_norm:
+                        match_idx = idx
+                        break
+            if match_idx is None:
+                for idx, t_norm in enumerate(norm_titles):
+                    if len(t_norm) >= 10 and t_norm in q_norm:
+                        match_idx = idx
+                        break
+            if match_idx is not None:
+                h_obj = headings[match_idx]
+                selected_heading = h_obj["title"]
+                start_line = h_obj["line"]
+                end_line = len(lines)
+                for nxt in headings[match_idx + 1 :]:
+                    if nxt["level"] <= h_obj["level"]:
+                        end_line = nxt["line"]
+                        break
+                slice_md = "\n".join(lines[start_line:end_line]).strip()
+        return {
+            "available": True,
+            "bundled": True,
+            "file": want,
+            "selectedHeading": selected_heading,
+            "toc": toc,
+            "markdown": slice_md,
+            "obsidianUri": "",
+        }
+
     def build_bootstrap(self, force_calendar: bool = False) -> dict[str, Any]:
         with STATE_LOCK:
             catalog, courses_by_id = self.discover_courses()
@@ -414,12 +517,15 @@ class StudyStore:
                 pass
 
             sched_cfg = load_custom_schedule(self.data_dir)
+            refs_list = discover_reference_library(self.root, catalog, self.data_dir)
+            if not refs_list:
+                refs_list = self.load_bundled_references_meta()
             return {
                 "serverTime": now_iso,
                 "timezone": "Europe/Oslo",
                 "mode": "local",
                 "catalog": catalog,
-                "references": discover_reference_library(self.root, catalog, self.data_dir),
+                "references": refs_list,
                 "canvasArchive": inspect_canvas_archive(self.root, self.data_dir, courses_by_id),
                 "scheduleConfig": {
                     "enabled": bool(sched_cfg.get("enabled")),
@@ -792,7 +898,32 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             if not rel_file or "\x00" in rel_file:
                 self.send_json({"available": False, "error": "Missing file parameter"}, status=400)
                 return
-            self.send_json(extract_reference_section(store.root, rel_file, heading))
+            section = extract_reference_section(store.root, rel_file, heading)
+            if not section.get("available"):
+                bundled = store.extract_bundled_reference_section(rel_file, heading)
+                if bundled:
+                    section = bundled
+            self.send_json(section)
+            return
+
+        if route.startswith("/static-data/vault-assets/"):
+            raw_rel = urllib.parse.unquote(route[len("/static-data/vault-assets/") :]).lstrip("/")
+            if not raw_rel or "\x00" in raw_rel or "\\" in raw_rel or any(seg == ".." for seg in raw_rel.split("/")):
+                self.send_json({"error": "Forbidden"}, status=403)
+                return
+            assets_root = (store.root / "site-pack" / "static-data" / "vault-assets").resolve()
+            if not assets_root.is_dir():
+                self.send_json({"error": "Not found"}, status=404)
+                return
+            try:
+                target = (assets_root / raw_rel).resolve()
+            except OSError:
+                self.send_json({"error": "Forbidden"}, status=403)
+                return
+            if assets_root not in target.parents or not target.is_file():
+                self.send_json({"error": "Not found"}, status=404)
+                return
+            self.send_file_path(target)
             return
 
         if route == "/api/vault-asset":

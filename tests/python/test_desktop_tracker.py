@@ -459,6 +459,48 @@ class TestDesktopEndpointsHttp(unittest.TestCase):
         self.assertEqual(compute_payload_sha256(unsigned), bundle["payloadSha256"])
         self.assertGreaterEqual(bundle["summary"]["activeSec"], 20.0)
 
+    def test_turnkey_bundled_public_courses_and_references_without_data_dir(self) -> None:
+        import urllib.parse
+
+        with tempfile.TemporaryDirectory() as td:
+            empty_data = Path(td) / "data"
+            bundled_store = study_server.StudyStore(REPO_ROOT, data_dir=empty_data)
+            httpd = ThreadingHTTPServer(("127.0.0.1", 0), study_server.StudyOSHandler)
+            httpd.store = bundled_store
+            httpd.public_dir = REPO_ROOT / "app" / "public"
+            port = httpd.server_address[1]
+            t = threading.Thread(target=httpd.serve_forever, daemon=True)
+            t.start()
+            try:
+                conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+                conn.request("GET", "/api/bootstrap")
+                resp = conn.getresponse()
+                raw_boot = resp.read()
+                self.assertEqual(resp.status, 200)
+                boot = json.loads(raw_boot)
+                cids = {c["courseId"] for c in boot.get("catalog", [])}
+                self.assertTrue({"acct-2527", "econ-2522", "math-2588", "ob-2537", "prog-3021"}.issubset(cids))
+                self.assertGreaterEqual(len(boot.get("references", [])), 5)
+
+                first_ref_file = boot["references"][0]["file"]
+                conn.request("GET", f"/api/obsidian/section?file={urllib.parse.quote(first_ref_file)}")
+                resp2 = conn.getresponse()
+                sec_data = json.loads(resp2.read())
+                self.assertEqual(resp2.status, 200)
+                self.assertTrue(sec_data.get("available"))
+                self.assertGreater(len(sec_data.get("markdown", "")), 500)
+
+                conn.request("GET", "/static-data/vault-assets/../../community/worker.mjs")
+                resp3 = conn.getresponse()
+                resp3.read()
+                self.assertIn(resp3.status, (400, 403, 404))
+                conn.close()
+            finally:
+                bundled_store.stop_desktop_tracker()
+                httpd.shutdown()
+                httpd.server_close()
+                t.join(timeout=5)
+
 
 if __name__ == "__main__":
     unittest.main()

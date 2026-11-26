@@ -2732,15 +2732,19 @@ def build_site(
     static_dir = out_dir / "static-data"
     pack_static = ROOT_DIR / "site-pack" / "static-data"
 
-    raw_catalog, courses_by_id = STORE.discover_courses()
+    has_local_courses = STORE.courses_dir.is_dir() and any(
+        (sub / "bank.json").is_file() for sub in STORE.courses_dir.iterdir() if sub.is_dir()
+    )
     v_root = vault_root(ROOT_DIR, STORE.data_dir)
 
     # In CI (GitHub Actions) where local OneDrive `data/` and `Obsidian Vault` are absent,
     # hydrate directly from the pre-exported copyright-safe `site-pack/static-data/` if present!
-    if not raw_catalog and not v_root.is_dir() and (pack_static / "bootstrap.json").is_file():
+    if not has_local_courses and not v_root.is_dir() and (pack_static / "bootstrap.json").is_file():
         shutil.copytree(pack_static, static_dir)
         boot_saved = json.loads((static_dir / "bootstrap.json").read_text(encoding="utf-8"))
         return finalize_site(out_dir, boot_saved, member_archive, pdfcraft_archive)
+
+    raw_catalog, courses_by_id = STORE.discover_courses()
 
     courses_out = static_dir / "courses"
     refs_out = static_dir / "references"
