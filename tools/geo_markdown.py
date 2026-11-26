@@ -16,11 +16,13 @@ from typing import Any
 from urllib.parse import quote
 
 
-# Authentic BI Norwegian Business School equivalent course codes (English EXC <-> Norwegian BØK/SØK/ORG)
+# Authentic BI Norwegian Business School equivalent & historical exam course codes
 BI_NO_EQUIVALENT_CODES: dict[str, str] = {
     "econ-2522": "SØK 3420",
     "acct-2527": "BØK 3430",
     "ob-2537": "ORG 3460",
+    "math-2588": "EBA 1180 / EBA11805 / MET 1180",
+    "prog-3021": "EBA34005",
 }
 
 
@@ -93,6 +95,8 @@ def generate_geo_markdown(
     sync_faqs: list[tuple[str, str]],
     gpa_faqs: list[tuple[str, str]],
     compare_faqs: list[tuple[str, str]],
+    ext_version: str = "1.7.1",
+    wiseflow_faqs: list[tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Write `.md` mirrors for all 23 public HTML pages plus `/llms.txt` and `/llms-full.txt`."""
     base = base.rstrip("/")
@@ -118,6 +122,7 @@ def generate_geo_markdown(
             "file": rfile,
             "title": rtitle,
             "subtitle": rsub,
+            "courseId": str(ref.get("courseId") or ""),
             "toc": toc,
             "url": f"{base}/?view=references&note={quote(rfile, safe='')}",
         })
@@ -146,7 +151,7 @@ def generate_geo_markdown(
         ai_c = int(c.get("aiSyntheticCount") or 0)
         exam_fmt = str((c.get("examInfo") or {}).get("format") or "Digital university exam")
         course_table_rows.append(
-            f"| **{code_lbl}** | {title} | {qc} ({off_c} official / {ai_c} AI mock) | {exam_fmt} | [Guide]({base}/courses/{cid}.md) · [Practice]({base}/?course={cid}) |"
+            f"| **{code_lbl}** | {title} | {qc} ({off_c} official / {ai_c} AI mock) | {exam_fmt} | [Guide]({base}/courses/{cid}.md) · [HTML]({base}/courses/{cid}.html) |"
         )
     course_table = "\n".join([
         "| Course Code (EN / NO) | Title | Practice Questions | Exam Format | Links |",
@@ -170,7 +175,7 @@ def generate_geo_markdown(
     # 1. `/index.md` — Master homepage mirror
     index_md = f"""# Study-OS — Free Canvas LMS Sync, WISEflow Exam Prep & Study Workspace
 
-> **Quick summary:** Study-OS ([studyos.no]({base}/)) is a 100% free, ad-free, open-source student study workspace built in Oslo, Norway for BI Norwegian Business School, UiA, NTNU, UiO, NHH, UiB, OsloMet, and any university running Instructure Canvas (`*.instructure.com`). It includes **{total_qs} practice questions** across **{len(catalog)} core university courses**, **{len(references)} multi-semester KaTeX formula reference sheets**, a timed **WISEflow FLOWmulti** exam simulator, 1-click **Canvas + TimeEdit/TP + Ed Discussion** browser sync, an instant local PDF viewer (up to 260 MB per file, zero uploads), FSRS spaced repetition, live study rooms / 1v1 duels, a free **Norwegian ECTS GPA calculator**, and the **Adamlite AI Tutor**.
+> **Quick summary:** Study-OS ([studyos.no]({base}/)) is a 100% free, ad-free, open-source student study workspace built in Oslo, Norway for BI Norwegian Business School, UiA, NTNU, UiO, NHH, UiB, OsloMet, UiS, UiT, USN, NMBU, HVL, Kristiania, and any university running Instructure Canvas (`*.instructure.com`). It includes **{total_qs:,} practice questions** across **{len(catalog)} core university courses**, **{len(references)} multi-semester KaTeX formula reference sheets**, a timed **WISEflow FLOWmulti** exam simulator, 1-click **Canvas + TimeEdit/TP + Ed Discussion** browser sync (`v{ext_version}`), an instant local PDF viewer (up to 260 MB per file, zero uploads), FSRS spaced repetition, live study rooms / 1v1 duels, a free **Norwegian ECTS GPA calculator**, and the **Adamlite AI Tutor**.
 
 {_meta_block(canonical=f"{base}/", md_url=f"{base}/index.md", lang="en, nb-NO", updated=today_iso, extra=[("Full AI corpus", f"{base}/llms-full.txt"), ("Directory index", f"{base}/llms.txt"), ("Source code", "https://github.com/shadjosef/study-os")])}
 
@@ -180,15 +185,15 @@ def generate_geo_markdown(
 | --- | --- |
 | **Price** | 0 NOK / Free forever — no ads, no paywalls, no tracking cookies |
 | **Account required?** | Optional — practice, notes, local PDFs, and GPA calculator work immediately offline in your browser |
-| **Practice question bank** | {total_qs} structured questions ({total_official} official past exam & course sets, {total_book} textbook index items, {total_ai} clearly labeled AI mocks/drills, {total_flowmulti} multi-box WISEflow FLOWmulti exercises) |
+| **Practice question bank** | {total_qs:,} structured questions ({total_official} official past exam & course sets, {total_book} textbook index items, {total_ai} clearly labeled AI mocks/drills, {total_flowmulti} multi-box WISEflow FLOWmulti exercises) |
 | **Reference sheets** | {len(references)} semester Markdown guides with KaTeX math formulas and custom SVG diagrams |
-| **Canvas LMS sync** | Manifest V3 extension (`Study-OS Sync v1.6.0`) supporting `canvas.bi.no`, `uia.instructure.com`, `ntnu.instructure.com`, `uio.instructure.com` / `canvas.uio.no`, `nhh.instructure.com`, `mitt.uib.no`, `oslomet.instructure.com`, and any `*.instructure.com` — zero passwords or cookies copied |
+| **Canvas LMS sync** | Manifest V3 extension (`Study-OS Sync v{ext_version}`) supporting `canvas.bi.no`, `uia.instructure.com`, `ntnu.instructure.com`, `uio.instructure.com` / `canvas.uio.no`, `nhh.instructure.com`, `mitt.uib.no`, `oslomet.instructure.com`, `canvas.uis.no`, `canvas.uit.no`, `canvas.usn.no`, `canvas.nmbu.no`, `canvas.hvl.no`, `canvas.kristiania.no`, and any `*.instructure.com` — zero passwords or cookies copied |
 | **Timetable & scheduler** | Imports TimeEdit (`cloud.timeedit.net`), Norwegian TP (`tp.educloud.no`, `tp.uio.no`), Google Calendar, and Apple Calendar `.ics` feeds into a circadian DLPFC study plan |
 | **Local PDF reader** | Split-screen inline viewer with full-text search & dark mode; files up to 260 MB stay private in local IndexedDB (never uploaded) |
 | **AI Tutor** | Adamlite — side-pane streaming tutor that reads only the active question, your working, and the matching Markdown reference section |
 | **Privacy & GDPR** | Norway / EEA GDPR compliant; optional cloud sync & Passkey/Google Sign-In hosted on Cloudflare Workers / D1 (EU jurisdiction) |
 
-## Built-in Public Courses ({total_qs} Questions)
+## Built-in Public Courses ({total_qs:,} Questions)
 
 {course_table}
 
@@ -213,7 +218,7 @@ def generate_geo_markdown(
     # 2. `/bi-oslo.md`
     bi_oslo_md = f"""# BI Oslo Exam Prep, WISEflow Mock Exams & Canvas Sync — Study-OS
 
-> **Quick summary:** Study-OS is a free, independent exam-preparation workspace built specifically around **BI Norwegian Business School (Campus Oslo / Nydalen)** courses — covering **{total_qs} practice questions**, **{len(references)} formula & concept reference sheets**, timed 3-hour **WISEflow FLOWmulti** mock exams, **Adamlite AI Tutor**, and 1-click **BI Canvas (`canvas.bi.no`), TimeEdit, and Ed Discussion** sync.
+> **Quick summary:** Study-OS is a free, independent exam-preparation workspace built specifically around **BI Norwegian Business School (Campus Oslo / Nydalen)** courses — covering **{total_qs:,} practice questions**, **{len(references)} formula & concept reference sheets**, timed 3-hour **WISEflow FLOWmulti** mock exams, **Adamlite AI Tutor**, and 1-click **BI Canvas (`canvas.bi.no`), TimeEdit, and Ed Discussion** sync.
 
 {_meta_block(canonical=f"{base}/bi-oslo.html", md_url=f"{base}/bi-oslo.md", lang="en, nb-NO", updated=today_iso, extra=[("Location", "Oslo, Norway (Nydalen)"), ("Affiliation", "Independent student project — not officially affiliated with BI Norwegian Business School")])}
 
@@ -225,7 +230,7 @@ def generate_geo_markdown(
 
 1. **WISEflow FLOWmulti & BYOD Simulation:** Timed 180-minute exam papers modeled on BI's real digital school exams (dot decimals `.`, negative cash flows `-50`, `±2%` numeric tolerance, blind no-hint mode, full error breakdown by topic).
 2. **Circadian DLPFC Study Scheduling:** Schedules High-DLPFC quantitative/synthesis questions during peak daytime focus (`08:00–15:00` Oslo time) and lower-load retrieval drills in the evening.
-3. **1-Click BI Canvas, TimeEdit & Ed Discussion Sync:** Pair Study-OS Sync v1.6.0 once with a 6-character code and pull active courses, deadlines, and lecture timetables straight from your already signed-in browser tabs — zero passwords or cookies copied.
+3. **1-Click BI Canvas, TimeEdit & Ed Discussion Sync:** Pair Study-OS Sync v{ext_version} once with a 6-character code and pull active courses, deadlines, and lecture timetables straight from your already signed-in browser tabs — zero passwords or cookies copied.
 4. **Private Curriculum PDFs + Adamlite AI Tutor:** Drop lecture slides, past exam PDFs, or textbooks (up to 260 MB locally in IndexedDB) for instant split-screen reading next to exercises and streaming AI explanations.
 5. **Norwegian ECTS GPA / Master's Planner:** Calculate your BI `7.5 ECTS` weighted average (`A=5` to `E=1`) and see what grades you need for MSc / Siviløkonom admission at [gpa-calculator.html]({base}/gpa-calculator.html).
 
@@ -236,9 +241,9 @@ def generate_geo_markdown(
     # 3. `/norsk.md`
     norsk_md = f"""# Study-OS Norge — Gratis eksamensøving, Canvas-synk & WISEflow (BI, UiA, NTNU, UiO, NHH)
 
-> **Kort oppsummert:** Study-OS ([studyos.no]({base}/)) er en **100 % gratis**, reklamefri og uavhengig studieplattform laget i Oslo for norske universitets- og høyskolestudenter (BI, UiA, NTNU, UiO, NHH, UiB, OsloMet m.fl.). Du får **{total_qs} øvingsoppgaver**, **{len(references)} formel- og kursnotater**, 3-timers **WISEflow FLOWmulti**-eksamenssimulator, **karaktersnittkalkulator (A–F & studiepoeng)**, lokal PDF-leser (opptil 260 MB), **Adamlite AI-veileder** og 1-klikks synk med **Canvas, TimeEdit og TP** — helt uten betalingsmur.
+> **Kort oppsummert:** Study-OS ([studyos.no]({base}/)) er en **100 % gratis**, reklamefri og uavhengig studieplattform laget i Oslo for norske universitets- og høyskolestudenter (BI, UiA, NTNU, UiO, NHH, UiB, OsloMet m.fl.). Du får **{total_qs:,} øvingsoppgaver**, **{len(references)} formel- og kursnotater**, 3-timers **WISEflow FLOWmulti**-eksamenssimulator, **karaktersnittkalkulator (A–F & studiepoeng)**, lokal PDF-leser (opptil 260 MB), **Adamlite AI-veileder** og 1-klikks synk med **Canvas, TimeEdit og TP** — helt uten betalingsmur.
 
-{_meta_block(canonical=f"{base}/norsk.html", md_url=f"{base}/norsk.md", lang="nb-NO", updated=today_iso, extra=[("Målgruppe", "Studenter ved BI Oslo, UiA (ØkAd & IT), NTNU (Indøk/SØK/BØA/Data), UiO, NHH, UiB, OsloMet")])}
+{_meta_block(canonical=f"{base}/norsk.html", md_url=f"{base}/norsk.md", lang="nb-NO", updated=today_iso, extra=[("Målgruppe", "Studenter ved BI Oslo, UiA (ØkAd & IT), NTNU (Indøk/SØK/BØA/Data), UiO, NHH, UiB, OsloMet, UiS, UiT, USN, NMBU, HVL og Kristiania")])}
 
 ## Gratis øvingsbanker (BI & felles norske økonomi-/realfag)
 
@@ -249,7 +254,7 @@ Mange norske økonomi-, finans-, matte- og programmeringsemner deler samme kjern
 ## Hvorfor norske studenter bruker Study-OS i stedet for betalte portaler
 
 - **0 kr uten betalingsmur:** I motsetning til betalte abonnementstjenester (som Eksamensportalen, EnkelEksamen, Quizlet Plus og Studocu) er hele Study-OS åpent og gratis uten reklame.
-- **1-klikks Canvas + TimeEdit / TP-synk:** Henter automatisk emnekoder (inkludert Æ/Ø/Å som `SØK1001`, `BØA1100`, `TIØ4120`, `ADØK1100`), frister og forelesninger fra dine innloggede nettleserfaner uten å be om Feide-passord.
+- **1-klikks Canvas + TimeEdit / TP-synk:** Henter automatisk emnekoder (inkludert Æ/Ø/Å som `BØK 3430`, `SØK 3420`, `ORG 3460`, `SØK1001`, `BØA1100`, `TIØ4120`, `ADØK1100`), frister og forelesninger fra dine innloggede nettleserfaner uten å be om Feide-passord.
 - **WISEflow FLOWmulti-trening:** Øv på 3-timers digital skoleeksamen med desimalpunktum (`.`), minustegn for utbetalinger og `±2 %` toleranse før eksamensdagen.
 - **Karaktersnittkalkulator med masterplanlegger:** Regn ut vektet snitt (`A=5` til `E=1`) og se nøyaktig hva du må snitte på gjenstående studiepoeng for MSc / siviløkonom-opptak ([gpa-calculator.md]({base}/gpa-calculator.md)).
 - **Lynrask lokal PDF-leser & offline-støtte:** Slipp egne forelesningsslides og kompendier (opptil 260 MB) lokalt i nettleseren uten opplasting, med innebygd fulltekstsøk og mørk modus.
@@ -263,23 +268,23 @@ Mange norske økonomi-, finans-, matte- og programmeringsemner deler samme kjern
     _write_md("norsk.md", norsk_md)
 
     # 4. `/wiseflow-practice.md`
-    wf_faqs = [
+    wf_faqs = wiseflow_faqs or [
         (
             "What formatting rules matter most on a BI WISEflow FLOWmulti exam?",
             "Always use a dot (`.`) as the decimal separator (never a comma), include a leading minus sign (`-50`) for cash outflows or negative balances, follow exact unit instructions (e.g., NOK thousands vs NOK), and keep intermediate calculations unrounded to stay safely inside the `±2%` numeric tolerance.",
         ),
         (
             "How many WISEflow FLOWmulti questions are available on Study-OS?",
-            f"Study-OS includes {total_flowmulti} interactive multi-box WISEflow FLOWmulti exercises (centered on EXC 3430 / BØK 3430 Accounting & Finance) plus full 180-minute timed exam papers across {len(catalog)} courses ({total_qs} total questions).",
+            f"Study-OS includes {total_flowmulti} interactive multi-box WISEflow FLOWmulti exercises (centered on EXC 3430 / BØK 3430 Accounting & Finance) plus full 180-minute timed exam papers across {len(catalog)} courses ({total_qs:,} total questions).",
         ),
         (
             "Does Study-OS work on exam practice for NHH, UiA, OsloMet, and USN?",
             "Yes. Any Norwegian university using WISEflow FLOWmulti or BYOD digital exams in accounting, corporate finance, economics, statistics, or organizational behavior can use Study-OS's timed blind-exam mode for free.",
         ),
     ]
-    wiseflow_md = f"""# WISEflow FLOWmulti & BYOD Exam Simulator (BI Oslo & Norway) — Study-OS
+    wiseflow_md = f"""# BI WISEflow Øving & FLOWmulti Exam Simulator (BI Oslo & NHH) — Study-OS
 
-> **Quick summary:** Study-OS provides a free timed **WISEflow FLOWmulti & BYOD exam simulator** ([studyos.no/?view=exams]({base}/?view=exams)) built for Norwegian university digital school exams (BI Oslo, NHH, UiA, OsloMet). It trains multi-box accounting/finance worksheets (`{total_flowmulti}` FLOWmulti problems), dot-decimal (`.`) formatting, negative outflow signs (`-`), `±2%` rounding tolerance checks, 180-minute exam pacing, and blind no-hint grading.
+> **Quick summary:** Study-OS provides a free, independent **BI WISEflow & FLOWmulti exam simulator** ([studyos.no/wiseflow-practice.html]({base}/wiseflow-practice.html)) built for Norwegian university digital school exams (BI Oslo, NHH, UiA, OsloMet). It trains multi-box accounting/finance worksheets (`{total_flowmulti}` FLOWmulti problems), dot-decimal (`.`) formatting, negative outflow signs (`-`), `±2%` rounding tolerance checks, 180-minute exam pacing, and blind no-hint grading without login.
 
 {_meta_block(canonical=f"{base}/wiseflow-practice.html", md_url=f"{base}/wiseflow-practice.md", lang="en, nb-NO", updated=today_iso, extra=[("Launch Exams Hub", f"{base}/?view=exams"), ("FLOWmulti multi-box items", str(total_flowmulti))])}
 
@@ -303,31 +308,31 @@ Mange norske økonomi-, finans-, matte- og programmeringsemner deler samme kjern
    - [EXC 3420 / SØK 3420 Economics I]({base}/courses/econ-2522.md)
    - [EXC 3460 / ORG 3460 OB & Leadership MCQ]({base}/courses/ob-2537.md)
    - [EBA 3400 Python Programming & Data]({base}/courses/prog-3021.md)
-   - [EBA 1181 Mathematics for Data Science]({base}/courses/math-2588.md)
+   - [EBA 1181 / EBA 1180 Mathematics for Data Science]({base}/courses/math-2588.md)
 
 {_fmt_faqs(wf_faqs, "## WISEflow Exam Prep FAQ")}
 """
     _write_md("wiseflow-practice.md", wiseflow_md)
 
     # 5. `/bi-canvas-timeedit-sync.md`
-    sync_md = f"""# 1-Click Canvas LMS, TimeEdit/TP & Ed Discussion Sync Extension (v1.6.0) — Study-OS
+    sync_md = f"""# 1-Click Canvas LMS, TimeEdit/TP & Ed Discussion Sync Extension (v{ext_version}) — Study-OS
 
-> **Quick summary:** **Study-OS Sync v1.6.0** is a free Manifest V3 Chrome/Brave/Edge/Vivaldi extension that syncs active **Canvas LMS** courses, syllabus modules, and assignment deadlines together with **TimeEdit / Norwegian TP** lecture timetables and **Ed Discussion** into [studyos.no]({base}/) in 1 click — with zero school passwords, zero OAuth IT approval, and zero cookie copying.
+> **Quick summary:** **Study-OS Sync v{ext_version}** is a free Manifest V3 Chrome/Brave/Edge/Vivaldi extension that syncs active **Canvas LMS** courses, syllabus modules, and assignment deadlines together with **TimeEdit / Norwegian TP** lecture timetables and **Ed Discussion** into [studyos.no]({base}/) in 1 click — with zero school passwords, zero OAuth IT approval, and zero cookie copying.
 
-{_meta_block(canonical=f"{base}/bi-canvas-timeedit-sync.html", md_url=f"{base}/bi-canvas-timeedit-sync.md", lang="en, nb-NO", updated=today_iso, extra=[("Extension version", "1.6.0 (Manifest V3)"), ("Supported browsers", "Chrome, Brave, Edge, Vivaldi"), ("Direct ZIP download", f"{base}/downloads/study-os-sync-extension.zip")])}
+{_meta_block(canonical=f"{base}/bi-canvas-timeedit-sync.html", md_url=f"{base}/bi-canvas-timeedit-sync.md", lang="en, nb-NO", updated=today_iso, extra=[("Extension version", f"{ext_version} (Manifest V3)"), ("Supported browsers", "Chrome, Brave, Edge, Vivaldi"), ("Direct ZIP download", f"{base}/downloads/study-os-sync-extension.zip")])}
 
 ## Supported LMS & Timetable Hosts
 
 | Platform Type | Supported Domains / Systems |
 | --- | --- |
-| **Norwegian Canvas LMS** | `canvas.bi.no` (BI), `uia.instructure.com` / `canvas.uia.no` (UiA), `ntnu.instructure.com` (NTNU), `uio.instructure.com` / `canvas.uio.no` (UiO), `nhh.instructure.com` / `canvas.nhh.no` (NHH), `mitt.uib.no` (UiB), `oslomet.instructure.com` (OsloMet), UiS, UiT, USN, NMBU, HVL, Kristiania |
+| **Norwegian Canvas LMS** | `canvas.bi.no` (BI), `uia.instructure.com` / `canvas.uia.no` (UiA), `ntnu.instructure.com` / `canvas.ntnu.no` (NTNU), `uio.instructure.com` / `canvas.uio.no` (UiO), `nhh.instructure.com` / `canvas.nhh.no` (NHH), `mitt.uib.no` (UiB), `oslomet.instructure.com` / `canvas.oslomet.no` (OsloMet), `canvas.uis.no` (UiS), `canvas.uit.no` (UiT), `canvas.usn.no` (USN), `canvas.nmbu.no` (NMBU), `canvas.hvl.no` (HVL), `canvas.kristiania.no` (Kristiania) |
 | **Global Canvas LMS** | Any university worldwide running `*.instructure.com` |
 | **Timetables** | TimeEdit (`cloud.timeedit.net`), Norwegian TP (`tp.educloud.no/*`, `tp.uio.no`), plus any `.ics` feed (Google Calendar, Apple Calendar) |
-| **Course Forums** | Ed Discussion (`eu.edstem.org`, `edstem.org`) |
+| **Course Forums** | Ed Discussion (`eu.edstem.org`, `edstem.org`, `us.edstem.org`, `au.edstem.org`) |
 
 ## 4-Step Setup (Takes ~30 Seconds)
 
-1. **Install Study-OS Sync v1.6.0** in Chrome, Brave, Edge, or Vivaldi ([download ZIP]({base}/downloads/study-os-sync-extension.zip)).
+1. **Install Study-OS Sync v{ext_version}** in Chrome, Brave, Edge, or Vivaldi ([download ZIP]({base}/downloads/study-os-sync-extension.zip)).
 2. **Generate a 6-character pairing code** inside [studyos.no]({base}/) → **Sync Canvas** and paste it once in the extension popup.
 3. **Keep your signed-in school tabs open** (Canvas, TimeEdit / TP, and optionally Ed Discussion) and click **Sync** once.
 4. **Attach personal PDFs locally (optional):** Drop lecture slides, exam papers, or textbooks (up to 260 MB per PDF) into Study-OS for instant split-screen reading — stored strictly in local IndexedDB, never uploaded.
@@ -336,7 +341,7 @@ Mange norske økonomi-, finans-, matte- og programmeringsemner deler samme kjern
 
 - **Zero passwords or Feide logins:** Study-OS never asks for or sees your university username or password.
 - **Zero session cookies exported:** Requests run locally inside your already authenticated browser tab using standard same-origin Canvas API calls.
-- **Norwegian Æ/Ø/Å course code parser:** Automatically recognizes codes like `BØK 3430`, `SØK1001`, `TIØ4120`, `ADØK1100`, `BED-100`, `MA-155`, and maps them to matching Study-OS practice banks.
+- **Norwegian Æ/Ø/Å course code parser:** Automatically recognizes codes like `BØK 3430`, `SØK 3420`, `ORG 3460`, `SØK1001`, `BØA1100`, `TIØ4120`, `ADØK1100`, `BED-100`, `MA-155`, and maps them to matching Study-OS practice banks.
 
 {_fmt_faqs(sync_faqs, "## Canvas & Timetable Sync FAQ")}
 """
@@ -346,16 +351,17 @@ Mange norske økonomi-, finans-, matte- og programmeringsemner deler samme kjern
     notes_blocks = []
     for re_item in ref_entries:
         toc_lines = "\n".join(f"- {h}" for h in re_item["toc"][:18]) if re_item["toc"] else "- Interactive KaTeX formulas and diagrams inside Study-OS"
+        course_link = f"\n- **Course guide:** {base}/courses/{re_item['courseId']}.md" if re_item["courseId"] else ""
         notes_blocks.append(
             f"### {re_item['title']}\n"
             f"- **Category / Semester:** {re_item['subtitle']}\n"
-            f"- **Sections indexed:** {len(re_item['toc'])}\n"
+            f"- **Sections indexed:** {len(re_item['toc'])}{course_link}\n"
             f"- **Open in Study-OS:** {re_item['url']}\n\n"
             f"{toc_lines}\n"
         )
     notes_md = f"""# BI Oslo & University Course Notes, Formula Sheets & Reference Hub — Study-OS
 
-> **Quick summary:** Study-OS includes **{len(ref_entries)} structured multi-semester Markdown reference sheets** with KaTeX mathematical formulas, custom SVG diagrams, clickable figure zoom, and section outlines covering Economics, Financial Accounting & Corporate Finance, Organizational Behavior, Python/Pandas Data Analysis, and Mathematics for Data Science.
+> **Quick summary:** Study-OS includes **{len(ref_entries)} structured multi-semester Markdown reference sheets** with KaTeX mathematical formulas, custom SVG diagrams, clickable figure zoom, and section outlines covering Economics (`EXC 3420 / SØK 3420`), Financial Accounting & Corporate Finance (`EXC 3430 / BØK 3430`), Organizational Behavior (`EXC 3460 / ORG 3460`), Python/Pandas Data Analysis (`EBA 3400`), and Mathematics for Data Science (`EBA 1181 / EBA 1180`).
 
 {_meta_block(canonical=f"{base}/notes.html", md_url=f"{base}/notes.md", lang="en, nb-NO", updated=today_iso, extra=[("Open Interactive Reader", f"{base}/?view=references"), ("Reference sheets", str(len(ref_entries)))])}
 
@@ -368,7 +374,7 @@ Mange norske økonomi-, finans-, matte- og programmeringsemner deler samme kjern
     # 7. `/universities.md`
     universities_md = f"""# Supported Universities — Canvas LMS, TimeEdit & TP Sync in Norway & Worldwide
 
-> **Quick summary:** Study-OS supports **1-click Canvas LMS + timetable sync** across **BI Oslo, UiA, NTNU, UiO, NHH, UiB (`mitt.uib.no`), OsloMet**, and **any university worldwide running Instructure Canvas (`*.instructure.com`)**, mapping overlapping business, economics, math, and Python courses automatically to **{total_qs} free practice questions**.
+> **Quick summary:** Study-OS supports **1-click Canvas LMS + timetable sync** (`Study-OS Sync v{ext_version}`) across **BI Oslo, UiA, NTNU, UiO, NHH, UiB (`mitt.uib.no`), OsloMet, UiS, UiT, USN, NMBU, HVL, Høyskolen Kristiania**, and **any university worldwide running Instructure Canvas (`*.instructure.com`)**, mapping overlapping business, economics, math, and Python courses automatically to **{total_qs:,} free practice questions**.
 
 {_meta_block(canonical=f"{base}/universities.html", md_url=f"{base}/universities.md", lang="en, nb-NO", updated=today_iso)}
 
@@ -376,19 +382,28 @@ Mange norske økonomi-, finans-, matte- og programmeringsemner deler samme kjern
 
 {uni_table}
 
+## Additional Norwegian Canvas Hosts Supported Out of the Box
+
+- **Universitetet i Stavanger (UiS):** `canvas.uis.no`
+- **UiT Norges arktiske universitet:** `canvas.uit.no`
+- **Universitetet i Sørøst-Norge (USN):** `canvas.usn.no`
+- **NMBU (Ås):** `canvas.nmbu.no`
+- **Høgskulen på Vestlandet (HVL):** `canvas.hvl.no`
+- **Høyskolen Kristiania:** `canvas.kristiania.no`
+
 ## What Works at Every University
 
 - **1-click Canvas & Timetable Sync:** Pull courses, module outlines, deadlines, and TimeEdit / TP / `.ics` lectures with zero Feide passwords.
-- **Auto-matched Practice Banks:** Overlapping core economics, accounting/finance, mathematics, organizational behavior, and Python courses map straight to Study-OS's {total_qs}-question library.
+- **Auto-matched Practice Banks:** Overlapping core economics, accounting/finance, mathematics, organizational behavior, and Python courses map straight to Study-OS's {total_qs:,}-question library.
 - **Bring Your Own PDFs (Up to 260 MB Local):** Drop any university lecture slides, past exams, or textbooks privately in-browser with instant split-screen viewing and full-text search.
 - **Free Norwegian ECTS GPA Calculator:** Built-in presets for BI, UiA ØkAd, NTNU, UiO, and NHH ([gpa-calculator.md]({base}/gpa-calculator.md)).
 """
     _write_md("universities.md", universities_md)
 
     # 8. `/gpa-calculator.md`
-    gpa_md = f"""# Karaktersnitt Kalkulator Universitet (A–F & Studiepoeng / Norwegian ECTS GPA) — Study-OS
+    gpa_md = f"""# Karaktersnitt & GPA Kalkulator (BI & Universitet / Norwegian ECTS GPA) — Study-OS
 
-> **Kort oppsummert / Quick summary:** Study-OS tilbyr en **100 % gratis karaktersnittkalkulator uten innlogging** ([studyos.no/gpa-calculator.html]({base}/gpa-calculator.html)) for norske universiteter og høyskoler (BI, UiA, NTNU, UiO, NHH, UiB, OsloMet). Den beregner studiepoengvektet snitt (`A = 5` til `E = 1`), ekskluderer automatisk *Bestått / Ikke bestått*, viser estimert 4.0-skala for utveksling, og inkluderer en **målsnitt-planlegger for masteropptak (MSc / siviløkonom)**.
+> **Kort oppsummert / Quick summary:** Study-OS tilbyr en **100 % gratis GPA- og karaktersnittkalkulator uten innlogging** ([studyos.no/gpa-calculator.html]({base}/gpa-calculator.html)) for BI og norske universiteter/høyskoler (NHH, NTNU, UiO, UiA, UiB, OsloMet). Regn ut studiepoengvektet snitt (`A = 5` til `E = 1`), ekskluder *Bestått / Ikke bestått* automatisk, se estimert 4.0-skala for utveksling, og planlegg målsnitt for masteropptak (MSc / siviløkonom).
 
 {_meta_block(canonical=f"{base}/gpa-calculator.html", md_url=f"{base}/gpa-calculator.md", lang="nb-NO, en", updated=today_iso, extra=[("Interactive Calculator", f"{base}/gpa-calculator.html"), ("Storage", "100% local in browser (localStorage), zero server tracking")])}
 
@@ -433,7 +448,7 @@ Nødvendig snitt på gjenstående stp = (Målsnitt * (Nåværende stp + Gjenstå
     # 9. `/compare.md`
     compare_md = f"""# Study-OS vs Notion, Anki, Quizlet, Studocu & Norwegian Exam Portals (2026 Comparison)
 
-> **Quick summary:** Study-OS is a free, open-source exam-prep and Canvas/timetable workspace built for Norwegian university students (BI, UiA, NTNU, UiO, NHH, UiB, OsloMet). Unlike general note wikis (**Notion**, **Obsidian**), pure flashcard tools (**Anki**, **Quizlet**), or paid Norwegian exam sites (**Eksamensportalen**, **EnkelEksamen**, **Utenat**, **Studocu**), Study-OS combines **1-click Canvas + TimeEdit/TP sync**, **WISEflow FLOWmulti simulation**, **instant local 260 MB PDF reading**, **FSRS spaced repetition**, and **Adamlite AI tutoring** at **0 NOK** — while honestly recommending Anki or Notion when those tools fit better.
+> **Quick summary:** Study-OS is a free, open-source exam-prep and Canvas/timetable workspace built for Norwegian university students (BI, UiA, NTNU, UiO, NHH, UiB, OsloMet). Unlike general note wikis (**Notion**, **Obsidian**), pure flashcard tools (**Anki**, **Quizlet**), or paid Norwegian exam sites (**Eksamensportalen**, **EnkelEksamen**, **Utenat**, **Studocu**), Study-OS combines **1-click Canvas + TimeEdit/TP sync (`v{ext_version}`)**, **WISEflow FLOWmulti simulation**, **instant local 260 MB PDF reading**, **FSRS spaced repetition**, and **Adamlite AI tutoring** at **0 NOK** — while honestly recommending Anki, Notion, or EnkelEksamen when those tools fit better.
 
 {_meta_block(canonical=f"{base}/compare.html", md_url=f"{base}/compare.md", lang="en, nb-NO", updated=today_iso)}
 
@@ -441,7 +456,7 @@ Nødvendig snitt på gjenstående stp = (Målsnitt * (Nåværende stp + Gjenstå
 
 | Capability | Study-OS | Notion | Anki | Quizlet | Paid NO Exam Portals (Eksamensportalen / EnkelEksamen / Studocu) |
 | --- | --- | --- | --- | --- | --- |
-| **1-Click Canvas LMS Sync (`BI`, `UiA`, `NTNU`, `UiO`, `NHH`, `UiB`, `*.instructure.com`)** | **Yes (built-in v1.6.0)** | Manual / paid plugins | No | No | No |
+| **1-Click Canvas LMS Sync (`BI`, `UiA`, `NTNU`, `UiO`, `NHH`, `UiB`, `*.instructure.com`)** | **Yes (built-in v{ext_version})** | Manual / paid plugins | No | No | No |
 | **TimeEdit & Norwegian TP (`.ics`) Auto-Scheduler** | **Yes (built-in)** | Manual calendar | No | No | No |
 | **WISEflow FLOWmulti (`±2%` multi-box accounting/finance exam mode)** | **Yes (built-in)** | No | No | MCQ only | Partial / paid |
 | **Instant Split-Screen Local PDF Reader + Search (up to 260 MB)** | **Yes (local IndexedDB)** | 5 MB free file cap | Add-ons | Paid upload | Blurred / paywalled docs |
@@ -482,50 +497,74 @@ Nødvendig snitt på gjenstående stp = (Målsnitt * (Nåværende stp + Gjenstå
         med_c = int(course.get("medDlpfcCount") or 0)
         low_c = int(course.get("lowDlpfcCount") or 0)
         raw_topics = course.get("topics") or []
-        topic_names = [
-            str(t.get("title") or t.get("name") or t.get("id") or "").strip()
-            if isinstance(t, dict) else str(t).strip()
-            for t in raw_topics
-        ]
-        topic_names = [t for t in topic_names if t]
+        topic_lines: list[str] = []
+        for idx_t, t in enumerate(raw_topics):
+            if isinstance(t, dict):
+                t_title = str(t.get("title") or t.get("name") or t.get("id") or "").strip()
+                kws = [str(k).strip() for k in (t.get("keywords") or []) if str(k).strip()][:6]
+                if t_title:
+                    topic_lines.append(f"{idx_t + 1}. **{t_title}**" + (f" — {', '.join(kws)}" if kws else ""))
+            else:
+                t_title = str(t).strip()
+                if t_title:
+                    topic_lines.append(f"{idx_t + 1}. **{t_title}**")
         no_blurb = course_no_blurbs.get(
             cid,
-            f"Øvingsoppgaver, kursnotater og WISEflow eksamensforberedelse for {code} ved Handelshøyskolen BI i Oslo.",
+            f"Øvingsoppgaver, kursnotater og WISEflow eksamensforberedelse for {code_lbl} ved Handelshøyskolen BI i Oslo.",
+        )
+
+        colls = course.get("collections") or []
+        coll_rows = [
+            f"| {str(col.get('title') or col.get('id') or '')} | {str((col.get('provenance') or {}).get('label') or col.get('kind') or 'Practice')} | {int(col.get('questionCount') or 0)} | {int(col.get('parMinutes') or 0)} min |"
+            for col in colls[:18]
+            if int(col.get("questionCount") or 0) > 0
+        ]
+        coll_section = (
+            "\n## Past Exams & Practice Sets Included\n\n"
+            "| Collection / Exam Paper | Provenance | Questions | Est. Par Time |\n"
+            "| --- | --- | --- | --- |\n"
+            + "\n".join(coll_rows)
+            + "\n"
+            if coll_rows else ""
         )
 
         course_faqs = [
             (
-                f"How can I practice for {code} ({title}) at BI Oslo?",
-                f"Open {code} at {base}/?course={cid} to drill {q_count} practice questions across {len(topic_names)} syllabus topics, run timed {duration}-minute WISEflow mock exams, read formula notes, and ask the Adamlite AI Tutor for step-by-step guidance.",
+                f"How can I practice for {code_lbl} ({title}) at BI Oslo?",
+                f"Open {code} at {base}/?course={cid} to drill {q_count} practice questions across {len(topic_lines)} syllabus topics, run timed {duration}-minute WISEflow mock exams, read formula notes, and ask the Adamlite AI Tutor for step-by-step guidance.",
             ),
             (
                 f"What is the {code} exam format?",
                 f"{exam_format}. {exam_notes}" if exam_notes else f"{exam_format} ({duration} minutes).",
             ),
             (
+                f"Har Study-OS tidligere eksamener og øvingsoppgaver for {code_lbl}?",
+                f"Ja. {code_lbl} på Study-OS inneholder {q_count} oppgaver ({off_c} fra tidligere BI-eksamener og kurssett" + (f", {book_c} pensumbok-indekserte oppgaver" if book_c else "") + f" og {ai_c} tydelig merkede AI-prøveeksamener), sortert etter emne og vanskelighetsgrad — helt gratis.",
+            ),
+            (
                 f"Is {code} practice on Study-OS free?",
                 "Yes. Study-OS is a free, independent student project in Oslo with zero ads and works directly in your browser without requiring an account.",
             ),
         ]
-        topics_md = "\n".join(f"{i + 1}. {t}" for i, t in enumerate(topic_names)) if topic_names else "Interactive syllabus questions and formula notes ready inside Study-OS."
+        topics_md = "\n".join(topic_lines) if topic_lines else "Interactive syllabus questions and formula notes ready inside Study-OS."
         sibling_courses = "\n".join(
-            f"- [{oc.get('code', '')} · {oc.get('title', '')}]({base}/courses/{oc['courseId']}.md)"
+            f"- [{_course_code_label(str(oc['courseId']), str(oc.get('code') or ''))} · {oc.get('title', '')}]({base}/courses/{oc['courseId']}.md)"
             for oc in catalog if oc["courseId"] != cid
         )
 
         course_md = f"""# {code_lbl}: {title} — BI Oslo Exam Prep & Practice Questions | Study-OS
 
-> **Quick summary:** Free exam preparation for **{code} ({title})**{f' — Norwegian BI equivalent **{no_eq}** —' if no_eq else ''} at BI Norwegian Business School in Oslo: **{q_count} practice questions** ({off_c} official past exam / course exercises, {book_c} textbook study index items, {ai_c} clearly labeled AI mock/synthetic drills), **{len(topic_names)} syllabus topics**, timed **{duration}-minute** WISEflow simulation, KaTeX formula sheets, and **Adamlite AI Tutor**.
+> **Quick summary:** Free exam preparation for **{code} ({title})**{f' — Norwegian / related BI codes **{no_eq}** —' if no_eq else ''} at BI Norwegian Business School in Oslo: **{q_count} practice questions** ({off_c} official past exam / course exercises, {book_c} textbook study index items, {ai_c} clearly labeled AI mock/synthetic drills), **{len(topic_lines)} syllabus topics**, timed **{duration}-minute** WISEflow simulation, KaTeX formula sheets, and **Adamlite AI Tutor**.
 
 > **På norsk:** {no_blurb}
 
-{_meta_block(canonical=f"{base}/courses/{cid}.html", md_url=f"{base}/courses/{cid}.md", lang="en, nb-NO", updated=today_iso, extra=[("Direct Practice Link", f"{base}/?course={cid}"), ("WISEflow Timed Exam Mode", f"{base}/?view=exams&course={cid}"), ("Course Notes", f"{base}/?view=references")])}
+{_meta_block(canonical=f"{base}/courses/{cid}.html", md_url=f"{base}/courses/{cid}.md", lang="en, nb-NO", updated=today_iso, extra=[("Direct Practice Link", f"{base}/?course={cid}"), ("WISEflow Timed Exam Mode", f"{base}/?view=exams&course={cid}"), ("Course Notes", f"{base}/notes.html")])}
 
 ## Course & Question Bank Breakdown
 
 | Metric | Value |
 | --- | --- |
-| **Course Code** | `{code_lbl}` |
+| **Course Code (EN / NO)** | `{code_lbl}` |
 | **Total Practice Questions** | **{q_count}** |
 | **Official Past Exam / Course Exercises** | {off_c} |
 | **Textbook Study Index (Bring Your Own PDF)** | {book_c} |
@@ -537,12 +576,12 @@ Nødvendig snitt på gjenstående stp = (Målsnitt * (Nåværende stp + Gjenstå
 {f"| **Scheduled Exam Date (Oslo)** | {exam_date} |" if exam_date else "| **Exam Notes** | " + (exam_notes or f"Timed {duration}-minute simulation inside Study-OS Exams Hub.") + " |"}
 
 {f"**Exam details:** {exam_notes}" if exam_notes and exam_date else ""}
-
-## Syllabus Topics Covered ({len(topic_names)})
+{coll_section}
+## Syllabus Topics Covered ({len(topic_lines)})
 
 {topics_md}
 
-{_fmt_faqs(course_faqs, f"## {code} Exam Prep FAQ")}
+{_fmt_faqs(course_faqs, f"## {code_lbl} Exam Prep FAQ")}
 
 ## Other BI Oslo Courses on Study-OS
 
@@ -575,14 +614,15 @@ Nødvendig snitt på gjenstående stp = (Målsnitt * (Nåværende stp + Gjenstå
             for s in universities if s["slug"] != slug
         )
         uni_heading = uni["name"] if f"({uni['short']})" in uni["name"] or uni["short"] in uni["name"] else f"{uni['name']} ({uni['short']})"
+        resolved_uni_faqs = [(q, a.replace("{ext_version}", ext_version)) for q, a in uni["faqs"]]
 
         uni_md = f"""# Study-OS for {uni_heading} — Canvas & {uni['timetable_name']} Sync
 
-> **Quick summary:** Study-OS connects directly to **`{uni['canvas_host']}`** and **{uni['timetable_name']}** in 1 click (zero Feide passwords copied), automatically matches **{uni['short']}** courses to **{total_qs} free practice questions** & **{len(references)} formula sheets**, and includes an instant local PDF reader (up to 260 MB) and **Adamlite AI Tutor**.
+> **Quick summary:** Study-OS connects directly to **`{uni['canvas_host']}`** and **{uni['timetable_name']}** in 1 click (zero Feide passwords copied), automatically matches **{uni['short']}** courses to **{total_qs:,} free practice questions** & **{len(references)} formula sheets**, and includes an instant local PDF reader (up to 260 MB) and **Adamlite AI Tutor**.
 
 > **På norsk:** {uni['lead_nb']}
 
-{_meta_block(canonical=f"{base}/uni/{slug}.html", md_url=f"{base}/uni/{slug}.md", lang="nb-NO, en", updated=today_iso, extra=[("Campus / City", uni['city']), ("Canvas LMS Host", f"`{uni['canvas_host']}`"), ("Timetable System", uni['timetable_name']), ("Exam Platform", uni['exam_platform']), ("Program Focus", uni['program_focus'])])}
+{_meta_block(canonical=f"{base}/uni/{slug}.html", md_url=f"{base}/uni/{slug}.md", lang="en, nb-NO" if uni.get("lang") == "en" else "nb-NO, en", updated=today_iso, extra=[("Campus / City", uni['city']), ("Canvas LMS Host", f"`{uni['canvas_host']}`"), ("Timetable System", uni['timetable_name']), ("Exam Platform", uni['exam_platform']), ("Program Focus", uni['program_focus'])])}
 
 ## Auto-Matched {uni['short']} Courses on Study-OS
 
@@ -593,10 +633,10 @@ Nødvendig snitt på gjenstående stp = (Målsnitt * (Nåværende stp + Gjenstå
 {steps_md}
 
 - **Launch Study-OS:** {base}/
-- **Download Sync Extension (v1.6.0):** {base}/downloads/study-os-sync-extension.zip
+- **Download Sync Extension (v{ext_version}):** {base}/downloads/study-os-sync-extension.zip
 - **Norwegian ECTS GPA Calculator:** {base}/gpa-calculator.md
 
-{_fmt_faqs(uni['faqs'], f"## {uni['short']} FAQ / Ofte stilte spørsmål")}
+{_fmt_faqs(resolved_uni_faqs, f"## {uni['short']} FAQ / Ofte stilte spørsmål")}
 
 ## Other Supported Universities
 
@@ -620,7 +660,10 @@ Practice answers, timers, theme preferences, study schedules, personal PDF files
 - Google Sign-In verifies identity only (OpenID basic profile/email). Study-OS never accesses Gmail, Drive, or other Google services and adheres to the Google API Services User Data Policy (including Limited Use requirements).
 
 ## 3. Optional Browser Sync & AI Tutor
-- The optional **Study-OS Sync** Chrome extension runs only on signed-in Canvas LMS, TimeEdit/TP, or Ed Discussion tabs you authorize. It never reads passwords or exports session cookies. Community course directories merge only public course codes, titles, and topic outlines — never private grades, submissions, or copyrighted files.
+- The optional **Study-OS Sync** Chrome extension (`v{ext_version}`) runs only on signed-in Canvas LMS, TimeEdit/TP timetable, or Ed Discussion tabs you authorize. It never reads passwords or exports session cookies; any in-tab Ed session lookup stays strictly in memory to query Ed's own API and is never saved or transmitted to Study-OS.
+- **Local-only Canvas PDF viewing:** Direct-fetched Canvas lecture slides stay strictly inside your browser and local IndexedDB and are never uploaded to Study-OS servers.
+- **Toggleable community course catalog:** Can be disabled anytime in one click in the popup; merges only non-personal course codes, course titles, and module headings while keeping personal deadlines, timetables, grades, submissions, and files private.
+- **Opt-in on-device Browser Focus Telemetry:** Off by default; only if explicitly enabled (with Chrome's optional `tabs` permission) does it tally daily Study / Distraction / Other category minutes locally on-device with zero URLs, paths, or page titles stored or uploaded.
 - When you message the **Adamlite AI Tutor**, your prompt, the active question, your working, and the matching Markdown reference section are sent to the configured LLM provider (Cloudflare Workers AI or Google Gemini) solely to produce your tutoring answer.
 
 ## 4. Cookies & Tracking
@@ -673,10 +716,10 @@ Questions, takedown notices, or feedback: [github.com/shadjosef/study-os/issues]
         "# Study-OS",
         "",
         f"> Free, ad-free, open-source student workspace and exam-prep platform built in Oslo, Norway ({base}/) "
-        f"for BI Norwegian Business School, UiA, NTNU, UiO, NHH, UiB (`mitt.uib.no`), OsloMet, and any university running "
-        f"Instructure Canvas (`*.instructure.com`). Includes {total_qs} practice questions across {len(catalog)} courses, "
+        f"for BI Norwegian Business School, UiA, NTNU, UiO, NHH, UiB (`mitt.uib.no`), OsloMet, UiS, UiT, USN, NMBU, HVL, Kristiania, "
+        f"and any university running Instructure Canvas (`*.instructure.com`). Includes {total_qs:,} practice questions across {len(catalog)} courses, "
         f"{len(references)} KaTeX formula sheets, a timed WISEflow FLOWmulti exam simulator ({total_flowmulti} multi-box items), "
-        f"1-click Canvas + TimeEdit/TP browser sync (zero passwords), instant local PDF viewing (up to 260 MB), "
+        f"1-click Canvas + TimeEdit/TP browser sync (`v{ext_version}`, zero passwords), instant local PDF viewing (up to 260 MB), "
         f"a free Norwegian ECTS GPA calculator, FSRS spaced repetition, and the Adamlite AI Tutor.",
         "",
         "## Complete Single-File Documentation (Recommended for LLMs)",
@@ -687,7 +730,7 @@ Questions, takedown notices, or feedback: [github.com/shadjosef/study-os/issues]
         f"- [BI Oslo Study Guide (English)]({base}/bi-oslo.md): Complete overview of BI Oslo courses (EXC/BØK/SØK/ORG/EBA), WISEflow mocks, and Canvas/TimeEdit sync.",
         f"- [Study-OS på norsk (Bokmål)]({base}/norsk.md): Norwegian guide for BI, UiA, NTNU, UiO, NHH, UiB, and OsloMet students.",
         f"- [WISEflow FLOWmulti & BYOD Exam Simulator]({base}/wiseflow-practice.md): Timed 3-hour exam simulation, dot-decimal (`.`) & `±2%` rounding rules, and exam-day checklist.",
-        f"- [Canvas LMS, TimeEdit/TP & Ed Discussion 1-Click Sync]({base}/bi-canvas-timeedit-sync.md): Manifest V3 extension (`v1.6.0`) setup for Norwegian & global Canvas universities.",
+        f"- [Canvas LMS, TimeEdit/TP & Ed Discussion 1-Click Sync]({base}/bi-canvas-timeedit-sync.md): Manifest V3 extension (`v{ext_version}`) setup for Norwegian & global Canvas universities.",
         f"- [Karaktersnitt Kalkulator / Norwegian ECTS GPA Calculator]({base}/gpa-calculator.md): Free zero-login `A=5` to `E=1` weighted GPA calculator with MSc / Siviløkonom target planner.",
         f"- [Supported Universities Directory]({base}/universities.md): Full compatibility matrix for Norwegian universities & any `*.instructure.com` Canvas school.",
         f"- [Study-OS vs Notion, Anki, Quizlet, Studocu & Norwegian Exam Portals]({base}/compare.md): Honest 2026 feature comparison and trade-offs.",
@@ -696,7 +739,7 @@ Questions, takedown notices, or feedback: [github.com/shadjosef/study-os/issues]
         "## Supported Universities",
         *llms_uni_lines,
         "",
-        f"## Public Practice Courses ({total_qs} Questions)",
+        f"## Public Practice Courses ({total_qs:,} Questions)",
         *llms_course_lines,
         "",
         "## Reference Sheets",
@@ -716,9 +759,9 @@ Questions, takedown notices, or feedback: [github.com/shadjosef/study-os/issues]
         "# Study-OS — Full Plain-Markdown Documentation Corpus (`llms-full.txt`)",
         "",
         f"> Generated {today_iso} for AI assistants, search engines, and coding agents. "
-        f"Contains {len(corpus_sections)} clean Markdown documents covering {base}/ ({total_qs} practice questions, "
-        f"{len(catalog)} courses, {len(references)} reference sheets, 7 university hubs, WISEflow FLOWmulti rules, "
-        f"Canvas/TimeEdit/TP sync, Norwegian ECTS GPA calculator, and honest tool comparisons).",
+        f"Contains {len(corpus_sections)} clean Markdown documents covering {base}/ ({total_qs:,} practice questions, "
+        f"{len(catalog)} courses, {len(references)} reference sheets, 7 university hubs + 6 additional Norwegian Canvas schools, "
+        f"WISEflow FLOWmulti rules, Canvas/TimeEdit/TP sync v{ext_version}, Norwegian ECTS GPA calculator, and honest tool comparisons).",
         "",
         f"- Index: {base}/llms.txt",
         f"- Website: {base}/",

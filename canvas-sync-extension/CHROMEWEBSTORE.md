@@ -18,7 +18,7 @@ One-click sync across Canvas LMS (BI, UiA, UiB, UiO, NTNU, OsloMet, NHH, UiS, Ui
 Automatic background refreshes whenever you open your signed-in school tabs (Canvas and Ed every 12 hours, timetables every 3 days), with a one-click toggle to pause auto-sync anytime.
 Direct in-browser Canvas PDF viewing inside Study-OS: opens your lecture slides using your own signed-in browser session so copyrighted course files never touch external servers.
 Opt-in on-device browser focus stats: when explicitly enabled by you, tallies daily Study vs. Distraction vs. Other category minutes locally on your device without storing URLs, page titles, or browsing history.
-Optional community course catalog sharing that contributes course codes and module headings while keeping your personal deadlines and timetable strictly private.
+Toggleable community course catalog sharing (can be switched off anytime in one click) that contributes non-personal course codes and module headings while keeping your personal deadlines and timetable strictly private.
 
 How to Use It
 1. Open studyos.no, click Sync Canvas, and generate a 6-character pairing code.
@@ -86,7 +86,7 @@ English
 | Location | No | No | — | No |
 | Web history | No | No | School tab detection is scoped to listed domains; opt-in focus telemetry records only numeric daily category seconds locally (zero URLs or titles stored or uploaded) | No |
 | User activity | Yes (opt-in local daily category seconds only) | No (stays 100% local in-browser) | Displays daily Study vs. Distraction category balance inside the user's own Study-OS dashboard | No |
-| Website content | Yes (school course metadata & `.ics` timetable) | Sent to user's Study-OS account (`shadjosef-study-os.workers.dev`); Canvas PDFs stay 100% local | Populates courses, deadlines, module headings, and timetable (optional opt-in for non-personal course catalog sharing) | No |
+| Website content | Yes (school course metadata & `.ics` timetable) | Sent to user's Study-OS account (`shadjosef-study-os.workers.dev`); Canvas PDFs stay 100% local | Populates courses, deadlines, module headings, and timetable (toggleable community catalog sharing for non-personal course metadata can be disabled in one click) | No |
 
 ### Data Use Certification
 - [x] Data is NOT sold to third parties
@@ -98,7 +98,20 @@ English
 ## Privacy Policy
 
 **Privacy Policy URL** [REQUIRED]
-`https://studyos.no/privacy`
+`https://studyos.no/privacy.html`
+
+---
+
+## Reviewer Testing Notes
+
+```text
+Study-OS Sync connects a student's already signed-in university Canvas LMS, TimeEdit/TP timetable, and Ed Discussion tabs to their Study-OS account (https://studyos.no).
+To verify pairing without university student credentials:
+1. Open https://studyos.no, sign in (or join with a display nickname), and click "Sync Canvas".
+2. Click "Generate 6-character code" and paste the code into the Study-OS Sync extension popup to verify pairing.
+3. Optional "On-device Focus Telemetry" is OFF by default and only requests Chrome's optional `tabs` permission if the user explicitly enables the checkbox in the popup; it increments local numeric Study/Distraction/Other category totals in chrome.storage.local without ever storing URLs or page titles.
+4. When syncing an open Ed Discussion tab, any in-tab session token is used strictly in memory to query Ed's own regional `/api/user` endpoint and is never persisted or sent to Study-OS servers.
+```
 
 ---
 

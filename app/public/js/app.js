@@ -2532,7 +2532,7 @@ window.StudyApp = (() => {
     currentView = viewName;
     if (opts.courseId) selectedCourseId = opts.courseId;
     if (opts.refFile) selectedRefFile = opts.refFile;
-    if (viewName !== 'course' && window.location.search) {
+    if (!opts.fromBoot && viewName !== 'course' && window.location.search) {
       const curParams = new URLSearchParams(window.location.search);
       const keepRefQuery = viewName === 'references' && curParams.get('view') === 'references';
       if (!keepRefQuery && (curParams.has('course') || curParams.has('origin') || curParams.has('diff') || curParams.has('dlpfc') || curParams.has('sort'))) {
@@ -3183,8 +3183,9 @@ window.StudyApp = (() => {
         <div class="hero-top">
           <div style="flex:1;min-width:240px">
             ${nextExamChip}
+            <span class="eyebrow">Study-OS · Free BI Oslo &amp; Norway Canvas Workspace</span>
             <h1 class="hero-title">Study by subject</h1>
-            <p class="muted" style="margin:0">${activeCatalog.length} active subjects · ${questionCount} questions · ${(boot.references || []).length} course notes</p>
+            <p class="muted" style="margin:0">${activeCatalog.length} active subjects · ${questionCount.toLocaleString('en-US')} practice questions · ${(boot.references || []).length} formula sheets · WISEflow mocks &amp; Canvas sync</p>
           </div>
           <div class="row-actions">
             <button type="button" class="primary-btn" id="btn-web-refs">Course notes</button>
@@ -6981,11 +6982,12 @@ window.StudyApp = (() => {
       } catch {}
     };
 
-    const refreshTable = () => {
+    const refreshTable = (opts) => {
+      const syncUrl = !(opts && opts.syncUrl === false);
       const matches = getMatching();
       const { list, estMin } = buildRunIds(matches);
       document.getElementById('flt-summary-lbl').textContent = `${list.length} in run (of ${matches.length} matching) · ~${Math.round(estMin)}m Al Par`;
-      syncCourseFilterUrl();
+      if (syncUrl) syncCourseFilterUrl();
 
       const tbody = document.getElementById('exp-table-body');
       tbody.innerHTML = matches
@@ -7346,7 +7348,12 @@ window.StudyApp = (() => {
       refreshTable();
     };
 
-    refreshTable();
+    // Avoid rewriting an already-addressed ?course=... URL during initial mount (prevents Search Console "Page with redirect")
+    const curCourseParam = new URLSearchParams(window.location.search).get('course') || '';
+    const sameCourseAlreadyInUrl = Boolean(curCourseParam) && (
+      curCourseParam === courseId || curCourseParam === COURSE_SEO_SLUGS[courseId]
+    );
+    refreshTable({ syncUrl: !sameCourseAlreadyInUrl });
   }
 
   // ---------------------------------------------------------------------------
@@ -8429,7 +8436,7 @@ window.StudyApp = (() => {
             ? '<button type="button" class="ghost-btn" id="btn-pair-sync-ext">Sync TimeEdit / Ed</button>'
             : '<button type="button" class="ghost-btn" id="btn-send-desktop-setup">Send to phone ↗</button>'}
           <button type="button" class="ghost-btn" id="btn-export-schedule">Download .ics</button>
-          ${!isStaticWeb ? '<a class="ghost-btn" href="./canvas-connect.html" target="_blank" rel="noopener">Canvas ↗</a>' : ''}
+          ${!isStaticWeb ? '<a class="ghost-btn" href="./canvas-connect.html" target="_blank" rel="noopener nofollow">Canvas ↗</a>' : ''}
           ${cfg.enabled ? '<button type="button" class="ghost-btn" id="btn-reset-custom-sched">Reset</button>' : ''}
         </div>
       </div>
@@ -10386,7 +10393,7 @@ window.StudyApp = (() => {
     }
     if (qView === 'community' && window.StudyCommunity?.enabled) {
       const section = (params.get('section') || '').trim().toLowerCase();
-      await navigate('community');
+      await navigate('community', { fromBoot: true });
       if (section === 'ed' || section === 'ed-discussion') {
         document.getElementById('community-ed-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -10394,14 +10401,12 @@ window.StudyApp = (() => {
       if (qView === 'references' && isStaticWeb) {
         const target = findPublicReference(params.get('note') || '');
         if (target) {
-          await navigate('references', { refFile: target.entry.file, refDoc: target.file, heading: params.get('section') || '' });
+          await navigate('references', { refFile: target.entry.file, refDoc: target.file, heading: params.get('section') || '', fromBoot: true });
         } else {
-          window.history.replaceState({}, '', window.location.pathname);
-          await navigate(qView, { focusCourseId: qCourse || '' });
+          await navigate(qView, { focusCourseId: qCourse || '', fromBoot: true });
         }
       } else {
-        window.history.replaceState({}, '', window.location.pathname);
-        await navigate(qView, { focusCourseId: qCourse || '' });
+        await navigate(qView, { focusCourseId: qCourse || '', fromBoot: true });
       }
     } else if (qCourse || qView === 'course' || qView === 'courses') {
       const targetCourseId = qCourse || boot.catalog?.[0]?.courseId || '';
@@ -10428,7 +10433,7 @@ window.StudyApp = (() => {
             profile: (params.get('profile') || '').trim(),
             q: (params.get('q') || params.get('search') || '').trim(),
           };
-          await navigate('course', { courseId: targetCourseId, filters });
+          await navigate('course', { courseId: targetCourseId, filters, fromBoot: true });
         }
       }
     }

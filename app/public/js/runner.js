@@ -3216,11 +3216,11 @@ window.StudyRunner = (() => {
           <div class="coding-ide-foot">
             <span class="badge live" id="coding-ide-live-pill" ${ideSynced ? '' : 'hidden'}>● IDE timer active — switching to ${esc(ideLabel)} won't pause</span>
             <details class="coding-ide-setup">
-              <summary>1-time IDE Companion v0.3 setup (per-subpart CodeLens HUD + 1-click Sync)</summary>
+              <summary>1-time IDE Companion v0.3.1 setup (per-subpart CodeLens HUD + 1-click Sync)</summary>
               <div class="coding-ide-setup-body">
-                <p>Install Study-OS Companion v0.3 once: clicking <em>Open in ${esc(ideLabel)}</em> builds the exam <code>.ipynb</code>, links BI CSVs, drops your cursor into Cell 1, renders a <strong>live per-subpart AI-Par CodeLens HUD right above each code cell</strong>, and adds <strong>✓ Sync to Study-OS</strong>.</p>
+                <p>Install Study-OS Companion v0.3.1 once: clicking <em>Open in ${esc(ideLabel)}</em> builds the exam <code>.ipynb</code>, links BI CSVs, drops your cursor into Cell 1, renders a <strong>live per-subpart AI-Par CodeLens HUD right above each code cell</strong>, and adds <strong>✓ Sync to Study-OS</strong>.</p>
                 <div class="row-actions" style="gap:8px;margin-top:6px">
-                  <a class="ghost-btn" href="${esc(vsixHref)}" download="study-os-companion.vsix" style="text-decoration:none">Download .vsix (v0.3)</a>
+                  <a class="ghost-btn" href="${esc(vsixHref)}" download="study-os-companion.vsix" style="text-decoration:none">Download .vsix (v0.3.1)</a>
                   <span class="muted" style="font-size:11.5px">In ${esc(ideLabel)}: <kbd>⌘⇧P</kbd> → <em>Extensions: Install from VSIX…</em></span>
                 </div>
               </div>

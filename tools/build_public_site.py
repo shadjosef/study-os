@@ -589,6 +589,12 @@ def install_pdfcraft_web(out_dir: Path, archive: Path) -> None:
                     r"\1\2",
                     html_text,
                 )
+                if 'name="robots"' not in html_text.lower():
+                    html_text = html_text.replace(
+                        "<head>",
+                        '<head>\n    <meta name="robots" content="noindex, nofollow" />',
+                        1,
+                    )
                 target.write_text(html_text, encoding="utf-8")
             else:
                 target.write_bytes(data)
@@ -655,21 +661,100 @@ SEO_ICON_LINKS = """  <link rel="shortcut icon" href="/favicon.ico">
   <link rel="apple-touch-icon" href="/pwa/study-os-192.png">"""
 
 COURSE_NO_BLURBS: dict[str, str] = {
-    "econ-2522": "Samfunnsøkonomi (mikroøkonomi og makroøkonomi) · Øvingsoppgaver, notater og WISEflow eksamensforberedelse for BI-studenter i Oslo.",
-    "acct-2527": "Finansregnskap og bedriftsøkonomi · Øv på 180-poengs WISEflow FLOWmulti-oppgaver, regnskapsanalyse og finansberegninger for BI Oslo.",
-    "ob-2537": "Organisasjonsatferd og ledelse · Flervalgsoppgaver (MCQ), begrepsoversikt og tidsstyrt eksamenssimulator for BI Oslo.",
-    "prog-3021": "Programmering, datauttrekk og visualisering i Python (pandas, numpy, matplotlib, seaborn) · Øving til hjemmeeksamen i Jupyter Notebook ved BI Oslo.",
-    "math-2588": "Matematikk for datavitenskap · Regneoppgaver, løsningsforslag og eksamensnotater for studenter ved Handelshøyskolen BI i Oslo.",
+    "econ-2522": "Samfunnsøkonomi (SØK 3420 / EXC 3420 — mikroøkonomi og makroøkonomi) · Tidligere eksamener, øvingsoppgaver, kursnotater og WISEflow eksamensforberedelse for BI Oslo.",
+    "acct-2527": "Finansregnskap og bedriftsøkonomi (BØK 3430 / EXC 3430) · Øv på 180-poengs WISEflow FLOWmulti-oppgaver, regnskapsanalyse og finansberegninger for BI Oslo.",
+    "ob-2537": "Organisasjonsatferd og ledelse (ORG 3460 / EXC 3460) · Flervalgsoppgaver (MCQ), begrepsoversikt og tidsstyrt WISEflow-eksamenssimulator for BI Oslo.",
+    "prog-3021": "Programmering, datauttrekk og visualisering i Python (EBA 3400 / EBA34005 — pandas, numpy, matplotlib, seaborn) · Øving til hjemmeeksamen i Jupyter Notebook ved BI Oslo.",
+    "math-2588": "Matematikk for datavitenskap (EBA 1181 / EBA 1180 / EBA11805 / MET 1180) · Tidligere BI-eksamener, regneoppgaver, løsningsforslag og formelnotater for BI Oslo.",
+}
+
+# Authentic BI Norwegian Business School equivalent & historical exam course codes
+BI_COURSE_ALIASES: dict[str, dict[str, Any]] = {
+    "econ-2522": {"noCode": "SØK 3420", "altCodes": ["SØK 3420", "Samfunnsøkonomi"]},
+    "acct-2527": {"noCode": "BØK 3430", "altCodes": ["BØK 3430", "Finansregnskap og bedriftsøkonomi"]},
+    "ob-2537": {"noCode": "ORG 3460", "altCodes": ["ORG 3460", "Organisasjonsatferd og ledelse"]},
+    "prog-3021": {"noCode": "", "altCodes": ["EBA34005", "Python BI Oslo"]},
+    "math-2588": {"noCode": "EBA 1180", "altCodes": ["EBA 1180", "EBA11805", "EBA 2910", "MET 1180"]},
 }
 
 
+def _extension_version() -> str:
+    manifest = ROOT_DIR / "canvas-sync-extension" / "manifest.json"
+    if manifest.is_file():
+        try:
+            ver = str(json.loads(manifest.read_text(encoding="utf-8")).get("version") or "").strip()
+            if ver:
+                return ver
+        except Exception:
+            pass
+    return "1.7.1"
+
+
+def _publisher_ld(base: str) -> dict[str, Any]:
+    return {
+        "@type": "Organization",
+        "name": "Study-OS",
+        "url": f"{base}/",
+        "logo": {
+            "@type": "ImageObject",
+            "url": f"{base}/pwa/study-os-192.png",
+            "width": 192,
+            "height": 192,
+        },
+    }
+
+
+def _course_code_pair(cid: str, code: str) -> str:
+    no_code = str((BI_COURSE_ALIASES.get(cid) or {}).get("noCode") or "").strip()
+    return f"{code} / {no_code}" if no_code and no_code != code else code
+
+
 def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str = "https://studyos.no") -> list[str]:
-    """Generate indexable static Oslo landing & per-course HTML pages plus sitemap.xml."""
+    """Generate indexable static Oslo, multi-university & per-course HTML pages, GEO Markdown mirrors, and sitemap.xml."""
     base = base_url.rstrip("/")
     catalog = bootstrap.get("catalog") or []
     references = bootstrap.get("references") or []
     total_qs = sum(int(c.get("questionCount") or 0) for c in catalog)
+    total_flowmulti = sum(int(c.get("flowmultiCount") or 0) for c in catalog)
     today_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    ext_version = _extension_version()
+
+    seo_css_file = out_dir / "seo.css"
+    seo_css_v = hashlib.sha256(seo_css_file.read_bytes()).hexdigest()[:8] if seo_css_file.is_file() else ""
+    seo_css_root = f"./seo.css?v={seo_css_v}" if seo_css_v else "./seo.css"
+    seo_css_sub = f"../seo.css?v={seo_css_v}" if seo_css_v else "../seo.css"
+    seo_css_abs = f"/seo.css?v={seo_css_v}" if seo_css_v else "/seo.css"
+
+    # Stamp cache-busted seo.css onto static legal & 404 HTML files copied from app/public/
+    for static_name, css_target in (("privacy.html", seo_css_root), ("terms.html", seo_css_root), ("404.html", seo_css_abs)):
+        sp = out_dir / static_name
+        if sp.is_file():
+            raw_s = sp.read_text(encoding="utf-8")
+            raw_s = raw_s.replace('href="./seo.css"', f'href="{css_target}"').replace('href="/seo.css"', f'href="{css_target}"')
+            sp.write_text(raw_s, encoding="utf-8")
+
+    static_refs_dir = out_dir / "static-data" / "references"
+    ref_toc_by_course: dict[str, list[str]] = {}
+    for ref in references:
+        r_cid = str(ref.get("courseId") or "").strip()
+        rfile = str(ref.get("file") or "")
+        if not r_cid or not rfile:
+            continue
+        rjson = static_refs_dir / f"{ref_slug(rfile)}.json"
+        if rjson.is_file():
+            try:
+                rdata = json.loads(rjson.read_text(encoding="utf-8"))
+                heads = []
+                for h in (rdata.get("toc") or []):
+                    ht = str(h.get("text") or h.get("title") or "").strip() if isinstance(h, dict) else str(h).strip()
+                    ht = re.sub(r"[$*`]", "", ht).strip()
+                    if ht and len(ht) >= 3:
+                        heads.append(ht)
+                if heads:
+                    ref_toc_by_course[r_cid] = heads
+            except Exception:
+                pass
+
     courses_dir = out_dir / "courses"
     courses_dir.mkdir(parents=True, exist_ok=True)
     sitemap_urls: list[tuple[str, str, str]] = [
@@ -683,7 +768,11 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         if not cid or not re.fullmatch(r"[a-z0-9-]+", cid):
             continue
         code = str(course.get("code") or cid.upper()).strip()
+        code_pair = _course_code_pair(cid, code)
+        alias_meta = BI_COURSE_ALIASES.get(cid) or {}
+        alt_codes = list(alias_meta.get("altCodes") or [])
         title = str(course.get("title") or cid).strip()
+        short_title = str(course.get("shortTitle") or title).strip()
         color = str(course.get("color") or "#1f6b58").strip()
         exam = course.get("examInfo") or {}
         exam_format = str(exam.get("format") or "Digital university exam").strip()
@@ -691,66 +780,98 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         exam_date = str(exam.get("date") or "").strip()
         duration = int(exam.get("durationMinutes") or 180)
         q_count = int(course.get("questionCount") or 0)
+        off_c = int(course.get("officialCount") or 0)
+        book_c = int(course.get("bookCount") or 0)
+        ai_c = int(course.get("aiSyntheticCount") or 0)
+        wf_c = int(course.get("flowmultiCount") or 0)
         high_c = int(course.get("highDlpfcCount") or 0)
         med_c = int(course.get("medDlpfcCount") or 0)
         low_c = int(course.get("lowDlpfcCount") or 0)
+
         raw_topics = course.get("topics") or []
-        topic_names = [
-            str(t.get("title") or t.get("name") or t.get("id") or "").strip()
-            if isinstance(t, dict) else str(t).strip()
-            for t in raw_topics
-        ]
-        topic_names = [t for t in topic_names if t]
+        topic_entries: list[tuple[str, list[str]]] = []
+        for t in raw_topics:
+            if isinstance(t, dict):
+                t_name = str(t.get("title") or t.get("name") or t.get("id") or "").strip()
+                t_kws = [str(k).strip() for k in (t.get("keywords") or []) if str(k).strip()][:5]
+                if t_name:
+                    topic_entries.append((t_name, t_kws))
+            else:
+                t_name = str(t).strip()
+                if t_name:
+                    topic_entries.append((t_name, []))
+        topic_names = [tn for tn, _ in topic_entries]
+
         no_blurb = COURSE_NO_BLURBS.get(
             cid,
-            f"Øvingsoppgaver, kursnotater og WISEflow eksamensforberedelse for {code} ved Handelshøyskolen BI i Oslo.",
+            f"Øvingsoppgaver, kursnotater og WISEflow eksamensforberedelse for {code_pair} ved Handelshøyskolen BI i Oslo.",
         )
 
         page_url = f"{base}/courses/{cid}.html"
-        page_title = f"{code} {title} — BI Oslo Exam Prep & Practice | Study-OS"
+        page_title = f"{code_pair} {short_title} — BI Oslo Exam Prep | Study-OS"
         meta_desc = (
-            f"Free {code} ({title}) exam prep for BI Oslo students: {q_count} practice questions, "
-            f"{len(topic_names)} syllabus topics, WISEflow mock exams, course notes & AI tutor on Study-OS."
+            f"Free {code_pair} ({short_title}) BI Oslo exam prep: {q_count} questions ({off_c} official BI tasks), "
+            f"{len(topic_names)} topics, WISEflow mocks, formula notes & AI tutor."
         )
         course_faqs = [
             (
-                f"How can I practice for {code} ({title}) at BI Oslo?",
-                f"Open {code} in Study-OS to drill {q_count} practice questions across {len(topic_names)} syllabus topics, run timed {duration}-minute WISEflow mock exams, read formula notes, and ask the side-pane AI Tutor for step-by-step guidance.",
+                f"How can I practice for {code_pair} ({title}) at BI Oslo?",
+                f"Open {code} in Study-OS to drill {q_count} practice questions across {len(topic_names)} syllabus topics, run timed {duration}-minute WISEflow mock exams, read KaTeX formula notes, and ask the side-pane Adamlite AI Tutor for step-by-step guidance.",
             ),
             (
-                f"What is the {code} exam format?",
+                f"What is the {code} exam format at BI Norwegian Business School?",
                 f"{exam_format}. {exam_notes}" if exam_notes else f"{exam_format} ({duration} minutes).",
             ),
             (
+                f"Har Study-OS tidligere eksamener og øvingsoppgaver for {code_pair}?",
+                f"Ja. {code_pair} på Study-OS har {q_count} oppgaver ({off_c} fra tidligere BI-eksamener og oppgavesett"
+                + (f", {book_c} pensumbok-indekserte oppgaver" if book_c else "")
+                + f" og {ai_c} tydelig merkede AI-prøveeksamener), gruppert etter pensumtema og vanskelighetsgrad — helt gratis uten konto.",
+            ),
+            (
                 f"Is {code} practice on Study-OS free?",
-                "Yes. Study-OS is a free, independent student project in Oslo with zero ads and works directly in your browser without requiring an account.",
+                "Yes. Study-OS is a free, independent open-source student project in Oslo with zero ads and works directly in your browser without requiring an account.",
             ),
         ]
+
+        course_schema: dict[str, Any] = {
+            "@type": "Course",
+            "name": f"{code_pair} · {title}",
+            "courseCode": code,
+            "description": meta_desc,
+            "url": page_url,
+            "image": f"{base}/og-image.png",
+            "inLanguage": ["en", "nb"],
+            "isAccessibleForFree": True,
+            "provider": _publisher_ld(base),
+            "educationalLevel": "University / Bachelor",
+            "about": topic_names[:14],
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "NOK",
+                "category": "Free",
+            },
+        }
+        if alt_codes:
+            course_schema["alternateName"] = alt_codes
+
         json_ld = {
             "@context": "https://schema.org",
             "@graph": [
                 {
-                    "@type": "Course",
-                    "name": f"{code} · {title}",
-                    "courseCode": code,
-                    "description": meta_desc,
+                    "@type": "WebPage",
+                    "@id": f"{page_url}#webpage",
                     "url": page_url,
+                    "name": page_title,
+                    "description": meta_desc,
+                    "image": f"{base}/og-image.png",
+                    "dateModified": today_iso,
                     "inLanguage": ["en", "nb"],
-                    "isAccessibleForFree": True,
-                    "provider": {
-                        "@type": "Organization",
-                        "name": "Study-OS (Independent BI Oslo student project)",
-                        "url": f"{base}/",
-                    },
-                    "educationalLevel": "University / Bachelor",
-                    "about": topic_names[:12],
-                    "offers": {
-                        "@type": "Offer",
-                        "price": "0",
-                        "priceCurrency": "NOK",
-                        "category": "Free",
-                    },
+                    "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+                    "publisher": _publisher_ld(base),
                 },
+                course_schema,
                 {
                     "@type": "FAQPage",
                     "mainEntity": [
@@ -763,7 +884,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
                     "itemListElement": [
                         {"@type": "ListItem", "position": 1, "name": "Study-OS", "item": f"{base}/"},
                         {"@type": "ListItem", "position": 2, "name": "BI Oslo Courses", "item": f"{base}/bi-oslo.html"},
-                        {"@type": "ListItem", "position": 3, "name": f"{code} · {title}", "item": page_url},
+                        {"@type": "ListItem", "position": 3, "name": f"{code_pair} · {short_title}", "item": page_url},
                     ],
                 },
             ],
@@ -774,22 +895,81 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         )
         other_links = "".join(
             f'<a class="ghost-btn" href="./{escape(str(oc["courseId"]), quote=True)}.html">'
-            f'{escape(str(oc.get("code", "")))} · {escape(str(oc.get("shortTitle") or oc.get("title", "")))}</a>'
+            f'{escape(_course_code_pair(str(oc["courseId"]), str(oc.get("code", ""))))} · {escape(str(oc.get("shortTitle") or oc.get("title", "")))}</a>'
             for oc in catalog if oc.get("courseId") and oc.get("courseId") != cid
         )
         topics_html = (
-            "<ul class=\"seo-topics\">"
-            + "".join(f"<li>{escape(t)}</li>" for t in topic_names)
+            '<ul class="seo-topics">'
+            + "".join(
+                f"<li><strong>{escape(tn)}</strong>"
+                + (f'<span class="seo-topic-kw">{escape(" · ".join(kws))}</span>' if kws else "")
+                + "</li>"
+                for tn, kws in topic_entries
+            )
             + "</ul>"
-            if topic_names else "<p class=\"muted\">Interactive practice questions and summary notes ready inside Study-OS.</p>"
+            if topic_entries else '<p class="muted">Interactive practice questions and summary notes ready inside Study-OS.</p>'
         )
-        exam_block = f"""
-      <section class="panel seo-card" style="margin-bottom:16px">
-        <span class="eyebrow">Exam format · Oslo / WISEflow</span>
-        <h2>{escape(exam_format)}</h2>
-        <p>{escape(exam_notes or f'Timed {duration}-minute exam simulation available inside Study-OS Exams Hub.')}</p>
-        {f'<p style="margin-top:8px"><strong>Scheduled exam date:</strong> {escape(exam_date)} (Oslo time)</p>' if exam_date else ''}
-      </section>"""
+
+        # Real Past Exams & Exercise Collections table
+        colls = [col for col in (course.get("collections") or []) if int(col.get("questionCount") or 0) > 0]
+        coll_rows = "".join(
+            f"""          <tr>
+            <td><strong>{escape(str(col.get("title") or col.get("id") or ""))}</strong></td>
+            <td><span class="badge">{escape(str((col.get("provenance") or {}).get("label") or col.get("kind") or "Practice"))}</span></td>
+            <td>{int(col.get("questionCount") or 0)}</td>
+            <td>{int(col.get("parMinutes") or 0)} min</td>
+          </tr>\n"""
+            for col in colls[:16]
+        )
+        collections_block = (
+            f"""    <section class="panel seo-card" style="margin-bottom:16px">
+      <span class="eyebrow">Past exams &amp; problem sets · {off_c} official · {ai_c} AI mock{f' · {wf_c} FLOWmulti' if wf_c else ''}</span>
+      <h2>Past exam papers &amp; practice sets in {escape(code_pair)}</h2>
+      <p>Every exercise is tagged by origin so you can filter strictly for <strong>Real BI Tasks Only</strong>, <strong>Past Exams</strong>, or extra timed AI rehearsals:</p>
+      <div class="seo-table-wrap">
+        <table class="seo-table">
+          <thead>
+            <tr>
+              <th>Exam Paper / Exercise Set</th>
+              <th>Source</th>
+              <th>Questions</th>
+              <th>Est. Par</th>
+            </tr>
+          </thead>
+          <tbody>
+{coll_rows}          </tbody>
+        </table>
+      </div>
+    </section>\n"""
+            if coll_rows else ""
+        )
+
+        # Linked Formula / Reference Sheet TOC preview
+        course_ref_heads = ref_toc_by_course.get(cid) or []
+        ref_preview_block = (
+            f"""    <section class="panel seo-card" style="margin-bottom:16px">
+      <span class="eyebrow">Formula sheet &amp; semester reference · {len(course_ref_heads)} sections</span>
+      <h2>Course notes included for {escape(code_pair)}</h2>
+      <ul class="seo-topics">{"".join(f"<li>{escape(h)}</li>" for h in course_ref_heads[:12])}</ul>
+      <div class="seo-cta-row" style="margin-top:10px">
+        <a class="ghost-btn" href="../notes.html">Browse all formula sheets</a>
+        <a class="ghost-btn" href="../?view=references" rel="nofollow">Open interactive Notes reader →</a>
+      </div>
+    </section>\n"""
+            if course_ref_heads else ""
+        )
+
+        exam_block = f"""    <section class="panel seo-card" style="margin-bottom:16px">
+      <span class="eyebrow">Exam format · Oslo / WISEflow</span>
+      <h2>{escape(exam_format)}</h2>
+      <p>{escape(exam_notes or f'Timed {duration}-minute exam simulation available inside Study-OS Exams Hub.')}</p>
+      {f'<p style="margin-top:8px"><strong>Scheduled exam date:</strong> {escape(exam_date)} (Oslo time)</p>' if exam_date else ''}
+    </section>"""
+
+        alt_line = (
+            f" Also covers Norwegian / historical BI course codes <code>{escape(', '.join(alt_codes))}</code>."
+            if alt_codes else ""
+        )
 
         course_html = f"""<!doctype html>
 <html lang="en">
@@ -797,17 +977,22 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{escape(meta_desc, quote=True)}">
-  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <meta name="geo.region" content="NO-03">
   <meta name="geo.placename" content="Oslo, Norway">
   <link rel="canonical" href="{escape(page_url, quote=True)}">
   <link rel="alternate" type="text/markdown" href="{base}/courses/{escape(cid, quote=True)}.md" title="{escape(code, quote=True)} Guide (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:locale:alternate" content="nb_NO">
   <meta property="og:url" content="{escape(page_url, quote=True)}">
   <meta property="og:title" content="{escape(page_title, quote=True)}">
   <meta property="og:description" content="{escape(meta_desc, quote=True)}">
   <meta property="og:image" content="{base}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="{escape(code_pair, quote=True)} {escape(title, quote=True)} exam prep on Study-OS">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{escape(page_title, quote=True)}">
   <meta name="twitter:description" content="{escape(meta_desc, quote=True)}">
@@ -816,8 +1001,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
 {SEO_THEME_SCRIPT}
   <title>{escape(page_title)}</title>
 {SEO_ICON_LINKS}
-  <link rel="stylesheet" href="../styles.css">
-{SEO_PAGE_STYLE}
+  <link rel="stylesheet" href="{escape(seo_css_sub, quote=True)}">
   <script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
@@ -825,55 +1009,66 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     <nav class="seo-nav" aria-label="Breadcrumb">
       <div class="seo-cta-row">
         <a href="../" class="ghost-btn">← Open Study-OS</a>
-        <a href="../bi-oslo.html" class="ghost-btn">All BI Oslo Courses</a>
+        <a href="../bi-oslo.html" class="ghost-btn">BI Oslo Courses</a>
+        <a href="../wiseflow-practice.html" class="ghost-btn">WISEflow</a>
       </div>
-      <span class="badge" style="border-color:{escape(color, quote=True)}">{escape(code)} · Oslo, Norway</span>
+      <span class="badge" style="border-color:{escape(color, quote=True)}">{escape(code_pair)} · Oslo, Norway</span>
     </nav>
 
     <article class="panel seo-hero">
-      <span class="eyebrow" style="color:{escape(color, quote=True)}">{escape(code)} · BI Oslo Exam Preparation</span>
-      <h1>{escape(code)}: {escape(title)}</h1>
-      <p class="seo-lead">{escape(meta_desc)}</p>
-      <p class="seo-lead" lang="nb" style="font-size:14.5px;margin-top:-8px">{escape(no_blurb)}</p>
+      <span class="eyebrow" style="color:{escape(color, quote=True)}">{escape(code_pair)} · BI Oslo Exam Preparation</span>
+      <h1>{escape(code_pair)}: {escape(title)}</h1>
+      <div class="seo-acu">
+        <strong>Quick summary:</strong> Free BI Oslo exam prep for <strong>{escape(code_pair)} ({escape(title)})</strong> with <strong>{q_count} practice questions</strong> ({off_c} official past exams &amp; course sets, {ai_c} AI mocks), <strong>{len(topic_names)} syllabus topics</strong>, timed {duration}-minute WISEflow simulation, KaTeX formula sheets, and Adamlite AI Tutor.{alt_line}
+      </div>
+      <p class="seo-lead" lang="nb">{escape(no_blurb)}</p>
       <div class="seo-cta-row">
-        <a class="primary-btn btn-lg" href="../?course={escape(cid, quote=True)}">Start practicing {escape(code)} →</a>
-        <a class="ghost-btn btn-lg" href="../?view=exams&amp;course={escape(cid, quote=True)}">WISEflow Exam Mode</a>
-        <a class="ghost-btn btn-lg" href="../?view=references">Course Notes</a>
+        <a class="primary-btn btn-lg" href="../?course={escape(cid, quote=True)}" rel="nofollow">Start practicing {escape(code)} →</a>
+        <a class="ghost-btn btn-lg" href="../?view=exams&amp;course={escape(cid, quote=True)}" rel="nofollow">WISEflow Exam Mode</a>
+        <a class="ghost-btn btn-lg" href="../notes.html">Formula Sheets</a>
       </div>
       <div class="seo-stats">
         <div class="seo-stat"><strong>{q_count}</strong><small>Practice questions</small></div>
-        <div class="seo-stat"><strong>{len(topic_names)}</strong><small>Syllabus topics</small></div>
+        <div class="seo-stat"><strong>{off_c}</strong><small>Official BI tasks &amp; exams</small></div>
         <div class="seo-stat"><strong>{duration} min</strong><small>Timed exam simulation</small></div>
         <div class="seo-stat"><strong>{high_c} / {med_c} / {low_c}</strong><small>High / Med / Low DLPFC</small></div>
       </div>
-      <figure class="seo-preview-media">
-        <img src="{base}/og-image.png" width="1200" height="630" alt="{escape(code, quote=True)} {escape(title, quote=True)} exam prep workspace on Study-OS" loading="lazy">
-      </figure>
     </article>
 {exam_block}
-    <section class="panel seo-card" style="margin-bottom:16px">
-      <span class="eyebrow">Syllabus coverage</span>
-      <h2>Topics covered in {escape(code)}</h2>
+{collections_block}    <section class="panel seo-card" style="margin-bottom:16px">
+      <span class="eyebrow">Syllabus coverage · {len(topic_names)} topics</span>
+      <h2>Topics &amp; key exam concepts in {escape(code_pair)}</h2>
       {topics_html}
     </section>
-
+{ref_preview_block}
     <section style="margin-bottom:16px">
-      <h2 style="margin:0 0 6px">{escape(code)} Exam Prep FAQ</h2>
+      <h2 style="margin:0 0 6px">{escape(code_pair)} Exam Prep FAQ / Ofte stilte spørsmål</h2>
       <div class="seo-faq">
 {course_faq_html}      </div>
     </section>
 
     <section class="panel seo-card">
-      <span class="eyebrow">More courses in Oslo</span>
+      <span class="eyebrow">More BI Oslo courses &amp; tools</span>
       <h2>Other BI Oslo courses on Study-OS</h2>
-      <div class="seo-cta-row" style="margin-top:8px">{other_links}</div>
+      <div class="seo-cta-row" style="margin-top:8px">
+        {other_links}
+        <a class="ghost-btn" href="../gpa-calculator.html">GPA Calculator</a>
+        <a class="ghost-btn" href="../universities.html">All Universities</a>
+      </div>
     </section>
 
     <footer class="seo-foot">
       <span>Study-OS · Independent student project in Oslo, Norway (not officially affiliated with BI Norwegian Business School).</span>
       <nav aria-label="Footer links">
         <a href="../">App</a>
-        <a href="../bi-oslo.html">BI Oslo Guide</a>
+        <a href="../bi-oslo.html">BI Oslo</a>
+        <a href="../norsk.html" lang="nb">Norsk</a>
+        <a href="../universities.html">Universities</a>
+        <a href="../wiseflow-practice.html">WISEflow</a>
+        <a href="../gpa-calculator.html">GPA Calculator</a>
+        <a href="../bi-canvas-timeedit-sync.html">Canvas Sync</a>
+        <a href="../notes.html">Notes</a>
+        <a href="../compare.html">Compare</a>
         <a href="../privacy.html">Privacy</a>
         <a href="../terms.html">Terms</a>
       </nav>
@@ -885,22 +1080,58 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         (courses_dir / f"{cid}.html").write_text(course_html, encoding="utf-8")
         sitemap_urls.append((page_url, "0.85", "weekly"))
 
+    # 1B. Clean `/courses/index.html` fallback (prevents GitHub Pages `/courses` -> `/courses/` 301->404 without cannibalizing `/bi-oslo.html`)
+    courses_index_links = "".join(
+        f'        <a class="ghost-btn" href="./{escape(str(c["courseId"]), quote=True)}.html">'
+        f'{escape(_course_code_pair(str(c["courseId"]), str(c.get("code") or "")))} · {escape(str(c.get("shortTitle") or c.get("title") or ""))}</a>\n'
+        for c in catalog if c.get("courseId")
+    )
+    courses_index_html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, follow">
+  <link rel="canonical" href="{base}/bi-oslo.html">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+{SEO_THEME_SCRIPT}
+  <title>BI Oslo Course Guides · Study-OS</title>
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="stylesheet" href="{escape(seo_css_sub, quote=True)}">
+</head>
+<body>
+  <main class="nf-shell">
+    <article class="panel nf-card">
+      <span class="eyebrow">Study-OS · Course Directory</span>
+      <h1>BI Oslo &amp; Core Course Guides</h1>
+      <p class="muted">Select a course guide below or open the complete BI Oslo exam-prep hub.</p>
+      <div class="nf-links">
+        <a class="primary-btn" href="../bi-oslo.html">Open BI Oslo Hub →</a>
+{courses_index_links}        <a class="ghost-btn" href="../universities.html">All Universities</a>
+      </div>
+    </article>
+  </main>
+</body>
+</html>
+"""
+    (courses_dir / "index.html").write_text(courses_index_html, encoding="utf-8")
+
     # 2. Dedicated Oslo / Norway bilingual landing page (`/bi-oslo.html`)
     oslo_title = "BI Oslo Exam Prep, WISEflow Mock Exams & Canvas Sync · Study-OS"
     oslo_desc = (
-        f"Free independent study hub for BI Norwegian Business School students in Oslo: {total_qs}+ practice questions, "
-        f"WISEflow FLOWmulti mock exams, course notes, AI Tutor & 1-click BI Canvas/TimeEdit sync."
+        f"Free BI Oslo study hub: {total_qs:,} practice questions (EXC/SØK 3420, EXC/BØK 3430, EXC/ORG 3460, EBA 3400, EBA 1181), "
+        f"WISEflow mocks, notes & Canvas sync."
     )
     course_cards_html = "".join(
         f"""      <article class="panel seo-card">
         <div>
-          <span class="eyebrow" style="color:{escape(str(c.get('color') or '#1f6b58'), quote=True)}">{escape(str(c.get('code') or ''))} · {int(c.get('questionCount') or 0)} Qs</span>
+          <span class="eyebrow" style="color:{escape(str(c.get('color') or '#1f6b58'), quote=True)}">{escape(_course_code_pair(str(c['courseId']), str(c.get('code') or '')))} · {int(c.get('questionCount') or 0)} Qs</span>
           <h3>{escape(str(c.get('title') or ''))}</h3>
           <p>{escape(COURSE_NO_BLURBS.get(str(c.get('courseId') or ''), str((c.get('examInfo') or {}).get('format') or '')))}</p>
         </div>
         <div class="seo-cta-row">
           <a class="primary-btn" href="./courses/{escape(str(c['courseId']), quote=True)}.html">Course guide</a>
-          <a class="ghost-btn" href="./?course={escape(str(c['courseId']), quote=True)}">Practice →</a>
+          <a class="ghost-btn" href="./?course={escape(str(c['courseId']), quote=True)}" rel="nofollow">Practice →</a>
         </div>
       </article>\n"""
         for c in catalog if c.get("courseId")
@@ -908,7 +1139,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     faq_items = [
         (
             "Hva er Study-OS for studenter i Oslo og på Handelshøyskolen BI?",
-            "Study-OS (studyos.no) er en gratis, uavhengig studieplattform laget for studenter i Oslo — spesielt tilpasset BI-emner som EXC 3420, EXC 3430, EXC 3460, EBA 3400 og EBA 1181. Du får øvingsoppgaver, kursnotater, WISEflow-eksamensmodus, AI-veileder og 1-klikks synk med BI Canvas, TimeEdit og Ed Discussion.",
+            "Study-OS (studyos.no) er en gratis, uavhengig studieplattform laget for studenter i Oslo — spesielt tilpasset BI-emner som EXC 3420 / SØK 3420, EXC 3430 / BØK 3430, EXC 3460 / ORG 3460, EBA 3400 og EBA 1181 / EBA 1180. Du får øvingsoppgaver, kursnotater, WISEflow-eksamensmodus, AI-veileder og 1-klikks synk med BI Canvas, TimeEdit og Ed Discussion.",
         ),
         (
             "Does Study-OS simulate WISEflow FLOWmulti and BYOD exams?",
@@ -916,7 +1147,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         ),
         (
             "How does 1-click BI Canvas, TimeEdit, and Ed Discussion sync work?",
-            "Install the Study-OS Sync Chrome extension, pair it once with a 6-character code from studyos.no, keep your signed-in BI Canvas, TimeEdit, or Ed tabs open, and click Sync once. It never reads passwords or copies session cookies — it only imports your courses, assignment deadlines, and class timetable.",
+            f"Install the Study-OS Sync v{ext_version} Chrome extension, pair it once with a 6-character code from studyos.no, keep your signed-in BI Canvas, TimeEdit, or Ed tabs open, and click Sync once. It never reads passwords or copies session cookies — it only imports your courses, assignment deadlines, and class timetable.",
         ),
         (
             "Is Study-OS free and GDPR-compliant in Norway?",
@@ -927,25 +1158,29 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         "@context": "https://schema.org",
         "@graph": [
             {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {"@type": "ListItem", "position": 1, "name": "Study-OS", "item": f"{base}/"},
+                    {"@type": "ListItem", "position": 2, "name": "BI Oslo Guide", "item": f"{base}/bi-oslo.html"},
+                ],
+            },
+            {
                 "@type": "WebPage",
                 "@id": f"{base}/bi-oslo.html#webpage",
                 "url": f"{base}/bi-oslo.html",
                 "name": oslo_title,
                 "description": oslo_desc,
                 "image": f"{base}/og-image.png",
+                "dateModified": today_iso,
                 "inLanguage": ["en", "nb"],
                 "about": {"@type": "City", "name": "Oslo"},
                 "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
-                "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
+                "publisher": _publisher_ld(base),
             },
             {
                 "@type": "FAQPage",
                 "mainEntity": [
-                    {
-                        "@type": "Question",
-                        "name": q,
-                        "acceptedAnswer": {"@type": "Answer", "text": a},
-                    }
+                    {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}}
                     for q, a in faq_items
                 ],
             },
@@ -956,7 +1191,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
                     {
                         "@type": "ListItem",
                         "position": idx + 1,
-                        "name": f"{c.get('code', '')} · {c.get('title', '')}",
+                        "name": f"{_course_code_pair(str(c['courseId']), str(c.get('code') or ''))} · {c.get('title', '')}",
                         "url": f"{base}/courses/{c['courseId']}.html",
                     }
                     for idx, c in enumerate(catalog) if c.get("courseId")
@@ -977,16 +1212,13 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{escape(oslo_desc, quote=True)}">
-  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <meta name="geo.region" content="NO-03">
   <meta name="geo.placename" content="Oslo, Norway">
   <meta name="geo.position" content="59.9483;10.7686">
   <meta name="ICBM" content="59.9483, 10.7686">
   <link rel="canonical" href="{base}/bi-oslo.html">
   <link rel="alternate" type="text/markdown" href="{base}/bi-oslo.md" title="BI Oslo Guide (Markdown)">
-  <link rel="alternate" hreflang="nb-NO" href="{base}/norsk.html">
-  <link rel="alternate" hreflang="en" href="{base}/">
-  <link rel="alternate" hreflang="x-default" href="{base}/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
   <meta property="og:locale" content="en_GB">
@@ -995,6 +1227,9 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta property="og:title" content="{escape(oslo_title, quote=True)}">
   <meta property="og:description" content="{escape(oslo_desc, quote=True)}">
   <meta property="og:image" content="{base}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Study-OS BI Oslo Exam Prep, Course Notes and WISEflow Practice Workspace">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{escape(oslo_title, quote=True)}">
   <meta name="twitter:description" content="{escape(oslo_desc, quote=True)}">
@@ -1003,14 +1238,17 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
 {SEO_THEME_SCRIPT}
   <title>{escape(oslo_title)}</title>
 {SEO_ICON_LINKS}
-  <link rel="stylesheet" href="./styles.css">
-{SEO_PAGE_STYLE}
+  <link rel="stylesheet" href="{escape(seo_css_root, quote=True)}">
   <script type="application/ld+json">{json.dumps(oslo_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
   <main class="seo-shell">
-    <nav class="seo-nav" aria-label="Primary navigation">
-      <a href="./" class="ghost-btn">← Open Study-OS App</a>
+    <nav class="seo-nav" aria-label="Breadcrumb">
+      <div class="seo-cta-row">
+        <a href="./" class="ghost-btn">← Open Study-OS App</a>
+        <a href="./universities.html" class="ghost-btn">All Universities</a>
+        <a href="./gpa-calculator.html" class="ghost-btn">GPA Calculator</a>
+      </div>
       <span class="badge">Oslo, Norway · BI Student Hub</span>
     </nav>
 
@@ -1018,27 +1256,28 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <span class="eyebrow">Oslo · Handelshøyskolen BI · Independent Student Project</span>
       <h1>BI Oslo Exam Prep, WISEflow Mock Exams &amp; Course Notes</h1>
       <p class="seo-lead">{escape(oslo_desc)}</p>
-      <p class="seo-lead" lang="nb" style="font-size:14.5px;margin-top:-8px">
-        Gratis eksamensforberedelse for BI-studenter i Oslo (Nydalen): øvingsoppgaver, kursnotater, WISEflow FLOWmulti-simulator, AI-veileder, timeplanlegging fra TimeEdit og synk med BI Canvas.
+      <p class="seo-lead seo-lead-sub" lang="nb">
+        Gratis eksamensforberedelse for BI-studenter i Oslo (Nydalen): øvingsoppgaver for EXC/SØK 3420, EXC/BØK 3430, EXC/ORG 3460, EBA 3400 og EBA 1181/1180, kursnotater, WISEflow FLOWmulti-simulator, AI-veileder og 1-klikks BI Canvas/TimeEdit-synk.
       </p>
       <div class="seo-cta-row">
         <a class="primary-btn btn-lg" href="./">Launch Study-OS Workspace →</a>
-        <a class="ghost-btn btn-lg" href="./?view=exams">Open WISEflow Exams Hub</a>
-        <a class="ghost-btn btn-lg" href="./?view=references">Browse Course Notes ({len(references)})</a>
+        <a class="ghost-btn btn-lg" href="./wiseflow-practice.html">WISEflow Exam Simulator</a>
+        <a class="ghost-btn btn-lg" href="./notes.html">Browse Course Notes ({len(references)})</a>
+        <a class="ghost-btn btn-lg" href="./gpa-calculator.html">BI GPA Calculator</a>
       </div>
       <div class="seo-stats">
         <div class="seo-stat"><strong>{len(catalog)}</strong><small>BI Oslo courses</small></div>
-        <div class="seo-stat"><strong>{total_qs}+</strong><small>Practice questions</small></div>
+        <div class="seo-stat"><strong>{total_qs:,}</strong><small>Practice questions</small></div>
         <div class="seo-stat"><strong>{len(references)}</strong><small>Reference sheets</small></div>
         <div class="seo-stat"><strong>100% Free</strong><small>No ads or trackers</small></div>
       </div>
       <figure class="seo-preview-media">
-        <img src="{base}/og-image.png" width="1200" height="630" alt="Study-OS BI Oslo Exam Prep, Course Notes and WISEflow Practice Workspace" loading="eager">
+        <img src="{base}/og-image.png" width="1200" height="630" alt="Study-OS BI Oslo Exam Prep, Course Notes and WISEflow Practice Workspace" loading="eager" fetchpriority="high" decoding="async">
       </figure>
     </article>
 
     <section>
-      <h2 style="margin:0 0 8px">BI Oslo Courses &amp; Exam Guides</h2>
+      <h2 style="margin:0 0 8px">BI Oslo Courses &amp; Exam Guides (EN / NO Codes)</h2>
       <div class="seo-grid">
 {course_cards_html}      </div>
     </section>
@@ -1049,9 +1288,14 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <ul class="seo-topics">
         <li><strong>WISEflow FLOWmulti &amp; BYOD timing:</strong> Practice under realistic 180-minute Oslo exam conditions with automatic score and speed tracking.</li>
         <li><strong>Circadian DLPFC scheduling:</strong> Match High DLPFC synthesis problems to peak morning focus (08:00–15:00 Oslo) and lighter retrieval drills to evenings.</li>
-        <li><strong>1-click BI Canvas, TimeEdit &amp; Ed sync:</strong> Pull courses, deadlines, and lectures straight from your open browser tabs without copying cookies.</li>
-        <li><strong>Private curriculum PDFs &amp; AI Tutor:</strong> Attach your own lecture slides/PDFs to your profile and ask the side-pane AI Tutor while solving exercises.</li>
+        <li><strong>1-click BI Canvas, TimeEdit &amp; Ed sync:</strong> Pull courses, deadlines, and lectures straight from your open browser tabs with Study-OS Sync v{escape(ext_version)} — zero cookie copying.</li>
+        <li><strong>Private curriculum PDFs &amp; AI Tutor:</strong> Drop your own lecture slides or textbooks (up to 260 MB locally) and ask Adamlite AI while solving exercises.</li>
       </ul>
+      <div class="seo-cta-row" style="margin-top:10px">
+        <a class="ghost-btn" href="./bi-canvas-timeedit-sync.html">BI Canvas &amp; TimeEdit Sync Guide</a>
+        <a class="ghost-btn" href="./compare.html">Study-OS vs Notion, Anki &amp; Paid Portals</a>
+        <a class="ghost-btn" href="./norsk.html" lang="nb">Les på norsk</a>
+      </div>
     </section>
 
     <section>
@@ -1064,10 +1308,13 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <span>Study-OS · Independent student project in Oslo, Norway (not officially affiliated with BI Norwegian Business School).</span>
       <nav aria-label="Footer links">
         <a href="./">Home</a>
+        <a href="./universities.html">Universities</a>
         <a href="./norsk.html" lang="nb">Norsk</a>
         <a href="./wiseflow-practice.html">WISEflow</a>
+        <a href="./gpa-calculator.html">GPA Calculator</a>
         <a href="./bi-canvas-timeedit-sync.html">BI Sync</a>
         <a href="./notes.html">Notes</a>
+        <a href="./compare.html">Compare</a>
         <a href="./privacy.html">Privacy</a>
         <a href="./terms.html">Terms</a>
       </nav>
@@ -1078,24 +1325,24 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
 """
     (out_dir / "bi-oslo.html").write_text(oslo_html, encoding="utf-8")
 
-    # 3. Pure Norwegian Bokmål landing page (`/norsk.html`, lang="nb")
-    nb_title = "Study-OS Norge · Gratis eksamensøving, Canvas-synk & WISEflow (BI, UiA, NTNU, UiO)"
+    # 3. Pure Norwegian Bokmål landing page (`/norsk.html`, lang="nb") — reciprocal hreflang with `/`
+    nb_title = "Study-OS Norge · Gratis eksamensøving, Canvas-synk & WISEflow"
     nb_desc = (
-        f"Gratis studieplattform for norske studenter (BI Oslo, UiA, NTNU, UiO, NHH, UiB, OsloMet): {total_qs}+ øvingsoppgaver, "
-        f"WISEflow-eksamener, karaktersnittkalkulator, AI-veileder og 1-klikks Canvas + TimeEdit/TP-synk."
+        f"Gratis studieplattform for BI Oslo, UiA, NTNU, UiO, NHH, UiB & OsloMet: {total_qs:,} øvingsoppgaver, "
+        f"WISEflow-simulator, karaktersnittkalkulator & 1-klikks Canvas-synk."
     )
     nb_faqs = [
         (
             "Hvilke BI-emner i Oslo støttes i Study-OS?",
-            "Den åpne utgaven har øvingsoppgaver og notater for EXC 3420 (Economics I / samfunnsøkonomi), EXC 3430 (finansregnskap og bedriftsøkonomi), EXC 3460 (organisasjonsatferd og ledelse), EBA 3400 (Python-programmering og datavisualisering) og EBA 1181 (matematikk for datavitenskap). Du kan også synke alle dine egne BI Canvas-emner med 1 klikk.",
+            "Den åpne utgaven har øvingsoppgaver og notater for EXC 3420 / SØK 3420 (Economics I / samfunnsøkonomi), EXC 3430 / BØK 3430 (finansregnskap og bedriftsøkonomi), EXC 3460 / ORG 3460 (organisasjonsatferd og ledelse), EBA 3400 (Python-programmering og datavisualisering) og EBA 1181 / EBA 1180 (matematikk for datavitenskap). Du kan også synke alle dine egne Canvas-emner med 1 klikk.",
         ),
         (
             "Hvordan fungerer WISEflow FLOWmulti-simulatoren?",
             "I Exams-fanen kan du kjøre 3-timers tidsstyrte prøveeksamener som følger BI sine regler for desimalpunktum (.), minustegn for utbetalinger og ±2 % avrundingsmargin — med umiddelbar gjennomgang etter innlevering.",
         ),
         (
-            "Hvordan synker jeg BI Canvas, TimeEdit og Ed Discussion?",
-            "Med Chrome-utvidelsen Study-OS Sync kobler du deg opp én gang med en 6-tegns kode fra studyos.no. Når du har åpne innloggede faner for BI Canvas, TimeEdit eller Ed, klikker du Sync én gang for å oppdatere fag, frister og forelesningstimeplan — helt uten passord eller kopiering av cookies.",
+            "Hvordan synker jeg Canvas, TimeEdit/TP og Ed Discussion?",
+            f"Med Chrome-utvidelsen Study-OS Sync v{ext_version} kobler du deg opp én gang med en 6-tegns kode fra studyos.no. Når du har åpne innloggede faner for Canvas (BI, UiA, NTNU, UiO, NHH, Mitt UiB, OsloMet m.fl.), TimeEdit / TP eller Ed, klikker du Sync én gang for å oppdatere fag, frister og forelesningstimeplan — helt uten passord eller kopiering av cookies.",
         ),
         (
             "Er Study-OS gratis og trygt å bruke?",
@@ -1106,16 +1353,24 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         "@context": "https://schema.org",
         "@graph": [
             {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {"@type": "ListItem", "position": 1, "name": "Study-OS", "item": f"{base}/"},
+                    {"@type": "ListItem", "position": 2, "name": "Norsk", "item": f"{base}/norsk.html"},
+                ],
+            },
+            {
                 "@type": "WebPage",
                 "@id": f"{base}/norsk.html#webpage",
                 "url": f"{base}/norsk.html",
                 "name": nb_title,
                 "description": nb_desc,
                 "image": f"{base}/og-image.png",
+                "dateModified": today_iso,
                 "inLanguage": "nb",
-                "about": {"@type": "City", "name": "Oslo"},
+                "about": {"@type": "Country", "name": "Norway"},
                 "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
-                "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
+                "publisher": _publisher_ld(base),
             },
             {
                 "@type": "FAQPage",
@@ -1136,7 +1391,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{escape(nb_desc, quote=True)}">
-  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <meta name="geo.region" content="NO-03">
   <meta name="geo.placename" content="Oslo, Norway">
   <meta name="geo.position" content="59.9483;10.7686">
@@ -1153,6 +1408,9 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta property="og:title" content="{escape(nb_title, quote=True)}">
   <meta property="og:description" content="{escape(nb_desc, quote=True)}">
   <meta property="og:image" content="{base}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Study-OS Norge — Gratis eksamensøving, Canvas-synk og WISEflow">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{escape(nb_title, quote=True)}">
   <meta name="twitter:description" content="{escape(nb_desc, quote=True)}">
@@ -1161,8 +1419,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
 {SEO_THEME_SCRIPT}
   <title>{escape(nb_title)}</title>
 {SEO_ICON_LINKS}
-  <link rel="stylesheet" href="./styles.css">
-{SEO_PAGE_STYLE}
+  <link rel="stylesheet" href="{escape(seo_css_root, quote=True)}">
   <script type="application/ld+json">{json.dumps(nb_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
@@ -1170,14 +1427,15 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     <nav class="seo-nav" aria-label="Hovednavigasjon">
       <div class="seo-cta-row">
         <a href="./" class="ghost-btn">← Åpne Study-OS</a>
-        <a href="./bi-oslo.html" class="ghost-btn" lang="en">English Guide</a>
+        <a href="./bi-oslo.html" class="ghost-btn" lang="en">English BI Guide</a>
+        <a href="./gpa-calculator.html" class="ghost-btn">Karaktersnitt</a>
       </div>
-      <span class="badge">Oslo, Norge · Gratis for BI-studenter</span>
+      <span class="badge">Norge · Gratis uten betalingsmur</span>
     </nav>
 
     <article class="panel seo-hero">
-      <span class="eyebrow">Oslo · Handelshøyskolen BI · Eksamensforberedelse</span>
-      <h1>Eksamensøving for BI-studenter i Oslo — helt gratis</h1>
+      <span class="eyebrow">Norge · BI Oslo, UiA, NTNU, UiO, NHH, UiB &amp; OsloMet</span>
+      <h1>Gratis eksamensøving, Canvas-synk &amp; WISEflow for norske studenter</h1>
       <p class="seo-lead">{escape(nb_desc)}</p>
       <div class="seo-cta-row">
         <a class="primary-btn btn-lg" href="./">Start øving i Study-OS →</a>
@@ -1186,26 +1444,42 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a class="ghost-btn btn-lg" href="./bi-canvas-timeedit-sync.html">Canvas &amp; TimeEdit/TP Sync</a>
       </div>
       <div class="seo-stats">
-        <div class="seo-stat"><strong>{len(catalog)}</strong><small>BI-emner klare nå</small></div>
-        <div class="seo-stat"><strong>{total_qs}+</strong><small>Øvingsoppgaver</small></div>
+        <div class="seo-stat"><strong>{len(catalog)}</strong><small>Komplette fagbanker</small></div>
+        <div class="seo-stat"><strong>{total_qs:,}</strong><small>Øvingsoppgaver</small></div>
         <div class="seo-stat"><strong>{len(references)}</strong><small>Kursnotater &amp; formler</small></div>
         <div class="seo-stat"><strong>0 kr</strong><small>Ingen reklame</small></div>
       </div>
     </article>
 
     <section>
-      <h2 style="margin:0 0 8px">BI-emner og tidligere oppgavetyper</h2>
+      <h2 style="margin:0 0 8px">BI-emner og felles norske økonomi- og realfag</h2>
       <div class="seo-grid">
 {course_cards_html}      </div>
     </section>
 
     <section class="panel seo-card" style="margin-bottom:18px">
+      <span class="eyebrow">1-klikks Canvas, TimeEdit &amp; TP-synk</span>
+      <h2>Velg ditt universitet eller høyskole i Norge</h2>
+      <p>Study-OS Sync v{escape(ext_version)} kobler seg direkte til din innloggede Canvas- og timeplanfane uten Feide-passord:</p>
+      <div class="seo-cta-row" style="margin-top:8px">
+        <a class="ghost-btn" href="./bi-oslo.html">BI Oslo</a>
+        <a class="ghost-btn" href="./uni/uia.html">UiA</a>
+        <a class="ghost-btn" href="./uni/ntnu.html">NTNU</a>
+        <a class="ghost-btn" href="./uni/uio.html">UiO</a>
+        <a class="ghost-btn" href="./uni/nhh.html">NHH</a>
+        <a class="ghost-btn" href="./uni/uib.html">Mitt UiB</a>
+        <a class="ghost-btn" href="./uni/oslomet.html">OsloMet</a>
+        <a class="ghost-btn" href="./universities.html">Alle universiteter →</a>
+      </div>
+    </section>
+
+    <section class="panel seo-card" style="margin-bottom:18px">
       <span class="eyebrow">Smart studieteknikk i eksamensperioden</span>
-      <h2>Alt du trenger til eksamen i Nydalen samlet på ett sted</h2>
+      <h2>Alt du trenger til eksamen samlet på ett sted</h2>
       <ul class="seo-topics">
-        <li><strong>Nedtelling til eksamen i Oslo-tid:</strong> Se nøyaktig hvor mange dager, timer og minutter som gjenstår til hver BI-eksamen.</li>
+        <li><strong>Nedtelling til eksamen i Oslo-tid:</strong> Se nøyaktig hvor mange dager, timer og minutter som gjenstår til hver eksamen.</li>
         <li><strong>Døgnrytme og DLPFC-nivåer:</strong> Planlegg krevende regne- og caseoppgaver på formiddagen (08:00–15:00) og lettere repetisjon på kvelden.</li>
-        <li><strong>Egne pensum-PDF-er &amp; AI-veileder:</strong> Last opp egne forelesningsnotater privat til profilen din og få hjelp av AI-veilederen rett ved siden av oppgaven.</li>
+        <li><strong>Egne pensum-PDF-er &amp; AI-veileder:</strong> Slipp egne forelesningsnotater (opptil 260 MB lokalt i nettleseren) og få hjelp av Adamlite AI rett ved siden av oppgaven.</li>
         <li><strong>Fungerende offline som app:</strong> Lagre fagene lokalt i nettleseren og øv videre på T-banen eller lesesalen uten nett.</li>
       </ul>
     </section>
@@ -1220,10 +1494,13 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <span>Study-OS · Uavhengig studentprosjekt i Oslo (ikke offisielt tilknyttet Handelshøyskolen BI).</span>
       <nav aria-label="Bunnlenker">
         <a href="./">Åpne app</a>
-        <a href="./bi-oslo.html" lang="en">English</a>
+        <a href="./bi-oslo.html" lang="en">BI Oslo</a>
+        <a href="./universities.html">Universiteter</a>
         <a href="./wiseflow-practice.html">WISEflow</a>
+        <a href="./gpa-calculator.html">Karaktersnitt</a>
         <a href="./bi-canvas-timeedit-sync.html">Canvas Sync</a>
         <a href="./notes.html">Notater</a>
+        <a href="./compare.html">Sammenlign</a>
         <a href="./privacy.html">Personvern</a>
         <a href="./terms.html">Vilkår</a>
       </nav>
@@ -1236,22 +1513,80 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     sitemap_urls.append((f"{base}/norsk.html", "0.9", "weekly"))
 
     # 4. WISEflow FLOWmulti & BYOD Simulator landing page (`/wiseflow-practice.html`)
-    wf_title = "WISEflow FLOWmulti & BYOD Exam Simulator for BI Oslo · Study-OS"
+    wf_title = "BI WISEflow Øving & FLOWmulti Exam Simulator · Study-OS"
     wf_desc = (
-        "Practice timed 3-hour WISEflow FLOWmulti and BYOD digital school exams for BI Oslo (EXC 3430, EXC 3420, EXC 3460, EBA 3400) "
-        "with dot-decimal formatting, ±2% rounding checks, and instant grading."
+        f"Gratis BI WISEflow øving & 3-timers FLOWmulti-simulator (BI Oslo & NHH): {total_flowmulti} flerfeltsoppgaver, "
+        f"desimalpunktum (.), ±2 % margin & direkte retting."
+    )
+    wf_faqs = [
+        (
+            "What formatting rules matter most on a BI WISEflow FLOWmulti exam?",
+            "Always use a dot (.) as the decimal separator (never a comma), include a leading minus sign (-50) for cash outflows or negative balances, follow exact unit instructions (e.g., NOK thousands vs NOK), and keep intermediate calculations unrounded to stay safely inside the ±2% numeric tolerance.",
+        ),
+        (
+            "How many WISEflow FLOWmulti questions are available on Study-OS?",
+            f"Study-OS includes {total_flowmulti} interactive multi-box WISEflow FLOWmulti exercises (centered on EXC 3430 / BØK 3430 Accounting & Finance) plus full 180-minute timed exam papers across {len(catalog)} courses ({total_qs:,} total questions).",
+        ),
+        (
+            "Does Study-OS work for WISEflow exams at NHH, UiA, OsloMet, and USN?",
+            "Yes. Any Norwegian university using WISEflow FLOWmulti or BYOD digital exams in accounting, corporate finance, economics, mathematics, or organizational behavior can use Study-OS's timed blind-exam mode for free.",
+        ),
+    ]
+    wf_faq_html = "".join(
+        f"        <details><summary>{escape(q)}</summary><p>{escape(a)}</p></details>\n"
+        for q, a in wf_faqs
+    )
+    wf_course_rows = "".join(
+        f"""          <tr>
+            <td><a href="./courses/{escape(str(c['courseId']), quote=True)}.html"><strong>{escape(_course_code_pair(str(c['courseId']), str(c.get('code') or '')))}</strong></a></td>
+            <td>{escape(str(c.get('title') or ''))}</td>
+            <td>{escape(str((c.get('examInfo') or {}).get('format') or 'Digital exam'))}</td>
+            <td>{int(c.get('questionCount') or 0)} Qs</td>
+          </tr>\n"""
+        for c in catalog if c.get("courseId")
     )
     wf_json_ld = {
         "@context": "https://schema.org",
-        "@type": "WebPage",
-        "name": wf_title,
-        "url": f"{base}/wiseflow-practice.html",
-        "description": wf_desc,
-        "image": f"{base}/og-image.png",
-        "inLanguage": ["en", "nb"],
-        "about": ["WISEflow", "FLOWmulti", "BI Norwegian Business School", "Oslo exam preparation"],
-        "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
-        "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {"@type": "ListItem", "position": 1, "name": "Study-OS", "item": f"{base}/"},
+                    {"@type": "ListItem", "position": 2, "name": "WISEflow Practice", "item": f"{base}/wiseflow-practice.html"},
+                ],
+            },
+            {
+                "@type": "WebPage",
+                "@id": f"{base}/wiseflow-practice.html#webpage",
+                "name": wf_title,
+                "url": f"{base}/wiseflow-practice.html",
+                "description": wf_desc,
+                "image": f"{base}/og-image.png",
+                "dateModified": today_iso,
+                "inLanguage": ["en", "nb"],
+                "about": ["WISEflow", "FLOWmulti", "BI Norwegian Business School", "Oslo exam preparation"],
+                "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+                "publisher": _publisher_ld(base),
+            },
+            {
+                "@type": "HowTo",
+                "name": "How to avoid formatting errors on a WISEflow FLOWmulti digital exam",
+                "totalTime": "PT5M",
+                "step": [
+                    {"@type": "HowToStep", "position": 1, "text": "Use a dot (.) as decimal separator in numeric boxes, never a Norwegian comma (,)."},
+                    {"@type": "HowToStep", "position": 2, "text": "Enter negative cash outflows with a leading minus sign (e.g. -45000), never parentheses."},
+                    {"@type": "HowToStep", "position": 3, "text": "Keep full intermediate decimal precision until the final entry to stay inside the ±2% tolerance band."},
+                    {"@type": "HowToStep", "position": 4, "text": "Rehearse a full 180-minute blind timed paper in Study-OS Exams Hub before exam day."},
+                ],
+            },
+            {
+                "@type": "FAQPage",
+                "mainEntity": [
+                    {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}}
+                    for q, a in wf_faqs
+                ],
+            },
+        ],
     }
     wf_html = f"""<!doctype html>
 <html lang="en">
@@ -1259,17 +1594,22 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{escape(wf_desc, quote=True)}">
-  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <meta name="geo.region" content="NO-03">
   <meta name="geo.placename" content="Oslo, Norway">
   <link rel="canonical" href="{base}/wiseflow-practice.html">
   <link rel="alternate" type="text/markdown" href="{base}/wiseflow-practice.md" title="WISEflow Exam Simulator (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:locale:alternate" content="nb_NO">
   <meta property="og:url" content="{base}/wiseflow-practice.html">
   <meta property="og:title" content="{escape(wf_title, quote=True)}">
   <meta property="og:description" content="{escape(wf_desc, quote=True)}">
   <meta property="og:image" content="{base}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="WISEflow FLOWmulti and BYOD Exam Simulator on Study-OS">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{escape(wf_title, quote=True)}">
   <meta name="twitter:description" content="{escape(wf_desc, quote=True)}">
@@ -1278,8 +1618,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
 {SEO_THEME_SCRIPT}
   <title>{escape(wf_title)}</title>
 {SEO_ICON_LINKS}
-  <link rel="stylesheet" href="./styles.css">
-{SEO_PAGE_STYLE}
+  <link rel="stylesheet" href="{escape(seo_css_root, quote=True)}">
   <script type="application/ld+json">{json.dumps(wf_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
@@ -1288,34 +1627,85 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <div class="seo-cta-row">
         <a href="./" class="ghost-btn">← Open Study-OS</a>
         <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
+        <a href="./gpa-calculator.html" class="ghost-btn">GPA Calculator</a>
       </div>
       <span class="badge">WISEflow · FLOWmulti · Oslo</span>
     </nav>
 
     <article class="panel seo-hero">
-      <span class="eyebrow">WISEflow Practice · BI Oslo Digital Exams</span>
-      <h1>WISEflow FLOWmulti &amp; BYOD Mock Exam Simulator</h1>
-      <p class="seo-lead">{escape(wf_desc)}</p>
-      <p class="seo-lead" lang="nb" style="font-size:14.5px;margin-top:-8px">
-        Øv på realistiske 3-timers WISEflow-eksamener i Oslo før eksamensdagen: lær reglene for desimalpunktum (.), negative kontantstrømmer (-50), avrundingsmargin (±2 %) og tidsstyring.
+      <span class="eyebrow">BI WISEflow Øving · BI Oslo &amp; Norwegian Digital Exams</span>
+      <h1>BI WISEflow Øving &amp; FLOWmulti Exam Simulator</h1>
+      <div class="seo-acu">
+        <strong>Quick summary:</strong> Study-OS is a free, independent <strong>BI WISEflow &amp; FLOWmulti exam simulator</strong> with <strong>{total_flowmulti} multi-box FLOWmulti worksheets</strong> and <strong>{total_qs:,} practice questions</strong> across {len(catalog)} BI Oslo courses — enforcing dot-decimal (<code>.</code>) input, leading minus outflows (<code>-</code>), <code>±2%</code> tolerance, and blind 180-minute pacing (no login required).
+      </div>
+      <p class="seo-lead" lang="nb">
+        Øv til BI WISEflow-eksamen med realistiske 3-timers prøveeksamener før eksamensdagen: lær reglene for desimalpunktum (.), negative kontantstrømmer (-50), avrundingsmargin (±2 %) og tidsstyring på BI Oslo, NHH, UiA og OsloMet — helt gratis uten innlogging.
       </p>
       <div class="seo-cta-row">
-        <a class="primary-btn btn-lg" href="./?view=exams">Launch WISEflow Exams Hub →</a>
-        <a class="ghost-btn btn-lg" href="./courses/acct-2527.html">EXC 3430 FLOWmulti</a>
-        <a class="ghost-btn btn-lg" href="./courses/econ-2522.html">EXC 3420 Economics</a>
-        <a class="ghost-btn btn-lg" href="./courses/ob-2537.html">EXC 3460 MCQ</a>
+        <a class="primary-btn btn-lg" href="./?view=exams" rel="nofollow">Launch WISEflow Exams Hub →</a>
+        <a class="ghost-btn btn-lg" href="./courses/acct-2527.html">EXC/BØK 3430 FLOWmulti</a>
+        <a class="ghost-btn btn-lg" href="./courses/econ-2522.html">EXC/SØK 3420 Economics</a>
+        <a class="ghost-btn btn-lg" href="./courses/ob-2537.html">EXC/ORG 3460 MCQ</a>
       </div>
     </article>
+
+    <section class="panel seo-card" style="margin-bottom:16px">
+      <span class="eyebrow">Exam-day checklist · Avoid technical point loss</span>
+      <h2>WISEflow FLOWmulti Formatting Rules</h2>
+      <div class="seo-table-wrap">
+        <table class="seo-table">
+          <thead>
+            <tr>
+              <th>Rule</th>
+              <th>Correct Input</th>
+              <th>Common Mistake to Avoid</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Decimal separator</strong></td><td><code>12.50</code> (dot)</td><td>Comma <code>12,50</code> (misparsed in numeric boxes)</td></tr>
+            <tr><td><strong>Negative values / cash outflows</strong></td><td><code>-45000</code> (leading minus)</td><td>Parentheses <code>(45000)</code> or omitting the minus sign</td></tr>
+            <tr><td><strong>Rounding tolerance</strong></td><td>Keep unrounded intermediates (<code>±2%</code>)</td><td>Rounding intermediate ratios to 1 decimal too early</td></tr>
+            <tr><td><strong>180-minute pacing</strong></td><td>~1 min per point on 180-pt BI papers</td><td>Spending 45+ minutes stuck on Part 1 before Part 3 cases</td></tr>
+            <tr><td><strong>FLOWlock / Device Monitor</strong></td><td>Test official WISEflow Demoflow ≥30 min early</td><td>Launching Lockdown Browser 2 minutes before start</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel seo-card" style="margin-bottom:16px">
+      <span class="eyebrow">Course-by-course simulation</span>
+      <h2>BI Oslo Digital Exam Formats on Study-OS</h2>
+      <div class="seo-table-wrap">
+        <table class="seo-table">
+          <thead>
+            <tr>
+              <th>Course Code</th>
+              <th>Subject</th>
+              <th>Exam Format</th>
+              <th>Bank Size</th>
+            </tr>
+          </thead>
+          <tbody>
+{wf_course_rows}          </tbody>
+        </table>
+      </div>
+    </section>
 
     <section class="panel seo-card" style="margin-bottom:16px">
       <span class="eyebrow">Built for BI WISEflow rules</span>
       <h2>What Study-OS trains before exam day</h2>
       <ul class="seo-topics">
-        <li><strong>Multi-box FLOWmulti grading (EXC 3430):</strong> Trains dot-decimal input (<code>.</code> never comma), leading minus signs for outflows, and ±2% tolerance checks across multi-section accounting and finance exercises.</li>
+        <li><strong>Multi-box FLOWmulti grading (EXC / BØK 3430):</strong> Trains dot-decimal input (<code>.</code> never comma), leading minus signs for outflows, and ±2% tolerance checks across multi-section accounting and finance exercises.</li>
         <li><strong>Timed 180-minute exam clock:</strong> Full paper countdown paired with per-question pace telemetry so you never run out of time on Part 3 analytical cases.</li>
         <li><strong>No-hint blind exam mode:</strong> Hides solutions and hints until you click <em>Submit Paper</em>, then produces a full error breakdown by topic and cognitive tier.</li>
         <li><strong>Live Oslo exam countdowns:</strong> Track exact days, hours, minutes, and seconds remaining to every upcoming BI Oslo exam date.</li>
       </ul>
+    </section>
+
+    <section style="margin-bottom:16px">
+      <h2 style="margin:0 0 6px">WISEflow Exam Prep FAQ</h2>
+      <div class="seo-faq">
+{wf_faq_html}      </div>
     </section>
 
     <footer class="seo-foot">
@@ -1323,10 +1713,14 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <nav aria-label="Footer links">
         <a href="./">App</a>
         <a href="./bi-oslo.html">BI Oslo</a>
+        <a href="./universities.html">Universities</a>
         <a href="./norsk.html" lang="nb">Norsk</a>
-        <a href="./bi-canvas-timeedit-sync.html">BI Sync</a>
+        <a href="./gpa-calculator.html">GPA Calculator</a>
+        <a href="./bi-canvas-timeedit-sync.html">Canvas Sync</a>
         <a href="./notes.html">Notes</a>
+        <a href="./compare.html">Compare</a>
         <a href="./privacy.html">Privacy</a>
+        <a href="./terms.html">Terms</a>
       </nav>
     </footer>
   </main>
@@ -1337,14 +1731,14 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     sitemap_urls.append((f"{base}/wiseflow-practice.html", "0.85", "monthly"))
 
     # 5. Multi-School Canvas, TimeEdit/TP & Ed Discussion Sync landing page (`/bi-canvas-timeedit-sync.html`)
-    sync_title = "Canvas LMS, TimeEdit & TP 1-Click Sync Extension (BI, UiA, NTNU, UiO, NHH) · Study-OS"
+    sync_title = "Canvas LMS, TimeEdit & TP 1-Click Sync Extension · Study-OS"
     sync_desc = (
-        "Sync Canvas LMS courses & deadlines (BI Oslo, UiA, NHH, UiO, NTNU, UiB, OsloMet & any *.instructure.com), "
-        "TimeEdit / TP timetables (.ics), and Ed Discussion in 1 click using Study-OS Sync v1.6.0 — zero passwords copied."
+        f"Sync Canvas LMS courses & deadlines (BI, UiA, NTNU, UiO, NHH, UiB & *.instructure.com), "
+        f"TimeEdit / TP timetables & Ed Discussion in 1 click (v{ext_version}) — zero passwords."
     )
     sync_faqs = [
         (
-            "Which universities work with Study-OS Sync v1.6.0?",
+            f"Which universities work with Study-OS Sync v{ext_version}?",
             "Study-OS Sync works out of the box with BI Oslo (canvas.bi.no), UiA (uia.instructure.com & tp.educloud.no/uia), NTNU, UiO (canvas.uio.no & tp.uio.no), NHH, UiB (mitt.uib.no), OsloMet, UiS, UiT, USN, NMBU, HVL, Kristiania, and any university worldwide running Instructure Canvas (*.instructure.com).",
         ),
         (
@@ -1367,13 +1761,25 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
                 ],
             },
             {
+                "@type": "WebPage",
+                "@id": f"{base}/bi-canvas-timeedit-sync.html#webpage",
+                "url": f"{base}/bi-canvas-timeedit-sync.html",
+                "name": sync_title,
+                "description": sync_desc,
+                "image": f"{base}/og-image.png",
+                "dateModified": today_iso,
+                "inLanguage": ["en", "nb"],
+                "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+                "publisher": _publisher_ld(base),
+            },
+            {
                 "@type": "SoftwareApplication",
                 "name": "Study-OS Sync",
                 "applicationCategory": "BrowserApplication",
                 "operatingSystem": "Chrome, Brave, Edge, Vivaldi",
                 "url": f"{base}/bi-canvas-timeedit-sync.html",
                 "downloadUrl": f"{base}/downloads/study-os-sync-extension.zip",
-                "softwareVersion": "1.6.0",
+                "softwareVersion": ext_version,
                 "isAccessibleForFree": True,
                 "offers": {"@type": "Offer", "price": "0", "priceCurrency": "NOK"},
                 "description": sync_desc,
@@ -1383,7 +1789,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
                 "name": "How to sync Canvas LMS, TimeEdit or TP, and Ed Discussion to Study-OS",
                 "totalTime": "PT1M",
                 "step": [
-                    {"@type": "HowToStep", "position": 1, "text": "Install Study-OS Sync v1.6.0 in Chrome, Brave, Edge, or Vivaldi."},
+                    {"@type": "HowToStep", "position": 1, "text": f"Install Study-OS Sync v{ext_version} in Chrome, Brave, Edge, or Vivaldi."},
                     {"@type": "HowToStep", "position": 2, "text": "Sign in at studyos.no, open Sync Canvas, and generate a one-time 6-character pairing code."},
                     {"@type": "HowToStep", "position": 3, "text": "Open your signed-in Canvas (e.g. canvas.bi.no, uia.instructure.com, mitt.uib.no, or any *.instructure.com) and TimeEdit/TP tab, then click Sync once."},
                     {"@type": "HowToStep", "position": 4, "text": "Drop any personal lecture PDFs or textbooks (up to 260 MB locally) to unlock instant inline side-by-side PDF viewing."},
@@ -1408,17 +1814,22 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{escape(sync_desc, quote=True)}">
-  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <meta name="geo.region" content="NO-03">
   <meta name="geo.placename" content="Oslo, Norway">
   <link rel="canonical" href="{base}/bi-canvas-timeedit-sync.html">
   <link rel="alternate" type="text/markdown" href="{base}/bi-canvas-timeedit-sync.md" title="Canvas & Timetable Sync (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:locale:alternate" content="nb_NO">
   <meta property="og:url" content="{base}/bi-canvas-timeedit-sync.html">
   <meta property="og:title" content="{escape(sync_title, quote=True)}">
   <meta property="og:description" content="{escape(sync_desc, quote=True)}">
   <meta property="og:image" content="{base}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Study-OS Sync 1-Click Canvas, TimeEdit and TP Extension">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{escape(sync_title, quote=True)}">
   <meta name="twitter:description" content="{escape(sync_desc, quote=True)}">
@@ -1427,8 +1838,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
 {SEO_THEME_SCRIPT}
   <title>{escape(sync_title)}</title>
 {SEO_ICON_LINKS}
-  <link rel="stylesheet" href="./styles.css">
-{SEO_PAGE_STYLE}
+  <link rel="stylesheet" href="{escape(seo_css_root, quote=True)}">
   <script type="application/ld+json">{json.dumps(sync_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
@@ -1436,22 +1846,23 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     <nav class="seo-nav" aria-label="Breadcrumb">
       <div class="seo-cta-row">
         <a href="./" class="ghost-btn">← Open Study-OS</a>
+        <a href="./universities.html" class="ghost-btn">Universities</a>
         <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
       </div>
-      <span class="badge">Chrome Extension · v1.6.0 · Multi-School Auto-Sync + MV3</span>
+      <span class="badge">Chrome Extension · v{escape(ext_version)} · Multi-School Auto-Sync + MV3</span>
     </nav>
 
     <article class="panel seo-hero">
       <span class="eyebrow">Canvas LMS (BI · UiA · NHH · UiO · NTNU · UiB) · TimeEdit / TP · Ed</span>
       <h1>1-Click &amp; Auto Canvas, TimeEdit/TP &amp; Ed Sync</h1>
       <p class="seo-lead">{escape(sync_desc)}</p>
-      <p class="seo-lead" lang="nb" style="font-size:14.5px;margin-top:-8px">
-        Synkroniser aktive emner og frister fra <strong>Canvas</strong> (BI Oslo, UiA, NHH, UiO, NTNU, OsloMet, UiB m.fl.), timeplanen din fra <strong>TimeEdit / TP</strong> og tråder fra <strong>Ed Discussion</strong> automatisk eller med 1 klikk — helt uten skolepassord.
+      <p class="seo-lead seo-lead-sub" lang="nb">
+        Synkroniser aktive emner og frister fra <strong>Canvas</strong> (BI Oslo, UiA, NHH, UiO, NTNU, OsloMet, UiB, UiS, UiT, USN, NMBU, HVL og Kristiania), timeplanen din fra <strong>TimeEdit / TP</strong> og tråder fra <strong>Ed Discussion</strong> automatisk eller med 1 klikk — helt uten skolepassord.
       </p>
       <div class="seo-cta-row">
         <a class="primary-btn btn-lg" href="./">Open Study-OS → Sync Canvas</a>
-        <a class="ghost-btn btn-lg" href="./downloads/study-os-sync-extension.zip" download>Download Extension ZIP (v1.6.0)</a>
-        <a class="ghost-btn btn-lg" href="./?view=schedule">Schedule Studio</a>
+        <a class="ghost-btn btn-lg" href="./downloads/study-os-sync-extension.zip" download>Download Extension ZIP (v{escape(ext_version)})</a>
+        <a class="ghost-btn btn-lg" href="./?view=schedule" rel="nofollow">Schedule Studio</a>
       </div>
     </article>
 
@@ -1530,6 +1941,8 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a class="ghost-btn" href="./uni/ntnu.html">NTNU Guide</a>
         <a class="ghost-btn" href="./uni/uio.html">UiO Guide</a>
         <a class="ghost-btn" href="./uni/nhh.html">NHH Guide</a>
+        <a class="ghost-btn" href="./uni/uib.html">UiB Guide</a>
+        <a class="ghost-btn" href="./uni/oslomet.html">OsloMet Guide</a>
         <a class="ghost-btn" href="./uni/canvas-lms.html">Any Canvas School</a>
       </div>
     </section>
@@ -1552,6 +1965,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a href="./wiseflow-practice.html">WISEflow</a>
         <a href="./notes.html">Notes</a>
         <a href="./privacy.html">Privacy</a>
+        <a href="./terms.html">Terms</a>
       </nav>
     </footer>
   </main>
@@ -1564,16 +1978,16 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     # 6. Static Course Notes & Reference Sheets Directory (`/notes.html`)
     notes_title = "BI Oslo Course Notes, Formula Sheets & Reference Hub · Study-OS"
     notes_desc = (
-        f"Browse {len(references)} structured BI Oslo semester reference sheets with KaTeX formulas, diagrams, and section index "
-        f"for Economics I (EXC 3420), Accounting & Finance (EXC 3430), Org. Behavior (EXC 3460), Python (EBA 3400) & Math (EBA 1181)."
+        f"Browse {len(references)} BI Oslo KaTeX formula sheets & course notes for EXC/SØK 3420, EXC/BØK 3430, "
+        f"EXC/ORG 3460, EBA 3400 Python & EBA 1181/1180 Math — 100% free."
     )
     ref_cards_parts: list[str] = []
-    llms_ref_lines: list[str] = []
-    static_refs_dir = out_dir / "static-data" / "references"
-    for ref in references:
+    ref_itemlist_elements: list[dict[str, Any]] = []
+    for ref_idx, ref in enumerate(references):
         rfile = str(ref.get("file") or "")
         rtitle = str(ref.get("title") or rfile)
         rsub = str(ref.get("subtitle") or ref.get("semester") or "Reference Sheet")
+        r_cid = str(ref.get("courseId") or "").strip()
         toc_items: list[str] = []
         rjson = static_refs_dir / f"{ref_slug(rfile)}.json"
         if rjson.is_file():
@@ -1587,36 +2001,76 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
             except Exception:
                 pass
         shown_toc = toc_items[:12]
-        llms_ref_lines.append(f"- {rtitle} ({len(toc_items)} sections): {', '.join(shown_toc[:6])}")
         toc_html = (
-            "<ul class=\"seo-topics\">"
+            '<ul class="seo-topics">'
             + "".join(f"<li>{escape(h)}</li>" for h in shown_toc)
             + "</ul>"
             if shown_toc else ""
         )
+        # Deduplicate companion entries by file path
+        seen_comp: set[str] = set()
+        comp_labels: list[str] = []
+        for comp in (ref.get("companions") or []):
+            c_file = str(comp.get("file") or "").strip()
+            c_lbl = str(comp.get("label") or "").strip()
+            if c_file and c_file not in seen_comp and c_lbl:
+                seen_comp.add(c_file)
+                comp_labels.append(c_lbl)
+        comp_meta = f' · Includes: {", ".join(comp_labels)}' if comp_labels else ""
         note_qs = quote(rfile, safe="")
+        course_btn = (
+            f'<a class="ghost-btn" href="./courses/{escape(r_cid, quote=True)}.html">Course guide</a>'
+            if r_cid else ""
+        )
+        ref_itemlist_elements.append({
+            "@type": "ListItem",
+            "position": ref_idx + 1,
+            "name": rtitle,
+            "url": f"{base}/courses/{r_cid}.html" if r_cid else f"{base}/notes.html",
+        })
         ref_cards_parts.append(
             f"""    <section class="panel seo-card" style="margin-bottom:14px">
       <div class="seo-nav" style="margin-bottom:4px">
         <div>
-          <span class="eyebrow">{escape(rsub)}</span>
+          <span class="eyebrow">{escape(rsub)}{escape(comp_meta)}</span>
           <h2 style="margin:2px 0 0">{escape(rtitle)}</h2>
         </div>
-        <a class="primary-btn" href="./?view=references&amp;note={note_qs}">Open notes →</a>
+        <div class="seo-cta-row">
+          {course_btn}
+          <a class="primary-btn" href="./?view=references&amp;note={note_qs}" rel="nofollow">Open notes →</a>
+        </div>
       </div>
       {toc_html}
     </section>\n"""
         )
     notes_json_ld = {
         "@context": "https://schema.org",
-        "@type": "WebPage",
-        "name": notes_title,
-        "url": f"{base}/notes.html",
-        "description": notes_desc,
-        "image": f"{base}/og-image.png",
-        "inLanguage": ["en", "nb"],
-        "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
-        "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {"@type": "ListItem", "position": 1, "name": "Study-OS", "item": f"{base}/"},
+                    {"@type": "ListItem", "position": 2, "name": "Course Notes", "item": f"{base}/notes.html"},
+                ],
+            },
+            {
+                "@type": "CollectionPage",
+                "@id": f"{base}/notes.html#webpage",
+                "name": notes_title,
+                "url": f"{base}/notes.html",
+                "description": notes_desc,
+                "image": f"{base}/og-image.png",
+                "dateModified": today_iso,
+                "inLanguage": ["en", "nb"],
+                "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+                "publisher": _publisher_ld(base),
+            },
+            {
+                "@type": "ItemList",
+                "name": "Study-OS BI Oslo Course Reference Sheets",
+                "itemListElement": ref_itemlist_elements,
+            },
+        ],
     }
     notes_html = f"""<!doctype html>
 <html lang="en">
@@ -1624,17 +2078,22 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{escape(notes_desc, quote=True)}">
-  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
   <meta name="geo.region" content="NO-03">
   <meta name="geo.placename" content="Oslo, Norway">
   <link rel="canonical" href="{base}/notes.html">
   <link rel="alternate" type="text/markdown" href="{base}/notes.md" title="Course Notes & Reference Hub (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:locale:alternate" content="nb_NO">
   <meta property="og:url" content="{base}/notes.html">
   <meta property="og:title" content="{escape(notes_title, quote=True)}">
   <meta property="og:description" content="{escape(notes_desc, quote=True)}">
   <meta property="og:image" content="{base}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Study-OS BI Oslo Course Notes, Formula Sheets and Reference Hub">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{escape(notes_title, quote=True)}">
   <meta name="twitter:description" content="{escape(notes_desc, quote=True)}">
@@ -1643,8 +2102,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
 {SEO_THEME_SCRIPT}
   <title>{escape(notes_title)}</title>
 {SEO_ICON_LINKS}
-  <link rel="stylesheet" href="./styles.css">
-{SEO_PAGE_STYLE}
+  <link rel="stylesheet" href="{escape(seo_css_root, quote=True)}">
   <script type="application/ld+json">{json.dumps(notes_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
@@ -1653,6 +2111,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <div class="seo-cta-row">
         <a href="./" class="ghost-btn">← Open Study-OS</a>
         <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
+        <a href="./wiseflow-practice.html" class="ghost-btn">WISEflow</a>
       </div>
       <span class="badge">{len(references)} Reference Sheets · KaTeX &amp; Diagrams</span>
     </nav>
@@ -1662,12 +2121,10 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <h1>BI Oslo Course Notes &amp; Formula Sheets</h1>
       <p class="seo-lead">{escape(notes_desc)}</p>
       <div class="seo-cta-row">
-        <a class="primary-btn btn-lg" href="./?view=references">Open Interactive Notes Reader →</a>
+        <a class="primary-btn btn-lg" href="./?view=references" rel="nofollow">Open Interactive Notes Reader →</a>
         <a class="ghost-btn btn-lg" href="./bi-oslo.html">Browse Courses</a>
+        <a class="ghost-btn btn-lg" href="./gpa-calculator.html">GPA Calculator</a>
       </div>
-      <figure class="seo-preview-media">
-        <img src="{base}/og-image.png" width="1200" height="630" alt="Study-OS BI Oslo Course Notes, Formula Sheets and Reference Hub" loading="eager">
-      </figure>
     </article>
 
 {"".join(ref_cards_parts)}
@@ -1676,10 +2133,14 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <nav aria-label="Footer links">
         <a href="./">App</a>
         <a href="./bi-oslo.html">BI Oslo</a>
+        <a href="./universities.html">Universities</a>
         <a href="./norsk.html" lang="nb">Norsk</a>
         <a href="./wiseflow-practice.html">WISEflow</a>
-        <a href="./bi-canvas-timeedit-sync.html">BI Sync</a>
+        <a href="./gpa-calculator.html">GPA Calculator</a>
+        <a href="./bi-canvas-timeedit-sync.html">Canvas Sync</a>
+        <a href="./compare.html">Compare</a>
         <a href="./privacy.html">Privacy</a>
+        <a href="./terms.html">Terms</a>
       </nav>
     </footer>
   </main>
@@ -1697,7 +2158,12 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         total_qs=total_qs,
         ref_count=len(references),
         seo_theme_script=SEO_THEME_SCRIPT,
-        seo_page_style=SEO_PAGE_STYLE,
+        seo_page_style="",
+        catalog=catalog,
+        ext_version=ext_version,
+        seo_css_root=seo_css_root,
+        seo_css_sub=seo_css_sub,
+        today_iso=today_iso,
     )
     sitemap_urls.extend(growth_entries)
 
@@ -1714,26 +2180,38 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         sync_faqs=sync_faqs,
         gpa_faqs=GPA_FAQS,
         compare_faqs=COMPARE_FAQS,
+        ext_version=ext_version,
+        wiseflow_faqs=wf_faqs,
     )
 
-    # 8. Auto-generated XML Sitemap (`sitemap.xml`)
+    # 8. Auto-generated XML Sitemap (`sitemap.xml`) with xhtml:link reciprocal hreflang for `/` <-> `/norsk.html`
     sitemap_urls.extend([
         (f"{base}/privacy.html", "0.3", "yearly"),
         (f"{base}/terms.html", "0.3", "yearly"),
     ])
-    url_entries = "".join(
-        f"  <url>\n"
-        f"    <loc>{escape(loc)}</loc>\n"
-        f"    <lastmod>{today_iso}</lastmod>\n"
-        f"    <changefreq>{freq}</changefreq>\n"
-        f"    <priority>{prio}</priority>\n"
-        f"  </url>\n"
-        for loc, prio, freq in sitemap_urls
+    hreflang_pair = {f"{base}/", f"{base}/norsk.html"}
+    hreflang_xml = (
+        f'    <xhtml:link rel="alternate" hreflang="en" href="{escape(base)}/"/>\n'
+        f'    <xhtml:link rel="alternate" hreflang="nb-NO" href="{escape(base)}/norsk.html"/>\n'
+        f'    <xhtml:link rel="alternate" hreflang="x-default" href="{escape(base)}/"/>\n'
     )
+    url_entries_parts: list[str] = []
+    for loc, prio, freq in sitemap_urls:
+        alts = hreflang_xml if loc in hreflang_pair else ""
+        url_entries_parts.append(
+            f"  <url>\n"
+            f"    <loc>{escape(loc)}</loc>\n"
+            f"{alts}"
+            f"    <lastmod>{today_iso}</lastmod>\n"
+            f"    <changefreq>{freq}</changefreq>\n"
+            f"    <priority>{prio}</priority>\n"
+            f"  </url>\n"
+        )
     sitemap_xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        f"{url_entries}"
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+        '        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
+        f"{''.join(url_entries_parts)}"
         "</urlset>\n"
     )
     (out_dir / "sitemap.xml").write_text(sitemap_xml, encoding="utf-8")
@@ -1890,10 +2368,18 @@ def finalize_site(
         dl_dir = out_dir / "downloads"
         dl_dir.mkdir(parents=True, exist_ok=True)
         zip_path = dl_dir / "study-os-sync-extension.zip"
+        ext_skip_names = {"CHROMEWEBSTORE.md", "README.md", "Thumbs.db", ".DS_Store"}
+        ext_skip_suffixes = {".sh", ".zip", ".map"}
         with ZipFile(zip_path, "w", compression=ZIP_DEFLATED) as zf:
             for item in sorted(ext_src.rglob("*")):
                 rel_parts = item.relative_to(ext_src).parts
-                if item.is_file() and not any(part.startswith(".") for part in rel_parts) and "store-assets" not in rel_parts:
+                if (
+                    item.is_file()
+                    and not any(part.startswith(".") for part in rel_parts)
+                    and "store-assets" not in rel_parts
+                    and item.name not in ext_skip_names
+                    and item.suffix.lower() not in ext_skip_suffixes
+                ):
                     zf.write(item, item.relative_to(ext_src).as_posix())
 
     # Generate static indexable Oslo & per-course SEO pages plus sitemap.xml
@@ -1904,7 +2390,7 @@ def finalize_site(
     assets = []
     seo_skip_files = {
         ".nojekyll", "CNAME", "404.html", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt",
-        "og-image.png", "favicon.ico", "bi-oslo.html", "norsk.html",
+        "seo.css", "og-image.png", "favicon.ico", "bi-oslo.html", "norsk.html",
         "wiseflow-practice.html", "bi-canvas-timeedit-sync.html", "notes.html",
         "universities.html", "gpa-calculator.html", "compare.html",
         "7d4c9e2a8b1f4063a5e7c2d9f1b84e60.txt",

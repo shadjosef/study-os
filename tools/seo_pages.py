@@ -4,12 +4,15 @@ Design principles (2026 SEO / GEO best practices):
 - Every university page carries genuinely unique data (exact LMS host, timetable platform & .ics flow,
   exam platform, real local course codes mapped to Study-OS practice banks, bilingual Norwegian + English FAQs).
 - Extractable Atomic Content Units (ACUs), structured tables, and JSON-LD (WebApplication, HowTo,
-  FAQPage, BreadcrumbList) for Google Search, Google AI Overviews, ChatGPT Search, and Perplexity.
-- Tight hub-and-spoke + sibling internal linking (zero orphan pages).
+  FAQPage, BreadcrumbList, CollectionPage, ItemList) for Google Search, Google AI Overviews, ChatGPT Search,
+  and Perplexity.
+- Lightweight `seo.css` (~7 KB) instead of the 318 KB SPA bundle for instant LCP/FCP on mobile.
+- Tight hub-and-spoke + sibling internal linking (zero orphan pages) and clean `/uni/index.html` fallback.
 """
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from html import escape
 from pathlib import Path
@@ -19,6 +22,7 @@ from typing import Any
 UNIVERSITIES: list[dict[str, Any]] = [
     {
         "slug": "uia",
+        "lang": "nb",
         "short": "UiA",
         "name": "Universitetet i Agder (UiA)",
         "city": "Kristiansand & Grimstad",
@@ -41,13 +45,13 @@ UNIVERSITIES: list[dict[str, Any]] = [
         ),
         "lead_nb": (
             "Koble til uia.instructure.com og TP-timeplanen din fra tp.educloud.no/uia med 1 klikk — uten UiA-passord. "
-            "Study-OS kobler automatisk UiA ØkAd-emner til over 1 000 ferdige øvingsoppgaver og formelnotater."
+            "Study-OS kobler automatisk UiA ØkAd-emner til over 1 180 ferdige øvingsoppgaver og formelnotater."
         ),
         "course_mappings": [
-            ("BED-100", "Bedriftsøkonomi", "acct-2527", "Accounting & Finance (348 Qs)", "Bidragskalkyle, balanse, kontantstrøm, investering og finansiering"),
-            ("MA-155", "Matematikk for økonomer", "math-2588", "Mathematics (182 Qs)", "Derivasjon, elastisitet, Lagrange-optimalisering og finansmatte"),
-            ("SE-100", "Samfunnsøkonomi", "econ-2522", "Economics I (329 Qs)", "Tilbud/etterspørsel, markedssvikt, monopol, BNP og inflasjon"),
-            ("ORG-100", "Organisasjon og ledelse", "ob-2537", "OB & Leadership (120 Qs)", "Ledelsesteori, motivasjon, organisasjonsstruktur og kultur"),
+            ("BED-100", "Bedriftsøkonomi", "acct-2527", "Accounting & Finance", "Bidragskalkyle, balanse, kontantstrøm, investering og finansiering"),
+            ("MA-155", "Matematikk for økonomer", "math-2588", "Mathematics", "Derivasjon, elastisitet, Lagrange-optimalisering og finansmatte"),
+            ("SE-100", "Samfunnsøkonomi", "econ-2522", "Economics I", "Tilbud/etterspørsel, markedssvikt, monopol, BNP og inflasjon"),
+            ("ORG-100", "Organisasjon og ledelse", "ob-2537", "OB & Leadership", "Ledelsesteori, motivasjon, organisasjonsstruktur og kultur"),
             ("ME-100", "Metode / Statistikk", "math-2588", "Mathematics & Quant", "Kvantitativ metode, sannsynlighet, regresjon og tolkning"),
         ],
         "timetable_steps": [
@@ -59,7 +63,7 @@ UNIVERSITIES: list[dict[str, Any]] = [
         "faqs": [
             (
                 "Virker Study-OS Sync med uia.instructure.com (UiA Canvas)?",
-                "Ja. Study-OS Sync v1.6.0 støtter uia.instructure.com og canvas.uia.no automatisk, leser aktive UiA-emnekoder (som BED-100, MA-155, SE-100 og ORG-100) via din allerede innloggede nettleserfane, og lagrer aldri Feide-passordet ditt.",
+                "Ja. Study-OS Sync v{ext_version} støtter uia.instructure.com og canvas.uia.no automatisk, leser aktive UiA-emnekoder (som BED-100, MA-155, SE-100 og ORG-100) via din allerede innloggede nettleserfane, og lagrer aldri Feide-passordet ditt.",
             ),
             (
                 "Hvordan synker jeg UiA sin TP-timeplan (tp.educloud.no/uia)?",
@@ -77,6 +81,7 @@ UNIVERSITIES: list[dict[str, Any]] = [
     },
     {
         "slug": "ntnu",
+        "lang": "nb",
         "short": "NTNU",
         "name": "NTNU (Trondheim, Gjøvik & Ålesund)",
         "city": "Trondheim, Gjøvik & Ålesund",
@@ -102,10 +107,10 @@ UNIVERSITIES: list[dict[str, Any]] = [
             "Automatisk gjenkjenning av norske emnekoder med ÆØÅ som SØK1001, BØA1100 og TIØ4120."
         ),
         "course_mappings": [
-            ("BØA1100 / TIØ4120", "Finansregnskap & Bedriftsøkonomi", "acct-2527", "Accounting & Finance (348 Qs)", "Regnskapsanalyse, nåverdi, kapitalkostnad og kontantstrøm"),
-            ("SØK1001 / SØK1002", "Mikro- og makroøkonomi", "econ-2522", "Economics I (329 Qs)", "Konsument-/produsentteori, velferdsøkonomi og makromodeller"),
-            ("TMA4100 / MA0001", "Matematikk / Kalkulus", "math-2588", "Mathematics (182 Qs)", "Derivasjon, integrasjon, optimering og funksjoner av flere variabler"),
-            ("TDT4100 / ITGK", "Python & Programmering", "prog-3021", "Programming & Data (120+ Qs)", "Python-datastrukturer, filbehandling, Pandas og feilsøking"),
+            ("BØA1100 / TIØ4120", "Finansregnskap & Bedriftsøkonomi", "acct-2527", "Accounting & Finance", "Regnskapsanalyse, nåverdi, kapitalkostnad og kontantstrøm"),
+            ("SØK1001 / SØK1002", "Mikro- og makroøkonomi", "econ-2522", "Economics I", "Konsument-/produsentteori, velferdsøkonomi og makromodeller"),
+            ("TMA4100 / MA0001", "Matematikk / Kalkulus", "math-2588", "Mathematics", "Derivasjon, integrasjon, optimering og funksjoner av flere variabler"),
+            ("TDT4100 / ITGK", "Python & Programmering", "prog-3021", "Programming & Data", "Python-datastrukturer, filbehandling, Pandas og feilsøking"),
         ],
         "timetable_steps": [
             "Åpne ntnu.instructure.com (dersom emnet bruker Canvas) og din personlige timeplan på tp.educloud.no/ntnu.",
@@ -116,11 +121,11 @@ UNIVERSITIES: list[dict[str, Any]] = [
         "faqs": [
             (
                 "Fungerer Study-OS for NTNU-studenter når noen emner bruker Blackboard?",
-                "Ja! Selv om emnet ditt ligger i Blackboard, kan du synke hele NTNU-timeplanen fra tp.educloud.no/ntnu (.ics eller 1-klikk), slippe alle nedlastede PDF-er/øvinger privat i nettleseren, og bruke alle 1 000+ øvingsoppgavene og AI-veilederen gratis.",
+                "Ja! Selv om emnet ditt ligger i Blackboard, kan du synke hele NTNU-timeplanen fra tp.educloud.no/ntnu (.ics eller 1-klikk), slippe alle nedlastede PDF-er/øvinger privat i nettleseren, og bruke alle 1 180+ øvingsoppgavene og AI-veilederen gratis.",
             ),
             (
                 "Støtter Study-OS norske emnekoder med Æ, Ø og Å som SØK1001 og TIØ4120?",
-                "Ja. Emnekode-parseren i Study-OS Sync v1.6.0 støtter ÆØÅ (SØK1001, BØA1100, TIØ4120) og kobler emnene dine til relevante oppgavebanker automatisk.",
+                "Ja. Emnekode-parseren i Study-OS Sync v{ext_version} støtter ÆØÅ (SØK1001, BØA1100, TIØ4120) og kobler emnene dine til relevante oppgavebanker automatisk.",
             ),
             (
                 "Hvor rask er PDF-leseren for store NTNU-kompendier og pensumbøker?",
@@ -130,6 +135,7 @@ UNIVERSITIES: list[dict[str, Any]] = [
     },
     {
         "slug": "uio",
+        "lang": "nb",
         "short": "UiO",
         "name": "Universitetet i Oslo (UiO)",
         "city": "Oslo (Blindern)",
@@ -152,12 +158,12 @@ UNIVERSITIES: list[dict[str, Any]] = [
         ),
         "lead_nb": (
             "Laget i Oslo: synk uio.instructure.com / canvas.uio.no og timeplanen fra tp.uio.no med 1 klikk. "
-            "Få oversikt over obligatoriske innleveringer, døgnrytmebasert leseplan og over 1 000 øvingsoppgaver."
+            "Få oversikt over obligatoriske innleveringer, døgnrytmebasert leseplan og over 1 180 øvingsoppgaver."
         ),
         "course_mappings": [
-            ("ECON1210 / ECON1310", "Mikro- og makroøkonomi", "econ-2522", "Economics I (329 Qs)", "Markedslikevekt, elastisitet, monopol, finans- og pengepolitikk"),
-            ("IN1000 / IN1900", "Introduksjon til programmering (Python)", "prog-3021", "Programming & Data (120+ Qs)", "Python-løkker, funksjoner, lister, ordbøker og databehandling"),
-            ("MAT1100 / MAT1001", "Kalkulus & Matematikk", "math-2588", "Mathematics (182 Qs)", "Derivasjon, optimalisering, flere variabler og rekker"),
+            ("ECON1210 / ECON1310", "Mikro- og makroøkonomi", "econ-2522", "Economics I", "Markedslikevekt, elastisitet, monopol, finans- og pengepolitikk"),
+            ("IN1000 / IN1900", "Introduksjon til programmering (Python)", "prog-3021", "Programming & Data", "Python-løkker, funksjoner, lister, ordbøker og databehandling"),
+            ("MAT1100 / MAT1001", "Kalkulus & Matematikk", "math-2588", "Mathematics", "Derivasjon, optimalisering, flere variabler og rekker"),
         ],
         "timetable_steps": [
             "Hold uio.instructure.com (eller canvas.uio.no) og tp.uio.no åpne i nettleseren din.",
@@ -168,7 +174,7 @@ UNIVERSITIES: list[dict[str, Any]] = [
         "faqs": [
             (
                 "Støtter Study-OS både canvas.uio.no og uio.instructure.com?",
-                "Ja. Begge domenene gjenkjennes automatisk som UiO i Study-OS Sync v1.6.0, og alle lenker til emner og obliger går direkte tilbake til ditt UiO Canvas.",
+                "Ja. Begge domenene gjenkjennes automatisk som UiO i Study-OS Sync v{ext_version}, og alle lenker til emner og obliger går direkte tilbake til ditt UiO Canvas.",
             ),
             (
                 "Kan jeg importere timeplanen min fra tp.uio.no?",
@@ -182,6 +188,7 @@ UNIVERSITIES: list[dict[str, Any]] = [
     },
     {
         "slug": "nhh",
+        "lang": "nb",
         "short": "NHH",
         "name": "Norges Handelshøyskole (NHH)",
         "city": "Bergen",
@@ -204,13 +211,13 @@ UNIVERSITIES: list[dict[str, Any]] = [
         ),
         "lead_nb": (
             "Perfekt for NHH-studenter i Bergen: 1-klikks synk med NHH Canvas og TimeEdit, WISEflow-eksamensmodus "
-            "med ±2 % avrundingsregler, samt over 1 000 øvingsoppgaver i regnskap, finans, samfunnsøkonomi og matte."
+            "med ±2 % avrundingsregler, samt over 1 180 øvingsoppgaver i regnskap, finans, samfunnsøkonomi og matte."
         ),
         "course_mappings": [
-            ("BED1 / BED2 / BED10", "Finansregnskap & Bedriftsøkonomi", "acct-2527", "Accounting & Finance (348 Qs)", "Balanse, resultat, kontantstrøm, investeringsanalyse og finansiering"),
-            ("SAM1 / SAM2", "Mikro- og makroøkonomi", "econ-2522", "Economics I (329 Qs)", "Tilbud/etterspørsel, markedsmakt, IS-LM og pengepolitikk"),
-            ("MET1 / MET2", "Matematikk & Statistikk for økonomer", "math-2588", "Mathematics (182 Qs)", "Flervariabel kalkulus, Lagrange, optimering og kvantitativ metode"),
-            ("SOL1 / SOL2", "Strategi, organisasjon og ledelse", "ob-2537", "OB & Leadership (120 Qs)", "Organisasjonsatferd, ledelse, motivasjon og strategi"),
+            ("BED1 / BED2 / BED10", "Finansregnskap & Bedriftsøkonomi", "acct-2527", "Accounting & Finance", "Balanse, resultat, kontantstrøm, investeringsanalyse og finansiering"),
+            ("SAM1 / SAM2", "Mikro- og makroøkonomi", "econ-2522", "Economics I", "Tilbud/etterspørsel, markedsmakt, IS-LM og pengepolitikk"),
+            ("MET1 / MET2", "Matematikk & Statistikk for økonomer", "math-2588", "Mathematics", "Flervariabel kalkulus, Lagrange, optimering og kvantitativ metode"),
+            ("SOL1 / SOL2", "Strategi, organisasjon og ledelse", "ob-2537", "OB & Leadership", "Organisasjonsatferd, ledelse, motivasjon og strategi"),
         ],
         "timetable_steps": [
             "Åpne nhh.instructure.com (eller canvas.nhh.no) og TimeEdit-timeplanen din i Chrome/Brave/Edge.",
@@ -225,12 +232,13 @@ UNIVERSITIES: list[dict[str, Any]] = [
             ),
             (
                 "Gjenkjenner Study-OS NHH-emnekoder som BED10, FIE400 og SAM2?",
-                "Ja. Study-OS Sync støtter NHH sine Canvas-domener (nhh.instructure.com / canvas.nhh.no), TimeEdit .ics-strømmer og kobler økonomi- og finansfag rett til relevante oppgavebanker.",
+                "Ja. Study-OS Sync v{ext_version} støtter NHH sine Canvas-domener (nhh.instructure.com / canvas.nhh.no), TimeEdit .ics-strømmer og kobler økonomi- og finansfag rett til relevante oppgavebanker.",
             ),
         ],
     },
     {
         "slug": "uib",
+        "lang": "nb",
         "short": "UiB",
         "name": "Universitetet i Bergen (Mitt UiB)",
         "city": "Bergen",
@@ -249,27 +257,27 @@ UNIVERSITIES: list[dict[str, Any]] = [
         ),
         "lead_en": (
             "Full native support for Mitt UiB (mitt.uib.no) and UiB's TP timetable: pull courses, modules, and "
-            "deadlines in 1 click without sharing Feide passwords, plus 1,000+ overlapping practice drills."
+            "deadlines in 1 click without sharing Feide passwords, plus 1,180+ overlapping practice drills."
         ),
         "lead_nb": (
             "Full støtte for mitt.uib.no (UiB sitt egne Canvas-domene) og TP-timeplanen. "
             "Hent emner, moduler og innleveringsfrister på sekunder — helt privat og gratis."
         ),
         "course_mappings": [
-            ("ECON110 / ECON130", "Mikro- og makroøkonomi", "econ-2522", "Economics I (329 Qs)", "Markedsteori, elastisiteter, velferd og makroøkonomi"),
-            ("INF100", "Grunnkurs i programmering (Python)", "prog-3021", "Programming & Data (120+ Qs)", "Python-grunnlag, datastrukturer, analyse og visualisering"),
-            ("MAT111 / MAT101", "Grunnkurs i matematikk", "math-2588", "Mathematics (182 Qs)", "Derivasjon, optimering og funksjonsanalyse"),
-            ("AORG100", "Organisasjon og ledelse", "ob-2537", "OB & Leadership (120 Qs)", "Organisasjonsteori, ledelse og beslutningsprosesser"),
+            ("ECON110 / ECON130", "Mikro- og makroøkonomi", "econ-2522", "Economics I", "Markedsteori, elastisiteter, velferd og makroøkonomi"),
+            ("INF100", "Grunnkurs i programmering (Python)", "prog-3021", "Programming & Data", "Python-grunnlag, datastrukturer, analyse og visualisering"),
+            ("MAT111 / MAT101", "Grunnkurs i matematikk", "math-2588", "Mathematics", "Derivasjon, optimering og funksjonsanalyse"),
+            ("AORG100", "Organisasjon og ledelse", "ob-2537", "OB & Leadership", "Organisasjonsteori, ledelse og beslutningsprosesser"),
         ],
         "timetable_steps": [
             "Logg inn på mitt.uib.no og åpne timeplanen din i TP (tp.educloud.no/uib).",
-            "Installer Study-OS Sync (v1.6.0 har eksplisitt støtte for mitt.uib.no) og par én gang med 6-tegns kode.",
+            "Installer Study-OS Sync (eksplisitt støtte for mitt.uib.no) og par én gang med 6-tegns kode.",
             "Klikk Sync for å overføre aktive UiB-emner, frister og forelesninger til Study-OS.",
         ],
         "faqs": [
             (
                 "Hvorfor fungerer Study-OS med mitt.uib.no når andre Canvas-utvidelser feiler?",
-                "Mange Canvas-utvidelser sjekker bare *.instructure.com og glemmer UiB sitt domene mitt.uib.no. Study-OS Sync v1.6.0 har eksplisitt tillatelse og gjenkjenning for mitt.uib.no.",
+                "Mange Canvas-utvidelser sjekker bare *.instructure.com og glemmer UiB sitt domene mitt.uib.no. Study-OS Sync v{ext_version} har eksplisitt tillatelse og gjenkjenning for mitt.uib.no.",
             ),
             (
                 "Kan jeg synke både Mitt UiB og TP-timeplanen samtidig?",
@@ -279,6 +287,7 @@ UNIVERSITIES: list[dict[str, Any]] = [
     },
     {
         "slug": "oslomet",
+        "lang": "nb",
         "short": "OsloMet",
         "name": "OsloMet — Storbyuniversitetet",
         "city": "Oslo (Pilestredet & Kjeller)",
@@ -297,17 +306,17 @@ UNIVERSITIES: list[dict[str, Any]] = [
         ),
         "lead_en": (
             "1-click OsloMet Canvas & timetable sync for Pilestredet and Kjeller students — automatically matching "
-            "ØkAd (ADØK/ØA) and IT (DATA) courses to 1,000+ active-recall questions and formula sheets."
+            "ØkAd (ADØK/ØA) and IT (DATA) courses to 1,180+ active-recall questions and formula sheets."
         ),
         "lead_nb": (
             "Synk oslomet.instructure.com og timeplanen din inn i Study-OS i 1 klikk. "
             "Støtter norske emnekoder som ADØK1100 og ØA1100, pluss lokal side-ved-side PDF-lesing."
         ),
         "course_mappings": [
-            ("ADØK1100 / ØA1100", "Bedriftsøkonomi & Finansregnskap", "acct-2527", "Accounting & Finance (348 Qs)", "Regnskap, kostnadskalkyler, budsjettering og investering"),
-            ("ADØK / Samfunnsøkonomi", "Mikro- og makroøkonomi", "econ-2522", "Economics I (329 Qs)", "Markedsmekanismer, elastisitet og makroøkonomi"),
-            ("DATA1100 / Programmering", "Programmering & Data", "prog-3021", "Programming & Data (120+ Qs)", "Python, databehandling, algoritmer og visualisering"),
-            ("MEF1000 / Metode", "Matematikk & Kvantitativ metode", "math-2588", "Mathematics (182 Qs)", "Derivasjon, optimalisering og statistiske modeller"),
+            ("ADØK1100 / ØA1100", "Bedriftsøkonomi & Finansregnskap", "acct-2527", "Accounting & Finance", "Regnskap, kostnadskalkyler, budsjettering og investering"),
+            ("ADØK / Samfunnsøkonomi", "Mikro- og makroøkonomi", "econ-2522", "Economics I", "Markedsmekanismer, elastisitet og makroøkonomi"),
+            ("DATA1100 / Programmering", "Programmering & Data", "prog-3021", "Programming & Data", "Python, databehandling, algoritmer og visualisering"),
+            ("MEF1000 / Metode", "Matematikk & Kvantitativ metode", "math-2588", "Mathematics", "Derivasjon, optimalisering og statistiske modeller"),
         ],
         "timetable_steps": [
             "Logg inn på oslomet.instructure.com (eller canvas.oslomet.no) og åpne timeplanen din.",
@@ -317,7 +326,7 @@ UNIVERSITIES: list[dict[str, Any]] = [
         "faqs": [
             (
                 "Virker Study-OS Sync med oslomet.instructure.com og norske emnekoder som ADØK1100?",
-                "Ja. Study-OS Sync v1.6.0 støtter både oslomet.instructure.com og canvas.oslomet.no samt emnekoder med Æ, Ø og Å.",
+                "Ja. Study-OS Sync v{ext_version} støtter både oslomet.instructure.com og canvas.oslomet.no samt emnekoder med Æ, Ø og Å.",
             ),
             (
                 "Kan OsloMet ØkAd-studenter bruke regnskaps- og økonomioppgavene i Study-OS?",
@@ -327,6 +336,7 @@ UNIVERSITIES: list[dict[str, Any]] = [
     },
     {
         "slug": "canvas-lms",
+        "lang": "en",
         "short": "Any Canvas LMS",
         "name": "Any Canvas LMS University (*.instructure.com)",
         "city": "Worldwide (Instructure Canvas)",
@@ -338,7 +348,7 @@ UNIVERSITIES: list[dict[str, Any]] = [
         "timetable_url": "https://studyos.no/?view=schedule",
         "exam_platform": "Canvas Quizzes, WISEflow, Inspera & Written Exams",
         "program_focus": "Economics, Accounting & Finance, Calculus, Python, Organizational Behavior & Custom PDFs",
-        "title": "Free Canvas LMS Study Tool & 1-Click Deadline Sync Chrome Extension · Study-OS",
+        "title": "Free Canvas LMS Study Tool & 1-Click Deadline Sync Extension · Study-OS",
         "desc": (
             "Sync any Instructure Canvas (*.instructure.com) courses, modules & assignment deadlines into a free "
             "study workspace with circadian scheduling, instant inline PDF reader, FSRS spaced repetition & AI tutor."
@@ -353,11 +363,11 @@ UNIVERSITIES: list[dict[str, Any]] = [
             "henter emner, moduler og frister med 1 klikk — uten passord eller admin-godkjenning."
         ),
         "course_mappings": [
-            ("ACCT / FIN", "Financial Accounting & Corporate Finance", "acct-2527", "Accounting & Finance (348 Qs)", "Balance sheets, cash flows, ratios, depreciation, NPV/IRR"),
-            ("ECON 101 / 102", "Microeconomics & Macroeconomics", "econ-2522", "Economics I (329 Qs)", "Supply & demand, elasticity, market structures, GDP & inflation"),
-            ("MATH / CALC", "Calculus & Applied Mathematics", "math-2588", "Mathematics (182 Qs)", "Derivatives, chain rule, multivariable optimization & Lagrange"),
-            ("CS / PYTHON", "Python Programming & Data Analysis", "prog-3021", "Programming & Data (120+ Qs)", "Python fundamentals, Pandas data cleaning & visualization"),
-            ("MGMT / OB", "Organizational Behavior & Leadership", "ob-2537", "OB & Leadership (120 Qs)", "Leadership models, motivation, culture, power & teams"),
+            ("ACCT / FIN", "Financial Accounting & Corporate Finance", "acct-2527", "Accounting & Finance", "Balance sheets, cash flows, ratios, depreciation, NPV/IRR"),
+            ("ECON 101 / 102", "Microeconomics & Macroeconomics", "econ-2522", "Economics I", "Supply & demand, elasticity, market structures, GDP & inflation"),
+            ("MATH / CALC", "Calculus & Applied Mathematics", "math-2588", "Mathematics", "Derivatives, chain rule, multivariable optimization & Lagrange"),
+            ("CS / PYTHON", "Python Programming & Data Analysis", "prog-3021", "Programming & Data", "Python fundamentals, Pandas data cleaning & visualization"),
+            ("MGMT / OB", "Organizational Behavior & Leadership", "ob-2537", "OB & Leadership", "Leadership models, motivation, culture, power & teams"),
         ],
         "timetable_steps": [
             "Open your university's signed-in Canvas tab (any https://*.instructure.com or custom Norwegian Canvas host).",
@@ -368,7 +378,7 @@ UNIVERSITIES: list[dict[str, Any]] = [
         "faqs": [
             (
                 "Does Study-OS Sync require my university IT department to approve an OAuth app?",
-                "No. Study-OS Sync runs inside your already signed-in browser tab using standard Canvas REST API same-origin requests. It never asks for your school password or copies cookies, so any student at any Canvas university can use it immediately.",
+                "No. Study-OS Sync v{ext_version} runs inside your already signed-in browser tab using standard Canvas REST API same-origin requests. It never asks for your school password or copies cookies, so any student at any Canvas university can use it immediately.",
             ),
             (
                 "How does Study-OS handle copyrighted university PDFs and textbooks?",
@@ -380,6 +390,16 @@ UNIVERSITIES: list[dict[str, Any]] = [
             ),
         ],
     },
+]
+
+# Additional Norwegian Canvas hosts natively supported in canvas-sync-extension/manifest.json
+EXTRA_NORWEGIAN_SCHOOLS: list[tuple[str, str, str, str]] = [
+    ("Universitetet i Stavanger (UiS)", "canvas.uis.no", "TimeEdit / .ics", "Økonomi, ingeniør, data & samfunnsfag"),
+    ("UiT Norges arktiske universitet", "canvas.uit.no", "TimeEdit / TP (.ics)", "Handelshøgskolen, realfag & informatikk"),
+    ("Universitetet i Sørøst-Norge (USN)", "canvas.usn.no", "TimeEdit / .ics", "ØkAd, finans, IT & ledelse"),
+    ("NMBU (Ås)", "canvas.nmbu.no", "TimeEdit / .ics", "Økonomi, datavitenskap & matematikk"),
+    ("Høgskulen på Vestlandet (HVL)", "canvas.hvl.no", "TimeEdit / .ics", "Økonomi, ingeniør & datafag"),
+    ("Høyskolen Kristiania", "canvas.kristiania.no", "TimeEdit / .ics", "Økonomi, ledelse, markedsføring & IT"),
 ]
 
 
@@ -433,25 +453,54 @@ def _breadcrumb_ld(base: str, crumbs: list[tuple[str, str]]) -> dict[str, Any]:
     }
 
 
+def _publisher_ld(base: str) -> dict[str, Any]:
+    return {
+        "@type": "Organization",
+        "name": "Study-OS",
+        "url": f"{base}/",
+        "logo": {
+            "@type": "ImageObject",
+            "url": f"{base}/pwa/study-os-192.png",
+            "width": 192,
+            "height": 192,
+        },
+    }
+
+
+def _fmt_faq_answer(ans: str, ext_version: str) -> str:
+    return ans.replace("{ext_version}", ext_version)
+
+
 def generate_growth_seo_pages(
     out_dir: Path,
     base: str,
     total_qs: int,
     ref_count: int,
     seo_theme_script: str,
-    seo_page_style: str,
+    seo_page_style: str = "",
+    *,
+    catalog: list[dict[str, Any]] | None = None,
+    ext_version: str = "1.7.1",
+    seo_css_root: str = "./seo.css",
+    seo_css_sub: str = "../seo.css",
+    today_iso: str = "",
 ) -> list[tuple[str, str, str]]:
     """Generate multi-university hubs, free GPA calculator micro-tool, and honest comparison page.
 
     Returns list of (url, priority, changefreq) tuples to append to sitemap.xml.
     """
+    today = today_iso or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    course_by_id = {str(c.get("courseId") or ""): c for c in (catalog or []) if c.get("courseId")}
     sitemap_entries: list[tuple[str, str, str]] = []
     uni_dir = out_dir / "uni"
     uni_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Individual University Hub Pages (`/uni/<slug>.html`) — Unique Data Layer pSEO 2.0
-    for idx, uni in enumerate(UNIVERSITIES):
+    for uni in UNIVERSITIES:
         slug = uni["slug"]
+        page_lang = uni.get("lang", "nb")
+        og_locale = "en_US" if page_lang == "en" else "nb_NO"
+        og_locale_alt = "nb_NO" if page_lang == "en" else "en_GB"
         page_url = f"{base}/uni/{slug}.html"
         siblings = [u for u in UNIVERSITIES if u["slug"] != slug]
         sibling_links = "".join(
@@ -459,25 +508,34 @@ def generate_growth_seo_pages(
             for s in siblings
         )
 
-        mapping_rows = "".join(
-            f"""          <tr>
+        mapping_rows_parts: list[str] = []
+        for code, cname, cid, bank_lbl, topics in uni["course_mappings"]:
+            live_c = course_by_id.get(cid)
+            live_qs = int(live_c.get("questionCount") or 0) if live_c else 0
+            label_with_count = f"{bank_lbl} ({live_qs} Qs)" if live_qs else bank_lbl
+            mapping_rows_parts.append(
+                f"""          <tr>
             <td><strong>{escape(code)}</strong></td>
             <td>{escape(cname)}</td>
-            <td><a href="../courses/{escape(cid, quote=True)}.html">{escape(bank_lbl)}</a></td>
+            <td><a href="../courses/{escape(cid, quote=True)}.html">{escape(label_with_count)}</a></td>
             <td>{escape(topics)}</td>
           </tr>\n"""
-            for code, cname, cid, bank_lbl, topics in uni["course_mappings"]
-        )
+            )
+        mapping_rows = "".join(mapping_rows_parts)
 
         steps_html = "".join(
             f"        <li><strong>Step {i + 1}:</strong> {escape(step)}</li>\n"
             for i, step in enumerate(uni["timetable_steps"])
         )
 
+        resolved_faqs = [(q, _fmt_faq_answer(a, ext_version)) for q, a in uni["faqs"]]
         faq_html = "".join(
             f"        <details><summary>{escape(q)}</summary><p>{escape(a)}</p></details>\n"
-            for q, a in uni["faqs"]
+            for q, a in resolved_faqs
         )
+
+        tt_url = uni["timetable_url"]
+        tt_rel = "noopener nofollow" if "?view=" in tt_url else "noopener"
 
         json_ld = {
             "@context": "https://schema.org",
@@ -493,8 +551,12 @@ def generate_growth_seo_pages(
                     "url": page_url,
                     "name": uni["title"],
                     "description": uni["desc"],
-                    "inLanguage": ["nb", "en"],
+                    "image": f"{base}/og-image.png",
+                    "dateModified": today,
+                    "inLanguage": ["en", "nb"] if page_lang == "en" else ["nb", "en"],
                     "about": [uni["name"], "Canvas LMS", uni["timetable_name"], "Exam Preparation"],
+                    "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+                    "publisher": _publisher_ld(base),
                 },
                 {
                     "@type": "HowTo",
@@ -509,14 +571,22 @@ def generate_growth_seo_pages(
                     "@type": "FAQPage",
                     "mainEntity": [
                         {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}}
-                        for q, a in uni["faqs"]
+                        for q, a in resolved_faqs
                     ],
                 },
             ],
         }
 
+        lead_first = (
+            f'      <p class="seo-lead" lang="en">{escape(uni["lead_en"])}</p>\n'
+            f'      <p class="seo-lead seo-lead-sub" lang="nb">{escape(uni["lead_nb"])}</p>'
+            if page_lang == "en"
+            else f'      <p class="seo-lead" lang="nb">{escape(uni["lead_nb"])}</p>\n'
+            f'      <p class="seo-lead seo-lead-sub" lang="en">{escape(uni["lead_en"])}</p>'
+        )
+
         html = f"""<!doctype html>
-<html lang="nb">
+<html lang="{escape(page_lang, quote=True)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -528,10 +598,15 @@ def generate_growth_seo_pages(
   <link rel="alternate" type="text/markdown" href="{base}/uni/{escape(slug, quote=True)}.md" title="{escape(uni['short'], quote=True)} Guide (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
+  <meta property="og:locale" content="{og_locale}">
+  <meta property="og:locale:alternate" content="{og_locale_alt}">
   <meta property="og:url" content="{escape(page_url, quote=True)}">
   <meta property="og:title" content="{escape(uni['title'], quote=True)}">
   <meta property="og:description" content="{escape(uni['desc'], quote=True)}">
   <meta property="og:image" content="{base}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Study-OS for {escape(uni['short'], quote=True)} — Canvas LMS and Timetable Sync">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{escape(uni['title'], quote=True)}">
   <meta name="twitter:description" content="{escape(uni['desc'], quote=True)}">
@@ -545,16 +620,7 @@ def generate_growth_seo_pages(
   <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
   <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="/pwa/study-os-192.png">
-  <link rel="stylesheet" href="../styles.css">
-{seo_page_style}
-  <style>
-    .uni-table-wrap {{ overflow-x: auto; margin-top: 10px; }}
-    .uni-table {{ width: 100%; border-collapse: collapse; font-size: 13.5px; }}
-    .uni-table th, .uni-table td {{ text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }}
-    .uni-table th {{ font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }}
-    .uni-acu {{ padding: 12px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line)); background: color-mix(in srgb, var(--accent) 6%, var(--panel)); margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; }}
-    .seo-stat strong {{ font-size: clamp(14px, 1.6vw, 18px); overflow-wrap: anywhere; line-height: 1.25; }}
-  </style>
+  <link rel="stylesheet" href="{escape(seo_css_sub, quote=True)}">
   <script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
@@ -571,20 +637,19 @@ def generate_growth_seo_pages(
     <article class="panel seo-hero">
       <span class="eyebrow">{escape(uni['name'])} · {escape(uni['canvas_host'])} · {escape(uni['timetable_name'])}</span>
       <h1>Study-OS for {escape(uni['short'])} Students — Canvas &amp; Timetable Sync</h1>
-      <div class="uni-acu">
-        <strong>Quick summary:</strong> Study-OS connects directly to <code>{escape(uni['canvas_host'])}</code> and <strong>{escape(uni['timetable_name'])}</strong> in 1 click (zero passwords copied), matches {escape(uni['short'])} courses to <strong>{total_qs}+ free practice questions</strong> &amp; <strong>{ref_count} formula sheets</strong>, and includes an instant inline PDF reader and AI tutor.
+      <div class="seo-acu">
+        <strong>Quick summary:</strong> Study-OS connects directly to <code>{escape(uni['canvas_host'])}</code> and <strong>{escape(uni['timetable_name'])}</strong> in 1 click (zero passwords copied), matches {escape(uni['short'])} courses to <strong>{total_qs:,} free practice questions</strong> &amp; <strong>{ref_count} formula sheets</strong>, and includes an instant inline PDF reader and AI tutor.
       </div>
-      <p class="seo-lead" lang="nb">{escape(uni['lead_nb'])}</p>
-      <p class="seo-lead" lang="en" style="font-size:14.5px;margin-top:-8px">{escape(uni['lead_en'])}</p>
+{lead_first}
       <div class="seo-cta-row">
         <a class="primary-btn btn-lg" href="../">Open Study-OS Workspace →</a>
-        <a class="ghost-btn btn-lg" href="../downloads/study-os-sync-extension.zip" download>Download Sync Extension (v1.6.0)</a>
+        <a class="ghost-btn btn-lg" href="../downloads/study-os-sync-extension.zip" download>Download Sync Extension (v{escape(ext_version)})</a>
         <a class="ghost-btn btn-lg" href="../gpa-calculator.html">Karaktersnitt Kalkulator</a>
       </div>
       <div class="seo-stats">
         <div class="seo-stat"><strong>{escape(uni['canvas_host'])}</strong><small>Auto-detected Canvas LMS</small></div>
         <div class="seo-stat"><strong>{escape(uni['timetable_name'].split(' ')[0])}</strong><small>Timetable (.ics / 1-click)</small></div>
-        <div class="seo-stat"><strong>{total_qs}+</strong><small>Practice questions</small></div>
+        <div class="seo-stat"><strong>{total_qs:,}</strong><small>Practice questions</small></div>
         <div class="seo-stat"><strong>0 kr</strong><small>Free · GDPR EU · No ads</small></div>
       </div>
     </article>
@@ -612,11 +677,11 @@ def generate_growth_seo_pages(
     <section class="panel seo-card" style="margin-bottom:16px">
       <span class="eyebrow">30-second setup · {escape(uni['exam_platform'])}</span>
       <h2>How to sync {escape(uni['short'])} Canvas &amp; {escape(uni['timetable_name'])}</h2>
-      <ol class="seo-topics" style="list-style:decimal;padding-left:20px;display:grid;gap:8px;margin-top:8px">
+      <ol class="seo-steps">
 {steps_html}      </ol>
       <div class="seo-cta-row" style="margin-top:12px">
         <a class="ghost-btn" href="{escape(uni['canvas_url'], quote=True)}" target="_blank" rel="noopener">Open {escape(uni['short'])} Canvas ↗</a>
-        <a class="ghost-btn" href="{escape(uni['timetable_url'], quote=True)}" target="_blank" rel="noopener">Open {escape(uni['timetable_name'])} ↗</a>
+        <a class="ghost-btn" href="{escape(tt_url, quote=True)}" target="_blank" rel="{tt_rel}">Open {escape(uni['timetable_name'])} ↗</a>
         <a class="ghost-btn" href="../bi-canvas-timeedit-sync.html">Full Extension Guide</a>
       </div>
     </section>
@@ -633,6 +698,7 @@ def generate_growth_seo_pages(
       <div class="seo-cta-row" style="margin-top:8px">
         <a class="ghost-btn" href="../bi-oslo.html">BI Oslo</a>
         {sibling_links}
+        <a class="ghost-btn" href="../wiseflow-practice.html">WISEflow Exams</a>
         <a class="ghost-btn" href="../compare.html">Study-OS vs Notion &amp; Anki</a>
       </div>
     </section>
@@ -642,10 +708,13 @@ def generate_growth_seo_pages(
       <nav aria-label="Footer links">
         <a href="../">App</a>
         <a href="../universities.html">Universities</a>
+        <a href="../norsk.html" lang="nb">Norsk</a>
         <a href="../gpa-calculator.html">GPA Calculator</a>
         <a href="../compare.html">Compare</a>
         <a href="../bi-canvas-timeedit-sync.html">Canvas Sync</a>
+        <a href="../notes.html">Notes</a>
         <a href="../privacy.html">Privacy</a>
+        <a href="../terms.html">Terms</a>
       </nav>
     </footer>
   </main>
@@ -655,18 +724,53 @@ def generate_growth_seo_pages(
         (uni_dir / f"{slug}.html").write_text(html, encoding="utf-8")
         sitemap_entries.append((page_url, "0.85", "weekly"))
 
+    # 1B. Clean `/uni/index.html` fallback (prevents GitHub Pages `/uni` -> `/uni/` 301->404 without duplicating `/universities.html`)
+    uni_index_links = "".join(
+        f'        <a class="ghost-btn" href="./{escape(u["slug"], quote=True)}.html">{escape(u["name"])}</a>\n'
+        for u in UNIVERSITIES
+    )
+    uni_index_html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, follow">
+  <link rel="canonical" href="{base}/universities.html">
+  <meta name="theme-color" id="meta-theme-color" content="#f3f5f7">
+{seo_theme_script}
+  <title>University Guides Directory · Study-OS</title>
+  <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="stylesheet" href="{escape(seo_css_sub, quote=True)}">
+</head>
+<body>
+  <main class="nf-shell">
+    <article class="panel nf-card">
+      <span class="eyebrow">Study-OS · Supported Universities</span>
+      <h1>University Canvas &amp; Timetable Guides</h1>
+      <p class="muted">Browse the full university compatibility directory or jump directly to your school guide below.</p>
+      <div class="nf-links">
+        <a class="primary-btn" href="../universities.html">Open Full Universities Directory →</a>
+        <a class="ghost-btn" href="../bi-oslo.html">BI Norwegian Business School (BI Oslo)</a>
+{uni_index_links}      </div>
+    </article>
+  </main>
+</body>
+</html>
+"""
+    (uni_dir / "index.html").write_text(uni_index_html, encoding="utf-8")
+
     # 2. Central Multi-University Hub (`/universities.html`)
-    hub_title = "Supported Universities · Canvas LMS, TimeEdit & TP Sync in Norway · Study-OS"
+    hub_title = "Supported Universities · Canvas, TimeEdit & TP Sync · Study-OS"
     hub_desc = (
-        f"Free Canvas LMS & timetable sync for BI Oslo, UiA, NTNU, UiO, NHH, UiB, OsloMet, and any *.instructure.com "
-        f"university worldwide — with {total_qs}+ practice questions, instant inline PDF reader, and AI tutor."
+        f"Free Canvas LMS & TimeEdit/TP sync for BI Oslo, UiA, NTNU, UiO, NHH, UiB, OsloMet, UiS, UiT, USN & any "
+        f"*.instructure.com school — {total_qs:,} questions & AI tutor."
     )
     hub_cards = [
         f"""      <article class="panel seo-card">
         <div>
           <span class="eyebrow">canvas.bi.no · TimeEdit · WISEflow</span>
           <h3>BI Norwegian Business School (BI Oslo)</h3>
-          <p>5 full course banks (EXC 3420, EXC 3430, EXC 3460, EBA 3400, EBA 1181), {total_qs}+ questions, WISEflow FLOWmulti simulator, and 1-click BI Canvas/TimeEdit sync.</p>
+          <p>5 full course banks (EXC 3420 / SØK 3420, EXC 3430 / BØK 3430, EXC 3460 / ORG 3460, EBA 3400, EBA 1181 / EBA 1180), {total_qs:,} questions, WISEflow FLOWmulti simulator, and 1-click BI Canvas/TimeEdit sync.</p>
         </div>
         <div class="seo-cta-row">
           <a class="primary-btn" href="./bi-oslo.html">BI Oslo Guide →</a>
@@ -689,6 +793,11 @@ def generate_growth_seo_pages(
       </article>\n"""
         )
 
+    extra_school_rows = "".join(
+        f"          <tr><td><strong>{escape(name)}</strong></td><td><code>{escape(host)}</code></td><td>{escape(tt)}</td><td>{escape(focus)}</td></tr>\n"
+        for name, host, tt, focus in EXTRA_NORWEGIAN_SCHOOLS
+    )
+
     hub_json_ld = {
         "@context": "https://schema.org",
         "@graph": [
@@ -699,9 +808,10 @@ def generate_growth_seo_pages(
                 "url": f"{base}/universities.html",
                 "description": hub_desc,
                 "image": f"{base}/og-image.png",
+                "dateModified": today,
                 "inLanguage": ["en", "nb"],
                 "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
-                "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
+                "publisher": _publisher_ld(base),
             },
             {
                 "@type": "ItemList",
@@ -724,14 +834,21 @@ def generate_growth_seo_pages(
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="{escape(hub_desc, quote=True)}">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="geo.region" content="NO">
+  <meta name="geo.placename" content="Norway">
   <link rel="canonical" href="{base}/universities.html">
   <link rel="alternate" type="text/markdown" href="{base}/universities.md" title="Supported Universities (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:locale:alternate" content="nb_NO">
   <meta property="og:url" content="{base}/universities.html">
   <meta property="og:title" content="{escape(hub_title, quote=True)}">
   <meta property="og:description" content="{escape(hub_desc, quote=True)}">
   <meta property="og:image" content="{base}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Study-OS Supported Norwegian and Global Canvas Universities">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{escape(hub_title, quote=True)}">
   <meta name="twitter:description" content="{escape(hub_desc, quote=True)}">
@@ -745,8 +862,7 @@ def generate_growth_seo_pages(
   <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
   <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="/pwa/study-os-192.png">
-  <link rel="stylesheet" href="./styles.css">
-{seo_page_style}
+  <link rel="stylesheet" href="{escape(seo_css_root, quote=True)}">
   <script type="application/ld+json">{json.dumps(hub_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
@@ -764,19 +880,44 @@ def generate_growth_seo_pages(
       <span class="eyebrow">Multi-University Directory · Canvas · TimeEdit · TP · Ed</span>
       <h1>Universities Supported by Study-OS</h1>
       <p class="seo-lead">{escape(hub_desc)}</p>
-      <p class="seo-lead" lang="nb" style="font-size:14.5px;margin-top:-8px">
-        Velg universitetet ditt under for oppsett av 1-klikks Canvas-synk, TimeEdit / TP-timeplan og matchede eksamensoppgaver — helt gratis uten skolepassord.
+      <p class="seo-lead seo-lead-sub" lang="nb">
+        Velg universitetet ditt under for oppsett av 1-klikks Canvas-synk (Study-OS Sync v{escape(ext_version)}), TimeEdit / TP-timeplan og matchede eksamensoppgaver — helt gratis uten skolepassord.
       </p>
       <div class="seo-cta-row">
         <a class="primary-btn btn-lg" href="./">Launch Study-OS →</a>
-        <a class="ghost-btn btn-lg" href="./bi-canvas-timeedit-sync.html">Canvas Sync Extension</a>
+        <a class="ghost-btn btn-lg" href="./bi-canvas-timeedit-sync.html">Canvas Sync Extension (v{escape(ext_version)})</a>
         <a class="ghost-btn btn-lg" href="./gpa-calculator.html">Karaktersnitt Kalkulator</a>
       </div>
     </article>
 
     <section>
+      <h2 style="margin:0 0 8px">Dedicated University Guides</h2>
       <div class="seo-grid">
 {"".join(hub_cards)}      </div>
+    </section>
+
+    <section class="panel seo-card" style="margin-bottom:16px">
+      <span class="eyebrow">Built-in host support · Study-OS Sync v{escape(ext_version)}</span>
+      <h2>More Norwegian Universities Supported Out of the Box</h2>
+      <p>Study-OS Sync v{escape(ext_version)} includes native Manifest V3 host permissions for all major Norwegian Canvas domains below — plus every global <code>*.instructure.com</code> school:</p>
+      <div class="seo-table-wrap">
+        <table class="seo-table">
+          <thead>
+            <tr>
+              <th>Institution</th>
+              <th>Canvas LMS Host</th>
+              <th>Timetable</th>
+              <th>Overlapping Subjects</th>
+            </tr>
+          </thead>
+          <tbody>
+{extra_school_rows}          </tbody>
+        </table>
+      </div>
+      <div class="seo-cta-row" style="margin-top:10px">
+        <a class="primary-btn" href="./bi-canvas-timeedit-sync.html">Install Sync Extension (v{escape(ext_version)}) →</a>
+        <a class="ghost-btn" href="./uni/canvas-lms.html">Any *.instructure.com Guide</a>
+      </div>
     </section>
 
     <footer class="seo-foot">
@@ -785,11 +926,13 @@ def generate_growth_seo_pages(
         <a href="./">App</a>
         <a href="./bi-oslo.html">BI Oslo</a>
         <a href="./norsk.html" lang="nb">Norsk</a>
+        <a href="./wiseflow-practice.html">WISEflow</a>
         <a href="./gpa-calculator.html">GPA Calculator</a>
         <a href="./compare.html">Compare</a>
         <a href="./bi-canvas-timeedit-sync.html">Canvas Sync</a>
         <a href="./notes.html">Notes</a>
         <a href="./privacy.html">Privacy</a>
+        <a href="./terms.html">Terms</a>
       </nav>
     </footer>
   </main>
@@ -800,10 +943,10 @@ def generate_growth_seo_pages(
     sitemap_entries.append((f"{base}/universities.html", "0.9", "weekly"))
 
     # 3. Free Zero-Auth Micro-Tool Link Magnet: Norwegian University GPA / Karaktersnitt Calculator (`/gpa-calculator.html`)
-    gpa_title = "Karaktersnitt Kalkulator Universitet (A–F & Studiepoeng) · ECTS GPA · Study-OS"
+    gpa_title = "Karaktersnitt & GPA Kalkulator (BI & Universitet) · Study-OS"
     gpa_desc = (
-        "Gratis karaktersnitt kalkulator for norske universiteter og høyskoler (BI, UiA, NTNU, UiO, NHH, UiB, OsloMet). "
-        "Vektet snitt med A=5 til E=1, studiepoeng (ECTS), og målsnitt-planlegger for masteropptak."
+        "Gratis GPA kalkulator for BI & norske universiteter (NHH, NTNU, UiO, UiA). "
+        "Regn ut snitt med studiepoeng (A=5 til E=1) og målsnitt for masteropptak."
     )
     gpa_faqs = GPA_FAQS
     gpa_faq_html = "".join(
@@ -821,11 +964,12 @@ def generate_growth_seo_pages(
                 "applicationCategory": "EducationalApplication",
                 "operatingSystem": "Web",
                 "isAccessibleForFree": True,
+                "dateModified": today,
                 "inLanguage": ["nb", "en"],
                 "description": gpa_desc,
                 "image": f"{base}/og-image.png",
                 "offers": {"@type": "Offer", "price": "0", "priceCurrency": "NOK"},
-                "publisher": {"@type": "Organization", "name": "Study-OS", "url": f"{base}/", "logo": {"@type": "ImageObject", "url": f"{base}/pwa/study-os-192.png", "width": 192, "height": 192}},
+                "publisher": _publisher_ld(base),
             },
             {
                 "@type": "FAQPage",
@@ -850,10 +994,15 @@ def generate_growth_seo_pages(
   <link rel="alternate" type="text/markdown" href="{base}/gpa-calculator.md" title="Karaktersnitt Kalkulator (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
+  <meta property="og:locale" content="nb_NO">
+  <meta property="og:locale:alternate" content="en_GB">
   <meta property="og:url" content="{base}/gpa-calculator.html">
   <meta property="og:title" content="{escape(gpa_title, quote=True)}">
   <meta property="og:description" content="{escape(gpa_desc, quote=True)}">
   <meta property="og:image" content="{base}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Study-OS Karaktersnitt Kalkulator for norske universiteter og høyskoler">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{escape(gpa_title, quote=True)}">
   <meta name="twitter:description" content="{escape(gpa_desc, quote=True)}">
@@ -867,21 +1016,7 @@ def generate_growth_seo_pages(
   <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
   <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="/pwa/study-os-192.png">
-  <link rel="stylesheet" href="./styles.css">
-{seo_page_style}
-  <style>
-    .gpa-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 10px; margin: 14px 0; }}
-    .gpa-kpi {{ padding: 14px 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--panel-alt); }}
-    .gpa-kpi strong {{ display: block; font-size: 28px; letter-spacing: -0.03em; color: var(--accent); }}
-    .gpa-kpi small {{ color: var(--muted); font-size: 12px; }}
-    .gpa-row {{ display: grid; grid-template-columns: 1fr 110px 100px 38px; gap: 8px; align-items: center; margin-bottom: 8px; }}
-    .gpa-row input, .gpa-row select {{ width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 13.5px; }}
-    @media (max-width: 600px) {{ .gpa-row {{ grid-template-columns: 1fr 84px 78px 34px; gap: 6px; }} }}
-    .gpa-target-box {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; align-items: end; margin-top: 10px; }}
-    .gpa-target-box label {{ display: grid; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }}
-    .gpa-target-box input {{ padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 14px; }}
-    .gpa-result-banner {{ margin-top: 12px; padding: 11px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--line)); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); font-size: 14px; }}
-  </style>
+  <link rel="stylesheet" href="{escape(seo_css_root, quote=True)}">
   <script type="application/ld+json">{json.dumps(gpa_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
@@ -896,10 +1031,10 @@ def generate_growth_seo_pages(
     </nav>
 
     <article class="panel seo-hero" style="margin-bottom:16px">
-      <span class="eyebrow">Gratis verktøy · Norske universiteter &amp; høyskoler (ECTS / Studiepoeng)</span>
-      <h1>Karaktersnitt Kalkulator (Universitet &amp; Høyskole)</h1>
+      <span class="eyebrow">Gratis verktøy · GPA Kalkulator BI &amp; Norske Universiteter (ECTS)</span>
+      <h1>Karaktersnitt &amp; GPA Kalkulator (BI &amp; Universitet)</h1>
       <p class="seo-lead" style="margin-bottom:12px">
-        Regn ut studiepoengvektet karaktersnitt (A = 5 til E = 1) og se nøyaktig hvilket snitt du trenger på gjenstående eksamener for masteropptak ved BI, NHH, UiA, NTNU, UiO, UiB eller OsloMet.
+        Vil du regne ut snitt på BI eller et norsk universitet? Beregn studiepoengvektet karaktersnitt (A = 5 til E = 1), omtrentlig 4.0-skala og nøyaktig hvilket snitt du trenger på gjenstående eksamener for masteropptak ved BI, NHH, UiA, NTNU, UiO, UiB eller OsloMet.
       </p>
 
       <div class="seo-cta-row" style="margin-bottom:10px">
@@ -940,13 +1075,41 @@ def generate_growth_seo_pages(
     </section>
 
     <section class="panel seo-card" style="margin-bottom:16px">
+      <span class="eyebrow">Norsk karakterskala (Universitet &amp; Høyskole · ECTS)</span>
+      <h2>Slik regner du ut vektet karaktersnitt med studiepoeng</h2>
+      <p>Formelen for vektet snitt i norsk høyere utdanning er <code>SUM(tallkarakter × studiepoeng) / SUM(graderte studiepoeng)</code>. Emner med <strong>Bestått (P)</strong> gir studiepoeng, men ekskluderes fra telleren og nevneren.</p>
+      <div class="seo-table-wrap">
+        <table class="seo-table">
+          <thead>
+            <tr>
+              <th>Bokstavkarakter</th>
+              <th>Tallverdi</th>
+              <th>Teller på snittet?</th>
+              <th>Beskrivelse</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>A</strong></td><td><code>5</code></td><td>Ja</td><td>Fremragende prestasjon</td></tr>
+            <tr><td><strong>B</strong></td><td><code>4</code></td><td>Ja</td><td>Meget god prestasjon</td></tr>
+            <tr><td><strong>C</strong></td><td><code>3</code></td><td>Ja</td><td>Jevnt god prestasjon</td></tr>
+            <tr><td><strong>D</strong></td><td><code>2</code></td><td>Ja</td><td>Nokså god prestasjon</td></tr>
+            <tr><td><strong>E</strong></td><td><code>1</code></td><td>Ja</td><td>Tilstrekkelig prestasjon</td></tr>
+            <tr><td><strong>F</strong></td><td><code>0</code></td><td>Nei</td><td>Ikke bestått</td></tr>
+            <tr><td><strong>Bestått (P)</strong></td><td>—</td><td>Nei</td><td>Gir studiepoeng, påvirker ikke snittet</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel seo-card" style="margin-bottom:16px">
       <span class="eyebrow">Løft snittet før neste eksamen</span>
       <h2>Øv smartere med Study-OS (helt gratis)</h2>
-      <p>Synk emnene dine fra Canvas (BI, UiA, NTNU, UiO, NHH, UiB, OsloMet) og timeplanen fra TimeEdit / TP, øv på over {total_qs}+ oppgaver med FSRS-repetisjon, og les forelesnings-PDF-er rett ved siden av oppgaven.</p>
+      <p>Synk emnene dine fra Canvas (BI, UiA, NTNU, UiO, NHH, UiB, OsloMet) og timeplanen fra TimeEdit / TP, øv på {total_qs:,} oppgaver med FSRS-repetisjon, og les forelesnings-PDF-er rett ved siden av oppgaven.</p>
       <div class="seo-cta-row" style="margin-top:10px">
         <a class="primary-btn" href="./">Åpne Study-OS →</a>
         <a class="ghost-btn" href="./universities.html">Velg universitet</a>
-        <a class="ghost-btn" href="./bi-canvas-timeedit-sync.html">Canvas Sync (v1.6.0)</a>
+        <a class="ghost-btn" href="./bi-canvas-timeedit-sync.html">Canvas Sync (v{escape(ext_version)})</a>
+        <a class="ghost-btn" href="./wiseflow-practice.html">WISEflow Eksamen</a>
       </div>
     </section>
 
@@ -963,8 +1126,11 @@ def generate_growth_seo_pages(
         <a href="./universities.html">Universities</a>
         <a href="./bi-oslo.html">BI Oslo</a>
         <a href="./norsk.html" lang="nb">Norsk</a>
+        <a href="./wiseflow-practice.html">WISEflow</a>
         <a href="./compare.html">Compare</a>
+        <a href="./notes.html">Notes</a>
         <a href="./privacy.html">Privacy</a>
+        <a href="./terms.html">Terms</a>
       </nav>
     </footer>
   </main>
@@ -1128,10 +1294,10 @@ def generate_growth_seo_pages(
     sitemap_entries.append((f"{base}/gpa-calculator.html", "0.9", "monthly"))
 
     # 4. Honest BOFU Comparison & Alternatives Page (`/compare.html`)
-    cmp_title = "Study-OS vs Notion, Anki & Quizlet for University Students (2026) · Study-OS"
+    cmp_title = "Study-OS vs Notion, Anki, Quizlet & Exam Portals (2026)"
     cmp_desc = (
-        "Honest comparison of Study-OS vs Notion, Anki, and Quizlet for Canvas LMS, TimeEdit/TP, and WISEflow "
-        "exam prep — including when Notion or Anki is actually the better choice."
+        "Honest comparison of Study-OS vs Notion, Anki, Quizlet, Studocu & EnkelEksamen for Canvas LMS, "
+        "TimeEdit/TP & WISEflow exam prep — including honest trade-offs."
     )
     cmp_faqs = COMPARE_FAQS
     cmp_faq_html = "".join(
@@ -1147,7 +1313,11 @@ def generate_growth_seo_pages(
                 "name": cmp_title,
                 "url": f"{base}/compare.html",
                 "description": cmp_desc,
+                "image": f"{base}/og-image.png",
+                "dateModified": today,
                 "inLanguage": ["en", "nb"],
+                "isPartOf": {"@type": "WebSite", "name": "Study-OS", "url": f"{base}/"},
+                "publisher": _publisher_ld(base),
             },
             {
                 "@type": "FAQPage",
@@ -1170,10 +1340,15 @@ def generate_growth_seo_pages(
   <link rel="alternate" type="text/markdown" href="{base}/compare.md" title="Study-OS Comparison (Markdown)">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Study-OS">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:locale:alternate" content="nb_NO">
   <meta property="og:url" content="{base}/compare.html">
   <meta property="og:title" content="{escape(cmp_title, quote=True)}">
   <meta property="og:description" content="{escape(cmp_desc, quote=True)}">
   <meta property="og:image" content="{base}/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Study-OS vs Notion, Anki, Quizlet, and Norwegian Exam Portals">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{escape(cmp_title, quote=True)}">
   <meta name="twitter:description" content="{escape(cmp_desc, quote=True)}">
@@ -1187,15 +1362,7 @@ def generate_growth_seo_pages(
   <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
   <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
   <link rel="apple-touch-icon" href="/pwa/study-os-192.png">
-  <link rel="stylesheet" href="./styles.css">
-{seo_page_style}
-  <style>
-    .cmp-wrap {{ overflow-x: auto; margin-top: 10px; }}
-    .cmp-table {{ width: 100%; border-collapse: collapse; font-size: 13.5px; }}
-    .cmp-table th, .cmp-table td {{ padding: 10px; text-align: left; border-bottom: 1px solid var(--line); }}
-    .cmp-table th {{ font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }}
-    .cmp-yes {{ color: var(--accent); font-weight: 700; }}
-  </style>
+  <link rel="stylesheet" href="{escape(seo_css_root, quote=True)}">
   <script type="application/ld+json">{json.dumps(cmp_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
@@ -1211,11 +1378,12 @@ def generate_growth_seo_pages(
 
     <article class="panel seo-hero">
       <span class="eyebrow">Canvas LMS &amp; Exam Prep Alternatives</span>
-      <h1>Study-OS vs Notion, Anki &amp; Quizlet for University Students</h1>
+      <h1>Study-OS vs Notion, Anki, Quizlet &amp; Paid Exam Portals</h1>
       <p class="seo-lead">{escape(cmp_desc)}</p>
       <div class="seo-cta-row">
         <a class="primary-btn btn-lg" href="./">Try Study-OS Free (No Login Needed) →</a>
         <a class="ghost-btn btn-lg" href="./bi-canvas-timeedit-sync.html">Canvas &amp; Timetable Sync</a>
+        <a class="ghost-btn btn-lg" href="./wiseflow-practice.html">WISEflow Simulator</a>
       </div>
     </article>
 
@@ -1231,16 +1399,18 @@ def generate_growth_seo_pages(
               <th>Notion</th>
               <th>Anki</th>
               <th>Quizlet</th>
+              <th>Paid NO Exam Portals (Eksamensportalen / EnkelEksamen / Studocu)</th>
             </tr>
           </thead>
           <tbody>
-            <tr><td><strong>1-Click Canvas LMS Sync (BI, UiA, UiO, NTNU, *.instructure.com)</strong></td><td class="cmp-yes">Built-in (v1.6)</td><td>Manual / paid plugins</td><td>No</td><td>No</td></tr>
-            <tr><td><strong>TimeEdit &amp; Norwegian TP (.ics) Auto-Scheduler</strong></td><td class="cmp-yes">Built-in</td><td>Manual calendar</td><td>No</td><td>No</td></tr>
-            <tr><td><strong>WISEflow FLOWmulti (±2% multi-box exam mode)</strong></td><td class="cmp-yes">Built-in</td><td>No</td><td>No</td><td>MCQ only</td></tr>
-            <tr><td><strong>Instant Split-Screen PDF + In-PDF Search (up to 260 MB local)</strong></td><td class="cmp-yes">Built-in (local)</td><td>5 MB free cap</td><td>Add-ons</td><td>Paid upload</td></tr>
-            <tr><td><strong>FSRS Spaced Repetition</strong></td><td class="cmp-yes">Built-in</td><td>Manual</td><td class="cmp-yes">Gold standard</td><td>Basic</td></tr>
-            <tr><td><strong>Long-Form Wiki &amp; Group Project Docs</strong></td><td>Basic notes</td><td class="cmp-yes">Best-in-class</td><td>No</td><td>No</td></tr>
-            <tr><td><strong>Price for Full Features</strong></td><td class="cmp-yes">100% Free (No ads)</td><td>Freemium + AI paid</td><td class="cmp-yes">Free (iOS paid)</td><td>Paywalled modes</td></tr>
+            <tr><td><strong>1-Click Canvas LMS Sync (BI, UiA, UiO, NTNU, *.instructure.com)</strong></td><td class="cmp-yes">Built-in (v{escape(ext_version)})</td><td>Manual / paid plugins</td><td>No</td><td>No</td><td>No</td></tr>
+            <tr><td><strong>TimeEdit &amp; Norwegian TP (.ics) Auto-Scheduler</strong></td><td class="cmp-yes">Built-in</td><td>Manual calendar</td><td>No</td><td>No</td><td>No</td></tr>
+            <tr><td><strong>WISEflow FLOWmulti (±2% multi-box exam mode)</strong></td><td class="cmp-yes">Built-in</td><td>No</td><td>No</td><td>MCQ only</td><td>Partial / paid</td></tr>
+            <tr><td><strong>Instant Split-Screen PDF + In-PDF Search (up to 260 MB local)</strong></td><td class="cmp-yes">Built-in (local)</td><td>5 MB free cap</td><td>Add-ons</td><td>Paid upload</td><td>Blurred / paywalled docs</td></tr>
+            <tr><td><strong>FSRS Spaced Repetition</strong></td><td class="cmp-yes">Built-in</td><td>Manual</td><td class="cmp-yes">Gold standard</td><td>Basic (paywalled)</td><td>Limited</td></tr>
+            <tr><td><strong>Long-Form Wiki &amp; Group Project Docs</strong></td><td>Basic notes</td><td class="cmp-yes">Best-in-class</td><td>No</td><td>No</td><td>No</td></tr>
+            <tr><td><strong>Pre-recorded Norwegian Video Courses</strong></td><td>No</td><td>No</td><td>No</td><td>No</td><td class="cmp-yes">Yes (EnkelEksamen)</td></tr>
+            <tr><td><strong>Price for Full Features</strong></td><td class="cmp-yes">100% Free (0 NOK)</td><td>Freemium + AI paid</td><td class="cmp-yes">Free (iOS paid)</td><td>Paywalled modes</td><td>Subscription / per-course fee</td></tr>
           </tbody>
         </table>
       </div>
@@ -1252,7 +1422,8 @@ def generate_growth_seo_pages(
       <ul class="seo-topics">
         <li><strong>Use Anki</strong> if you study medicine, languages, or anatomy and need 10,000+ atomic image-occlusion flashcards with heavy mobile-first review.</li>
         <li><strong>Use Notion or Obsidian</strong> as your primary long-form lecture-note wiki, thesis outline, or group-assignment hub (Study-OS pairs nicely with Obsidian notes!).</li>
-        <li><strong>Use Study-OS</strong> when you want your Canvas deadlines, TimeEdit/TP classes, exam-format practice (especially Economics, Accounting, Finance, Math, Python &amp; OB), instant side-by-side PDFs, and timed study blocks running in one zero-friction workspace.</li>
+        <li><strong>Use EnkelEksamen</strong> if you specifically want paid Norwegian video lectures recorded from scratch for a course you missed completely.</li>
+        <li><strong>Use Study-OS</strong> when you want your Canvas deadlines, TimeEdit/TP classes, exam-format practice (Economics, Accounting, Finance, Math, Python &amp; OB), WISEflow FLOWmulti drills, instant side-by-side PDFs, and timed study blocks running in one free workspace.</li>
       </ul>
     </section>
 
@@ -1270,8 +1441,11 @@ def generate_growth_seo_pages(
         <a href="./gpa-calculator.html">GPA Calculator</a>
         <a href="./bi-oslo.html">BI Oslo</a>
         <a href="./norsk.html" lang="nb">Norsk</a>
+        <a href="./wiseflow-practice.html">WISEflow</a>
         <a href="./bi-canvas-timeedit-sync.html">Canvas Sync</a>
+        <a href="./notes.html">Notes</a>
         <a href="./privacy.html">Privacy</a>
+        <a href="./terms.html">Terms</a>
       </nav>
     </footer>
   </main>

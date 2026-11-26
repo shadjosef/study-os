@@ -294,9 +294,19 @@ function buildExamNotebook(payload) {
   const subparts = [];
   let activeSub = null;
 
+  let skipStarterFence = false;
   for (const line of lines) {
-    if (/^\*\*Starter Code/i.test(line.trim())) {
+    const trimmed = line.trim();
+    if (/^\*\*Starter Code/i.test(trimmed)) {
       activeSub = null;
+      skipStarterFence = Boolean(starterCode);
+      continue;
+    }
+    if (skipStarterFence) {
+      if (/^```/.test(trimmed)) {
+        if (trimmed === '```') skipStarterFence = false;
+        continue;
+      }
       continue;
     }
     const m = line.match(subpartRe);
@@ -640,12 +650,18 @@ async function finishExerciseFlow() {
     return;
   }
   if (picked.action === 'reset') {
+    const now = Date.now();
     activeSession.accumSec = 0;
-    activeSession.startedAtMs = Date.now();
+    activeSession.startedAtMs = now;
+    activeSession.lastActivityMs = now;
     activeSession.paused = false;
     activeSession.pauseReason = '';
+    activeSession.subpartTimers = activeSession.activeSubpart
+      ? { [activeSession.activeSubpart]: { accumSec: 0, startedAtMs: now } }
+      : {};
     saveTimerElapsed(activeSession.key, 0);
     renderStatusBars();
+    codeLensEmitter.fire();
     return;
   }
   if (picked.action === 'stop') {
@@ -813,6 +829,7 @@ function activate(context) {
       if (activeSession) saveTimerElapsed(activeSession.key, currentElapsedSec(activeSession));
       activeSession = null;
       renderStatusBars();
+      codeLensEmitter.fire();
     }),
     vscode.window.registerUriHandler({
       async handleUri(uri) {

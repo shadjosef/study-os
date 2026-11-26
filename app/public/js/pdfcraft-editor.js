@@ -113,7 +113,7 @@ window.StudyPdfCraft = (() => {
         </div>
         <div class="pdfcraft-bar-actions">
           <button type="button" class="mini-tool-btn" id="pdfcraft-btn-download" title="Download PDF file" hidden>Download</button>
-          <a class="mini-tool-btn pdfcraft-credit-link" href="./pdfcraft/NOTICE" target="_blank" rel="noopener" title="PdfCraft open-source license &amp; notices">OSS</a>
+          <a class="mini-tool-btn pdfcraft-credit-link" href="./pdfcraft/NOTICE" target="_blank" rel="noopener nofollow" title="PdfCraft open-source license &amp; notices">OSS</a>
           <button type="button" class="mini-tool-btn pdfcraft-close-btn" id="pdfcraft-btn-close" title="Close PdfCraft (Esc)">Close</button>
         </div>
       </header>
