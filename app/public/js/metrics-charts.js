@@ -203,6 +203,442 @@ window.StudyMetrics = (() => {
     return step * pow;
   }
 
+  function reconcileDay(input) {
+    if (typeof window.StudyCore?.reconcileDayEfficiency === 'function') {
+      return window.StudyCore.reconcileDayEfficiency(input);
+    }
+    const safeActiveSec = Math.max(0, Number(input?.activeSec) || 0);
+    const safeScreenSec = Math.max(0, Number(input?.screenSec) || 0);
+    const safeSessAwaySec = Math.max(0, Number(input?.sessAwaySec) || 0);
+    const td = input?.telemetry && typeof input.telemetry === 'object' ? input.telemetry : null;
+    const solvingSec = Math.max(0, Number(td?.solvingSec) || 0);
+    const readingSec = Math.max(0, Number(td?.readingSec) || 0);
+    const extStudySec = Math.max(0, Number(td?.extStudySec) || 0);
+    const driftSec = Math.max(0, Number(td?.appBrowseSec) || 0)
+      + Math.max(0, Number(td?.afkIdleSec) || 0)
+      + Math.max(0, Number(td?.extDistractSec) || 0);
+    const telProdSec = solvingSec + readingSec + extStudySec;
+    const telTrackedSec = telProdSec + driftSec;
+    const reconciledProdSec = Math.max(telProdSec, safeActiveSec);
+    const hasExplicitFlag = typeof input?.hasScreenLog === 'boolean';
+    const hasRealScreen = Boolean((hasExplicitFlag ? input.hasScreenLog : safeScreenSec >= 60) || safeSessAwaySec > 0 || telTrackedSec >= 60);
+    const awayFallback = safeScreenSec === 0 && telTrackedSec === 0 ? safeSessAwaySec : 0;
+    const reconciledScreenSec = hasRealScreen
+      ? Math.max(safeScreenSec, telTrackedSec, reconciledProdSec + driftSec + awayFallback)
+      : reconciledProdSec;
+    const efficiencyPct = hasRealScreen && reconciledScreenSec >= 30
+      ? Math.min(100, Math.round((reconciledProdSec / reconciledScreenSec) * 100))
+      : null;
+    const reconciledSolvingSec = Math.max(solvingSec, Math.max(0, reconciledProdSec - readingSec - extStudySec));
+    return {
+      telProdSec,
+      telTrackedSec,
+      driftSec,
+      reconciledProdSec,
+      reconciledScreenSec,
+      hasRealScreen,
+      efficiencyPct,
+      reconciledSolvingSec,
+      syncedSolvingSec: Math.max(0, reconciledSolvingSec - solvingSec),
+    };
+  }
+
+  async function computeSha256Hex(text) {
+    try {
+      if (typeof crypto !== 'undefined' && crypto.subtle && typeof TextEncoder !== 'undefined') {
+        const bytes = new TextEncoder().encode(String(text));
+        const buf = await crypto.subtle.digest('SHA-256', bytes);
+        return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+      }
+    } catch {}
+    return 'unavailable';
+  }
+
+  function triggerBlobDownload(content, filename, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function renderConsistencyHeatmap(container, dailySeries, todayIso) {
+    if (!container) return;
+    if (typeof window.StudyCore?.buildOsloHeatmap !== 'function') {
+      container.hidden = true;
+      return;
+    }
+    const hm = window.StudyCore.buildOsloHeatmap(dailySeries, todayIso, 12);
+    const activePct = hm.totalDays > 0 ? Math.round((hm.activeDays / hm.totalDays) * 100) : 0;
+    const colCount = hm.columns.length;
+    const monthByCol = new Map(hm.monthLabels.map((m) => [m.colIndex, m.label]));
+    const dayLabels = ['Mon', '', 'Wed', '', 'Fri', '', ''];
+
+    const monthRowHtml = Array.from({ length: colCount }, (_, ci) => {
+      const lbl = monthByCol.get(ci) || '';
+      return `<span class="mc-hm-month-lbl">${esc(lbl)}</span>`;
+    }).join('');
+
+    const gridColsHtml = hm.columns.map((col, ci) => {
+      const cellsHtml = col.map((cell, rIdx) => {
+        if (!cell) {
+          return `<span class="mc-hm-cell is-pad" aria-hidden="true" data-row="${rIdx}"></span>`;
+        }
+        const label = `${fmtDateFull(cell.day)}: ${fmtHours(cell.activeMin)}, ${cell.attempts} Qs${cell.upi != null ? `, UPI ${cell.upi}` : ''}`;
+        return `<button type="button" class="mc-hm-cell lv-${cell.level}${cell.isToday ? ' is-today' : ''}" data-hm-day="${esc(cell.day)}" data-hm-col="${ci}" aria-label="${esc(label)}"></button>`;
+      }).join('');
+      return `<div class="mc-hm-col">${cellsHtml}</div>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="mc-card-head">
+        <div>
+          <h3 class="mc-card-title">12-Week Oslo Consistency Heatmap</h3>
+          <p class="mc-card-sub">${hm.totalDays}-day rolling activity ledger (${esc(fmtDateShort(hm.startDay))} – ${esc(fmtDateShort(hm.endDay))} · Europe/Oslo)</p>
+        </div>
+        <div class="mc-hm-legend" aria-label="Activity intensity scale">
+          <span>Less</span>
+          <i class="mc-hm-swatch lv-0" title="Inactive"></i>
+          <i class="mc-hm-swatch lv-1" title="Under 45m"></i>
+          <i class="mc-hm-swatch lv-2" title="45m – 2h"></i>
+          <i class="mc-hm-swatch lv-3" title="2h – 4h"></i>
+          <i class="mc-hm-swatch lv-4" title="4h+ deep day"></i>
+          <span>More</span>
+        </div>
+      </div>
+      <div class="mc-hm-layout">
+        <div class="mc-hm-stage" style="--hm-cols:${colCount}">
+          <div class="mc-hm-months">
+            <span class="mc-hm-corner" aria-hidden="true"></span>
+            ${monthRowHtml}
+          </div>
+          <div class="mc-hm-body">
+            <div class="mc-hm-days" aria-hidden="true">
+              ${dayLabels.map((d) => `<span>${esc(d)}</span>`).join('')}
+            </div>
+            <div class="mc-hm-grid" role="grid" aria-label="12-week Oslo study consistency">
+              ${gridColsHtml}
+            </div>
+          </div>
+          <div class="mc-tooltip mc-hm-tooltip" hidden></div>
+        </div>
+        <div class="mc-hm-stats">
+          <div class="mc-hm-stat">
+            <small>Current Streak</small>
+            <b>${hm.currentStreak}d</b>
+            <span>Consecutive Oslo days</span>
+          </div>
+          <div class="mc-hm-stat">
+            <small>Longest Streak</small>
+            <b>${hm.longestStreak}d</b>
+            <span>Best 12-week run</span>
+          </div>
+          <div class="mc-hm-stat">
+            <small>Active Days</small>
+            <b>${hm.activeDays} / ${hm.totalDays}</b>
+            <span>${activePct}% consistency</span>
+          </div>
+          <div class="mc-hm-stat">
+            <small>12-Week Volume</small>
+            <b>${esc(fmtHours(hm.totalActiveMin))}</b>
+            <span>${hm.totalAttempts} verified Qs</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const cellByDay = new Map(hm.cells.map((c) => [c.day, c]));
+    const stage = container.querySelector('.mc-hm-stage');
+    const tip = container.querySelector('.mc-hm-tooltip');
+    if (!stage || !tip) return;
+
+    const showCell = (btn) => {
+      const cell = cellByDay.get(btn.dataset.hmDay);
+      if (!cell) return;
+      const title = cell.isToday ? `${fmtDateFull(cell.day)} · TODAY` : fmtDateFull(cell.day);
+      tip.innerHTML = `
+        <div class="mc-tt-head">${esc(title)}</div>
+        <div class="mc-tt-row"><span><i style="background:#10b981"></i>Active Study</span><b>${esc(fmtHours(cell.activeMin))}</b></div>
+        <div class="mc-tt-row"><span><i style="background:#0ea5e9"></i>Questions</span><b>${cell.attempts} Qs</b></div>
+        <div class="mc-tt-row"><span><i style="background:#f59e0b"></i>UPI Score</span><b>${cell.upi ?? '—'}</b></div>
+        <div class="mc-tt-sub">${cell.efficiencyPct != null ? `${cell.efficiencyPct}% focus efficiency` : cell.level > 0 ? 'Logged study activity' : 'Rest / no logged activity'}</div>
+      `;
+      tip.hidden = false;
+      const colIdx = Number(btn.dataset.hmCol) || 0;
+      const pctX = colCount > 1 ? (colIdx / (colCount - 1)) * 100 : 50;
+      if (pctX > 55) {
+        tip.style.left = 'auto';
+        tip.style.right = '8px';
+      } else {
+        tip.style.right = 'auto';
+        tip.style.left = '8px';
+      }
+    };
+    const hideTip = () => {
+      tip.hidden = true;
+    };
+
+    container.querySelectorAll('.mc-hm-cell[data-hm-day]').forEach((btn) => {
+      btn.addEventListener('pointerenter', () => showCell(btn));
+      btn.addEventListener('focus', () => showCell(btn));
+      btn.addEventListener('click', () => showCell(btn));
+    });
+    stage.addEventListener('pointerleave', hideTip);
+  }
+
+  function renderFsrsForecastCard(container, fsrsCards, catalog) {
+    if (!container) return;
+    if (typeof window.StudyCore?.computeFsrsForecast !== 'function') {
+      container.hidden = true;
+      return;
+    }
+    const forecast = window.StudyCore.computeFsrsForecast(fsrsCards, Date.now(), 14);
+    const courseCodeMap = Object.fromEntries((catalog || []).map((c) => [c.courseId, c.code || c.shortTitle || c.courseId]));
+    const avgR = forecast.avgRetrievabilityPct;
+    const rTone = avgR == null ? '' : avgR >= 85 ? 'good' : avgR >= 70 ? 'gold' : 'debt';
+    const overdueTone = forecast.overdueCount > 0 ? 'debt' : 'good';
+
+    container.innerHTML = `
+      <div class="mc-card-head">
+        <div>
+          <h3 class="mc-card-title">Memory Retention &amp; 14-Day Forecast</h3>
+          <p class="mc-card-sub">FSRS-5 retrievability &amp; upcoming review load across ${forecast.trackedCards} tracked card${forecast.trackedCards === 1 ? '' : 's'}</p>
+        </div>
+        <span class="badge ${rTone}">${avgR != null ? `${avgR}% avg recall` : 'No cards yet'}</span>
+      </div>
+      <div class="mc-fsrs-kpis">
+        <div class="mc-fsrs-pill"><small>Retrievability</small><b>${avgR != null ? `${avgR}%` : '—'}</b></div>
+        <div class="mc-fsrs-pill ${overdueTone}"><small>Overdue Now</small><b>${forecast.overdueCount}</b></div>
+        <div class="mc-fsrs-pill"><small>At-Risk (&lt;80%)</small><b>${forecast.atRiskCount}</b></div>
+        <div class="mc-fsrs-pill"><small>Next 14d Load</small><b>${forecast.dueNext14Days}</b></div>
+      </div>
+      <div class="mc-legend">
+        <span class="mc-leg-item"><i style="background:#ef4444"></i>Overdue / Due now</span>
+        <span class="mc-leg-item"><i style="background:#0f766e"></i>Scheduled FSRS reviews</span>
+        ${forecast.stableCount > 0 ? `<span class="mc-leg-item"><i style="background:#0ea5e9"></i>${forecast.stableCount} consolidated (≥7d)</span>` : ''}
+      </div>
+      <div id="mc-fsrs-chart"></div>
+    `;
+
+    const host = container.querySelector('#mc-fsrs-chart');
+    if (!host) return;
+    if (!forecast.trackedCards) {
+      host.innerHTML = '<div class="mc-empty">Complete graded exercises to build your FSRS-5 memory curve and 14-day review schedule.</div>';
+      return;
+    }
+
+    const buckets = forecast.buckets;
+    const W = 520;
+    const H = 195;
+    const pad = { top: 14, right: 16, bottom: 28, left: 36 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+    const n = buckets.length;
+    const slotW = plotW / Math.max(1, n);
+    const barW = Math.max(8, Math.min(24, slotW * 0.64));
+    const maxCount = niceMax(Math.max(...buckets.map((b) => b.count), 2) * 1.15, 2);
+
+    const xOf = (i) => pad.left + (i + 0.5) * slotW;
+    const yOf = (v) => pad.top + plotH - (Math.max(0, Math.min(maxCount, v)) / maxCount) * plotH;
+
+    const gridSvg = [0, 0.5, 1].map((t) => {
+      const y = pad.top + plotH * (1 - t);
+      return `
+        <line x1="${pad.left}" y1="${y.toFixed(1)}" x2="${W - pad.right}" y2="${y.toFixed(1)}" class="mc-grid-line" />
+        <text x="${pad.left - 6}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" class="mc-axis-lbl">${Math.round(maxCount * t)}</text>
+      `;
+    }).join('');
+
+    const barsSvg = buckets.map((b, i) => {
+      const cx = xOf(i);
+      const bx = cx - barW / 2;
+      const parts = [];
+      let acc = 0;
+      if (b.overdueCount > 0) {
+        const yTop = yOf(acc + b.overdueCount);
+        const yBot = yOf(acc);
+        parts.push(`<rect x="${bx.toFixed(1)}" y="${yTop.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(2, yBot - yTop).toFixed(1)}" rx="2" fill="#ef4444" class="mc-bar-fg" data-idx="${i}" />`);
+        acc += b.overdueCount;
+      }
+      if (b.scheduledCount > 0) {
+        const yTop = yOf(acc + b.scheduledCount);
+        const yBot = yOf(acc);
+        parts.push(`<rect x="${bx.toFixed(1)}" y="${yTop.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(2, yBot - yTop).toFixed(1)}" rx="2" fill="#0f766e" class="mc-bar-fg ${b.isToday ? 'is-today' : ''}" data-idx="${i}" />`);
+      }
+      return parts.join('');
+    }).join('');
+
+    const xLabelsSvg = buckets.map((b, i) => {
+      if (i !== 0 && i !== n - 1 && i % 3 !== 0) return '';
+      if (i !== n - 1 && n - 1 - i === 1) return '';
+      return `<text x="${xOf(i).toFixed(1)}" y="${H - 7}" text-anchor="middle" class="mc-axis-lbl ${b.isToday ? 'is-today' : ''}">${esc(b.label)}</text>`;
+    }).join('');
+
+    const hitColsSvg = buckets.map((_, i) => {
+      const x0 = pad.left + i * slotW;
+      return `<rect x="${x0.toFixed(1)}" y="${pad.top}" width="${slotW.toFixed(1)}" height="${plotH}" fill="transparent" class="mc-hit" data-hit="${i}" />`;
+    }).join('');
+
+    host.innerHTML = `
+      <div class="mc-svg-stage">
+        <svg viewBox="0 0 ${W} ${H}" class="mc-svg" role="img" aria-label="FSRS 14-day review forecast">
+          ${gridSvg}
+          <g class="mc-bars">${barsSvg}</g>
+          <line x1="0" y1="${pad.top}" x2="0" y2="${pad.top + plotH}" class="mc-crosshair" hidden />
+          <g class="mc-x-labels">${xLabelsSvg}</g>
+          <g class="mc-hits">${hitColsSvg}</g>
+        </svg>
+        <div class="mc-tooltip" hidden></div>
+      </div>
+    `;
+
+    bindChartHover(host, buckets, {
+      xOf,
+      W,
+      renderTooltip: (b) => {
+        const courseRows = Object.entries(b.byCourse || {})
+          .sort((x, y) => y[1] - x[1])
+          .slice(0, 3)
+          .map(([cid, cnt]) => `${esc(courseCodeMap[cid] || cid)}: ${cnt}`)
+          .join(' · ');
+        return `
+          <div class="mc-tt-head">${esc(b.isToday ? `${fmtDateFull(b.day)} · TODAY` : fmtDateFull(b.day))}</div>
+          <div class="mc-tt-row"><span><i style="background:#0f766e"></i>Total Due</span><b>${b.count} card${b.count === 1 ? '' : 's'}</b></div>
+          ${b.overdueCount > 0 ? `<div class="mc-tt-row"><span><i style="background:#ef4444"></i>Overdue Now</span><b>${b.overdueCount}</b></div>` : ''}
+          ${b.scheduledCount > 0 ? `<div class="mc-tt-row"><span><i style="background:#10b981"></i>Scheduled</span><b>${b.scheduledCount}</b></div>` : ''}
+          <div class="mc-tt-sub">${courseRows || (b.count === 0 ? 'Light day — 0 reviews due' : 'FSRS-5 spaced schedule')}</div>
+        `;
+      },
+    });
+  }
+
+  function renderHourlyPeakCard(container, attempts) {
+    if (!container) return;
+    if (typeof window.StudyCore?.computeHourlyPerformance !== 'function') {
+      container.hidden = true;
+      return;
+    }
+    const hourly = window.StudyCore.computeHourlyPerformance(attempts, 'Europe/Oslo');
+    const peak = hourly.peakHour;
+    const peakBadge = peak
+      ? `<span class="badge gold">Peak: ${esc(peak.rangeLabel)} Oslo${peak.upi != null ? ` · UPI ${peak.upi}` : ''}</span>`
+      : '<span class="badge">Awaiting attempts</span>';
+
+    container.innerHTML = `
+      <div class="mc-card-head">
+        <div>
+          <h3 class="mc-card-title">Peak Performance by Oslo Hour</h3>
+          <p class="mc-card-sub">Circadian sweet spots across the 24-hour clock (${hourly.totalAttempts} timed attempt${hourly.totalAttempts === 1 ? '' : 's'})</p>
+        </div>
+        ${peakBadge}
+      </div>
+      <div class="mc-legend">
+        <span class="mc-leg-item"><i style="background:#0f766e"></i>Active Study Time</span>
+        <span class="mc-leg-item"><i style="background:#f59e0b"></i>#1 Peak Oslo Window &amp; UPI</span>
+        ${peak?.beatAiRatePct != null ? `<span class="mc-leg-item">Peak Beat-AI: <b>${peak.beatAiRatePct}%</b></span>` : ''}
+      </div>
+      <div id="mc-hourly-chart"></div>
+    `;
+
+    const host = container.querySelector('#mc-hourly-chart');
+    if (!host) return;
+    if (!hourly.totalAttempts) {
+      host.innerHTML = '<div class="mc-empty">Log timed attempts to uncover your peak Oslo cognitive performance window.</div>';
+      return;
+    }
+
+    const buckets = hourly.hours;
+    const W = 520;
+    const H = 195;
+    const pad = { top: 14, right: 38, bottom: 28, left: 40 };
+    const plotW = W - pad.left - pad.right;
+    const plotH = H - pad.top - pad.bottom;
+    const n = buckets.length;
+    const slotW = plotW / n;
+    const barW = Math.max(6, Math.min(14, slotW * 0.64));
+    const maxHrs = niceMax(Math.max(...buckets.map((b) => b.activeMin / 60), 0.25) * 1.15, 0.5);
+    const maxUpi = 120;
+
+    const xOf = (i) => pad.left + (i + 0.5) * slotW;
+    const yBar = (v) => pad.top + plotH - (Math.max(0, Math.min(maxHrs, v)) / maxHrs) * plotH;
+    const yUpi = (v) => pad.top + plotH - (Math.max(0, Math.min(maxUpi, v)) / maxUpi) * plotH;
+
+    const gridSvg = [0, 0.5, 1].map((t) => {
+      const y = pad.top + plotH * (1 - t);
+      return `
+        <line x1="${pad.left}" y1="${y.toFixed(1)}" x2="${W - pad.right}" y2="${y.toFixed(1)}" class="mc-grid-line" />
+        <text x="${pad.left - 6}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" class="mc-axis-lbl">${esc(fmtAxisVal(maxHrs * t, 'h'))}</text>
+        <text x="${W - pad.right + 6}" y="${(y + 3.5).toFixed(1)}" text-anchor="start" class="mc-axis-lbl">${Math.round(maxUpi * t)}</text>
+      `;
+    }).join('');
+
+    const barsSvg = buckets.map((b, i) => {
+      const v = b.activeMin / 60;
+      if (v <= 0) return '';
+      const bx = xOf(i) - barW / 2;
+      const yFg = yBar(v);
+      const hFg = Math.max(2, pad.top + plotH - yFg);
+      const color = b.isPeak ? '#f59e0b' : '#0f766e';
+      return `<rect x="${bx.toFixed(1)}" y="${yFg.toFixed(1)}" width="${barW.toFixed(1)}" height="${hFg.toFixed(1)}" rx="2" fill="${color}" class="mc-bar-fg ${b.isPeak ? 'is-peak' : ''}" data-idx="${i}" />`;
+    }).join('');
+
+    let linePath = '';
+    let prevValid = false;
+    const dotsSvg = [];
+    buckets.forEach((b, i) => {
+      if (b.upi == null) {
+        prevValid = false;
+        return;
+      }
+      const x = xOf(i);
+      const y = yUpi(b.upi);
+      linePath += `${prevValid ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)} `;
+      prevValid = true;
+      dotsSvg.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${b.isPeak ? 4 : 2.3}" fill="#f59e0b" class="mc-line-dot" data-dot="${i}" />`);
+    });
+
+    const xLabelsSvg = buckets.map((b, i) => {
+      if (i % 3 !== 0 && i !== 23) return '';
+      return `<text x="${xOf(i).toFixed(1)}" y="${H - 7}" text-anchor="middle" class="mc-axis-lbl ${b.isPeak ? 'is-today' : ''}">${esc(b.label)}</text>`;
+    }).join('');
+
+    const hitColsSvg = buckets.map((_, i) => {
+      const x0 = pad.left + i * slotW;
+      return `<rect x="${x0.toFixed(1)}" y="${pad.top}" width="${slotW.toFixed(1)}" height="${plotH}" fill="transparent" class="mc-hit" data-hit="${i}" />`;
+    }).join('');
+
+    host.innerHTML = `
+      <div class="mc-svg-stage">
+        <svg viewBox="0 0 ${W} ${H}" class="mc-svg" role="img" aria-label="Peak performance by Oslo hour">
+          ${gridSvg}
+          <g class="mc-bars">${barsSvg}</g>
+          ${linePath ? `<path d="${linePath.trim()}" fill="none" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" class="mc-line-path" />` : ''}
+          <g class="mc-dots">${dotsSvg.join('')}</g>
+          <line x1="0" y1="${pad.top}" x2="0" y2="${pad.top + plotH}" class="mc-crosshair" hidden />
+          <g class="mc-x-labels">${xLabelsSvg}</g>
+          <g class="mc-hits">${hitColsSvg}</g>
+        </svg>
+        <div class="mc-tooltip" hidden></div>
+      </div>
+    `;
+
+    bindChartHover(host, buckets, {
+      xOf,
+      W,
+      renderTooltip: (b) => `
+        <div class="mc-tt-head">${esc(b.rangeLabel)} OSLO${b.isPeak ? ' · #1 PEAK' : ''}</div>
+        <div class="mc-tt-row"><span><i style="background:${b.isPeak ? '#f59e0b' : '#0f766e'}"></i>Active Study</span><b>${esc(fmtHours(b.activeMin))}</b></div>
+        <div class="mc-tt-row"><span><i style="background:#f59e0b"></i>UPI Score</span><b>${b.upi ?? '—'}</b></div>
+        <div class="mc-tt-row"><span><i style="background:#0ea5e9"></i>Beat AI Par</span><b>${b.beatAiRatePct != null ? `${b.beatAiRatePct}%` : '—'}</b></div>
+        <div class="mc-tt-sub">${b.attempts} Qs${b.accuracyPct != null ? ` · ${b.accuracyPct}% acc` : ''}${b.avgPaceRatio != null ? ` · ${b.avgPaceRatio.toFixed(2)}× par` : ''}</div>
+      `,
+    });
+  }
+
   // Interactive SVG Dual-Axis Combo Chart (Blockworks Research aesthetic)
   function mountComboChart(host, buckets, cfg) {
     if (!host) return;
@@ -629,20 +1065,50 @@ window.StudyMetrics = (() => {
     const dailySeries = Array.isArray(a.dailySeries) ? a.dailySeries : [];
     const catalog = ctx.catalog || [];
     const scr = window.StudyUI?.workClock?.getScreenStats?.() || {};
+    const tel = window.StudyUI?.workClock?.getTelemetrySummary?.() || a.telemetrySummary || null;
+    const todaySeriesRow = dailySeries.find((d) => d.isToday) || null;
+    const telToday = tel?.today || todaySeriesRow?.telemetry || {};
 
     const todayActiveMin = Number(a.today?.totalActiveMinutes || 0);
-    const screenSec = Number(scr.screenSec || 0);
-    const liveActiveMin = Math.max(todayActiveMin, Math.round((Number(a.today?.liveActiveSec || 0)) / 60));
-    const screenMin = Math.max(liveActiveMin, Math.round(screenSec / 60));
-    const effToday = screenMin > 0 ? Math.min(100, Math.round((liveActiveMin / screenMin) * 100)) : null;
-    const effTone = effToday == null ? '' : effToday >= 70 ? 'good' : effToday >= 45 ? 'gold' : 'debt';
-    const effVerdict = effToday == null
-      ? 'Start a run to measure'
-      : effToday >= 72
-      ? `${effToday}% focused`
-      : effToday >= 48
-      ? `${effToday}% active · moderate drift`
-      : `${effToday}% active · high idle screen time`;
+    const screenSec = Math.max(
+      Number(scr.screenSec || 0),
+      Math.round((Number(todaySeriesRow?.screenMin || 0)) * 60)
+    );
+    const liveActiveSec = Math.max(
+      Math.round(todayActiveMin * 60),
+      Math.round((Number(todaySeriesRow?.activeMin || 0)) * 60),
+      Number(a.today?.liveActiveSec || 0)
+    );
+    const sessAwaySec = Math.round((Number(db.todayAwayMinutes || 0)) * 60);
+    const hasTodayScreenLog = Boolean(
+      todaySeriesRow?.hasScreenLog ||
+      Number(scr.screenSec || 0) >= 60 ||
+      sessAwaySec > 0 ||
+      ((Number(telToday.solvingSec) || 0) +
+        (Number(telToday.readingSec) || 0) +
+        (Number(telToday.appBrowseSec) || 0) +
+        (Number(telToday.afkIdleSec) || 0) +
+        (Number(telToday.extStudySec) || 0) +
+        (Number(telToday.extDistractSec) || 0)) >= 60
+    );
+    const todayRec = reconcileDay({
+      activeSec: liveActiveSec,
+      screenSec,
+      sessAwaySec,
+      hasScreenLog: hasTodayScreenLog,
+      telemetry: telToday,
+    });
+    const liveActiveMin = Math.round((todayRec.reconciledProdSec / 60) * 10) / 10;
+    const screenMin = Math.round((todayRec.reconciledScreenSec / 60) * 10) / 10;
+    const honestEff = todayRec.efficiencyPct;
+
+    // Keep Today's chart row 100% synchronized with KPI efficiency badge
+    if (todaySeriesRow) {
+      todaySeriesRow.activeMin = Math.max(Number(todaySeriesRow.activeMin || 0), liveActiveMin);
+      todaySeriesRow.screenMin = Math.max(Number(todaySeriesRow.screenMin || 0), screenMin, todaySeriesRow.activeMin);
+      todaySeriesRow.hasScreenLog = Boolean(todaySeriesRow.hasScreenLog || todayRec.hasRealScreen);
+      todaySeriesRow.efficiencyPct = honestEff;
+    }
 
     const pace = ov.avgPaceRatio;
     const paceDeltaPct = pace != null ? Math.round((pace - 1) * 100) : null;
@@ -717,8 +1183,6 @@ window.StudyMetrics = (() => {
       )
       .join('');
 
-    const tel = window.StudyUI?.workClock?.getTelemetrySummary?.() || a.telemetrySummary || null;
-    const telToday = tel?.today || {};
     const paperOn = Boolean(window.StudyUI?.workClock?.isPaperMode?.());
     const ver = a.verification || { auto_graded: 0, ide_verified: 0, self_verified: 0, fast_flag: 0 };
     const fmtSecMin = (s) => {
@@ -726,7 +1190,12 @@ window.StudyMetrics = (() => {
       return m >= 60 ? `${(m / 60).toFixed(1)}h` : `${m}m`;
     };
     const hasExtTel = (Number(telToday.extStudySec) || 0) + (Number(telToday.extDistractSec) || 0) > 0;
-    const honestEff = tel?.honestEfficiencyPct ?? effToday;
+    const hasAnyExtSource = hasExtTel || Object.values(tel?.byDay || {}).some(
+      (d) => (Number(d?.extStudySec) || 0) + (Number(d?.extDistractSec) || 0) > 0
+    );
+    const hasLedgerSource = (Number(tel?.bucketCount) || 0) > 0 || todayRec.telTrackedSec >= 60;
+    const hasAttemptsSource = (Number(a.totalAttempts) || 0) > 0 || (Array.isArray(ctx.attempts) && ctx.attempts.length > 0);
+    const hasIdeSource = (Number(ver.ide_verified) || 0) > 0;
     const effToneHonest = honestEff == null ? '' : honestEff >= 70 ? 'good' : honestEff >= 45 ? 'gold' : 'debt';
     const effVerdictHonest = honestEff == null
       ? 'Start a run to measure'
@@ -735,6 +1204,12 @@ window.StudyMetrics = (() => {
       : honestEff >= 48
       ? `${honestEff}% active · moderate drift`
       : `${honestEff}% active · high idle / browse time`;
+    const solvingTitle = todayRec.syncedSolvingSec >= 60
+      ? `Reconciled solving time: ${fmtSecMin(telToday.solvingSec)} live tab + ${fmtSecMin(todayRec.syncedSolvingSec)} logged/synced attempts`
+      : 'Active solving time logged today';
+    const screenDisplayVal = Number(scr.screenSec || 0) >= todayRec.reconciledScreenSec && scr.screenLabel
+      ? scr.screenLabel
+      : fmtHours(screenMin);
 
     root.innerHTML = `
       <div class="mc-top-head">
@@ -746,8 +1221,11 @@ window.StudyMetrics = (() => {
           <button type="button" class="mini-tool-btn ${paperOn ? 'active' : ''}" id="btn-mc-paper-mode" title="Keep active solving time running while working on paper or in an IDE without counting as AFK">
             ${paperOn ? '📝 Paper / IDE Mode: ON' : '📝 Paper / IDE Mode'}
           </button>
-          <button type="button" class="mini-tool-btn" id="btn-mc-export-telemetry" title="Download raw immutable 5m telemetry buckets + per-device daily ledger as JSON">
+          <button type="button" class="mini-tool-btn" id="btn-mc-export-telemetry" title="Download verifiable Telemetry Ledger JSON with SHA-256 integrity digest">
             Export Telemetry JSON
+          </button>
+          <button type="button" class="mini-tool-btn" id="btn-mc-export-csv" title="Download RFC-4180 CSV of daily ledger and logged attempts">
+            Export CSV
           </button>
           <span class="mc-live-pill"><i aria-hidden="true"></i>LIVE · Oslo</span>
         </div>
@@ -766,7 +1244,7 @@ window.StudyMetrics = (() => {
         <div class="mc-kpi-card">
           <div class="mc-kpi-label">Screen Time vs Work</div>
           <div class="mc-kpi-val-row">
-            <b id="mc-live-screen-today">${esc(screenSec >= liveActiveMin * 60 && scr.screenLabel ? scr.screenLabel : fmtHours(screenMin))}</b>
+            <b id="mc-live-screen-today">${esc(screenDisplayVal)}</b>
             <span class="badge ${effToneHonest}" id="mc-live-eff-badge">${honestEff != null ? `${honestEff}% active` : 'Idle'}</span>
           </div>
           <small class="muted" id="mc-live-screen-sub">${esc(effVerdictHonest)} · ${esc(scr.offScreenLabel || fmtHours(db.todayAwayMinutes || 0))} off-screen</small>
@@ -803,7 +1281,7 @@ window.StudyMetrics = (() => {
       <div class="mc-telemetry-strip">
         <div class="mc-tel-group">
           <span class="mc-tel-lbl">Today Breakdown</span>
-          <span class="mc-tel-chip is-solve">Solving <b>${esc(fmtSecMin(telToday.solvingSec))}</b></span>
+          <span class="mc-tel-chip is-solve" title="${esc(solvingTitle)}">Solving <b id="mc-tel-solving-val">${esc(fmtSecMin(todayRec.reconciledSolvingSec))}</b>${todayRec.syncedSolvingSec >= 60 ? `<em class="mc-tel-note">incl. ${esc(fmtSecMin(todayRec.syncedSolvingSec))} synced</em>` : ''}</span>
           <span class="mc-tel-chip is-read">Reading <b>${esc(fmtSecMin(telToday.readingSec))}</b></span>
           <span class="mc-tel-chip is-browse">App Browse <b>${esc(fmtSecMin(telToday.appBrowseSec))}</b></span>
           <span class="mc-tel-chip is-afk">AFK Idle <b>${esc(fmtSecMin(telToday.afkIdleSec))}</b></span>
@@ -816,6 +1294,13 @@ window.StudyMetrics = (() => {
           <span class="mc-tel-chip is-read">IDE Verified <b>${ver.ide_verified || 0}</b></span>
           <span class="mc-tel-chip is-browse">Self-check <b>${ver.self_verified || 0}</b></span>
           ${ver.fast_flag > 0 ? `<span class="mc-tel-chip is-afk">Fast-flagged <b>${ver.fast_flag}</b></span>` : ''}
+        </div>
+        <div class="mc-tel-group mc-tel-sources">
+          <span class="mc-tel-lbl">Data Sources</span>
+          <span class="mc-tel-chip mc-src-chip ${hasLedgerSource ? 'is-on' : 'is-off'}"><i aria-hidden="true"></i>Browser 5m Ledger</span>
+          <span class="mc-tel-chip mc-src-chip ${hasAttemptsSource ? 'is-on' : 'is-off'}"><i aria-hidden="true"></i>Verified Attempts</span>
+          <span class="mc-tel-chip mc-src-chip ${hasAnyExtSource ? 'is-on' : 'is-off'}"><i aria-hidden="true"></i>Chrome Extension</span>
+          <span class="mc-tel-chip mc-src-chip ${hasIdeSource ? 'is-on' : 'is-off'}"><i aria-hidden="true"></i>IDE Companion</span>
         </div>
       </div>
 
@@ -890,6 +1375,15 @@ window.StudyMetrics = (() => {
           <div class="mc-legend" id="mc-stack-legend"></div>
           <div id="mc-stack-chart"></div>
         </section>
+      </div>
+
+      <!-- 12-WEEK OSLO CONSISTENCY HEATMAP -->
+      <section class="panel mc-chart-card mc-heatmap-card" id="mc-heatmap-card"></section>
+
+      <!-- MEMORY RETENTION (FSRS) & PEAK PERFORMANCE BY OSLO HOUR -->
+      <div class="mc-two-col">
+        <section class="panel mc-chart-card" id="mc-fsrs-card"></section>
+        <section class="panel mc-chart-card" id="mc-hourly-card"></section>
       </div>
 
       <!-- TOPIC COVERAGE & HOURS WORKED VS AI-PAR RECOMMENDED BEFORE EXAM -->
@@ -974,6 +1468,8 @@ window.StudyMetrics = (() => {
           <h3 style="margin:4px 0 8px">Personal Performance Correlations</h3>
           <div class="metrics-grid">${corrHtml}</div>
         </section>` : ''}
+
+      <div id="mc-desktop-control-slot"></div>
 
       <details class="panel mc-brief-details">
         <summary>AI Coach &amp; Telemetry Brief <small class="muted" style="font-weight:500;margin-left:6px">Copy structured snapshot for any LLM</small></summary>
@@ -1167,7 +1663,20 @@ window.StudyMetrics = (() => {
     paintHero();
     paintScreen();
     paintStack();
+    renderConsistencyHeatmap(root.querySelector('#mc-heatmap-card'), dailySeries, ctx.todayIso || tel?.todayKey);
+    renderFsrsForecastCard(root.querySelector('#mc-fsrs-card'), ctx.fsrsCards || ctx.records || [], catalog);
+    renderHourlyPeakCard(root.querySelector('#mc-hourly-card'), ctx.attempts || []);
     renderTopicMatrix(root.querySelector('#mc-topics-card'), ctx);
+
+    const desktopSlot = root.querySelector('#mc-desktop-control-slot');
+    if (desktopSlot && typeof window.StudyDesktopControl?.mount === 'function') {
+      try {
+        window.StudyDesktopControl.mount(desktopSlot, { analytics: a, catalog });
+      } catch (err) {
+        console.warn('StudyDesktopControl.mount failed:', err);
+      }
+    }
+
     liveChartRepainters = { paintHero, paintScreen, paintStack };
     lastLiveChartState = {
       activeMin: liveActiveMin,
@@ -1222,19 +1731,82 @@ window.StudyMetrics = (() => {
       ev.currentTarget.textContent = next ? '📝 Paper / IDE Mode: ON' : '📝 Paper / IDE Mode';
     });
 
-    root.querySelector('#btn-mc-export-telemetry')?.addEventListener('click', () => {
-      const payload = window.StudyUI?.workClock?.exportTelemetryJson?.();
-      if (!payload) return;
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `study-os-telemetry-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-      window.StudyUI?.toast?.('Exported raw verifiable Telemetry Ledger JSON!');
+    root.querySelector('#btn-mc-export-telemetry')?.addEventListener('click', async () => {
+      const basePayload = window.StudyUI?.workClock?.exportTelemetryJson?.() || {
+        format: 'study-os-telemetry-v1',
+        exportedAt: new Date().toISOString(),
+        timezone: 'Europe/Oslo',
+        byDevice: {},
+        aggregatedByDay: {},
+        buckets5m: {},
+        screenHistory: {},
+      };
+      const fsrsSummary = typeof window.StudyCore?.computeFsrsForecast === 'function'
+        ? (() => {
+            const f = window.StudyCore.computeFsrsForecast(ctx.fsrsCards || ctx.records || [], Date.now(), 14);
+            return {
+              trackedCards: f.trackedCards,
+              avgRetrievabilityPct: f.avgRetrievabilityPct,
+              overdueCount: f.overdueCount,
+              dueNext14Days: f.dueNext14Days,
+            };
+          })()
+        : null;
+      const exportPayload = {
+        ...basePayload,
+        dailySeries,
+        overall: ov,
+        verification: ver,
+        attemptsCount: Array.isArray(ctx.attempts) ? ctx.attempts.length : (a.totalAttempts || 0),
+        fsrsSummary,
+      };
+      const canonicalJson = JSON.stringify(exportPayload);
+      const digestHex = await computeSha256Hex(canonicalJson);
+      const envelope = {
+        schema: 'study-os.telemetry.export',
+        schemaVersion: '2.0.0',
+        exportedAt: new Date().toISOString(),
+        integrity: {
+          algorithm: 'SHA-256',
+          digestHex,
+          canonicalByteLength: new TextEncoder().encode(canonicalJson).length,
+        },
+        payload: exportPayload,
+      };
+      const dateTag = ctx.todayIso || new Date().toISOString().slice(0, 10);
+      triggerBlobDownload(
+        JSON.stringify(envelope, null, 2),
+        `study-os-telemetry-${dateTag}.json`,
+        'application/json;charset=utf-8'
+      );
+      const shortHash = digestHex !== 'unavailable' ? ` (SHA-256: ${digestHex.slice(0, 10)}…)` : '';
+      window.StudyUI?.toast?.(`Exported verifiable Telemetry Ledger JSON${shortHash}`);
+    });
+
+    root.querySelector('#btn-mc-export-csv')?.addEventListener('click', () => {
+      const dateTag = ctx.todayIso || new Date().toISOString().slice(0, 10);
+      const buildDaily = window.StudyCore?.buildDailySeriesCsv;
+      const buildAttempts = window.StudyCore?.buildAttemptsCsv;
+      if (typeof buildDaily === 'function') {
+        triggerBlobDownload(
+          buildDaily(dailySeries),
+          `study-os-daily-ledger-${dateTag}.csv`,
+          'text/csv;charset=utf-8'
+        );
+      }
+      const attemptsList = Array.isArray(ctx.attempts) ? ctx.attempts : [];
+      if (typeof buildAttempts === 'function' && attemptsList.length > 0) {
+        setTimeout(() => {
+          triggerBlobDownload(
+            buildAttempts(attemptsList),
+            `study-os-attempts-${dateTag}.csv`,
+            'text/csv;charset=utf-8'
+          );
+        }, 180);
+        window.StudyUI?.toast?.('Exported Daily Ledger + Attempts CSV!');
+      } else {
+        window.StudyUI?.toast?.('Exported Daily Ledger CSV!');
+      }
     });
 
     root.querySelectorAll('[data-aid-drill-course]').forEach((btn) => {
@@ -1264,12 +1836,45 @@ window.StudyMetrics = (() => {
     const scrEl = document.getElementById('mc-live-screen-today');
     const effBadge = document.getElementById('mc-live-eff-badge');
     const scrSub = document.getElementById('mc-live-screen-sub');
+    const solveEl = document.getElementById('mc-tel-solving-val');
     if (!hrsEl && !scrEl) return;
 
-    const baseActiveMin = Number(lastCtx?.analytics?.today?.totalActiveMinutes || 0);
-    const activeMin = Math.max(baseActiveMin, Math.round((Number(liveActiveSec) || 0) / 60));
-    const scrSec = Number(scr?.screenSec) || 0;
-    const screenMin = Math.max(activeMin, Math.round(scrSec / 60));
+    const todayRow = Array.isArray(lastCtx?.analytics?.dailySeries)
+      ? lastCtx.analytics.dailySeries.find((d) => d.isToday) || null
+      : null;
+    const tel = window.StudyUI?.workClock?.getTelemetrySummary?.() || lastCtx?.analytics?.telemetrySummary || null;
+    const telToday = tel?.today || todayRow?.telemetry || {};
+
+    const baseActiveSec = Math.max(
+      Math.round(Number(lastCtx?.analytics?.today?.totalActiveMinutes || 0) * 60),
+      Math.round(Number(todayRow?.activeMin || 0) * 60),
+      Math.max(0, Number(liveActiveSec) || 0)
+    );
+    const scrSec = Math.max(
+      Math.max(0, Number(scr?.screenSec) || 0),
+      Math.round(Number(todayRow?.screenMin || 0) * 60)
+    );
+    const sessAwaySec = Math.round(Number(lastCtx?.analytics?.dlpfcBudget?.todayAwayMinutes || 0) * 60);
+    const hasLog = Boolean(
+      todayRow?.hasScreenLog ||
+      Number(scr?.screenSec || 0) >= 60 ||
+      sessAwaySec > 0 ||
+      ((Number(telToday.solvingSec) || 0) +
+        (Number(telToday.readingSec) || 0) +
+        (Number(telToday.appBrowseSec) || 0) +
+        (Number(telToday.afkIdleSec) || 0) +
+        (Number(telToday.extStudySec) || 0) +
+        (Number(telToday.extDistractSec) || 0)) >= 60
+    );
+    const rec = reconcileDay({
+      activeSec: baseActiveSec,
+      screenSec: scrSec,
+      sessAwaySec,
+      hasScreenLog: hasLog,
+      telemetry: telToday,
+    });
+    const activeMin = Math.round((rec.reconciledProdSec / 60) * 10) / 10;
+    const screenMin = Math.round((rec.reconciledScreenSec / 60) * 10) / 10;
 
     if (hrsEl) hrsEl.textContent = fmtHours(activeMin);
     if (wkEl && Number.isFinite(lastLiveChartState.baseWeekMin)) {
@@ -1277,15 +1882,25 @@ window.StudyMetrics = (() => {
       wkEl.textContent = `Wk ${fmtHours(lastLiveChartState.baseWeekMin + deltaToday)}`;
     }
     if (scrEl) {
-      scrEl.textContent = scrSec >= activeMin * 60 && scr?.screenLabel ? scr.screenLabel : fmtHours(screenMin);
+      scrEl.textContent = Number(scr?.screenSec || 0) >= rec.reconciledScreenSec && scr?.screenLabel
+        ? scr.screenLabel
+        : fmtHours(screenMin);
+    }
+    if (solveEl) {
+      const m = Math.round((rec.reconciledSolvingSec || 0) / 60);
+      solveEl.textContent = m >= 60 ? `${(m / 60).toFixed(1)}h` : `${m}m`;
     }
     if (effBadge) {
-      if (screenMin > 0) {
-        const eff = Math.min(100, Math.round((activeMin / screenMin) * 100));
+      const eff = rec.efficiencyPct;
+      if (eff != null) {
         effBadge.textContent = `${eff}% active`;
         effBadge.className = `badge ${eff >= 70 ? 'good' : eff >= 45 ? 'gold' : 'debt'}`;
         if (scrSub) {
-          const verdict = eff >= 72 ? `${eff}% focused` : eff >= 48 ? `${eff}% active · moderate drift` : `${eff}% active · high idle screen time`;
+          const verdict = eff >= 72
+            ? `${eff}% focused`
+            : eff >= 48
+            ? `${eff}% active · moderate drift`
+            : `${eff}% active · high idle / browse time`;
           scrSub.textContent = `${verdict} · ${scr?.offScreenLabel || '0m'} off-screen`;
         }
       }
@@ -1293,29 +1908,26 @@ window.StudyMetrics = (() => {
 
     // Live-refresh Today's bar across SVG charts whenever Today ticks up by ≥1 min (throttled ≥15s) or on a 60s heartbeat
     const nowMs = Date.now();
-    const minutesChanged = activeMin !== lastLiveChartState.activeMin || screenMin !== lastLiveChartState.screenMin;
+    const minutesChanged = Math.round(activeMin) !== Math.round(lastLiveChartState.activeMin)
+      || Math.round(screenMin) !== Math.round(lastLiveChartState.screenMin);
     const elapsedMs = nowMs - (lastLiveChartState.refreshedAtMs || 0);
-    const shouldRepaint = liveChartRepainters && Array.isArray(lastCtx?.analytics?.dailySeries) && (
+    const shouldRepaint = liveChartRepainters && todayRow && (
       (minutesChanged && elapsedMs >= 15000) || elapsedMs >= 60000
     );
     if (shouldRepaint) {
       const anyTooltipOpen = Boolean(document.querySelector('#analytics-root .mc-tooltip:not([hidden])'));
       if (!anyTooltipOpen) {
-        const todayRow = lastCtx.analytics.dailySeries.find((d) => d.isToday);
-        if (todayRow) {
-          todayRow.activeMin = Math.max(Number(todayRow.activeMin || 0), activeMin);
-          todayRow.screenMin = Math.max(Number(todayRow.screenMin || 0), screenMin, todayRow.activeMin);
-          todayRow.offScreenMin = Math.max(Number(todayRow.offScreenMin || 0), Math.round(((Number(scr?.offScreenSec) || 0) / 60) * 10) / 10);
-          todayRow.efficiencyPct = todayRow.screenMin > 0.5
-            ? Math.min(100, Math.round((todayRow.activeMin / todayRow.screenMin) * 100))
-            : null;
-          lastLiveChartState.activeMin = activeMin;
-          lastLiveChartState.screenMin = screenMin;
-          lastLiveChartState.refreshedAtMs = nowMs;
-          liveChartRepainters.paintHero();
-          liveChartRepainters.paintScreen();
-          liveChartRepainters.paintStack();
-        }
+        todayRow.activeMin = Math.max(Number(todayRow.activeMin || 0), activeMin);
+        todayRow.screenMin = Math.max(Number(todayRow.screenMin || 0), screenMin, todayRow.activeMin);
+        todayRow.offScreenMin = Math.max(Number(todayRow.offScreenMin || 0), Math.round(((Number(scr?.offScreenSec) || 0) / 60) * 10) / 10);
+        todayRow.hasScreenLog = Boolean(todayRow.hasScreenLog || rec.hasRealScreen);
+        todayRow.efficiencyPct = rec.efficiencyPct;
+        lastLiveChartState.activeMin = activeMin;
+        lastLiveChartState.screenMin = screenMin;
+        lastLiveChartState.refreshedAtMs = nowMs;
+        liveChartRepainters.paintHero();
+        liveChartRepainters.paintScreen();
+        liveChartRepainters.paintStack();
       }
     }
   }
