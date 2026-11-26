@@ -1,13 +1,13 @@
 {
   "name": "Study-OS · BI Oslo Exam Prep",
   "short_name": "Study-OS",
-  "description": "Free BI Oslo exam prep workspace: WISEflow mock exams, practice questions, course notes, Al tutor & Canvas/TimeEdit sync.",
+  "description": "Free BI Oslo & Norwegian university exam prep workspace: WISEflow mock exams, practice questions, course notes, AI tutor & Canvas/TimeEdit sync.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0f1513",
-  "theme_color": "#1f6b58",
+  "background_color": "#060a10",
+  "theme_color": "#10b981",
   "icons": [
     { "src": "./pwa/study-os-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "./pwa/study-os-512.png", "sizes": "512x512", "type": "image/png" }
