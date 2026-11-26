@@ -1438,9 +1438,12 @@ window.StudyUI = (() => {
   function snapshotDayToHistory(st) {
     if (!st || !st.dayKey || !/^\d{4}-\d{2}-\d{2}$/.test(st.dayKey)) return;
     if (!st.dayHistory || typeof st.dayHistory !== 'object') st.dayHistory = {};
-    const activeSec = Math.round(Math.max(Number(st.backendActiveFloorSec) || 0, Number(st.dayBankedSec) || 0));
-    const screenSec = Math.round(Math.max(Number(st.dayScreenSec) || 0, activeSec));
-    const offScreenSec = Math.round(Math.max(Number(st.dayOffScreenSec) || 0, Number(st.backendAwayFloorSec) || 0));
+    const tel = st.dayKey === localDayKey() ? getTodayTelemetryTotals() : null;
+    const activeSec = Math.round(Math.max(Number(st.backendActiveFloorSec) || 0, tel ? tel.prodSec : 0));
+    const screenSec = tel && tel.trackedSec >= 60
+      ? Math.round(Math.max(tel.trackedSec, activeSec + tel.driftSec))
+      : Math.round(Math.max(Number(st.dayScreenSec) || 0, activeSec));
+    const offScreenSec = Math.round(Math.max(Number(st.dayOffScreenSec) || 0, Number(st.backendAwayFloorSec) || 0, tel ? (tel.td.awaySec || 0) + (tel.td.breakSec || 0) : 0));
     if (screenSec > 0 || activeSec > 0 || offScreenSec > 0) {
       st.dayHistory[st.dayKey] = {
         screenSec,
@@ -1490,6 +1493,7 @@ window.StudyUI = (() => {
       lastBreakAtMs: 0,
       backendActiveFloorSec: 0,
       backendAwayFloorSec: 0,
+      ledgerSchemaVer: 2,
       dayHistory: {},
     };
     try {
@@ -1497,9 +1501,27 @@ window.StudyUI = (() => {
       if (!raw || typeof raw !== 'object') return fallback;
       const st = { ...fallback, ...raw, dayHistory: raw.dayHistory && typeof raw.dayHistory === 'object' ? { ...raw.dayHistory } : {} };
       const now = st.devPausedAtMs || Date.now();
+      // One-time v2 self-heal: clear phantom banked wave hours (old bug credited +75m on abandoned/rolled-over waves)
+      if (Number(raw.ledgerSchemaVer || 0) < 2) {
+        st.ledgerSchemaVer = 2;
+        st.dayBankedSec = 0;
+        st.backendActiveFloorSec = 0;
+        if (st.dayKey === today) {
+          st.dayScreenSec = 0;
+          if (st.dayHistory[today]) delete st.dayHistory[today];
+        }
+      }
       if (st.dayKey !== today) {
         snapshotDayToHistory(st);
         st.dayKey = today;
+        st.mode = 'idle';
+        st.waveStartedAtMs = null;
+        st.wavePausedOffsetMs = 0;
+        st.wavePausedSinceMs = null;
+        st.wavePauseReason = '';
+        st.breakStartedAtMs = null;
+        st.breakEndsAtMs = null;
+        st.breakBankedSec = 0;
         st.dayBankedSec = 0;
         st.dayWaves = 0;
         st.dayScreenSec = 0;
@@ -1509,12 +1531,13 @@ window.StudyUI = (() => {
         st.backendActiveFloorSec = 0;
         st.backendAwayFloorSec = 0;
       }
-      // Clear stale abandoned wave if browser was closed >2.5 hours ago
+      // Clear stale abandoned wave if browser was closed >2.5 hours ago — NEVER fabricate fake active study hours!
       if (st.mode === 'working' && st.waveStartedAtMs && now - st.waveStartedAtMs > (WORK_CAP_SEC + 5400) * 1000) {
-        st.dayBankedSec += WORK_CAP_SEC;
-        st.dayWaves += 1;
         st.mode = 'idle';
         st.waveStartedAtMs = null;
+        st.wavePausedOffsetMs = 0;
+        st.wavePausedSinceMs = null;
+        st.wavePauseReason = '';
       }
       if (st.mode === 'break' && st.breakEndsAtMs && now - st.breakEndsAtMs > 3600 * 1000) {
         const cap = Math.max(0, Number(st.breakTotalSec) || 300);
@@ -1613,6 +1636,7 @@ window.StudyUI = (() => {
     },
   };
 
+  let telemetryLedger = null;
   let workState = loadWorkState();
   let expiredBreakShown = null;
   let lastEveningAccess = false;
@@ -1693,7 +1717,7 @@ window.StudyUI = (() => {
     }
   }
 
-  let telemetryLedger = loadTelemetryLedger();
+  telemetryLedger = loadTelemetryLedger();
 
   function saveTelemetryLedger() {
     if (devModeActive) return;
@@ -1921,13 +1945,30 @@ window.StudyUI = (() => {
     };
   }
 
+  function getTodayTelemetryTotals() {
+    if (!telemetryLedger) {
+      const empty = emptyDayTelemetry();
+      return { td: empty, prodSec: 0, driftSec: 0, trackedSec: 0 };
+    }
+    const byDay = aggregateTelemetryByDay();
+    const td = byDay[localDayKey()] || emptyDayTelemetry();
+    const prodSec = (td.solvingSec || 0) + (td.readingSec || 0) + (td.extStudySec || 0);
+    const driftSec = (td.appBrowseSec || 0) + (td.afkIdleSec || 0) + (td.extDistractSec || 0);
+    return { td, prodSec, driftSec, trackedSec: prodSec + driftSec };
+  }
+
+  function getVerifiedTodayActiveSec() {
+    const { prodSec } = getTodayTelemetryTotals();
+    return Math.round(Math.max(Number(workState.backendActiveFloorSec) || 0, prodSec));
+  }
+
   function computeScreenStats(now = Date.now()) {
-    const activeFloor = Math.max(
-      Number(workState.backendActiveFloorSec) || 0,
-      (Number(workState.dayBankedSec) || 0) + currentWaveElapsedSec(now)
-    );
-    const awayFloor = Number(workState.backendAwayFloorSec) || 0;
-    const screenSec = Math.round(Math.max(Number(workState.dayScreenSec) || 0, activeFloor));
+    const { td, prodSec, driftSec, trackedSec } = getTodayTelemetryTotals();
+    const activeFloor = Math.max(Number(workState.backendActiveFloorSec) || 0, prodSec);
+    const awayFloor = Math.max(Number(workState.backendAwayFloorSec) || 0, (td.awaySec || 0) + (td.breakSec || 0));
+    const screenSec = trackedSec >= 60
+      ? Math.round(Math.max(trackedSec, activeFloor + driftSec))
+      : Math.round(Math.max(Number(workState.dayScreenSec) || 0, activeFloor));
     const offScreenSec = Math.round(Math.max(Number(workState.dayOffScreenSec) || 0, awayFloor));
     return {
       screenSec,
@@ -2126,10 +2167,7 @@ window.StudyUI = (() => {
     },
     syncBackendToday(todayActiveMin = 0, todayAwayMin = 0) {
       if (devModeActive || workState.devPausedAtMs) return;
-      workState.backendActiveFloorSec = Math.max(
-        Number(workState.backendActiveFloorSec) || 0,
-        Math.round(Math.max(0, Number(todayActiveMin) || 0) * 60)
-      );
+      workState.backendActiveFloorSec = Math.round(Math.max(0, Number(todayActiveMin) || 0) * 60);
       workState.backendAwayFloorSec = Math.max(
         Number(workState.backendAwayFloorSec) || 0,
         Math.round(Math.max(0, Number(todayAwayMin) || 0) * 60)
@@ -2149,10 +2187,7 @@ window.StudyUI = (() => {
         : {};
       const todayKey = localDayKey();
       const live = computeScreenStats();
-      const liveActiveSec = Math.round(Math.max(
-        Number(workState.backendActiveFloorSec) || 0,
-        (Number(workState.dayBankedSec) || 0) + currentWaveElapsedSec()
-      ));
+      const liveActiveSec = getVerifiedTodayActiveSec();
       hist[todayKey] = {
         screenSec: live.screenSec,
         offScreenSec: live.offScreenSec,
@@ -2176,7 +2211,7 @@ window.StudyUI = (() => {
 
         const cur = workState.dayHistory[dayKey] || { screenSec: 0, offScreenSec: 0, activeSec: 0, breaks: 0 };
         const next = {
-          screenSec: Math.max(Number(cur.screenSec) || 0, incScreen, incAct),
+          screenSec: Math.max(Number(cur.screenSec) || 0, incScreen),
           offScreenSec: Math.max(Number(cur.offScreenSec) || 0, incOff),
           activeSec: Math.max(Number(cur.activeSec) || 0, incAct),
           breaks: Math.max(Number(cur.breaks) || 0, incBreaks),
@@ -2192,16 +2227,9 @@ window.StudyUI = (() => {
         }
 
         if (dayKey === todayKey && workState.dayKey === todayKey && !devModeActive && !workState.devPausedAtMs) {
-          if (incScreen > (Number(workState.dayScreenSec) || 0)) {
-            workState.dayScreenSec = incScreen;
-            changed++;
-          }
+          // Never adopt legacy cloud screenHistory.activeSec into backendActiveFloorSec (verified attempts & telemetry ledger are authoritative)
           if (incOff > (Number(workState.dayOffScreenSec) || 0)) {
             workState.dayOffScreenSec = incOff;
-            changed++;
-          }
-          if (incAct > (Number(workState.backendActiveFloorSec) || 0)) {
-            workState.backendActiveFloorSec = incAct;
             changed++;
           }
           if (incBreaks > (Number(workState.dayBreaks) || 0)) {
@@ -2337,6 +2365,14 @@ window.StudyUI = (() => {
     if (workState.dayKey !== todayKey) {
       snapshotDayToHistory(workState);
       workState.dayKey = todayKey;
+      workState.mode = 'idle';
+      workState.waveStartedAtMs = null;
+      workState.wavePausedOffsetMs = 0;
+      workState.wavePausedSinceMs = null;
+      workState.wavePauseReason = '';
+      workState.breakStartedAtMs = null;
+      workState.breakEndsAtMs = null;
+      workState.breakBankedSec = 0;
       workState.dayBankedSec = 0;
       workState.dayWaves = 0;
       workState.dayScreenSec = 0;
@@ -2357,7 +2393,7 @@ window.StudyUI = (() => {
         !document.hidden && (document.hasFocus() || document.activeElement?.tagName === 'IFRAME');
       const inBreak = workState.mode === 'break';
       const isWavePaused = Boolean(workState.wavePausedSinceMs);
-      if ((workState.mode === 'working' && !isWavePaused) || (docFocused && !inBreak && !isWavePaused)) {
+      if ((docFocused && !inBreak && !isWavePaused) || (paperModeActive && workState.mode === 'working' && !isWavePaused)) {
         workState.dayScreenSec = (Number(workState.dayScreenSec) || 0) + dtSec;
       } else if (inBreak || (workState.mode === 'working' && isWavePaused)) {
         workState.dayOffScreenSec = (Number(workState.dayOffScreenSec) || 0) + dtSec;
@@ -2394,11 +2430,7 @@ window.StudyUI = (() => {
     if (setScrEl) setScrEl.textContent = scr.screenLabel;
     const analyticsView = document.getElementById('view-analytics');
     if (analyticsView && !analyticsView.hidden && window.StudyMetrics?.updateLiveTiles) {
-      const liveActiveSec = Math.round(Math.max(
-        Number(workState.backendActiveFloorSec) || 0,
-        (Number(workState.dayBankedSec) || 0) + currentWaveElapsedSec(now)
-      ));
-      window.StudyMetrics.updateLiveTiles(scr, liveActiveSec);
+      window.StudyMetrics.updateLiveTiles(scr, getVerifiedTodayActiveSec());
     }
 
     if (workState.mode === 'working') {

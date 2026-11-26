@@ -18,7 +18,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-147d64?style=flat-square&labelColor=334155" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/built%20with-Zero--dep%20JS%20%26%20Python-147d64?style=flat-square&labelColor=334155" alt="Built with zero-dep JS & Python" /><br/>
   <img src="https://img.shields.io/badge/runs%20on-Web%20%C2%B7%20macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-147d64?style=flat-square&labelColor=334155" alt="Runs on Web, macOS, Windows, Linux" />
-  <img src="https://img.shields.io/badge/tests-108%20passing-0f5f4c?style=flat-square&labelColor=334155" alt="108 automated tests passing" /><br/>
+  <img src="https://img.shields.io/badge/tests-110%20passing-0f5f4c?style=flat-square&labelColor=334155" alt="110 automated tests passing" /><br/>
   <img src="https://img.shields.io/badge/local--first-EU%20GDPR-0f5f4c?style=flat-square&labelColor=334155" alt="Local-first EU GDPR" />
   <a href="https://github.com/shadjosef/study-os/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/shadjosef/study-os/ci.yml?style=flat-square&label=CI&labelColor=334155" alt="Study-OS CI" /></a>
   <a href="https://github.com/shadjosef/study-os/actions/workflows/pages.yml"><img src="https://img.shields.io/github/actions/workflow/status/shadjosef/study-os/pages.yml?style=flat-square&label=Pages&labelColor=334155" alt="Deploy Static Hub" /></a>
@@ -236,7 +236,7 @@ python3 app/server.py
 **Build, test, audit & CLI tools:**
 
 ```bash
-node --test tests/core.test.mjs tests/analytics.test.mjs tests/metrics-reconcile.test.mjs tests/worker/security.test.mjs  # 73 zero-dep core, telemetry & edge-security tests
+node --test tests/core.test.mjs tests/analytics.test.mjs tests/metrics-reconcile.test.mjs tests/worker/security.test.mjs  # 75 zero-dep core, telemetry & edge-security tests
 python3 -m unittest discover -s tests/python -v # 35 stdlib backend, desktop tracker, HTTP security & FSRS parity tests
 python3 tools/cli.py rebuild-catalog            # Validate schemas, assets & refresh catalog
 python3 tools/cli.py status                     # Print live UPI & course telemetry JSON
@@ -250,6 +250,6 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full system design, [
 <summary><strong>Encrypted Member Library &amp; GitHub Pages Self-Hosting</strong></summary>
 
 - **Member library:** Paste a shared access string on the website to decrypt local question banks and linked source excerpts in-browser (**Remember on this browser** stores a non-extractable key; **Lock full library** clears it). Build or rotate keys with `tools/build_member_library.py` (Python + `cryptography`, keeping key files outside Git) and publish `study-os-members.zip` to a GitHub prerelease referenced by `site-pack/member-archive.json`.
-- **Self-hosting:** Run `python3 tools/build_public_site.py --sync-pack --cname yourdomain.me` and push to `main` — `.github/workflows/pages.yml` deploys automatically after `.github/workflows/ci.yml` passes Python `-Werror`, 35 Python backend/desktop tests, JS syntax, `tsc` JSDoc checks, 73 Node unit & edge-security tests, VSIX/MV3 validation, SEO/GEO audit, and 8-gate headless Chromium E2E tests (including A11y, CLS, mobile overflow & PWA Service Worker checks).
+- **Self-hosting:** Run `python3 tools/build_public_site.py --sync-pack --cname yourdomain.me` and push to `main` — `.github/workflows/pages.yml` deploys automatically after `.github/workflows/ci.yml` passes Python `-Werror`, 35 Python backend/desktop tests, JS syntax, `tsc` JSDoc checks, 75 Node unit & edge-security tests, VSIX/MV3 validation, SEO/GEO audit, and 8-gate headless Chromium E2E tests (including A11y, CLS, mobile overflow & PWA Service Worker checks).
 
 </details>

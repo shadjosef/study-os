@@ -1,8 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import fsrs from '../app/public/js/core/fsrs.js';
 import analytics from '../app/public/js/core/analytics.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DAY_MS = 86_400_000;
 
@@ -412,4 +417,46 @@ test('buildAttemptsCsv and buildDailySeriesCsv enforce RFC-4180 escaping and Exc
   assert.ok(lines[1].startsWith('2026-05-11,false,45,45,0,,4,3.2,,,,0,45,0,false'));
   assert.ok(lines[2].startsWith('2026-05-12,true,150,166,10,90,12,14.5,102,92,1.12,60,60,30,true'));
   assert.ok(!dailyCsv.includes('null'), 'Null fields must serialize as empty CSV cells, never literal "null"');
+});
+
+test('casual browse-only day (13m App Browse + 3m AFK, 0 attempts) reports 0.0h active, 16m screen, 0% efficiency', () => {
+  const res = analytics.reconcileDayEfficiency({
+    activeSec: 0,
+    screenSec: 960,
+    sessAwaySec: 360,
+    hasScreenLog: true,
+    telemetry: {
+      solvingSec: 0,
+      readingSec: 0,
+      appBrowseSec: 13 * 60,
+      afkIdleSec: 3 * 60,
+      extStudySec: 0,
+      extDistractSec: 0,
+    },
+  });
+  assert.equal(res.reconciledProdSec, 0);
+  assert.equal(res.reconciledScreenSec, 960);
+  assert.equal(res.reconciledSolvingSec, 0);
+  assert.equal(res.syncedSolvingSec, 0);
+  assert.equal(res.efficiencyPct, 0);
+  assert.equal(res.hasRealScreen, true);
+});
+
+test('phantom-hours guard: render.js never credits +75m on abandoned waves and app.js never trusts legacy screenHist.activeSec', () => {
+  const root = path.resolve(__dirname, '..');
+  const renderSrc = fs.readFileSync(path.join(root, 'app/public/js/render.js'), 'utf8');
+  const appSrc = fs.readFileSync(path.join(root, 'app/public/js/app.js'), 'utf8');
+
+  assert.ok(
+    !/st\.dayBankedSec\s*\+=\s*WORK_CAP_SEC/.test(renderSrc),
+    'render.js must NEVER fabricate +75m banked work when clearing a stale/abandoned wave'
+  );
+  assert.ok(
+    !/dr\.liveActiveSec\s*=\s*Number\(sh\.activeSec\)/.test(appSrc),
+    'app.js must NEVER copy legacy screenHist.activeSec into Today liveActiveSec'
+  );
+  assert.ok(
+    renderSrc.includes('ledgerSchemaVer: 2'),
+    'render.js should include v2 self-heal schema guard for legacy polluted wave state'
+  );
 });

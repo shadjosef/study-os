@@ -1061,16 +1061,6 @@ window.StudyApp = (() => {
     const screenHist = window.StudyUI?.workClock?.getScreenHistory?.() || {};
     const telSummary = window.StudyUI?.workClock?.getTelemetrySummary?.() || null;
     const telByDay = telSummary?.byDay || {};
-    for (const [dk, sh] of Object.entries(screenHist)) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dk)) continue;
-      const dr = ensureDay(dk);
-      dr.screenSec = Math.max(dr.screenSec, Number(sh?.screenSec || 0));
-      dr.offScreenSec = Math.max(dr.offScreenSec, Number(sh?.offScreenSec || 0));
-      dr.hasScreenLog = dr.hasScreenLog || Number(sh?.screenSec || 0) >= 60;
-      if (Number(sh?.activeSec || 0) > dr.activeSec && dk === today) {
-        dr.liveActiveSec = Number(sh.activeSec);
-      }
-    }
     for (const [dk, td] of Object.entries(telByDay)) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dk) || !td) continue;
       const dr = ensureDay(dk);
@@ -1079,6 +1069,7 @@ window.StudyApp = (() => {
       const telProd = (td.solvingSec || 0) + (td.readingSec || 0) + (td.extStudySec || 0);
       if (telTracked >= 60) {
         dr.hasScreenLog = true;
+        dr.hasVerifiableLedger = true;
         dr.screenSec = Math.max(dr.screenSec, telTracked);
         dr.offScreenSec = Math.max(dr.offScreenSec, (td.awaySec || 0) + (td.breakSec || 0));
       }
@@ -1094,13 +1085,26 @@ window.StudyApp = (() => {
         }
       }
     }
+    for (const [dk, sh] of Object.entries(screenHist)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dk)) continue;
+      const dr = ensureDay(dk);
+      // Only use legacy screenHist.screenSec when the verifiable 5m telemetry ledger is NOT present for this day
+      // (prevents old phantom banked-wave screenSec from overriding real browse/idle buckets)
+      if (!dr.hasVerifiableLedger) {
+        dr.screenSec = Math.max(dr.screenSec, Number(sh?.screenSec || 0));
+        dr.hasScreenLog = dr.hasScreenLog || Number(sh?.screenSec || 0) >= 60;
+      }
+      dr.offScreenSec = Math.max(dr.offScreenSec, Number(sh?.offScreenSec || 0));
+    }
 
     const dailySeries = [...dayMap.values()]
       .sort((a, b) => a.day.localeCompare(b.day))
       .map((dr) => {
         const sessAct = sessionDayActive[dr.day] || 0;
         const sessAway = sessionDayAway[dr.day] || 0;
-        const effActiveSec = Math.max(dr.activeSec, dr.liveActiveSec || 0, Math.min(sessAct, dr.activeSec + 1800));
+        // Only credit session activeSec when backed by actual attempts on that day (prevents empty/idle sessions fabricating hours)
+        const verifiedSessAct = dr.activeSec > 0 ? Math.min(sessAct, dr.activeSec + 1800) : 0;
+        const effActiveSec = Math.max(dr.activeSec, dr.liveActiveSec || 0, verifiedSessAct);
         const td = dr.telemetry || null;
         const rec = typeof coreReconcileDayEfficiency === 'function'
           ? coreReconcileDayEfficiency({
