@@ -709,6 +709,58 @@ def _course_code_pair(cid: str, code: str) -> str:
     return f"{code} / {no_code}" if no_code and no_code != code else code
 
 
+def _apply_static_a11y_landmarks(out_dir: Path) -> None:
+    """Idempotently add skip-to-content links and top-level <header>/<main>/<footer/> landmarks to static SEO pages."""
+    targets = [
+        out_dir / "universities.html",
+        out_dir / "gpa-calculator.html",
+        out_dir / "compare.html",
+        *sorted((out_dir / "uni").glob("*.html")),
+    ]
+    seo_shell_re = re.compile(
+        r"<body>\s*<main class=\"seo-shell\">\s*(<nav class=\"seo-nav\"[^>]*>.*?</nav>)\s*(.*?)\s*(<footer class=\"seo-foot\">.*?</footer>)\s*</main>",
+        re.S,
+    )
+    nf_shell_re = re.compile(r"<body>\s*<main class=\"nf-shell\">", re.S)
+
+    for page_path in targets:
+        if not page_path.is_file():
+            continue
+        raw = page_path.read_text(encoding="utf-8")
+        if 'class="skip-link"' in raw and 'id="main-content"' in raw:
+            continue
+        is_nb = bool(re.search(r'<html\b[^>]*\blang="nb"', raw, re.I))
+        skip_label = "Hopp til hovedinnhold" if is_nb else "Skip to main content"
+        m = seo_shell_re.search(raw)
+        if m:
+            nav_html, main_body, footer_html = m.group(1), m.group(2), m.group(3)
+            replacement = (
+                f'<body>\n'
+                f'  <a class="skip-link" href="#main-content">{skip_label}</a>\n'
+                f'  <div class="seo-shell">\n'
+                f'    <header>\n'
+                f'      {nav_html}\n'
+                f'    </header>\n'
+                f'    <main id="main-content" tabindex="-1">\n'
+                f'      {main_body}\n'
+                f'    </main>\n'
+                f'    {footer_html}\n'
+                f'  </div>'
+            )
+            updated = raw[:m.start()] + replacement + raw[m.end():]
+            page_path.write_text(updated, encoding="utf-8")
+            continue
+        m_nf = nf_shell_re.search(raw)
+        if m_nf:
+            replacement = (
+                f'<body>\n'
+                f'  <a class="skip-link" href="#main-content">{skip_label}</a>\n'
+                f'  <main id="main-content" class="nf-shell" tabindex="-1">'
+            )
+            updated = raw[:m_nf.start()] + replacement + raw[m_nf.end():]
+            page_path.write_text(updated, encoding="utf-8")
+
+
 def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str = "https://studyos.no") -> list[str]:
     """Generate indexable static Oslo, multi-university & per-course HTML pages, GEO Markdown mirrors, and sitemap.xml."""
     base = base_url.rstrip("/")
@@ -1005,57 +1057,62 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <script type="application/ld+json">{json.dumps(json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
-  <main class="seo-shell">
-    <nav class="seo-nav" aria-label="Breadcrumb">
-      <div class="seo-cta-row">
-        <a href="../" class="ghost-btn">← Open Study-OS</a>
-        <a href="../bi-oslo.html" class="ghost-btn">BI Oslo Courses</a>
-        <a href="../wiseflow-practice.html" class="ghost-btn">WISEflow</a>
-      </div>
-      <span class="badge" style="border-color:{escape(color, quote=True)}">{escape(code_pair)} · Oslo, Norway</span>
-    </nav>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="seo-shell">
+    <header>
+      <nav class="seo-nav" aria-label="Breadcrumb">
+        <div class="seo-cta-row">
+          <a href="../" class="ghost-btn">← Open Study-OS</a>
+          <a href="../bi-oslo.html" class="ghost-btn">BI Oslo Courses</a>
+          <a href="../wiseflow-practice.html" class="ghost-btn">WISEflow</a>
+        </div>
+        <span class="badge course-badge" style="--course-accent:{escape(color, quote=True)}">{escape(code_pair)} · Oslo, Norway</span>
+      </nav>
+    </header>
 
-    <article class="panel seo-hero">
-      <span class="eyebrow" style="color:{escape(color, quote=True)}">{escape(code_pair)} · BI Oslo Exam Preparation</span>
-      <h1>{escape(code_pair)}: {escape(title)}</h1>
-      <div class="seo-acu">
-        <strong>Quick summary:</strong> Free BI Oslo exam prep for <strong>{escape(code_pair)} ({escape(title)})</strong> with <strong>{q_count} practice questions</strong> ({off_c} official past exams &amp; course sets, {ai_c} AI mocks), <strong>{len(topic_names)} syllabus topics</strong>, timed {duration}-minute WISEflow simulation, KaTeX formula sheets, and Adamlite AI Tutor.{alt_line}
-      </div>
-      <p class="seo-lead" lang="nb">{escape(no_blurb)}</p>
-      <div class="seo-cta-row">
-        <a class="primary-btn btn-lg" href="../?course={escape(cid, quote=True)}" rel="nofollow">Start practicing {escape(code)} →</a>
-        <a class="ghost-btn btn-lg" href="../?view=exams&amp;course={escape(cid, quote=True)}" rel="nofollow">WISEflow Exam Mode</a>
-        <a class="ghost-btn btn-lg" href="../notes.html">Formula Sheets</a>
-      </div>
-      <div class="seo-stats">
-        <div class="seo-stat"><strong>{q_count}</strong><small>Practice questions</small></div>
-        <div class="seo-stat"><strong>{off_c}</strong><small>Official BI tasks &amp; exams</small></div>
-        <div class="seo-stat"><strong>{duration} min</strong><small>Timed exam simulation</small></div>
-        <div class="seo-stat"><strong>{high_c} / {med_c} / {low_c}</strong><small>High / Med / Low DLPFC</small></div>
-      </div>
-    </article>
+    <main id="main-content" tabindex="-1">
+      <article class="panel seo-hero">
+        <span class="eyebrow course-eyebrow" style="--course-accent:{escape(color, quote=True)}">{escape(code_pair)} · BI Oslo Exam Preparation</span>
+        <h1>{escape(code_pair)}: {escape(title)}</h1>
+        <div class="seo-acu">
+          <strong>Quick summary:</strong> Free BI Oslo exam prep for <strong>{escape(code_pair)} ({escape(title)})</strong> with <strong>{q_count} practice questions</strong> ({off_c} official past exams &amp; course sets, {ai_c} AI mocks), <strong>{len(topic_names)} syllabus topics</strong>, timed {duration}-minute WISEflow simulation, KaTeX formula sheets, and Adamlite AI Tutor.{alt_line}
+        </div>
+        <p class="seo-lead" lang="nb">{escape(no_blurb)}</p>
+        <div class="seo-cta-row">
+          <a class="primary-btn btn-lg" href="../?course={escape(cid, quote=True)}" rel="nofollow">Start practicing {escape(code)} →</a>
+          <a class="ghost-btn btn-lg" href="../?view=exams&amp;course={escape(cid, quote=True)}" rel="nofollow">WISEflow Exam Mode</a>
+          <a class="ghost-btn btn-lg" href="../notes.html">Formula Sheets</a>
+        </div>
+        <div class="seo-stats">
+          <div class="seo-stat"><strong>{q_count}</strong><small>Practice questions</small></div>
+          <div class="seo-stat"><strong>{off_c}</strong><small>Official BI tasks &amp; exams</small></div>
+          <div class="seo-stat"><strong>{duration} min</strong><small>Timed exam simulation</small></div>
+          <div class="seo-stat"><strong>{high_c} / {med_c} / {low_c}</strong><small>High / Med / Low DLPFC</small></div>
+        </div>
+      </article>
 {exam_block}
 {collections_block}    <section class="panel seo-card" style="margin-bottom:16px">
-      <span class="eyebrow">Syllabus coverage · {len(topic_names)} topics</span>
-      <h2>Topics &amp; key exam concepts in {escape(code_pair)}</h2>
-      {topics_html}
-    </section>
+        <span class="eyebrow">Syllabus coverage · {len(topic_names)} topics</span>
+        <h2>Topics &amp; key exam concepts in {escape(code_pair)}</h2>
+        {topics_html}
+      </section>
 {ref_preview_block}
-    <section style="margin-bottom:16px">
-      <h2 style="margin:0 0 6px">{escape(code_pair)} Exam Prep FAQ / Ofte stilte spørsmål</h2>
-      <div class="seo-faq">
-{course_faq_html}      </div>
-    </section>
+      <section style="margin-bottom:16px">
+        <h2 style="margin:0 0 6px">{escape(code_pair)} Exam Prep FAQ / Ofte stilte spørsmål</h2>
+        <div class="seo-faq">
+{course_faq_html}        </div>
+      </section>
 
-    <section class="panel seo-card">
-      <span class="eyebrow">More BI Oslo courses &amp; tools</span>
-      <h2>Other BI Oslo courses on Study-OS</h2>
-      <div class="seo-cta-row" style="margin-top:8px">
-        {other_links}
-        <a class="ghost-btn" href="../gpa-calculator.html">GPA Calculator</a>
-        <a class="ghost-btn" href="../universities.html">All Universities</a>
-      </div>
-    </section>
+      <section class="panel seo-card">
+        <span class="eyebrow">More BI Oslo courses &amp; tools</span>
+        <h2>Other BI Oslo courses on Study-OS</h2>
+        <div class="seo-cta-row" style="margin-top:8px">
+          {other_links}
+          <a class="ghost-btn" href="../gpa-calculator.html">GPA Calculator</a>
+          <a class="ghost-btn" href="../universities.html">All Universities</a>
+        </div>
+      </section>
+    </main>
 
     <footer class="seo-foot">
       <span>Study-OS · Independent student project in Oslo, Norway (not officially affiliated with BI Norwegian Business School).</span>
@@ -1073,7 +1130,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a href="../terms.html">Terms</a>
       </nav>
     </footer>
-  </main>
+  </div>
 </body>
 </html>
 """
@@ -1100,17 +1157,26 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <link rel="stylesheet" href="{escape(seo_css_sub, quote=True)}">
 </head>
 <body>
-  <main class="nf-shell">
-    <article class="panel nf-card">
-      <span class="eyebrow">Study-OS · Course Directory</span>
-      <h1>BI Oslo &amp; Core Course Guides</h1>
-      <p class="muted">Select a course guide below or open the complete BI Oslo exam-prep hub.</p>
-      <div class="nf-links">
-        <a class="primary-btn" href="../bi-oslo.html">Open BI Oslo Hub →</a>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="nf-shell">
+    <header>
+      <nav class="seo-nav" aria-label="Breadcrumb">
+        <a href="../" class="ghost-btn">← Open Study-OS</a>
+        <span class="badge">BI Oslo Courses</span>
+      </nav>
+    </header>
+    <main id="main-content" tabindex="-1">
+      <article class="panel nf-card">
+        <span class="eyebrow">Study-OS · Course Directory</span>
+        <h1>BI Oslo &amp; Core Course Guides</h1>
+        <p class="muted">Select a course guide below or open the complete BI Oslo exam-prep hub.</p>
+        <div class="nf-links">
+          <a class="primary-btn" href="../bi-oslo.html">Open BI Oslo Hub →</a>
 {courses_index_links}        <a class="ghost-btn" href="../universities.html">All Universities</a>
-      </div>
-    </article>
-  </main>
+        </div>
+      </article>
+    </main>
+  </div>
 </body>
 </html>
 """
@@ -1125,7 +1191,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
     course_cards_html = "".join(
         f"""      <article class="panel seo-card">
         <div>
-          <span class="eyebrow" style="color:{escape(str(c.get('color') or '#1f6b58'), quote=True)}">{escape(_course_code_pair(str(c['courseId']), str(c.get('code') or '')))} · {int(c.get('questionCount') or 0)} Qs</span>
+          <span class="eyebrow course-eyebrow" style="--course-accent:{escape(str(c.get('color') or '#1f6b58'), quote=True)}">{escape(_course_code_pair(str(c['courseId']), str(c.get('code') or '')))} · {int(c.get('questionCount') or 0)} Qs</span>
           <h3>{escape(str(c.get('title') or ''))}</h3>
           <p>{escape(COURSE_NO_BLURBS.get(str(c.get('courseId') or ''), str((c.get('examInfo') or {}).get('format') or '')))}</p>
         </div>
@@ -1242,121 +1308,126 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <script type="application/ld+json">{json.dumps(oslo_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
-  <main class="seo-shell">
-    <nav class="seo-nav" aria-label="Breadcrumb">
-      <div class="seo-cta-row">
-        <a href="./" class="ghost-btn">← Open Study-OS App</a>
-        <a href="./universities.html" class="ghost-btn">All Universities</a>
-        <a href="./gpa-calculator.html" class="ghost-btn">GPA Calculator</a>
-      </div>
-      <span class="badge">Oslo, Norway · BI Student Hub</span>
-    </nav>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="seo-shell">
+    <header>
+      <nav class="seo-nav" aria-label="Breadcrumb">
+        <div class="seo-cta-row">
+          <a href="./" class="ghost-btn">← Open Study-OS App</a>
+          <a href="./universities.html" class="ghost-btn">All Universities</a>
+          <a href="./gpa-calculator.html" class="ghost-btn">GPA Calculator</a>
+        </div>
+        <span class="badge">Oslo, Norway · BI Student Hub</span>
+      </nav>
+    </header>
 
-    <article class="panel seo-hero">
-      <span class="eyebrow">Oslo · Handelshøyskolen BI · Independent Student Project</span>
-      <h1>BI Oslo Exam Prep, WISEflow Mock Exams &amp; Course Notes</h1>
-      <p class="seo-lead">{escape(oslo_desc)}</p>
-      <p class="seo-lead seo-lead-sub" lang="nb">
-        Gratis eksamensforberedelse for BI-studenter i Oslo (Nydalen): øvingsoppgaver for EXC/SØK 3420, EXC/BØK 3430, EXC/ORG 3460, EBA 3400 og EBA 1181/1180, kursnotater, WISEflow FLOWmulti-simulator, AI-veileder og 1-klikks BI Canvas/TimeEdit-synk.
-      </p>
-      <div class="seo-cta-row">
-        <a class="primary-btn btn-lg" href="./">Launch Study-OS Workspace →</a>
-        <a class="ghost-btn btn-lg" href="./wiseflow-practice.html">WISEflow Exam Simulator</a>
-        <a class="ghost-btn btn-lg" href="./notes.html">Browse Course Notes ({len(references)})</a>
-        <a class="ghost-btn btn-lg" href="./gpa-calculator.html">BI GPA Calculator</a>
-      </div>
-      <div class="seo-stats">
-        <div class="seo-stat"><strong>{len(catalog)}</strong><small>BI Oslo courses</small></div>
-        <div class="seo-stat"><strong>{total_qs:,}</strong><small>Practice questions</small></div>
-        <div class="seo-stat"><strong>{len(references)}</strong><small>Reference sheets</small></div>
-        <div class="seo-stat"><strong>100% Free</strong><small>No ads or trackers</small></div>
-      </div>
-      <figure class="seo-preview-media">
-        <img src="{base}/og-image.png" width="1200" height="630" alt="Study-OS BI Oslo Exam Prep, Course Notes and WISEflow Practice Workspace" loading="eager" fetchpriority="high" decoding="async">
-      </figure>
-    </article>
+    <main id="main-content" tabindex="-1">
+      <article class="panel seo-hero">
+        <span class="eyebrow">Oslo · Handelshøyskolen BI · Independent Student Project</span>
+        <h1>BI Oslo Exam Prep, WISEflow Mock Exams &amp; Course Notes</h1>
+        <p class="seo-lead">{escape(oslo_desc)}</p>
+        <p class="seo-lead seo-lead-sub" lang="nb">
+          Gratis eksamensforberedelse for BI-studenter i Oslo (Nydalen): øvingsoppgaver for EXC/SØK 3420, EXC/BØK 3430, EXC/ORG 3460, EBA 3400 og EBA 1181/1180, kursnotater, WISEflow FLOWmulti-simulator, AI-veileder og 1-klikks BI Canvas/TimeEdit-synk.
+        </p>
+        <div class="seo-cta-row">
+          <a class="primary-btn btn-lg" href="./">Launch Study-OS Workspace →</a>
+          <a class="ghost-btn btn-lg" href="./wiseflow-practice.html">WISEflow Exam Simulator</a>
+          <a class="ghost-btn btn-lg" href="./notes.html">Browse Course Notes ({len(references)})</a>
+          <a class="ghost-btn btn-lg" href="./gpa-calculator.html">BI GPA Calculator</a>
+        </div>
+        <div class="seo-stats">
+          <div class="seo-stat"><strong>{len(catalog)}</strong><small>BI Oslo courses</small></div>
+          <div class="seo-stat"><strong>{total_qs:,}</strong><small>Practice questions</small></div>
+          <div class="seo-stat"><strong>{len(references)}</strong><small>Reference sheets</small></div>
+          <div class="seo-stat"><strong>100% Free</strong><small>No ads or trackers</small></div>
+        </div>
+        <figure class="seo-preview-media">
+          <img src="./og-image.png" width="1200" height="630" alt="Study-OS BI Oslo Exam Prep, Course Notes and WISEflow Practice Workspace" loading="eager" fetchpriority="high" decoding="async">
+        </figure>
+      </article>
 
-    <section class="bi-demo-card" style="margin-bottom:18px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span class="eyebrow" style="margin:0;padding:3px 9px;border-radius:999px;background:var(--accent-soft)">12s Walkthrough</span>
-        <strong style="font-size:14px">See the 3-Pane Study Workspace, Notes &amp; AI Tutor in action</strong>
-      </div>
-      <div class="ws-demo-viewport" aria-label="Animated walkthrough of Study-OS 3-Pane Workspace, context-matched notes, and solution review">
-        <div class="ws-demo-camera">
-          <div class="bi-demo-browser">
-            <div class="bi-demo-chrome">
-              <span class="bi-demo-dots"><i></i><i></i><i></i></span>
-              <div class="bi-demo-tab active" style="display:inline-flex;align-items:center;gap:4px">
-                <img class="bi-demo-picon" src="./pwa/favicon-48.png" width="12" height="12" alt="" style="width:12px;height:12px">
-                studyos.no · 3-Pane Runner
+      <section class="bi-demo-card" style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span class="eyebrow" style="margin:0;padding:3px 9px;border-radius:999px;background:var(--accent-soft)">12s Walkthrough</span>
+          <strong style="font-size:14px">See the 3-Pane Study Workspace, Notes &amp; AI Tutor in action</strong>
+        </div>
+        <div class="ws-demo-viewport" role="region" aria-label="Animated walkthrough of Study-OS 3-Pane Workspace, context-matched notes, and solution review">
+          <div class="ws-demo-camera">
+            <div class="bi-demo-browser">
+              <div class="bi-demo-chrome">
+                <span class="bi-demo-dots"><i></i><i></i><i></i></span>
+                <div class="bi-demo-tab active" style="display:inline-flex;align-items:center;gap:4px">
+                  <img class="bi-demo-picon" src="./pwa/favicon-48.png" width="12" height="12" alt="" loading="lazy" decoding="async" style="width:12px;height:12px">
+                  studyos.no · 3-Pane Runner
+                </div>
+                <div class="bi-demo-tab">Adamlite Par 18:00</div>
+                <div class="bi-demo-tab">FSRS-5</div>
               </div>
-              <div class="bi-demo-tab">Adamlite Par 18:00</div>
-              <div class="bi-demo-tab">FSRS-5</div>
+              <div class="ws-demo-grid">
+                <div class="ws-demo-pane p-notes">
+                  <span class="ws-demo-ptag">Needed Notes</span>
+                  <div style="font-weight:700;color:#e2e8f0">Ch. 2 · Equilibrium &amp; Tax</div>
+                  <div class="ws-demo-formula">P* = MC(Q*) · slope = -P_F/P_E</div>
+                  <div style="color:#94a3b8;margin-top:4px">Auto-matched KaTeX notes &amp; inline PDFs</div>
+                </div>
+                <div class="ws-demo-pane">
+                  <span class="ws-demo-ptag">EXC 3420 · Task</span>
+                  <div style="font-weight:700;color:#f8fafc">Aluminium Market &amp; Tariff (a–e)</div>
+                  <div style="color:#cbd5e1;margin-top:4px">Competitive market at P = $80; a 25% input tariff raises MC by 15%.</div>
+                </div>
+                <div class="ws-demo-pane p-ans">
+                  <span class="ws-demo-ptag">Answer &amp; AI</span>
+                  <div class="ws-demo-field"><span>Post-tariff MC: 92</span><i>✓</i></div>
+                  <div class="ws-demo-field"><span>Hint 1/2 · Adamlite AI</span><i>✓</i></div>
+                  <div class="ws-demo-checkbtn">Reveal Solution</div>
+                  <div class="ws-demo-passed">✓ Mastered · Beat-AI Pace</div>
+                </div>
+              </div>
             </div>
-            <div class="ws-demo-grid">
-              <div class="ws-demo-pane p-notes">
-                <span class="ws-demo-ptag">Needed Notes</span>
-                <div style="font-weight:700;color:#e2e8f0">Ch. 2 · Equilibrium &amp; Tax</div>
-                <div class="ws-demo-formula">P* = MC(Q*) · slope = -P_F/P_E</div>
-                <div style="color:#94a3b8;margin-top:4px">Auto-matched KaTeX notes &amp; inline PDFs</div>
-              </div>
-              <div class="ws-demo-pane">
-                <span class="ws-demo-ptag">EXC 3420 · Task</span>
-                <div style="font-weight:700;color:#f8fafc">Aluminium Market &amp; Tariff (a–e)</div>
-                <div style="color:#cbd5e1;margin-top:4px">Competitive market at P = $80; a 25% input tariff raises MC by 15%.</div>
-              </div>
-              <div class="ws-demo-pane p-ans">
-                <span class="ws-demo-ptag">Answer &amp; AI</span>
-                <div class="ws-demo-field"><span>Post-tariff MC: 92</span><i>✓</i></div>
-                <div class="ws-demo-field"><span>Hint 1/2 · Adamlite AI</span><i>✓</i></div>
-                <div class="ws-demo-checkbtn">Reveal Solution</div>
-                <div class="ws-demo-passed">✓ Mastered · Beat-AI Pace</div>
-              </div>
+            <div class="ws-demo-cursor" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round">
+                <path d="M5 3l14 9-6.5 1.4L9 20z"></path>
+              </svg>
+              <span class="ws-demo-ripple"></span>
             </div>
           </div>
-          <div class="ws-demo-cursor" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round">
-              <path d="M5 3l14 9-6.5 1.4L9 20z"></path>
-            </svg>
-            <span class="ws-demo-ripple"></span>
+          <div class="bi-demo-caption">
+            <span class="bi-demo-cap ws-demo-cap1">1. Context-matched <b>KaTeX Notes &amp; PDFs</b> open beside the task</span>
+            <span class="bi-demo-cap ws-demo-cap2">2. Draft answers, pull <b>Hints / Adamlite AI</b> &amp; reveal official solutions</span>
+            <span class="bi-demo-cap ws-demo-cap3">3. Track <b>FSRS-5 mastery</b>, adaptive schedule &amp; Canvas sync ✓</span>
           </div>
+          <div class="bi-demo-progress"><i class="ws-demo-bar"></i></div>
         </div>
-        <div class="bi-demo-caption">
-          <span class="bi-demo-cap ws-demo-cap1">1. Context-matched <b>KaTeX Notes &amp; PDFs</b> open beside the task</span>
-          <span class="bi-demo-cap ws-demo-cap2">2. Draft answers, pull <b>Hints / Adamlite AI</b> &amp; reveal official solutions</span>
-          <span class="bi-demo-cap ws-demo-cap3">3. Track <b>FSRS-5 mastery</b>, adaptive schedule &amp; Canvas sync ✓</span>
+      </section>
+
+      <section>
+        <h2 style="margin:0 0 8px">BI Oslo Courses &amp; Exam Guides (EN / NO Codes)</h2>
+        <div class="seo-grid">
+{course_cards_html}        </div>
+      </section>
+
+      <section class="panel seo-card" style="margin-bottom:18px">
+        <span class="eyebrow">Built for Oslo exam season</span>
+        <h2>Why BI Oslo students use Study-OS</h2>
+        <ul class="seo-topics">
+          <li><strong>WISEflow FLOWmulti &amp; BYOD timing:</strong> Practice under realistic 180-minute Oslo exam conditions with automatic score and speed tracking.</li>
+          <li><strong>Circadian DLPFC scheduling:</strong> Match High DLPFC synthesis problems to peak morning focus (08:00–15:00 Oslo) and lighter retrieval drills to evenings.</li>
+          <li><strong>1-click BI Canvas, TimeEdit &amp; Ed sync:</strong> Pull courses, deadlines, and lectures straight from your open browser tabs with Study-OS Sync v{escape(ext_version)} — zero cookie copying.</li>
+          <li><strong>Private curriculum PDFs &amp; AI Tutor:</strong> Drop your own lecture slides or textbooks (up to 260 MB locally) and ask Adamlite AI while solving exercises.</li>
+        </ul>
+        <div class="seo-cta-row" style="margin-top:10px">
+          <a class="ghost-btn" href="./bi-canvas-timeedit-sync.html">BI Canvas &amp; TimeEdit Sync Guide</a>
+          <a class="ghost-btn" href="./compare.html">Study-OS vs Notion, Anki &amp; Paid Portals</a>
+          <a class="ghost-btn" href="./norsk.html" lang="nb">Les på norsk</a>
         </div>
-        <div class="bi-demo-progress"><i class="ws-demo-bar"></i></div>
-      </div>
-    </section>
+      </section>
 
-    <section>
-      <h2 style="margin:0 0 8px">BI Oslo Courses &amp; Exam Guides (EN / NO Codes)</h2>
-      <div class="seo-grid">
-{course_cards_html}      </div>
-    </section>
-
-    <section class="panel seo-card" style="margin-bottom:18px">
-      <span class="eyebrow">Built for Oslo exam season</span>
-      <h2>Why BI Oslo students use Study-OS</h2>
-      <ul class="seo-topics">
-        <li><strong>WISEflow FLOWmulti &amp; BYOD timing:</strong> Practice under realistic 180-minute Oslo exam conditions with automatic score and speed tracking.</li>
-        <li><strong>Circadian DLPFC scheduling:</strong> Match High DLPFC synthesis problems to peak morning focus (08:00–15:00 Oslo) and lighter retrieval drills to evenings.</li>
-        <li><strong>1-click BI Canvas, TimeEdit &amp; Ed sync:</strong> Pull courses, deadlines, and lectures straight from your open browser tabs with Study-OS Sync v{escape(ext_version)} — zero cookie copying.</li>
-        <li><strong>Private curriculum PDFs &amp; AI Tutor:</strong> Drop your own lecture slides or textbooks (up to 260 MB locally) and ask Adamlite AI while solving exercises.</li>
-      </ul>
-      <div class="seo-cta-row" style="margin-top:10px">
-        <a class="ghost-btn" href="./bi-canvas-timeedit-sync.html">BI Canvas &amp; TimeEdit Sync Guide</a>
-        <a class="ghost-btn" href="./compare.html">Study-OS vs Notion, Anki &amp; Paid Portals</a>
-        <a class="ghost-btn" href="./norsk.html" lang="nb">Les på norsk</a>
-      </div>
-    </section>
-
-    <section>
-      <h2 style="margin:0 0 6px">Frequently Asked Questions / Ofte stilte spørsmål</h2>
-      <div class="seo-faq">
-{faq_html}      </div>
-    </section>
+      <section>
+        <h2 style="margin:0 0 6px">Frequently Asked Questions / Ofte stilte spørsmål</h2>
+        <div class="seo-faq">
+{faq_html}        </div>
+      </section>
+    </main>
 
     <footer class="seo-foot">
       <span>Study-OS · Independent student project in Oslo, Norway (not officially affiliated with BI Norwegian Business School).</span>
@@ -1373,7 +1444,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a href="./terms.html">Terms</a>
       </nav>
     </footer>
-  </main>
+  </div>
 </body>
 </html>
 """
@@ -1477,72 +1548,77 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <script type="application/ld+json">{json.dumps(nb_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
-  <main class="seo-shell">
-    <nav class="seo-nav" aria-label="Hovednavigasjon">
-      <div class="seo-cta-row">
-        <a href="./" class="ghost-btn">← Åpne Study-OS</a>
-        <a href="./bi-oslo.html" class="ghost-btn" lang="en">English BI Guide</a>
-        <a href="./gpa-calculator.html" class="ghost-btn">Karaktersnitt</a>
-      </div>
-      <span class="badge">Norge · Gratis uten betalingsmur</span>
-    </nav>
+  <a class="skip-link" href="#main-content">Hopp til hovedinnhold</a>
+  <div class="seo-shell">
+    <header>
+      <nav class="seo-nav" aria-label="Hovednavigasjon">
+        <div class="seo-cta-row">
+          <a href="./" class="ghost-btn">← Åpne Study-OS</a>
+          <a href="./bi-oslo.html" class="ghost-btn" lang="en">English BI Guide</a>
+          <a href="./gpa-calculator.html" class="ghost-btn">Karaktersnitt</a>
+        </div>
+        <span class="badge">Norge · Gratis uten betalingsmur</span>
+      </nav>
+    </header>
 
-    <article class="panel seo-hero">
-      <span class="eyebrow">Norge · BI Oslo, UiA, NTNU, UiO, NHH, UiB &amp; OsloMet</span>
-      <h1>Gratis eksamensøving, Canvas-synk &amp; WISEflow for norske studenter</h1>
-      <p class="seo-lead">{escape(nb_desc)}</p>
-      <div class="seo-cta-row">
-        <a class="primary-btn btn-lg" href="./">Start øving i Study-OS →</a>
-        <a class="ghost-btn btn-lg" href="./universities.html">Velg universitet (UiA, NTNU, UiO, NHH…)</a>
-        <a class="ghost-btn btn-lg" href="./gpa-calculator.html">Karaktersnitt Kalkulator</a>
-        <a class="ghost-btn btn-lg" href="./bi-canvas-timeedit-sync.html">Canvas &amp; TimeEdit/TP Sync</a>
-      </div>
-      <div class="seo-stats">
-        <div class="seo-stat"><strong>{len(catalog)}</strong><small>Komplette fagbanker</small></div>
-        <div class="seo-stat"><strong>{total_qs:,}</strong><small>Øvingsoppgaver</small></div>
-        <div class="seo-stat"><strong>{len(references)}</strong><small>Kursnotater &amp; formler</small></div>
-        <div class="seo-stat"><strong>0 kr</strong><small>Ingen reklame</small></div>
-      </div>
-    </article>
+    <main id="main-content" tabindex="-1">
+      <article class="panel seo-hero">
+        <span class="eyebrow">Norge · BI Oslo, UiA, NTNU, UiO, NHH, UiB &amp; OsloMet</span>
+        <h1>Gratis eksamensøving, Canvas-synk &amp; WISEflow for norske studenter</h1>
+        <p class="seo-lead">{escape(nb_desc)}</p>
+        <div class="seo-cta-row">
+          <a class="primary-btn btn-lg" href="./">Start øving i Study-OS →</a>
+          <a class="ghost-btn btn-lg" href="./universities.html">Velg universitet (UiA, NTNU, UiO, NHH…)</a>
+          <a class="ghost-btn btn-lg" href="./gpa-calculator.html">Karaktersnitt Kalkulator</a>
+          <a class="ghost-btn btn-lg" href="./bi-canvas-timeedit-sync.html">Canvas &amp; TimeEdit/TP Sync</a>
+        </div>
+        <div class="seo-stats">
+          <div class="seo-stat"><strong>{len(catalog)}</strong><small>Komplette fagbanker</small></div>
+          <div class="seo-stat"><strong>{total_qs:,}</strong><small>Øvingsoppgaver</small></div>
+          <div class="seo-stat"><strong>{len(references)}</strong><small>Kursnotater &amp; formler</small></div>
+          <div class="seo-stat"><strong>0 kr</strong><small>Ingen reklame</small></div>
+        </div>
+      </article>
 
-    <section>
-      <h2 style="margin:0 0 8px">BI-emner og felles norske økonomi- og realfag</h2>
-      <div class="seo-grid">
-{course_cards_html}      </div>
-    </section>
+      <section>
+        <h2 style="margin:0 0 8px">BI-emner og felles norske økonomi- og realfag</h2>
+        <div class="seo-grid">
+{course_cards_html}        </div>
+      </section>
 
-    <section class="panel seo-card" style="margin-bottom:18px">
-      <span class="eyebrow">1-klikks Canvas, TimeEdit &amp; TP-synk</span>
-      <h2>Velg ditt universitet eller høyskole i Norge</h2>
-      <p>Study-OS Sync v{escape(ext_version)} kobler seg direkte til din innloggede Canvas- og timeplanfane uten Feide-passord:</p>
-      <div class="seo-cta-row" style="margin-top:8px">
-        <a class="ghost-btn" href="./bi-oslo.html">BI Oslo</a>
-        <a class="ghost-btn" href="./uni/uia.html">UiA</a>
-        <a class="ghost-btn" href="./uni/ntnu.html">NTNU</a>
-        <a class="ghost-btn" href="./uni/uio.html">UiO</a>
-        <a class="ghost-btn" href="./uni/nhh.html">NHH</a>
-        <a class="ghost-btn" href="./uni/uib.html">Mitt UiB</a>
-        <a class="ghost-btn" href="./uni/oslomet.html">OsloMet</a>
-        <a class="ghost-btn" href="./universities.html">Alle universiteter →</a>
-      </div>
-    </section>
+      <section class="panel seo-card" style="margin-bottom:18px">
+        <span class="eyebrow">1-klikks Canvas, TimeEdit &amp; TP-synk</span>
+        <h2>Velg ditt universitet eller høyskole i Norge</h2>
+        <p>Study-OS Sync v{escape(ext_version)} kobler seg direkte til din innloggede Canvas- og timeplanfane uten Feide-passord:</p>
+        <div class="seo-cta-row" style="margin-top:8px">
+          <a class="ghost-btn" href="./bi-oslo.html">BI Oslo</a>
+          <a class="ghost-btn" href="./uni/uia.html">UiA</a>
+          <a class="ghost-btn" href="./uni/ntnu.html">NTNU</a>
+          <a class="ghost-btn" href="./uni/uio.html">UiO</a>
+          <a class="ghost-btn" href="./uni/nhh.html">NHH</a>
+          <a class="ghost-btn" href="./uni/uib.html">Mitt UiB</a>
+          <a class="ghost-btn" href="./uni/oslomet.html">OsloMet</a>
+          <a class="ghost-btn" href="./universities.html">Alle universiteter →</a>
+        </div>
+      </section>
 
-    <section class="panel seo-card" style="margin-bottom:18px">
-      <span class="eyebrow">Smart studieteknikk i eksamensperioden</span>
-      <h2>Alt du trenger til eksamen samlet på ett sted</h2>
-      <ul class="seo-topics">
-        <li><strong>Nedtelling til eksamen i Oslo-tid:</strong> Se nøyaktig hvor mange dager, timer og minutter som gjenstår til hver eksamen.</li>
-        <li><strong>Døgnrytme og DLPFC-nivåer:</strong> Planlegg krevende regne- og caseoppgaver på formiddagen (08:00–15:00) og lettere repetisjon på kvelden.</li>
-        <li><strong>Egne pensum-PDF-er &amp; AI-veileder:</strong> Slipp egne forelesningsnotater (opptil 260 MB lokalt i nettleseren) og få hjelp av Adamlite AI rett ved siden av oppgaven.</li>
-        <li><strong>Fungerende offline som app:</strong> Lagre fagene lokalt i nettleseren og øv videre på T-banen eller lesesalen uten nett.</li>
-      </ul>
-    </section>
+      <section class="panel seo-card" style="margin-bottom:18px">
+        <span class="eyebrow">Smart studieteknikk i eksamensperioden</span>
+        <h2>Alt du trenger til eksamen samlet på ett sted</h2>
+        <ul class="seo-topics">
+          <li><strong>Nedtelling til eksamen i Oslo-tid:</strong> Se nøyaktig hvor mange dager, timer og minutter som gjenstår til hver eksamen.</li>
+          <li><strong>Døgnrytme og DLPFC-nivåer:</strong> Planlegg krevende regne- og caseoppgaver på formiddagen (08:00–15:00) og lettere repetisjon på kvelden.</li>
+          <li><strong>Egne pensum-PDF-er &amp; AI-veileder:</strong> Slipp egne forelesningsnotater (opptil 260 MB lokalt i nettleseren) og få hjelp av Adamlite AI rett ved siden av oppgaven.</li>
+          <li><strong>Fungerende offline som app:</strong> Lagre fagene lokalt i nettleseren og øv videre på T-banen eller lesesalen uten nett.</li>
+        </ul>
+      </section>
 
-    <section>
-      <h2 style="margin:0 0 6px">Ofte stilte spørsmål</h2>
-      <div class="seo-faq">
-{nb_faq_html}      </div>
-    </section>
+      <section>
+        <h2 style="margin:0 0 6px">Ofte stilte spørsmål</h2>
+        <div class="seo-faq">
+{nb_faq_html}        </div>
+      </section>
+    </main>
 
     <footer class="seo-foot">
       <span>Study-OS · Uavhengig studentprosjekt i Oslo (ikke offisielt tilknyttet Handelshøyskolen BI).</span>
@@ -1559,7 +1635,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a href="./terms.html">Vilkår</a>
       </nav>
     </footer>
-  </main>
+  </div>
 </body>
 </html>
 """
@@ -1676,17 +1752,21 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <script type="application/ld+json">{json.dumps(wf_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
-  <main class="seo-shell">
-    <nav class="seo-nav" aria-label="Breadcrumb">
-      <div class="seo-cta-row">
-        <a href="./" class="ghost-btn">← Open Study-OS</a>
-        <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
-        <a href="./gpa-calculator.html" class="ghost-btn">GPA Calculator</a>
-      </div>
-      <span class="badge">WISEflow · FLOWmulti · Oslo</span>
-    </nav>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="seo-shell">
+    <header>
+      <nav class="seo-nav" aria-label="Breadcrumb">
+        <div class="seo-cta-row">
+          <a href="./" class="ghost-btn">← Open Study-OS</a>
+          <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
+          <a href="./gpa-calculator.html" class="ghost-btn">GPA Calculator</a>
+        </div>
+        <span class="badge">WISEflow · FLOWmulti · Oslo</span>
+      </nav>
+    </header>
 
-    <article class="panel seo-hero">
+    <main id="main-content" tabindex="-1">
+      <article class="panel seo-hero">
       <span class="eyebrow">BI WISEflow Øving · BI Oslo &amp; Norwegian Digital Exams</span>
       <h1>BI WISEflow Øving &amp; FLOWmulti Exam Simulator</h1>
       <div class="seo-acu">
@@ -1794,6 +1874,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       <div class="seo-faq">
 {wf_faq_html}      </div>
     </section>
+    </main>
 
     <footer class="seo-foot">
       <span>Study-OS · Independent student project in Oslo, Norway.</span>
@@ -1810,7 +1891,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a href="./terms.html">Terms</a>
       </nav>
     </footer>
-  </main>
+  </div>
   <script>
     (function () {{
       var SPEC = [
@@ -1998,116 +2079,121 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <script type="application/ld+json">{json.dumps(sync_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
-  <main class="seo-shell">
-    <nav class="seo-nav" aria-label="Breadcrumb">
-      <div class="seo-cta-row">
-        <a href="./" class="ghost-btn">← Open Study-OS</a>
-        <a href="./universities.html" class="ghost-btn">Universities</a>
-        <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
-      </div>
-      <span class="badge">Chrome Extension · v{escape(ext_version)} · Multi-School Auto-Sync + MV3</span>
-    </nav>
-
-    <article class="panel seo-hero">
-      <span class="eyebrow">Canvas LMS (BI · UiA · NHH · UiO · NTNU · UiB) · TimeEdit / TP · Ed</span>
-      <h1>1-Click &amp; Auto Canvas, TimeEdit/TP &amp; Ed Sync</h1>
-      <p class="seo-lead">{escape(sync_desc)}</p>
-      <p class="seo-lead seo-lead-sub" lang="nb">
-        Synkroniser aktive emner og frister fra <strong>Canvas</strong> (BI Oslo, UiA, NHH, UiO, NTNU, OsloMet, UiB, UiS, UiT, USN, NMBU, HVL og Kristiania), timeplanen din fra <strong>TimeEdit / TP</strong> og tråder fra <strong>Ed Discussion</strong> automatisk eller med 1 klikk — helt uten skolepassord.
-      </p>
-      <div class="seo-cta-row">
-        <a class="primary-btn btn-lg" href="./">Open Study-OS → Sync Canvas</a>
-        <a class="ghost-btn btn-lg" href="./downloads/study-os-sync-extension.zip" download>Download Extension ZIP (v{escape(ext_version)})</a>
-        <a class="ghost-btn btn-lg" href="./?view=schedule" rel="nofollow">Schedule Studio</a>
-      </div>
-    </article>
-
-    <section class="bi-demo-card" style="margin-bottom:16px">
-      <div class="row-between" style="margin-bottom:8px;gap:8px">
-        <div style="display:flex;align-items:center;gap:7px">
-          <span class="badge live">10s Walkthrough</span>
-          <strong style="font-size:13.5px">Watch how 1-Click &amp; Auto-Sync works</strong>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="seo-shell">
+    <header>
+      <nav class="seo-nav" aria-label="Breadcrumb">
+        <div class="seo-cta-row">
+          <a href="./" class="ghost-btn">← Open Study-OS</a>
+          <a href="./universities.html" class="ghost-btn">Universities</a>
+          <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
         </div>
-      </div>
-      <div class="bi-demo-viewport">
-        <div class="bi-demo-camera">
-          <div class="bi-demo-browser">
-            <div class="bi-demo-chrome">
-              <span class="bi-demo-dots"><i></i><i></i><i></i></span>
-              <div class="bi-demo-tab active">studyos.no</div>
-              <div class="bi-demo-tab">● canvas.bi.no</div>
-              <div class="bi-demo-tab">● timeedit.net</div>
-              <div class="bi-demo-tab">● eu.edstem.org</div>
-            </div>
-            <div class="bi-demo-canvas">
-              <div class="bi-demo-left">
-                <div class="bi-demo-eyebrow">Study-OS · Sync BI</div>
-                <div class="bi-demo-h">Pair once in 10 seconds</div>
-                <div class="bi-demo-code-btn">Generate 6-char code</div>
-                <div class="bi-demo-code-pill">K7M-9P2</div>
-              </div>
-              <div class="bi-demo-popup">
-                <div class="bi-demo-phead">
-                  <img class="bi-demo-picon" src="./pwa/favicon-48.png" width="16" height="16" alt="">
-                  <b>Study-OS Sync</b>
-                  <span class="bi-demo-ppill">3 tabs ready</span>
-                </div>
-                <div class="bi-demo-pchips">
-                  <span>BI Canvas<i>● Ready</i></span>
-                  <span>TimeEdit<i>● Ready</i></span>
-                  <span>Ed<i>● Ready</i></span>
-                </div>
-                <div class="bi-demo-pbtn">Sync all 3 open tabs</div>
-                <div class="bi-demo-presults">
-                  <div class="bi-demo-res r1">✓ Canvas: 5 courses, 18 deadlines</div>
-                  <div class="bi-demo-res r2">✓ TimeEdit: 42 classes synced</div>
-                  <div class="bi-demo-res r3">✓ Ed: 2 courses · Auto-sync ON</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="bi-demo-cursor" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round">
-              <path d="M5 3l14 9-6.5 1.4L9 20z"></path>
-            </svg>
-            <span class="bi-demo-ripple"></span>
+        <span class="badge">Chrome Extension · v{escape(ext_version)} · Multi-School Auto-Sync + MV3</span>
+      </nav>
+    </header>
+
+    <main id="main-content" tabindex="-1">
+      <article class="panel seo-hero">
+        <span class="eyebrow">Canvas LMS (BI · UiA · NHH · UiO · NTNU · UiB) · TimeEdit / TP · Ed</span>
+        <h1>1-Click &amp; Auto Canvas, TimeEdit/TP &amp; Ed Sync</h1>
+        <p class="seo-lead">{escape(sync_desc)}</p>
+        <p class="seo-lead seo-lead-sub" lang="nb">
+          Synkroniser aktive emner og frister fra <strong>Canvas</strong> (BI Oslo, UiA, NHH, UiO, NTNU, OsloMet, UiB, UiS, UiT, USN, NMBU, HVL og Kristiania), timeplanen din fra <strong>TimeEdit / TP</strong> og tråder fra <strong>Ed Discussion</strong> automatisk eller med 1 klikk — helt uten skolepassord.
+        </p>
+        <div class="seo-cta-row">
+          <a class="primary-btn btn-lg" href="./">Open Study-OS → Sync Canvas</a>
+          <a class="ghost-btn btn-lg" href="./downloads/study-os-sync-extension.zip" download>Download Extension ZIP (v{escape(ext_version)})</a>
+          <a class="ghost-btn btn-lg" href="./?view=schedule" rel="nofollow">Schedule Studio</a>
+        </div>
+      </article>
+
+      <section class="bi-demo-card" style="margin-bottom:16px">
+        <div class="row-between" style="margin-bottom:8px;gap:8px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span class="badge live">10s Walkthrough</span>
+            <strong style="font-size:13.5px">Watch how 1-Click &amp; Auto-Sync works</strong>
           </div>
         </div>
-        <div class="bi-demo-caption">
-          <span class="bi-demo-cap c1">1. Click <b>Generate 6-char code</b> on studyos.no</span>
-          <span class="bi-demo-cap c2">2. Paste once in <b>Study-OS Sync</b> &amp; click Sync</span>
-          <span class="bi-demo-cap c3">3. <b>Canvas, TimeEdit &amp; Ed</b> stay synced automatically ✓</span>
+        <div class="bi-demo-viewport" role="region" aria-label="Animated walkthrough of 1-click and auto Canvas, TimeEdit and Ed sync">
+          <div class="bi-demo-camera">
+            <div class="bi-demo-browser">
+              <div class="bi-demo-chrome">
+                <span class="bi-demo-dots"><i></i><i></i><i></i></span>
+                <div class="bi-demo-tab active">studyos.no</div>
+                <div class="bi-demo-tab">● canvas.bi.no</div>
+                <div class="bi-demo-tab">● timeedit.net</div>
+                <div class="bi-demo-tab">● eu.edstem.org</div>
+              </div>
+              <div class="bi-demo-canvas">
+                <div class="bi-demo-left">
+                  <div class="bi-demo-eyebrow">Study-OS · Sync BI</div>
+                  <div class="bi-demo-h">Pair once in 10 seconds</div>
+                  <div class="bi-demo-code-btn">Generate 6-char code</div>
+                  <div class="bi-demo-code-pill">K7M-9P2</div>
+                </div>
+                <div class="bi-demo-popup">
+                  <div class="bi-demo-phead">
+                    <img class="bi-demo-picon" src="./pwa/favicon-48.png" width="16" height="16" alt="" loading="lazy" decoding="async">
+                    <b>Study-OS Sync</b>
+                    <span class="bi-demo-ppill">3 tabs ready</span>
+                  </div>
+                  <div class="bi-demo-pchips">
+                    <span>BI Canvas<i>● Ready</i></span>
+                    <span>TimeEdit<i>● Ready</i></span>
+                    <span>Ed<i>● Ready</i></span>
+                  </div>
+                  <div class="bi-demo-pbtn">Sync all 3 open tabs</div>
+                  <div class="bi-demo-presults">
+                    <div class="bi-demo-res r1">✓ Canvas: 5 courses, 18 deadlines</div>
+                    <div class="bi-demo-res r2">✓ TimeEdit: 42 classes synced</div>
+                    <div class="bi-demo-res r3">✓ Ed: 2 courses · Auto-sync ON</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="bi-demo-cursor" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round">
+                <path d="M5 3l14 9-6.5 1.4L9 20z"></path>
+              </svg>
+              <span class="bi-demo-ripple"></span>
+            </div>
+          </div>
+          <div class="bi-demo-caption">
+            <span class="bi-demo-cap c1">1. Click <b>Generate 6-char code</b> on studyos.no</span>
+            <span class="bi-demo-cap c2">2. Paste once in <b>Study-OS Sync</b> &amp; click Sync</span>
+            <span class="bi-demo-cap c3">3. <b>Canvas, TimeEdit &amp; Ed</b> stay synced automatically ✓</span>
+          </div>
+          <div class="bi-demo-progress"><i></i></div>
         </div>
-        <div class="bi-demo-progress"><i></i></div>
-      </div>
-    </section>
+      </section>
 
-    <section class="panel seo-card" style="margin-bottom:16px">
-      <span class="eyebrow">How it works in 30 seconds</span>
-      <h2>Zero OAuth, zero passwords, zero cookie copying</h2>
-      <ul class="seo-topics">
-        <li><strong>1. Pair once:</strong> Sign in at <code>studyos.no</code>, click <strong>Sync Canvas</strong>, and copy a 6-character pairing code into the extension popup.</li>
-        <li><strong>2. Keep your school tabs open:</strong> Leave your signed-in Canvas tab (<code>canvas.bi.no</code>, <code>uia.instructure.com</code>, <code>mitt.uib.no</code>, <code>*.instructure.com</code>), <code>cloud.timeedit.net</code> / <code>tp.educloud.no</code>, or <code>edstem.org</code> open in Chrome, Brave, Edge, or Vivaldi.</li>
-        <li><strong>3. Click Sync once:</strong> Pulls active courses, module outlines, assignment due dates, and TimeEdit/TP class lectures into your private Study-OS schedule and course list.</li>
-        <li><strong>4. Attach your own PDFs:</strong> Drop personal curriculum PDFs, lecture slides, or full textbooks (up to 260 MB locally) for instant inline split-screen PDF viewing with built-in search.</li>
-      </ul>
-      <div class="seo-cta-row" style="margin-top:12px">
-        <a class="ghost-btn" href="./universities.html">All Universities</a>
-        <a class="ghost-btn" href="./uni/uia.html">UiA Guide</a>
-        <a class="ghost-btn" href="./uni/ntnu.html">NTNU Guide</a>
-        <a class="ghost-btn" href="./uni/uio.html">UiO Guide</a>
-        <a class="ghost-btn" href="./uni/nhh.html">NHH Guide</a>
-        <a class="ghost-btn" href="./uni/uib.html">UiB Guide</a>
-        <a class="ghost-btn" href="./uni/oslomet.html">OsloMet Guide</a>
-        <a class="ghost-btn" href="./uni/canvas-lms.html">Any Canvas School</a>
-      </div>
-    </section>
+      <section class="panel seo-card" style="margin-bottom:16px">
+        <span class="eyebrow">How it works in 30 seconds</span>
+        <h2>Zero OAuth, zero passwords, zero cookie copying</h2>
+        <ul class="seo-topics">
+          <li><strong>1. Pair once:</strong> Sign in at <code>studyos.no</code>, click <strong>Sync Canvas</strong>, and copy a 6-character pairing code into the extension popup.</li>
+          <li><strong>2. Keep your school tabs open:</strong> Leave your signed-in Canvas tab (<code>canvas.bi.no</code>, <code>uia.instructure.com</code>, <code>mitt.uib.no</code>, <code>*.instructure.com</code>), <code>cloud.timeedit.net</code> / <code>tp.educloud.no</code>, or <code>edstem.org</code> open in Chrome, Brave, Edge, or Vivaldi.</li>
+          <li><strong>3. Click Sync once:</strong> Pulls active courses, module outlines, assignment due dates, and TimeEdit/TP class lectures into your private Study-OS schedule and course list.</li>
+          <li><strong>4. Attach your own PDFs:</strong> Drop personal curriculum PDFs, lecture slides, or full textbooks (up to 260 MB locally) for instant inline split-screen PDF viewing with built-in search.</li>
+        </ul>
+        <div class="seo-cta-row" style="margin-top:12px">
+          <a class="ghost-btn" href="./universities.html">All Universities</a>
+          <a class="ghost-btn" href="./uni/uia.html">UiA Guide</a>
+          <a class="ghost-btn" href="./uni/ntnu.html">NTNU Guide</a>
+          <a class="ghost-btn" href="./uni/uio.html">UiO Guide</a>
+          <a class="ghost-btn" href="./uni/nhh.html">NHH Guide</a>
+          <a class="ghost-btn" href="./uni/uib.html">UiB Guide</a>
+          <a class="ghost-btn" href="./uni/oslomet.html">OsloMet Guide</a>
+          <a class="ghost-btn" href="./uni/canvas-lms.html">Any Canvas School</a>
+        </div>
+      </section>
 
-    <section style="margin-bottom:16px">
-      <h2 style="margin:0 0 6px">Sync FAQ / Ofte stilte spørsmål</h2>
-      <div class="seo-faq">
-{sync_faq_html}      </div>
-    </section>
+      <section style="margin-bottom:16px">
+        <h2 style="margin:0 0 6px">Sync FAQ / Ofte stilte spørsmål</h2>
+        <div class="seo-faq">
+{sync_faq_html}        </div>
+      </section>
+    </main>
 
     <footer class="seo-foot">
       <span>Study-OS · Independent open-source student project in Norway.</span>
@@ -2124,7 +2210,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a href="./terms.html">Terms</a>
       </nav>
     </footer>
-  </main>
+  </div>
 </body>
 </html>
 """
@@ -2262,28 +2348,32 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
   <script type="application/ld+json">{json.dumps(notes_json_ld, ensure_ascii=False)}</script>
 </head>
 <body>
-  <main class="seo-shell">
-    <nav class="seo-nav" aria-label="Breadcrumb">
-      <div class="seo-cta-row">
-        <a href="./" class="ghost-btn">← Open Study-OS</a>
-        <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
-        <a href="./wiseflow-practice.html" class="ghost-btn">WISEflow</a>
-      </div>
-      <span class="badge">{len(references)} Reference Sheets · KaTeX &amp; Diagrams</span>
-    </nav>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="seo-shell">
+    <header>
+      <nav class="seo-nav" aria-label="Breadcrumb">
+        <div class="seo-cta-row">
+          <a href="./" class="ghost-btn">← Open Study-OS</a>
+          <a href="./bi-oslo.html" class="ghost-btn">BI Oslo Guide</a>
+          <a href="./wiseflow-practice.html" class="ghost-btn">WISEflow</a>
+        </div>
+        <span class="badge">{len(references)} Reference Sheets · KaTeX &amp; Diagrams</span>
+      </nav>
+    </header>
 
-    <article class="panel seo-hero">
-      <span class="eyebrow">Multi-Semester Reference Hub · Oslo</span>
-      <h1>BI Oslo Course Notes &amp; Formula Sheets</h1>
-      <p class="seo-lead">{escape(notes_desc)}</p>
-      <div class="seo-cta-row">
-        <a class="primary-btn btn-lg" href="./?view=references" rel="nofollow">Open Interactive Notes Reader →</a>
-        <a class="ghost-btn btn-lg" href="./bi-oslo.html">Browse Courses</a>
-        <a class="ghost-btn btn-lg" href="./gpa-calculator.html">GPA Calculator</a>
-      </div>
-    </article>
+    <main id="main-content" tabindex="-1">
+      <article class="panel seo-hero">
+        <span class="eyebrow">Multi-Semester Reference Hub · Oslo</span>
+        <h1>BI Oslo Course Notes &amp; Formula Sheets</h1>
+        <p class="seo-lead">{escape(notes_desc)}</p>
+        <div class="seo-cta-row">
+          <a class="primary-btn btn-lg" href="./?view=references" rel="nofollow">Open Interactive Notes Reader →</a>
+          <a class="ghost-btn btn-lg" href="./bi-oslo.html">Browse Courses</a>
+          <a class="ghost-btn btn-lg" href="./gpa-calculator.html">GPA Calculator</a>
+        </div>
+      </article>
 
-{"".join(ref_cards_parts)}
+{"".join(ref_cards_parts)}    </main>
     <footer class="seo-foot">
       <span>Study-OS · Independent student project in Oslo, Norway.</span>
       <nav aria-label="Footer links">
@@ -2299,7 +2389,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         <a href="./terms.html">Terms</a>
       </nav>
     </footer>
-  </main>
+  </div>
 </body>
 </html>
 """
@@ -2322,6 +2412,9 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
         today_iso=today_iso,
     )
     sitemap_urls.extend(growth_entries)
+
+    # 6C. Ensure every generated university/tool SEO page has skip-to-content + top-level <header>/<main>/<footer/> landmarks
+    _apply_static_a11y_landmarks(out_dir)
 
     # 7. AI Search / GEO Markdown mirrors (all 23 public pages), `/llms.txt`, and `/llms-full.txt`
     from geo_markdown import generate_geo_markdown
@@ -2499,23 +2592,54 @@ def finalize_site(
             raise ValueError("The community endpoint must be an HTTPS URL without credentials.")
         community_marker = f' data-community-api="{escape(endpoint, quote=True)}"'
     html = html.replace("<html ", f'<html data-study-mode="web"{boot_marker}{member_marker}{pdfcraft_marker}{community_marker} ', 1)
+    skip_style = (
+        '  <style>'
+        '.skip-link{position:fixed;top:-120px;left:12px;z-index:10000;padding:10px 16px;border-radius:999px;'
+        'background:var(--accent,#0f6e57);color:#fff;font:700 13.5px/1.2 -apple-system,BlinkMacSystemFont,"Inter",sans-serif;'
+        'text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.24)}'
+        'html[data-theme="dark"] .skip-link{color:#091512}'
+        '.skip-link:focus,.skip-link:focus-visible{top:12px;outline:3px solid var(--ink,#111615);outline-offset:2px}'
+        '#main-content:focus{outline:none}'
+        '</style>\n'
+        if ".skip-link" not in html else ""
+    )
     html = html.replace(
         "</head>",
+        f'{skip_style}'
         '  <link rel="manifest" href="./app.webmanifest">\n'
         f'  <link rel="preload" href="./static-data/bootstrap.json?v={boot_hash}" as="fetch" crossorigin>\n'
         '</head>',
         1,
     )
+    if 'class="skip-link"' not in html:
+        html = html.replace(
+            "<body>",
+            '<body>\n  <a class="skip-link" href="#main-content">Skip to main content</a>',
+            1,
+        )
+    if 'id="main-content"' not in html:
+        html = html.replace(
+            '<main class="container">',
+            '<main id="main-content" class="container" tabindex="-1">',
+            1,
+        )
+
+    out_root = out_dir.resolve()
 
     def _stamp_asset(match: re.Match[str]) -> str:
         attr, rel = match.group(1), match.group(2)
-        target = out_dir / rel
-        if not target.is_file():
+        target = (out_dir / rel).resolve()
+        if not target.is_relative_to(out_root) or not target.is_file():
             return match.group(0)
         digest = hashlib.sha256(target.read_bytes()).hexdigest()[:8]
         return f'{attr}="./{rel}?v={digest}"'
 
-    html = re.sub(r'(href|src)="\./((?:styles\.css|js/[A-Za-z0-9._-]+\.js))"', _stamp_asset, html)
+    # Support both top-level `js/*.js` and nested module paths like `js/core/*.js`
+    html = re.sub(
+        r'(href|src)="\./((?:styles\.css|js/(?:[A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+\.js))"',
+        _stamp_asset,
+        html,
+    )
     index.write_text(html, encoding="utf-8")
 
     # Package the in-house Study-OS Sync Chrome extension (Manifest V3) for direct download / Chrome Web Store upload.
@@ -2541,12 +2665,18 @@ def finalize_site(
     # Generate static indexable Oslo & per-course SEO pages plus sitemap.xml
     seo_urls = generate_seo_pages(out_dir, bootstrap)
 
-    template = (ROOT_DIR / "tools" / "offline-worker.js").read_bytes()
-    fingerprint = hashlib.sha256(template)
+    sw_src = APP_DIR / "public" / "offline-worker.js"
+    uses_public_sw = sw_src.is_file()
+    if not uses_public_sw:
+        sw_src = ROOT_DIR / "tools" / "offline-worker.js"
+    template = sw_src.read_bytes()
+    fingerprint = hashlib.sha256(b"v2-option-b\0" + template)
     assets = []
+    # Keep Option B icons (`favicon.ico`, `pwa/*.png`), `404.html`, `seo.css`, and nested `js/**/*.js` precached.
+    # Never precache the service worker itself, heavy downloads/pdfcraft bundles, or SEO landing pages.
     seo_skip_files = {
-        ".nojekyll", "CNAME", "404.html", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt",
-        "seo.css", "og-image.png", "favicon.ico", "bi-oslo.html", "norsk.html",
+        ".nojekyll", "CNAME", "offline-worker.js", "robots.txt", "sitemap.xml", "llms.txt", "llms-full.txt",
+        "og-image.png", "bi-oslo.html", "norsk.html",
         "wiseflow-practice.html", "bi-canvas-timeedit-sync.html", "notes.html",
         "universities.html", "gpa-calculator.html", "compare.html",
         "7d4c9e2a8b1f4063a5e7c2d9f1b84e60.txt",
@@ -2560,10 +2690,18 @@ def finalize_site(
                 continue
             assets.append(quote(rel, safe="/"))
             fingerprint.update(rel.encode() + b"\0" + hashlib.sha256(path.read_bytes()).digest())
-    (out_dir / "offline-worker.js").write_bytes(
-        (f"const VERSION = {json.dumps(fingerprint.hexdigest()[:20])};\n"
-         f"const ASSETS = {json.dumps(assets)};\n").encode() + template
-    )
+    sw_version = fingerprint.hexdigest()[:20]
+    if uses_public_sw:
+        sw_preamble = (
+            f"self.__STUDY_OS_VERSION__ = {json.dumps(sw_version)};\n"
+            f"self.__STUDY_OS_ASSETS__ = {json.dumps(assets)};\n"
+        ).encode("utf-8")
+    else:
+        sw_preamble = (
+            f"const VERSION = {json.dumps(sw_version)};\n"
+            f"const ASSETS = {json.dumps(assets)};\n"
+        ).encode("utf-8")
+    (out_dir / "offline-worker.js").write_bytes(sw_preamble + template)
     if member_archive:
         install_member_library(out_dir, member_archive)
     if pdfcraft_archive:
@@ -2585,6 +2723,7 @@ def build_site(
 ) -> dict[str, Any]:
     if out_dir.exists():
         shutil.rmtree(out_dir)
+    # Recursively copies all of app/public/, including nested app/public/js/** modules (e.g. js/core/)
     shutil.copytree(APP_DIR / "public", out_dir, ignore=shutil.ignore_patterns("pdfcraft"))
     (out_dir / ".nojekyll").write_text("", encoding="utf-8")
     if cname.strip():
