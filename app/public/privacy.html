@@ -55,43 +55,48 @@
   <link rel="stylesheet" href="./seo.css">
 </head>
 <body>
-  <main class="legal-shell">
-    <nav class="seo-nav" aria-label="Breadcrumb">
-      <a href="./" class="ghost-btn">← Back to Study-OS</a>
-      <span class="badge">GDPR · Norway / EEA</span>
-    </nav>
-    <article class="panel legal-card">
-      <span class="eyebrow">Study-OS</span>
-      <h1>Privacy Policy</h1>
-      <p class="legal-meta">Independent student project · Last updated November 2026</p>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="legal-shell">
+    <header>
+      <nav class="seo-nav" aria-label="Breadcrumb">
+        <a href="./" class="ghost-btn">← Back to Study-OS</a>
+        <span class="badge">GDPR · Norway / EEA</span>
+      </nav>
+    </header>
+    <main id="main-content" tabindex="-1">
+      <article class="panel legal-card">
+        <span class="eyebrow">Study-OS</span>
+        <h1>Privacy Policy</h1>
+        <p class="legal-meta">Independent student project · Last updated November 2026</p>
 
-      <p>Study-OS is a free, independent student study workspace built with privacy by default. You can practice directly in your browser without creating an account.</p>
+        <p>Study-OS is a free, independent student study workspace built with privacy by default. You can practice directly in your browser without creating an account.</p>
 
-      <h2>1. Data stored locally on your device</h2>
-      <p>Practice answers, timers, theme preferences, study schedules, personal PDF files (stored in browser IndexedDB up to 260 MB per file), and optional API keys (if you enter your own Google Gemini key) stay on your device unless you sign in to sync them.</p>
+        <h2>1. Data stored locally on your device</h2>
+        <p>Practice answers, timers, theme preferences, study schedules, personal PDF files (stored in browser IndexedDB up to 260 MB per file), and optional API keys (if you enter your own Google Gemini key) stay on your device unless you sign in to sync them.</p>
 
-      <h2>2. Optional accounts &amp; Google Sign-In</h2>
-      <ul>
-        <li>If you choose to sign in with Google, Passkey, or a study profile, Study-OS stores your display name, account identifier, and synced study progress on Cloudflare Workers / D1 (EU region).</li>
-        <li>Google Sign-In only verifies your identity (basic OpenID profile / email). Study-OS does not sell your data or access your Gmail, Drive, or other Google services.</li>
-        <li>Study-OS's use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.</li>
-      </ul>
+        <h2>2. Optional accounts &amp; Google Sign-In</h2>
+        <ul>
+          <li>If you choose to sign in with Google, Passkey, or a study profile, Study-OS stores your display name, account identifier, and synced study progress on Cloudflare Workers / D1 (EU region).</li>
+          <li>Google Sign-In only verifies your identity (basic OpenID profile / email). Study-OS does not sell your data or access your Gmail, Drive, or other Google services.</li>
+          <li>Study-OS's use of information received from Google APIs adheres to the Google API Services User Data Policy, including the Limited Use requirements.</li>
+        </ul>
 
-      <h2>3. Optional Browser Sync &amp; AI Tutor</h2>
-      <ul>
-        <li>The optional <strong>Study-OS Sync</strong> Chrome extension only runs on signed-in Canvas LMS, TimeEdit/TP timetable, or Ed Discussion tabs you authorize. It never reads passwords or exports session cookies; any in-tab Ed session lookup stays strictly in memory to query Ed's own API and is never saved or transmitted to Study-OS.</li>
-        <li><strong>Local-only Canvas PDF viewing:</strong> When fetching lecture slides through the extension, PDF bytes stay strictly inside your browser and local IndexedDB and are never uploaded to Study-OS servers.</li>
-        <li><strong>Toggleable community course catalog:</strong> When enabled in the extension popup (toggleable off anytime in one click), only non-personal course codes, course titles, and module headings are merged into the shared catalog — personal assignment deadlines, timetables, grades, submissions, and files always remain private.</li>
-        <li><strong>Opt-in on-device Browser Focus Telemetry:</strong> Disabled by default. Only if you explicitly enable it and grant Chrome's optional <code>tabs</code> permission does the extension inspect the active tab's hostname in memory to increment local daily Study / Distraction / Other minute counters. Full URLs, paths, and page titles are never stored or uploaded.</li>
-        <li>When you use the built-in Adamlite AI Tutor, your prompt and the current question context are sent to the configured model provider (Cloudflare Workers AI or Google Gemini) solely to generate your tutor response.</li>
-      </ul>
+        <h2>3. Optional Browser Sync &amp; AI Tutor</h2>
+        <ul>
+          <li>The optional <strong>Study-OS Sync</strong> Chrome extension only runs on signed-in Canvas LMS, TimeEdit/TP timetable, or Ed Discussion tabs you authorize. It never reads passwords or exports session cookies; any in-tab Ed session lookup stays strictly in memory to query Ed's own API and is never saved or transmitted to Study-OS.</li>
+          <li><strong>Local-only Canvas PDF viewing:</strong> When fetching lecture slides through the extension, PDF bytes stay strictly inside your browser and local IndexedDB and are never uploaded to Study-OS servers.</li>
+          <li><strong>Toggleable community course catalog:</strong> When enabled in the extension popup (toggleable off anytime in one click), only non-personal course codes, course titles, and module headings are merged into the shared catalog — personal assignment deadlines, timetables, grades, submissions, and files always remain private.</li>
+          <li><strong>Opt-in on-device Browser Focus Telemetry:</strong> Disabled by default. Only if you explicitly enable it and grant Chrome's optional <code>tabs</code> permission does the extension inspect the active tab's hostname in memory to increment local daily Study / Distraction / Other minute counters. Full URLs, paths, and page titles are never stored or uploaded.</li>
+          <li>When you use the built-in Adamlite AI Tutor, your prompt and the current question context are sent to the configured model provider (Cloudflare Workers AI or Google Gemini) solely to generate your tutor response.</li>
+        </ul>
 
-      <h2>4. Cookies &amp; tracking</h2>
-      <p>Study-OS uses no advertising networks, no third-party analytics trackers, and no cross-site tracking cookies. Only strictly necessary browser storage is used to keep your session and local preferences working.</p>
+        <h2>4. Cookies &amp; tracking</h2>
+        <p>Study-OS uses no advertising networks, no third-party analytics trackers, and no cross-site tracking cookies. Only strictly necessary browser storage is used to keep your session and local preferences working.</p>
 
-      <h2>5. Your rights &amp; contact</h2>
-      <p>Under GDPR (Norway / EEA), you can export your data, sign out and clear local storage at any time, disconnect Study-OS from your Google Account, or request deletion of your synced account data via the project repository at <a href="https://github.com/shadjosef/study-os/issues" target="_blank" rel="noopener">github.com/shadjosef/study-os</a>.</p>
-    </article>
+        <h2>5. Your rights &amp; contact</h2>
+        <p>Under GDPR (Norway / EEA), you can export your data, sign out and clear local storage at any time, disconnect Study-OS from your Google Account, or request deletion of your synced account data via the project repository at <a href="https://github.com/shadjosef/study-os/issues" target="_blank" rel="noopener noreferrer">github.com/shadjosef/study-os</a>.</p>
+      </article>
+    </main>
     <footer class="seo-foot">
       <span>Study-OS · Independent open-source student workspace · Norway</span>
       <nav aria-label="Footer links">
@@ -103,6 +108,6 @@
         <a href="./terms.html">Terms</a>
       </nav>
     </footer>
-  </main>
+  </div>
 </body>
 </html>

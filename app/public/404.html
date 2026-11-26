@@ -20,29 +20,57 @@
         } catch (e) {}
       }
       syncTheme();
+      if (window.matchMedia) {
+        var mql = window.matchMedia('(prefers-color-scheme: dark)');
+        if (mql.addEventListener) mql.addEventListener('change', syncTheme);
+        else if (mql.addListener) mql.addListener(syncTheme);
+      }
     })();
   </script>
   <title>Page Not Found · Study-OS</title>
+  <link rel="shortcut icon" href="/favicon.ico">
   <link rel="icon" href="/favicon.ico" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-48.png" sizes="48x48">
+  <link rel="icon" type="image/png" href="/pwa/favicon-96.png" sizes="96x96">
   <link rel="icon" type="image/png" href="/pwa/study-os-192.png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/pwa/study-os-192.png">
   <link rel="stylesheet" href="/seo.css">
 </head>
 <body>
-  <main class="nf-shell">
-    <article class="panel nf-card">
-      <span class="eyebrow">404 · Study-OS Norway</span>
-      <h1 style="margin:6px 0 8px">This page does not exist</h1>
-      <p class="muted" style="margin:0;line-height:1.55">Jump straight back into Study-OS or pick one of the BI Oslo, university, or exam-prep guides below.</p>
-      <div class="nf-links">
-        <a class="primary-btn" href="/">Open Study-OS Workspace →</a>
-        <a class="ghost-btn" href="/bi-oslo.html">BI Oslo Guide</a>
-        <a class="ghost-btn" href="/universities.html">Universities</a>
-        <a class="ghost-btn" href="/norsk.html" lang="nb">Norsk</a>
-        <a class="ghost-btn" href="/wiseflow-practice.html">WISEflow Exams</a>
-        <a class="ghost-btn" href="/gpa-calculator.html">GPA Calculator</a>
-        <a class="ghost-btn" href="/notes.html">Course Notes</a>
-      </div>
-    </article>
-  </main>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div class="nf-shell">
+    <header>
+      <nav class="seo-nav" aria-label="Primary navigation">
+        <a href="/" class="ghost-btn">← Back to Study-OS</a>
+        <span class="badge">404 · Not Found</span>
+      </nav>
+    </header>
+    <main id="main-content" tabindex="-1">
+      <article class="panel nf-card">
+        <span class="eyebrow">404 · Study-OS Norway</span>
+        <h1 style="margin:6px 0 8px">This page does not exist</h1>
+        <p class="muted" style="margin:0;line-height:1.55">Jump straight back into Study-OS or pick one of the BI Oslo, university, or exam-prep guides below.</p>
+        <div class="nf-links">
+          <a class="primary-btn" href="/">Open Study-OS Workspace →</a>
+          <a class="ghost-btn" href="/bi-oslo.html">BI Oslo Guide</a>
+          <a class="ghost-btn" href="/universities.html">Universities</a>
+          <a class="ghost-btn" href="/norsk.html" lang="nb">Norsk</a>
+          <a class="ghost-btn" href="/wiseflow-practice.html">WISEflow Exams</a>
+          <a class="ghost-btn" href="/gpa-calculator.html">GPA Calculator</a>
+          <a class="ghost-btn" href="/notes.html">Course Notes</a>
+        </div>
+      </article>
+    </main>
+    <footer class="seo-foot">
+      <span>Study-OS · Independent open-source student workspace · Norway</span>
+      <nav aria-label="Footer links">
+        <a href="/">App</a>
+        <a href="/bi-oslo.html">BI Oslo</a>
+        <a href="/universities.html">Universities</a>
+        <a href="/privacy.html">Privacy</a>
+        <a href="/terms.html">Terms</a>
+      </nav>
+    </footer>
+  </div>
 </body>
 </html>
