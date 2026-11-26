@@ -1,0 +1,55 @@
+name: Feature request
+description: Propose a new study workflow, university integration, grading capability, or developer improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Study-OS is built as a **local-first, zero-dependency** student workbench (no frontend bundler, Python 3.9+ stdlib, EU GDPR edge sync).
+        Check [`docs/roadmap.md`](https://github.com/shadjosef/study-os/blob/main/docs/roadmap.md) first to see if this is already planned.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Primary surface
+      options:
+        - Web App / PWA (studyos.no)
+        - FSRS-5 / Grading / Circadian Schedule Core
+        - Local Desktop App & CLI
+        - Cloudflare Worker / Community & Study Pods
+        - Chrome Extension (Study-OS Sync)
+        - VS Code / Antigravity / Cursor Companion
+        - Local MCP Server & AI Tutor
+        - Documentation / Open-Source Tooling
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or study workflow need
+      description: What student workflow or maintainer pain point does this solve?
+      placeholder: Example — During exam prep at NTNU/BI, I want to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe how the feature should work, including any UX, data schema, or API details.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Privacy, copyright, & zero-dependency considerations
+      description: Can this run locally in the browser or stdlib without adding runtime dependencies, leaking student data, or uploading copyrighted course PDFs?
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or alternative designs you considered.

@@ -1,0 +1,82 @@
+name: Bug report
+description: Report a broken flow, grading discrepancy, layout issue, or sync error in Study-OS
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting an issue!
+        - **Security vulnerabilities:** Do **not** open a public issue. Report privately via [GitHub Security Advisories](https://github.com/shadjosef/study-os/security/advisories/new) (see `SECURITY.md`).
+        - **Privacy reminder:** Never paste personal `soc1_...` profile keys, recovery keys, student credentials, or copyrighted course PDFs.
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      description: Which part of Study-OS is impacted?
+      options:
+        - Web App / PWA (studyos.no)
+        - Local Desktop App (app/server.py)
+        - Cloudflare Worker / Community API (community/)
+        - Chrome Extension (Study-OS Sync)
+        - VS Code / Antigravity / Cursor Companion
+        - Local MCP Server / CLI (tools/)
+        - Static Site Build / SEO / CI
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the bug clearly, including the exact route, course/question ID, or command.
+      placeholder: Example — On /wiseflow-practice.html, entering -4857.25 failed validation...
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to trigger the issue.
+      value: |
+        1. Open ...
+        2. Click / run ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser / OS / Python / Node / Extension version (whichever apply).
+      placeholder: "e.g. Chrome 131 on macOS 15, studyos.no PWA, Study-OS Sync v1.7.2"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output, logs, or screenshots
+      description: Paste relevant browser console errors, test failures, or screenshots (with secrets redacted).
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I confirmed this is not a security vulnerability (security reports go to GitHub Security Advisories)
+          required: true
+        - label: I redacted any personal tokens, recovery keys, or private student files
+          required: true

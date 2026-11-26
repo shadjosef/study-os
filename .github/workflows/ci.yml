@@ -10,13 +10,13 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
 
@@ -26,6 +26,14 @@ jobs:
             app/*.py \
             tools/*.py \
             tools/study-os-vscode/build_vsix.py
+
+      - name: Run Python unit tests
+        run: |
+          if [ -d tests/python ]; then
+            python3 -m unittest discover -s tests/python -v
+          else
+            echo "No tests/python directory yet; skipping."
+          fi
 
       - name: Frontend, Worker, Chrome, VS Code & Obsidian JS syntax check
         run: |
@@ -40,6 +48,12 @@ jobs:
             obsidian-plugin/main.js; do
             node --check "$f"
           done
+
+      - name: JSDoc TypeScript check (jsconfig.json)
+        run: |
+          mkdir -p /tmp/pw-ci
+          npm --prefix /tmp/pw-ci install --no-save typescript@latest playwright-core@latest
+          /tmp/pw-ci/node_modules/.bin/tsc --noEmit -p jsconfig.json
 
       - name: Run Node unit tests
         run: |
@@ -76,8 +90,10 @@ jobs:
 
       - name: Headless Chromium E2E smoke test
         run: |
-          mkdir -p /tmp/pw-ci
-          npm --prefix /tmp/pw-ci install --no-save playwright-core@latest
+          if [ ! -d /tmp/pw-ci/node_modules/playwright-core ]; then
+            mkdir -p /tmp/pw-ci
+            npm --prefix /tmp/pw-ci install --no-save playwright-core@latest
+          fi
           if ! command -v google-chrome >/dev/null 2>&1 && ! command -v chromium >/dev/null 2>&1; then
             /tmp/pw-ci/node_modules/.bin/playwright-core install chromium
           fi
