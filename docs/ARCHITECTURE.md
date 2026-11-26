@@ -10,7 +10,7 @@ Study-OS is a local-first, zero-dependency university study workbench designed t
 flowchart LR
   subgraph Client["Student Browser (Zero-Build Local-First SPA & PWA)"]
     SPA["Vanilla SPA (app/public/js/)\n3-Pane Runner · KaTeX · Charts · Layouts"]
-    CORE["UMD-Lite Core (app/public/js/core/)\nfsrs.js · grading.js · schedule.js"]
+    CORE["UMD-Lite Core (app/public/js/core/)\nfsrs.js · grading.js · schedule.js · analytics.js"]
     SW["Service Worker (offline-worker.js)\nv2-option-b · Network-First + SWR"]
     IDB["IndexedDB Vault + PDF Stack\nPDF.js LRU Cache · Lazy PdfCraft WASM"]
     EXT["Study-OS Sync v1.7.2\nChrome MV3 Extension"]
@@ -59,6 +59,7 @@ flowchart LR
   - `fsrs.js`: FSRS-5 power-law retrievability, stability/difficulty updates, attempt grade suggestions, difficulty overrides, and effective DLPFC step-down/escalation.
   - `grading.js`: BI WISEflow `FLOWmulti` numeric parser (dot-decimal enforcement, accounting-parentheses rejection, currency/space stripping, `±2%` / `±0.02` tolerance grading), multi-slot worksheet grader, and Norwegian ECTS grade scale.
   - `schedule.js`: Sleep-window derivation (`deriveSleepWindow`), weekly study-budget estimation, circadian DLPFC target routing, 14-day overdue Study Debt detection (`SCHED_DEBT_WINDOW_MS`), and block timing state resolution.
+  - `analytics.js`: Weighted UPI & calibrated AI-Par math, verification tier classification, Oslo study streaks, topic mastery matrix, exam attempt summaries, closed-book independence tracking, and daily/weekly/monthly chart bucketing.
   - Each module attaches to `window.StudyCore` in the browser and exports via `module.exports` in Node (`node --test`), with static type verification via JSDoc + [`jsconfig.json`](../jsconfig.json) (`checkJs: true`, `strictNullChecks: true`, `noUnusedLocals: true`, `noUnusedParameters: true`).
 
 ### Local Storage, Private PDF Vault & Embedded PdfCraft WASM
