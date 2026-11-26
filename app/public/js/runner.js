@@ -2123,7 +2123,7 @@ window.StudyRunner = (() => {
           : isSynced && !hasCanvasFileId
           ? 'This exam PDF is not stored under a direct Canvas file ID — drop your copy here, open Canvas Files, or unlock with an access code.'
           : isSynced
-          ? 'Open directly on BI Canvas, drop your downloaded PDF here, or reload Study-OS Sync v1.6 in Chrome for auto-inline loading.'
+          ? 'Open directly on BI Canvas, drop your downloaded PDF here, or reload Study-OS Sync v1.7.2 in Chrome for auto-inline loading.'
           : 'Course PDFs &amp; slides stay copyright-safe. Unlock with your class access code, sync Canvas, or drop your own PDF copy.';
         return `<div class="source-gate-card source-gate-compact source-gate-canvas" data-local-dropzone data-course-id="${esc(q.courseId)}" data-source-id="${esc(c.sourceId)}" data-source-kind="canvas" data-source-title="${esc(c.title)}" data-source-page="${esc(c.page || 1)}">
           <div class="source-gate-copy">

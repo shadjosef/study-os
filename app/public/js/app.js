@@ -2942,11 +2942,11 @@ window.StudyApp = (() => {
         <div class="row-between" style="margin-bottom:8px;gap:8px">
           <div style="display:flex;align-items:center;gap:7px">
             <span class="badge live">12s Walkthrough</span>
-            <strong style="font-size:13px">3-Pane Exam Workspace &amp; WISEflow ±2%</strong>
+            <strong style="font-size:13px">3-Pane Study Workspace, Notes &amp; AI Tutor</strong>
           </div>
           <button type="button" class="ghost-btn" id="ws-demo-toggle" style="padding:3px 10px;font-size:11.5px">Pause</button>
         </div>
-        <div class="ws-demo-viewport" aria-label="Animated walkthrough of Study-OS 3-Pane Workspace and WISEflow FLOWmulti live grading">
+        <div class="ws-demo-viewport" aria-label="Animated walkthrough of Study-OS 3-Pane Workspace, context-matched notes, and solution review">
           <div class="ws-demo-camera">
             <div class="bi-demo-browser">
               <div class="bi-demo-chrome">
@@ -2961,22 +2961,21 @@ window.StudyApp = (() => {
               <div class="ws-demo-grid">
                 <div class="ws-demo-pane p-notes">
                   <span class="ws-demo-ptag">Needed Notes</span>
-                  <div style="font-weight:700;color:#e2e8f0">Ch. 8 · Investment Appraisal</div>
-                  <div class="ws-demo-formula">NPV = -CF₀ + Σ CFₜ/(1+r)ᵗ</div>
-                  <div style="color:#94a3b8;margin-top:4px">Dot decimals (.), leading minus (-) for outflows</div>
+                  <div style="font-weight:700;color:#e2e8f0">Ch. 2 · Equilibrium &amp; Tax</div>
+                  <div class="ws-demo-formula">P* = MC(Q*) · slope = -P_F/P_E</div>
+                  <div style="color:#94a3b8;margin-top:4px">Auto-matched KaTeX notes &amp; inline PDFs</div>
                 </div>
                 <div class="ws-demo-pane">
-                  <span class="ws-demo-ptag">EXC 3430 · Task</span>
-                  <div style="font-weight:700;color:#f8fafc">Nordic Tech AS Machine (50 pts)</div>
-                  <div style="color:#cbd5e1;margin-top:4px">Outlay NOK 200,000 today; inflows 120k (t=1) &amp; 130k (t=2) at r = 10%.</div>
+                  <span class="ws-demo-ptag">EXC 3420 · Task</span>
+                  <div style="font-weight:700;color:#f8fafc">Aluminium Market &amp; Tariff (a–e)</div>
+                  <div style="color:#cbd5e1;margin-top:4px">Competitive market at P = $80; a 25% input tariff raises MC by 15%.</div>
                 </div>
                 <div class="ws-demo-pane p-ans">
-                  <span class="ws-demo-ptag">WISEflow ±2%</span>
-                  <div class="ws-demo-field"><span>CF₀: -200000</span><i>✓</i></div>
-                  <div class="ws-demo-field"><span>PV: 216528.93</span><i>✓</i></div>
-                  <div class="ws-demo-field"><span>NPV: 16528.93</span><i>✓</i></div>
-                  <div class="ws-demo-checkbtn">Check Answers</div>
-                  <div class="ws-demo-passed">✓ 3/3 passed · ±2% band</div>
+                  <span class="ws-demo-ptag">Answer &amp; AI</span>
+                  <div class="ws-demo-field"><span>Post-tariff MC: 92</span><i>✓</i></div>
+                  <div class="ws-demo-field"><span>Hint 1/2 · Adamlite AI</span><i>✓</i></div>
+                  <div class="ws-demo-checkbtn">Reveal Solution</div>
+                  <div class="ws-demo-passed">✓ Mastered · Beat-AI Pace</div>
                 </div>
               </div>
             </div>
@@ -2988,9 +2987,9 @@ window.StudyApp = (() => {
             </div>
           </div>
           <div class="bi-demo-caption">
-            <span class="bi-demo-cap ws-demo-cap1">1. Context-matched <b>KaTeX Reference Notes</b> open beside the task</span>
-            <span class="bi-demo-cap ws-demo-cap2">2. Enter <b>WISEflow FLOWmulti</b> numbers &amp; check <b>±2%</b> rules live</span>
-            <span class="bi-demo-cap ws-demo-cap3">3. Track mastery, <b>Beat-AI pace</b> &amp; sync Canvas automatically ✓</span>
+            <span class="bi-demo-cap ws-demo-cap1">1. Context-matched <b>KaTeX Notes &amp; PDFs</b> open beside the task</span>
+            <span class="bi-demo-cap ws-demo-cap2">2. Draft answers, pull <b>Hints / Adamlite AI</b> &amp; reveal official solutions</span>
+            <span class="bi-demo-cap ws-demo-cap3">3. Track <b>FSRS-5 mastery</b>, adaptive schedule &amp; Canvas sync ✓</span>
           </div>
           <div class="bi-demo-progress"><i class="ws-demo-bar"></i></div>
         </div>
@@ -3015,7 +3014,7 @@ window.StudyApp = (() => {
           <div>
             <span class="eyebrow">Study-OS · Interactive Product Tour</span>
             <h2 id="ws-tour-title" style="margin:2px 0 4px">How the 3-Pane Workspace works</h2>
-            <p class="muted" style="margin:0;font-size:13px">1,185+ BI exam questions, WISEflow ±2% live grading, context-matched notes, and 1-click Canvas sync.</p>
+            <p class="muted" style="margin:0;font-size:13px">Context-matched KaTeX notes, inline PDFs, Adamlite AI tutor, adaptive scheduling, and 1-click Canvas sync.</p>
           </div>
           <button type="button" class="ios-done-btn" id="ws-tour-done">Done</button>
         </div>
@@ -3023,14 +3022,14 @@ window.StudyApp = (() => {
           ${workspaceTourHtml()}
           <div class="row-actions" style="justify-content:flex-end;margin-top:4px">
             <button type="button" class="ghost-btn" id="ws-tour-sync">Set up Canvas Sync</button>
-            <button type="button" class="primary-btn" id="ws-tour-exams">Launch Mock Exams →</button>
+            <button type="button" class="primary-btn" id="ws-tour-exams">Browse Course Notes →</button>
           </div>
         </div>
       </div>
     `;
     dlg.querySelector('#ws-tour-done').onclick = () => dlg.close();
     dlg.querySelector('#ws-tour-sync').onclick = () => { dlg.close(); openBiSyncHub({ showDemo: true }); };
-    dlg.querySelector('#ws-tour-exams').onclick = () => { dlg.close(); navigate('exams'); };
+    dlg.querySelector('#ws-tour-exams').onclick = () => { dlg.close(); navigate('references'); };
     const toggleBtn = dlg.querySelector('#ws-demo-toggle');
     const vp = dlg.querySelector('.ws-demo-viewport');
     if (toggleBtn && vp) {
