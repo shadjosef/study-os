@@ -1276,6 +1276,61 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       </figure>
     </article>
 
+    <section class="bi-demo-card" style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span class="eyebrow" style="margin:0;padding:3px 9px;border-radius:999px;background:var(--accent-soft)">12s Walkthrough</span>
+        <strong style="font-size:14px">See the 3-Pane Exam Workspace &amp; WISEflow ±2% Simulator in action</strong>
+      </div>
+      <div class="ws-demo-viewport" aria-label="Animated walkthrough of Study-OS 3-Pane Workspace and WISEflow FLOWmulti live grading">
+        <div class="ws-demo-camera">
+          <div class="bi-demo-browser">
+            <div class="bi-demo-chrome">
+              <span class="bi-demo-dots"><i></i><i></i><i></i></span>
+              <div class="bi-demo-tab active" style="display:inline-flex;align-items:center;gap:4px">
+                <img class="bi-demo-picon" src="./pwa/favicon-48.png" width="12" height="12" alt="" style="width:12px;height:12px">
+                studyos.no · 3-Pane Runner
+              </div>
+              <div class="bi-demo-tab">Adamlite Par 18:00</div>
+              <div class="bi-demo-tab">FSRS-5</div>
+            </div>
+            <div class="ws-demo-grid">
+              <div class="ws-demo-pane p-notes">
+                <span class="ws-demo-ptag">Needed Notes</span>
+                <div style="font-weight:700;color:#e2e8f0">Ch. 8 · Investment Appraisal</div>
+                <div class="ws-demo-formula">NPV = -CF₀ + Σ CFₜ/(1+r)ᵗ</div>
+                <div style="color:#94a3b8;margin-top:4px">Dot decimals (.), leading minus (-) for outflows</div>
+              </div>
+              <div class="ws-demo-pane">
+                <span class="ws-demo-ptag">EXC 3430 · Task</span>
+                <div style="font-weight:700;color:#f8fafc">Nordic Tech AS Machine (50 pts)</div>
+                <div style="color:#cbd5e1;margin-top:4px">Outlay NOK 200,000 today; inflows 120k (t=1) &amp; 130k (t=2) at r = 10%.</div>
+              </div>
+              <div class="ws-demo-pane p-ans">
+                <span class="ws-demo-ptag">WISEflow ±2%</span>
+                <div class="ws-demo-field"><span>CF₀: -200000</span><i>✓</i></div>
+                <div class="ws-demo-field"><span>PV: 216528.93</span><i>✓</i></div>
+                <div class="ws-demo-field"><span>NPV: 16528.93</span><i>✓</i></div>
+                <div class="ws-demo-checkbtn">Check Answers</div>
+                <div class="ws-demo-passed">✓ 3/3 passed · ±2% band</div>
+              </div>
+            </div>
+          </div>
+          <div class="ws-demo-cursor" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round">
+              <path d="M5 3l14 9-6.5 1.4L9 20z"></path>
+            </svg>
+            <span class="ws-demo-ripple"></span>
+          </div>
+        </div>
+        <div class="bi-demo-caption">
+          <span class="bi-demo-cap ws-demo-cap1">1. Context-matched <b>KaTeX Reference Notes</b> open beside the task</span>
+          <span class="bi-demo-cap ws-demo-cap2">2. Enter <b>WISEflow FLOWmulti</b> numbers &amp; check <b>±2%</b> rules live</span>
+          <span class="bi-demo-cap ws-demo-cap3">3. Track mastery, <b>Beat-AI pace</b> &amp; sync Canvas automatically ✓</span>
+        </div>
+        <div class="bi-demo-progress"><i class="ws-demo-bar"></i></div>
+      </div>
+    </section>
+
     <section>
       <h2 style="margin:0 0 8px">BI Oslo Courses &amp; Exam Guides (EN / NO Codes)</h2>
       <div class="seo-grid">
@@ -1994,7 +2049,7 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
               </div>
               <div class="bi-demo-popup">
                 <div class="bi-demo-phead">
-                  <span class="bi-demo-pdot"></span>
+                  <img class="bi-demo-picon" src="./pwa/favicon-48.png" width="16" height="16" alt="">
                   <b>Study-OS Sync</b>
                   <span class="bi-demo-ppill">3 tabs ready</span>
                 </div>

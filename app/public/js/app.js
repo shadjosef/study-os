@@ -2900,7 +2900,7 @@ window.StudyApp = (() => {
                 </div>
                 <div class="bi-demo-popup">
                   <div class="bi-demo-phead">
-                    <span class="bi-demo-pdot"></span>
+                    <img class="bi-demo-picon" src="./pwa/favicon-48.png" width="16" height="16" alt="">
                     <b>Study-OS Sync</b>
                     <span class="bi-demo-ppill">3 tabs ready</span>
                   </div>
@@ -2934,6 +2934,112 @@ window.StudyApp = (() => {
         </div>
       </div>
     `;
+  }
+
+  function workspaceTourHtml() {
+    return `
+      <div class="bi-demo-card" id="ws-demo-card">
+        <div class="row-between" style="margin-bottom:8px;gap:8px">
+          <div style="display:flex;align-items:center;gap:7px">
+            <span class="badge live">12s Walkthrough</span>
+            <strong style="font-size:13px">3-Pane Exam Workspace &amp; WISEflow ±2%</strong>
+          </div>
+          <button type="button" class="ghost-btn" id="ws-demo-toggle" style="padding:3px 10px;font-size:11.5px">Pause</button>
+        </div>
+        <div class="ws-demo-viewport" aria-label="Animated walkthrough of Study-OS 3-Pane Workspace and WISEflow FLOWmulti live grading">
+          <div class="ws-demo-camera">
+            <div class="bi-demo-browser">
+              <div class="bi-demo-chrome">
+                <span class="bi-demo-dots"><i></i><i></i><i></i></span>
+                <div class="bi-demo-tab active" style="display:inline-flex;align-items:center;gap:4px">
+                  <img class="bi-demo-picon" src="./pwa/favicon-48.png" width="12" height="12" alt="" style="width:12px;height:12px">
+                  studyos.no · 3-Pane Runner
+                </div>
+                <div class="bi-demo-tab">Adamlite Par 18:00</div>
+                <div class="bi-demo-tab">FSRS-5</div>
+              </div>
+              <div class="ws-demo-grid">
+                <div class="ws-demo-pane p-notes">
+                  <span class="ws-demo-ptag">Needed Notes</span>
+                  <div style="font-weight:700;color:#e2e8f0">Ch. 8 · Investment Appraisal</div>
+                  <div class="ws-demo-formula">NPV = -CF₀ + Σ CFₜ/(1+r)ᵗ</div>
+                  <div style="color:#94a3b8;margin-top:4px">Dot decimals (.), leading minus (-) for outflows</div>
+                </div>
+                <div class="ws-demo-pane">
+                  <span class="ws-demo-ptag">EXC 3430 · Task</span>
+                  <div style="font-weight:700;color:#f8fafc">Nordic Tech AS Machine (50 pts)</div>
+                  <div style="color:#cbd5e1;margin-top:4px">Outlay NOK 200,000 today; inflows 120k (t=1) &amp; 130k (t=2) at r = 10%.</div>
+                </div>
+                <div class="ws-demo-pane p-ans">
+                  <span class="ws-demo-ptag">WISEflow ±2%</span>
+                  <div class="ws-demo-field"><span>CF₀: -200000</span><i>✓</i></div>
+                  <div class="ws-demo-field"><span>PV: 216528.93</span><i>✓</i></div>
+                  <div class="ws-demo-field"><span>NPV: 16528.93</span><i>✓</i></div>
+                  <div class="ws-demo-checkbtn">Check Answers</div>
+                  <div class="ws-demo-passed">✓ 3/3 passed · ±2% band</div>
+                </div>
+              </div>
+            </div>
+            <div class="ws-demo-cursor" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff" stroke="#0f172a" stroke-width="1.8" stroke-linejoin="round">
+                <path d="M5 3l14 9-6.5 1.4L9 20z"></path>
+              </svg>
+              <span class="ws-demo-ripple"></span>
+            </div>
+          </div>
+          <div class="bi-demo-caption">
+            <span class="bi-demo-cap ws-demo-cap1">1. Context-matched <b>KaTeX Reference Notes</b> open beside the task</span>
+            <span class="bi-demo-cap ws-demo-cap2">2. Enter <b>WISEflow FLOWmulti</b> numbers &amp; check <b>±2%</b> rules live</span>
+            <span class="bi-demo-cap ws-demo-cap3">3. Track mastery, <b>Beat-AI pace</b> &amp; sync Canvas automatically ✓</span>
+          </div>
+          <div class="bi-demo-progress"><i class="ws-demo-bar"></i></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function openWorkspaceTour() {
+    let dlg = document.getElementById('ws-tour-dialog');
+    if (!dlg) {
+      dlg = document.createElement('dialog');
+      dlg.id = 'ws-tour-dialog';
+      dlg.className = 'member-dialog playbook-sheet';
+      dlg.tabIndex = -1;
+      dlg.setAttribute('aria-labelledby', 'ws-tour-title');
+      document.body.appendChild(dlg);
+      dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    }
+    dlg.innerHTML = `
+      <div class="playbook-card-inner" style="max-width:680px">
+        <div class="playbook-head">
+          <div>
+            <span class="eyebrow">Study-OS · Interactive Product Tour</span>
+            <h2 id="ws-tour-title" style="margin:2px 0 4px">How the 3-Pane Workspace works</h2>
+            <p class="muted" style="margin:0;font-size:13px">1,185+ BI exam questions, WISEflow ±2% live grading, context-matched notes, and 1-click Canvas sync.</p>
+          </div>
+          <button type="button" class="ios-done-btn" id="ws-tour-done">Done</button>
+        </div>
+        <div class="playbook-body">
+          ${workspaceTourHtml()}
+          <div class="row-actions" style="justify-content:flex-end;margin-top:4px">
+            <button type="button" class="ghost-btn" id="ws-tour-sync">Set up Canvas Sync</button>
+            <button type="button" class="primary-btn" id="ws-tour-exams">Launch Mock Exams →</button>
+          </div>
+        </div>
+      </div>
+    `;
+    dlg.querySelector('#ws-tour-done').onclick = () => dlg.close();
+    dlg.querySelector('#ws-tour-sync').onclick = () => { dlg.close(); openBiSyncHub({ showDemo: true }); };
+    dlg.querySelector('#ws-tour-exams').onclick = () => { dlg.close(); navigate('exams'); };
+    const toggleBtn = dlg.querySelector('#ws-demo-toggle');
+    const vp = dlg.querySelector('.ws-demo-viewport');
+    if (toggleBtn && vp) {
+      toggleBtn.onclick = () => {
+        const paused = vp.classList.toggle('is-paused');
+        toggleBtn.textContent = paused ? 'Play' : 'Pause';
+      };
+    }
+    if (!dlg.open) dlg.showModal();
   }
 
   function renderResumeBannerHtml(paused, resumeBtnId, discardBtnId) {
@@ -3190,11 +3296,13 @@ window.StudyApp = (() => {
           <div class="row-actions">
             <button type="button" class="primary-btn" id="btn-web-refs">Course notes</button>
             <button type="button" class="ghost-btn" id="btn-web-exams">Mock exams</button>
+            <button type="button" class="ghost-btn" id="btn-web-tour">▶ 12s Tour</button>
             ${biSyncHeroButtonHtml()}
           </div>
         </div>`;
       document.getElementById('btn-web-refs').onclick = () => navigate('references');
       document.getElementById('btn-web-exams').onclick = () => navigate('exams');
+      document.getElementById('btn-web-tour').onclick = () => openWorkspaceTour();
       document.getElementById('btn-web-bi-sync').onclick = () => openBiSyncHub();
       if (nextExam) {
         document.getElementById('btn-hero-next-exam').onclick = () => navigate('exams', { focusCourseId: nextExam.c.courseId });
@@ -3629,7 +3737,7 @@ window.StudyApp = (() => {
               <div style="flex:1;min-width:240px">
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
                   <span class="badge live">Canvas LMS · TimeEdit / TP · Ed</span>
-                  <span class="badge">Multi-School v1.6.0</span>
+                  <span class="badge">Multi-School v1.7.2</span>
                 </div>
                 <h3 style="margin:0 0 4px;font-size:16px">Connect Canvas, Timetable &amp; Ed in 30 seconds</h3>
                 <p class="muted" style="margin:0;font-size:13.5px;line-height:1.45">
@@ -3658,7 +3766,7 @@ window.StudyApp = (() => {
                 <span class="badge warn" style="margin-bottom:4px">Resync reminder · ${syncSt.daysSinceSync} days ago</span>
                 <h3 style="margin:0 0 4px;font-size:15.5px">Refresh your ${esc(schoolTag)} Canvas &amp; Ed deadlines</h3>
                 <p class="muted" style="margin:0;font-size:13.5px;line-height:1.45">
-                  It's been ${syncSt.daysSinceSync} days since your last sync. Open your Canvas or Ed tab (v1.6.0 auto-syncs silently) or click Sync now to pull new assignments.
+                  It's been ${syncSt.daysSinceSync} days since your last sync. Open your Canvas or Ed tab (v1.7.2 auto-syncs silently) or click Sync now to pull new assignments.
                 </p>
               </div>
               <div class="row-actions" style="flex-wrap:wrap">
@@ -10558,7 +10666,7 @@ window.StudyApp = (() => {
           <article class="playbook-card">
             <div class="row-between" style="margin:0 0 6px;gap:8px">
               <h3 style="margin:0;font-size:15px">1. Install Study-OS Sync extension</h3>
-              <span class="badge live">v1.6.0 · Multi-School</span>
+              <span class="badge live">v1.7.2 · Multi-School</span>
             </div>
             <p class="muted" style="margin:0 0 10px;font-size:13px;line-height:1.45">
               Works in Chrome, Brave, Edge, and Vivaldi. Pulls <b>Canvas LMS</b> courses &amp; deadlines (any <code>*.instructure.com</code> or Norwegian Canvas), <b>TimeEdit / TP</b> timetables, and <b>Ed Discussion</b> in 1 click — and auto-refreshes quietly when you open a signed-in tab.
@@ -10956,7 +11064,7 @@ window.StudyApp = (() => {
   function fetchCanvasPdfViaExtension(courseId, fileId, canvasOrigin = '') {
     return new Promise((resolve, reject) => {
       if (!document.documentElement.dataset.studyOsSyncExt) {
-        reject(new Error('Install or reload Study-OS Sync v1.6.0 in Chrome to load Canvas PDFs inline.'));
+        reject(new Error('Install or reload Study-OS Sync v1.7.2 in Chrome to load Canvas PDFs inline.'));
         return;
       }
       const origin = canvasOrigin ? safeCanvasOrigin(canvasOrigin) : getSyncedSchoolInfo().origin;
