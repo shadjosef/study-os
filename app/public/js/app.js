@@ -43,6 +43,7 @@ window.StudyApp = (() => {
     inferCompletedAttempts: coreInferCompletedAttempts,
     computeExamPaperProgress: coreComputeExamPaperProgress,
     computeExamAidStats: coreComputeExamAidStats,
+    reconcileDayEfficiency: coreReconcileDayEfficiency,
   } = window.StudyCore || {};
 
   let boot = {
@@ -1100,22 +1101,36 @@ window.StudyApp = (() => {
         const sessAct = sessionDayActive[dr.day] || 0;
         const sessAway = sessionDayAway[dr.day] || 0;
         const effActiveSec = Math.max(dr.activeSec, dr.liveActiveSec || 0, Math.min(sessAct, dr.activeSec + 1800));
-        const activeMin = Math.round((effActiveSec / 60) * 10) / 10;
         const td = dr.telemetry || null;
-        const telTracked = td ? ((td.solvingSec || 0) + (td.readingSec || 0) + (td.appBrowseSec || 0) + (td.afkIdleSec || 0) + (td.extStudySec || 0) + (td.extDistractSec || 0)) : 0;
-        const telProd = td ? ((td.solvingSec || 0) + (td.readingSec || 0) + (td.extStudySec || 0)) : 0;
-        const hasRealScreen = Boolean(dr.hasScreenLog || sessAway > 0 || telTracked >= 60);
-        const screenSecFinal = hasRealScreen
-          ? Math.max(dr.screenSec, telTracked, effActiveSec + (dr.screenSec === 0 ? sessAway : 0))
-          : effActiveSec;
-        const screenMin = Math.round((screenSecFinal / 60) * 10) / 10;
+        const rec = typeof coreReconcileDayEfficiency === 'function'
+          ? coreReconcileDayEfficiency({
+              activeSec: effActiveSec,
+              screenSec: dr.screenSec,
+              sessAwaySec: sessAway,
+              hasScreenLog: dr.hasScreenLog,
+              telemetry: td,
+            })
+          : (() => {
+              const telProd = td ? ((td.solvingSec || 0) + (td.readingSec || 0) + (td.extStudySec || 0)) : 0;
+              const drift = td ? ((td.appBrowseSec || 0) + (td.afkIdleSec || 0) + (td.extDistractSec || 0)) : 0;
+              const telTracked = telProd + drift;
+              const prod = Math.max(telProd, effActiveSec);
+              const hasReal = Boolean(dr.hasScreenLog || sessAway > 0 || telTracked >= 60);
+              const awayFallback = dr.screenSec === 0 && telTracked === 0 ? sessAway : 0;
+              const scrSec = hasReal ? Math.max(dr.screenSec, telTracked, prod + drift + awayFallback) : prod;
+              return {
+                reconciledProdSec: prod,
+                reconciledScreenSec: scrSec,
+                hasRealScreen: hasReal,
+                efficiencyPct: hasReal && scrSec >= 30 ? Math.min(100, Math.round((prod / scrSec) * 100)) : null,
+              };
+            })();
+        const activeMin = Math.round((rec.reconciledProdSec / 60) * 10) / 10;
+        const screenMin = Math.round((rec.reconciledScreenSec / 60) * 10) / 10;
         const offScreenMin = Math.round((Math.max(dr.offScreenSec, sessAway) / 60) * 10) / 10;
-        // Honest Focus Efficiency: NEVER fabricate 100% on past days without real screen/telemetry logs!
-        const efficiencyPct = telTracked >= 60
-          ? Math.min(100, Math.round((telProd / telTracked) * 100))
-          : (hasRealScreen && screenMin > 0.5)
-          ? Math.min(100, Math.round((activeMin / screenMin) * 100))
-          : null;
+        const hasRealScreen = rec.hasRealScreen;
+        // Honest Focus Efficiency: reconciles verified work with tab drift, NEVER fabricates past days without screen logs
+        const efficiencyPct = rec.efficiencyPct;
         const arr = dr.attempts;
         const pArr = arr.filter((a) => Number.isFinite(Number(a.paceRatio)) && Number(a.paceRatio) > 0);
         const byCourseMin = Object.fromEntries(
@@ -1196,8 +1211,9 @@ window.StudyApp = (() => {
         })();
 
     const todayRow = dayMap.get(today);
+    const todaySeriesRow = dailySeries.find((d) => d.isToday) || null;
     const todayAttempts = todayRow ? todayRow.attempts : [];
-    const todayMin = Math.round((todayRow?.activeSec || 0) / 60);
+    const todayMin = todaySeriesRow ? Math.round(todaySeriesRow.activeMin) : Math.round((todayRow?.activeSec || 0) / 60);
     const todayHighMinutes = (todayRow?.highSec || 0) / 60;
     const todayMedMinutes = (todayRow?.medSec || 0) / 60;
     const todayLowMinutes = (todayRow?.lowSec || 0) / 60;
@@ -1339,7 +1355,9 @@ window.StudyApp = (() => {
       today: {
         count: todayAttempts.length,
         totalActiveMinutes: todayMin,
-        liveActiveSec: todayRow?.liveActiveSec || 0,
+        liveActiveSec: Math.max(todayRow?.liveActiveSec || 0, Math.round((todaySeriesRow?.activeMin || 0) * 60)),
+        screenMin: todaySeriesRow?.screenMin ?? 0,
+        efficiencyPct: todaySeriesRow?.efficiencyPct ?? null,
       },
       dlpfcBudget: {
         todayHighMinutes,
@@ -7415,52 +7433,128 @@ window.StudyApp = (() => {
   // ---------------------------------------------------------------------------
   function renderAnalytics() {
     const root = document.getElementById('analytics-root');
+    const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
+    const todayKey = dayFmt.format(new Date());
     if (isStaticWeb) {
       recomputeWebAnalytics();
     } else if (boot.analytics) {
-      // Fold live browser Oslo screen-time history into local Python server analytics
+      // Fold live browser Oslo screen-time history + telemetry ledger into local Python server analytics
       const screenHist = window.StudyUI?.workClock?.getScreenHistory?.() || {};
-      const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
-      const todayKey = dayFmt.format(new Date());
+      const telSummary = window.StudyUI?.workClock?.getTelemetrySummary?.() || null;
+      const telByDay = telSummary?.byDay || {};
       const byDay = new Map((Array.isArray(boot.analytics.dailySeries) ? boot.analytics.dailySeries : []).map((d) => [d.day, { ...d }]));
-      for (let i = 13; i >= 0; i--) {
-        const dk = dayFmt.format(new Date(Date.now() - i * 86_400_000));
-        if (!byDay.has(dk)) {
-          byDay.set(dk, {
+      const ensureLocalRow = (dk) => {
+        let row = byDay.get(dk);
+        if (!row) {
+          row = {
             day: dk,
             isToday: dk === todayKey,
             activeMin: 0, highMin: 0, medMin: 0, lowMin: 0,
-            screenMin: 0, offScreenMin: 0, efficiencyPct: null,
+            screenMin: 0, offScreenMin: 0, hasScreenLog: false, efficiencyPct: null, telemetry: null,
             attempts: 0, adjustedUnits: 0, avgPaceRatio: null, upi: null, accuracyPct: null, byCourseMin: {},
-          });
+          };
+          byDay.set(dk, row);
         }
+        return row;
+      };
+      for (let i = 13; i >= 0; i--) {
+        ensureLocalRow(dayFmt.format(new Date(Date.now() - i * 86_400_000)));
       }
-      for (const [dk, sh] of Object.entries(screenHist)) {
+      const allKeys = new Set([...byDay.keys(), ...Object.keys(screenHist), ...Object.keys(telByDay)]);
+      for (const dk of allKeys) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(dk)) continue;
-        const row = byDay.get(dk) || {
-          day: dk, isToday: dk === todayKey, activeMin: 0, highMin: 0, medMin: 0, lowMin: 0,
-          screenMin: 0, offScreenMin: 0, efficiencyPct: null,
-          attempts: 0, adjustedUnits: 0, avgPaceRatio: null, upi: null, accuracyPct: null, byCourseMin: {},
-        };
-        const shActMin = Math.round(((Number(sh?.activeSec) || 0) / 60) * 10) / 10;
-        if (dk === todayKey) row.activeMin = Math.max(row.activeMin, shActMin);
-        row.screenMin = Math.max(row.screenMin, row.activeMin, Math.round(((Number(sh?.screenSec) || 0) / 60) * 10) / 10);
-        row.offScreenMin = Math.max(row.offScreenMin, Math.round(((Number(sh?.offScreenSec) || 0) / 60) * 10) / 10);
-        row.efficiencyPct = row.screenMin > 0.5 ? Math.min(100, Math.round((row.activeMin / row.screenMin) * 100)) : null;
-        byDay.set(dk, row);
+        const row = ensureLocalRow(dk);
+        const sh = screenHist[dk] || null;
+        const td = telByDay[dk] || row.telemetry || null;
+        const shActSec = Math.max(0, Number(sh?.activeSec) || 0);
+        const baseActSec = Math.max(
+          Math.round((Number(row.activeMin) || 0) * 60),
+          dk === todayKey ? shActSec : 0
+        );
+        const rawScrSec = Math.max(
+          Math.round((Number(row.screenMin) || 0) * 60),
+          Math.max(0, Number(sh?.screenSec) || 0)
+        );
+        const hasLog = Boolean(row.hasScreenLog || (sh && Number(sh.screenSec) >= 60));
+        const rec = typeof coreReconcileDayEfficiency === 'function'
+          ? coreReconcileDayEfficiency({
+              activeSec: baseActSec,
+              screenSec: rawScrSec,
+              sessAwaySec: 0,
+              hasScreenLog: hasLog,
+              telemetry: td,
+            })
+          : {
+              reconciledProdSec: baseActSec,
+              reconciledScreenSec: Math.max(rawScrSec, baseActSec),
+              hasRealScreen: hasLog,
+              efficiencyPct: hasLog && Math.max(rawScrSec, baseActSec) >= 30
+                ? Math.min(100, Math.round((baseActSec / Math.max(rawScrSec, baseActSec)) * 100))
+                : null,
+            };
+        row.activeMin = Math.round((rec.reconciledProdSec / 60) * 10) / 10;
+        row.screenMin = Math.round((rec.reconciledScreenSec / 60) * 10) / 10;
+        row.offScreenMin = Math.max(
+          Number(row.offScreenMin) || 0,
+          Math.round(((Number(sh?.offScreenSec) || 0) / 60) * 10) / 10,
+          Math.round((((Number(td?.awaySec) || 0) + (Number(td?.breakSec) || 0)) / 60) * 10) / 10
+        );
+        row.hasScreenLog = rec.hasRealScreen;
+        row.efficiencyPct = rec.efficiencyPct;
+        row.telemetry = td;
       }
       boot.analytics.dailySeries = [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
-      const liveTodaySec = Number(screenHist[todayKey]?.activeSec || 0);
-      if (boot.analytics.today) boot.analytics.today.liveActiveSec = liveTodaySec;
+      boot.analytics.telemetrySummary = telSummary || boot.analytics.telemetrySummary || null;
+      const todayRowLocal = byDay.get(todayKey);
+      const liveTodaySec = Math.max(
+        Number(screenHist[todayKey]?.activeSec || 0),
+        Math.round((Number(todayRowLocal?.activeMin) || 0) * 60)
+      );
+      if (boot.analytics.today) {
+        boot.analytics.today.liveActiveSec = liveTodaySec;
+        if (todayRowLocal) {
+          boot.analytics.today.screenMin = todayRowLocal.screenMin;
+          boot.analytics.today.efficiencyPct = todayRowLocal.efficiencyPct;
+        }
+      }
     }
     const aiBriefText = buildAiCoachBrief();
     const examAidStats = computeExamAidStats();
+    const wsForMetrics = isStaticWeb ? loadWebState() : null;
+    const recordsForMetrics = boot.progress?.records || wsForMetrics?.records || {};
+    const attemptsForMetrics = isStaticWeb
+      ? (Array.isArray(wsForMetrics?.attempts) ? wsForMetrics.attempts : [])
+      : (Array.isArray(boot.analytics?.attempts)
+          ? boot.analytics.attempts
+          : Array.isArray(boot.attempts)
+          ? boot.attempts
+          : []);
+    const fsrsCards = [];
+    for (const [qid, rec] of Object.entries(recordsForMetrics)) {
+      if (!rec?.fsrs) continue;
+      const cid = qid.includes(':') ? qid.split(':')[0] : '';
+      fsrsCards.push({
+        questionId: qid,
+        courseId: cid,
+        status: rec.status || '',
+        updatedAt: rec.updatedAt || '',
+        ...rec.fsrs,
+      });
+    }
+    const questionsForMetrics = Object.values(bankCache).flatMap((b) =>
+      Array.isArray(b?.questions) ? b.questions : []
+    );
     if (window.StudyMetrics?.renderDashboard) {
       window.StudyMetrics.renderDashboard(root, {
         analytics: boot.analytics || {},
         catalog: boot.catalog || [],
         examAidStats,
         aiBriefText,
+        attempts: attemptsForMetrics,
+        fsrsCards,
+        records: recordsForMetrics,
+        questions: questionsForMetrics,
+        todayIso: todayKey,
         onPracticeTopic: (courseId, topicId) => {
           launchSmartCourseRun(courseId, 45, 'learning', String(topicId), 'auto', false, 0);
         },

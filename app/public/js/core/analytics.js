@@ -239,7 +239,142 @@
    * @property {number | null} [upi]
    * @property {number | null} [accuracyPct]
    * @property {number | null} [efficiencyPct]
+   * @property {boolean} [hasScreenLog]
    * @property {Record<string, number>} [byCourseMin]
+   */
+
+  /**
+   * @typedef {Object} DayTelemetryLike
+   * @property {number} [solvingSec]
+   * @property {number} [readingSec]
+   * @property {number} [appBrowseSec]
+   * @property {number} [afkIdleSec]
+   * @property {number} [awaySec]
+   * @property {number} [breakSec]
+   * @property {number} [extStudySec]
+   * @property {number} [extDistractSec]
+   * @property {number} [extOtherSec]
+   * @property {Record<string, number>} [courseSec]
+   */
+
+  /**
+   * @typedef {Object} ReconcileDayEfficiencyInput
+   * @property {number} [activeSec]
+   * @property {number} [screenSec]
+   * @property {number} [sessAwaySec]
+   * @property {boolean} [hasScreenLog]
+   * @property {DayTelemetryLike | null} [telemetry]
+   */
+
+  /**
+   * @typedef {Object} ReconcileDayEfficiencyResult
+   * @property {number} telProdSec
+   * @property {number} telTrackedSec
+   * @property {number} driftSec
+   * @property {number} reconciledProdSec
+   * @property {number} reconciledScreenSec
+   * @property {boolean} hasRealScreen
+   * @property {number | null} efficiencyPct
+   * @property {number} reconciledSolvingSec
+   * @property {number} syncedSolvingSec
+   */
+
+  /**
+   * @typedef {Object} OsloHeatmapCell
+   * @property {string} day
+   * @property {number} weekday
+   * @property {number} weekIndex
+   * @property {boolean} isToday
+   * @property {number} activeMin
+   * @property {number} attempts
+   * @property {number | null} upi
+   * @property {number | null} efficiencyPct
+   * @property {0 | 1 | 2 | 3 | 4} level
+   */
+
+  /**
+   * @typedef {Object} OsloHeatmapResult
+   * @property {number} weeks
+   * @property {string} startDay
+   * @property {string} endDay
+   * @property {OsloHeatmapCell[]} cells
+   * @property {Array<Array<OsloHeatmapCell | null>>} columns
+   * @property {Array<{ colIndex: number, label: string }>} monthLabels
+   * @property {number} activeDays
+   * @property {number} totalDays
+   * @property {number} totalActiveMin
+   * @property {number} totalAttempts
+   * @property {number} currentStreak
+   * @property {number} longestStreak
+   */
+
+  /**
+   * @typedef {Object} FsrsCardLike
+   * @property {string} [questionId]
+   * @property {string} [courseId]
+   * @property {number} [stability]
+   * @property {number} [difficulty]
+   * @property {number} [reps]
+   * @property {number} [lapses]
+   * @property {number} [lastGrade]
+   * @property {number} [scheduledDays]
+   * @property {string} [lastReview]
+   * @property {string} [due]
+   * @property {string} [updatedAt]
+   * @property {FsrsCardLike} [fsrs]
+   */
+
+  /**
+   * @typedef {Object} FsrsForecastBucket
+   * @property {string} day
+   * @property {string} label
+   * @property {number} dayOffset
+   * @property {boolean} isToday
+   * @property {number} count
+   * @property {number} overdueCount
+   * @property {number} scheduledCount
+   * @property {Record<string, number>} byCourse
+   */
+
+  /**
+   * @typedef {Object} FsrsForecastResult
+   * @property {string} todayIso
+   * @property {number} days
+   * @property {number} trackedCards
+   * @property {number | null} avgRetrievabilityPct
+   * @property {number} overdueCount
+   * @property {number} atRiskCount
+   * @property {number} stableCount
+   * @property {number} dueNext7Days
+   * @property {number} dueNext14Days
+   * @property {number} laterCount
+   * @property {FsrsForecastBucket | null} peakDay
+   * @property {FsrsForecastBucket[]} buckets
+   */
+
+  /**
+   * @typedef {Object} HourlyPerformanceBucket
+   * @property {number} hour
+   * @property {string} label
+   * @property {string} rangeLabel
+   * @property {number} attempts
+   * @property {number} activeMin
+   * @property {number} activeHours
+   * @property {number | null} upi
+   * @property {number | null} accuracyPct
+   * @property {number | null} beatAiRatePct
+   * @property {number | null} avgPaceRatio
+   * @property {boolean} isPeak
+   */
+
+  /**
+   * @typedef {Object} HourlyPerformanceResult
+   * @property {string} timezone
+   * @property {HourlyPerformanceBucket[]} hours
+   * @property {number} totalAttempts
+   * @property {number} activeHourCount
+   * @property {HourlyPerformanceBucket | null} peakHour
+   * @property {HourlyPerformanceBucket | null} mostActiveHour
    */
 
   /**
@@ -1306,6 +1441,685 @@
     });
   }
 
+  /**
+   * Reconcile verified active study time with browser 5m telemetry buckets and screen logs.
+   * Ensures synced/logged attempt solving time is never ignored when a browser tab only logged
+   * browse/AFK drift, while never fabricating efficiency on past days without real screen logs.
+   * @param {ReconcileDayEfficiencyInput | null | undefined} input
+   * @returns {ReconcileDayEfficiencyResult}
+   */
+  function reconcileDayEfficiency(input) {
+    const safeActiveSec = Math.max(0, Number(input?.activeSec) || 0);
+    const safeScreenSec = Math.max(0, Number(input?.screenSec) || 0);
+    const safeSessAwaySec = Math.max(0, Number(input?.sessAwaySec) || 0);
+    const td = isPlainRecord(input?.telemetry) ? /** @type {DayTelemetryLike} */ (input.telemetry) : null;
+
+    const solvingSec = Math.max(0, Number(td?.solvingSec) || 0);
+    const readingSec = Math.max(0, Number(td?.readingSec) || 0);
+    const extStudySec = Math.max(0, Number(td?.extStudySec) || 0);
+    const appBrowseSec = Math.max(0, Number(td?.appBrowseSec) || 0);
+    const afkIdleSec = Math.max(0, Number(td?.afkIdleSec) || 0);
+    const extDistractSec = Math.max(0, Number(td?.extDistractSec) || 0);
+
+    const telProdSec = solvingSec + readingSec + extStudySec;
+    const driftSec = appBrowseSec + afkIdleSec + extDistractSec;
+    const telTrackedSec = telProdSec + driftSec;
+
+    const reconciledProdSec = Math.max(telProdSec, safeActiveSec);
+    const hasExplicitFlag = typeof input?.hasScreenLog === 'boolean';
+    const hasRealScreen = Boolean(
+      (hasExplicitFlag ? input?.hasScreenLog : safeScreenSec >= 60) ||
+        safeSessAwaySec > 0 ||
+        telTrackedSec >= 60
+    );
+
+    const awayFallbackSec = safeScreenSec === 0 && telTrackedSec === 0 ? safeSessAwaySec : 0;
+    const reconciledScreenSec = hasRealScreen
+      ? Math.max(safeScreenSec, telTrackedSec, reconciledProdSec + driftSec + awayFallbackSec)
+      : reconciledProdSec;
+
+    const efficiencyPct =
+      hasRealScreen && reconciledScreenSec >= 30
+        ? Math.min(100, Math.round((reconciledProdSec / reconciledScreenSec) * 100))
+        : null;
+
+    const reconciledSolvingSec = Math.max(
+      solvingSec,
+      Math.max(0, reconciledProdSec - readingSec - extStudySec)
+    );
+    const syncedSolvingSec = Math.max(0, reconciledSolvingSec - solvingSec);
+
+    return {
+      telProdSec,
+      telTrackedSec,
+      driftSec,
+      reconciledProdSec,
+      reconciledScreenSec,
+      hasRealScreen,
+      efficiencyPct,
+      reconciledSolvingSec,
+      syncedSolvingSec,
+    };
+  }
+
+  /**
+   * Parse an ISO `YYYY-MM-DD` string to UTC midnight epoch ms, or return null if invalid.
+   * @param {unknown} isoDay
+   * @returns {number | null}
+   */
+  function parseIsoDayUtcMs(isoDay) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDay || ''));
+    if (!m) return null;
+    const y = Number(m[1]);
+    const mo = Number(m[2]);
+    const d = Number(m[3]);
+    const ms = Date.UTC(y, mo - 1, d);
+    const check = new Date(ms);
+    if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) {
+      return null;
+    }
+    return ms;
+  }
+
+  /**
+   * Format a UTC midnight epoch timestamp as `YYYY-MM-DD`.
+   * @param {number} utcMs
+   * @returns {string}
+   */
+  function formatUtcMsAsIsoDay(utcMs) {
+    return new Date(utcMs).toISOString().slice(0, 10);
+  }
+
+  /**
+   * Build a GitHub-style `weeks * 7`-day Oslo consistency heatmap with Monday-anchored columns,
+   * WCAG-friendly intensity levels (`0..4`), current streak, longest streak, and month markers.
+   * @param {DailySeriesRowLike[] | null | undefined} dailySeries
+   * @param {string} [todayIso]
+   * @param {number} [weeks=12]
+   * @returns {OsloHeatmapResult}
+   */
+  function buildOsloHeatmap(dailySeries, todayIso, weeks = 12) {
+    const safeWeeks = Math.max(1, Math.min(52, Math.round(Number(weeks) || 12)));
+    const totalDays = safeWeeks * 7;
+    const fallbackToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' }).format(new Date());
+    const parsedEnd = parseIsoDayUtcMs(todayIso);
+    const endUtcMs = parsedEnd !== null ? parsedEnd : (parseIsoDayUtcMs(fallbackToday) || Date.UTC(2026, 0, 1));
+    const endDay = formatUtcMsAsIsoDay(endUtcMs);
+
+    /** @type {Map<string, DailySeriesRowLike>} */
+    const byDay = new Map();
+    for (const row of Array.isArray(dailySeries) ? dailySeries : []) {
+      if (row && typeof row.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(row.day)) {
+        byDay.set(row.day, row);
+      }
+    }
+
+    /** @type {OsloHeatmapCell[]} */
+    const cells = [];
+    let activeDays = 0;
+    let totalActiveMin = 0;
+    let totalAttempts = 0;
+
+    const startUtcMs = endUtcMs - (totalDays - 1) * MS_PER_DAY;
+    const startDow = (new Date(startUtcMs).getUTCDay() + 6) % 7; // Mon=0..Sun=6
+    const colCount = Math.floor((startDow + totalDays - 1) / 7) + 1;
+    /** @type {Array<Array<OsloHeatmapCell | null>>} */
+    const columns = Array.from({ length: colCount }, () => Array.from({ length: 7 }, () => null));
+
+    for (let i = 0; i < totalDays; i++) {
+      const utcMs = startUtcMs + i * MS_PER_DAY;
+      const day = formatUtcMsAsIsoDay(utcMs);
+      const weekday = (new Date(utcMs).getUTCDay() + 6) % 7;
+      const weekIndex = Math.floor((startDow + i) / 7);
+      const row = byDay.get(day);
+      const activeMin = Math.round(Math.max(0, Number(row?.activeMin) || 0) * 10) / 10;
+      const attempts = Math.max(0, Math.round(Number(row?.attempts) || 0));
+      const upi =
+        row?.upi !== null && row?.upi !== undefined && Number.isFinite(Number(row.upi))
+          ? Math.round(Number(row.upi))
+          : null;
+      const efficiencyPct =
+        row?.efficiencyPct !== null &&
+        row?.efficiencyPct !== undefined &&
+        Number.isFinite(Number(row.efficiencyPct))
+          ? Math.round(Number(row.efficiencyPct))
+          : null;
+      const isActive = activeMin >= 3 || attempts > 0;
+      /** @type {0 | 1 | 2 | 3 | 4} */
+      const level = !isActive
+        ? 0
+        : activeMin >= 240
+        ? 4
+        : activeMin >= 120
+        ? 3
+        : activeMin >= 45
+        ? 2
+        : 1;
+
+      if (isActive) activeDays++;
+      totalActiveMin += activeMin;
+      totalAttempts += attempts;
+
+      /** @type {OsloHeatmapCell} */
+      const cell = {
+        day,
+        weekday,
+        weekIndex,
+        isToday: day === endDay,
+        activeMin,
+        attempts,
+        upi,
+        efficiencyPct,
+        level,
+      };
+      cells.push(cell);
+      columns[weekIndex][weekday] = cell;
+    }
+
+    // Current streak (tolerate empty today without breaking yesterday's active streak)
+    let currentStreak = 0;
+    for (let i = cells.length - 1; i >= 0; i--) {
+      const c = cells[i];
+      if (c.level > 0) {
+        currentStreak++;
+      } else if (i < cells.length - 1) {
+        break;
+      }
+    }
+
+    // Longest consecutive active run within the window
+    let longestStreak = 0;
+    let run = 0;
+    for (const c of cells) {
+      if (c.level > 0) {
+        run++;
+        if (run > longestStreak) longestStreak = run;
+      } else {
+        run = 0;
+      }
+    }
+
+    // Month labels anchored to first column of each month transition
+    /** @type {Array<{ colIndex: number, label: string }>} */
+    const monthLabels = [];
+    let lastMonthKey = '';
+    let lastLabelCol = -10;
+    for (let colIdx = 0; colIdx < columns.length; colIdx++) {
+      const col = columns[colIdx];
+      const firstOfMonth = col.find((c) => c !== null && c.day.endsWith('-01')) || null;
+      const anchor = firstOfMonth || col.find((c) => c !== null) || null;
+      if (!anchor) continue;
+      const mk = anchor.day.slice(0, 7);
+      if (mk !== lastMonthKey && (colIdx === 0 || colIdx - lastLabelCol >= 2)) {
+        const d = new Date(`${mk}-01T00:00:00Z`);
+        monthLabels.push({
+          colIndex: colIdx,
+          label: d.toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }),
+        });
+        lastMonthKey = mk;
+        lastLabelCol = colIdx;
+      }
+    }
+
+    return {
+      weeks: safeWeeks,
+      startDay: cells[0]?.day || endDay,
+      endDay,
+      cells,
+      columns,
+      monthLabels,
+      activeDays,
+      totalDays,
+      totalActiveMin: Math.round(totalActiveMin * 10) / 10,
+      totalAttempts,
+      currentStreak,
+      longestStreak,
+    };
+  }
+
+  /**
+   * Resolve FSRS-5 power-law retrievability using `StudyCore.computeFsrsRetrievability` when loaded,
+   * with an identical standalone fallback.
+   * @param {number} stability
+   * @param {number} elapsedDays
+   * @returns {number}
+   */
+  function resolveFsrsRetrievability(stability, elapsedDays) {
+    const core = /** @type {{ StudyCore?: { computeFsrsRetrievability?: (s: number, t: number) => number } }} */ (root).StudyCore;
+    if (core && typeof core.computeFsrsRetrievability === 'function') {
+      return core.computeFsrsRetrievability(stability, elapsedDays);
+    }
+    const s = Math.max(0.2, Number(stability) || 0.2);
+    const t = Math.max(0, Number(elapsedDays) || 0);
+    return Math.pow(1 + t / (9 * s), -1);
+  }
+
+  /**
+   * Compute FSRS memory retention stats (average current retrievability %, overdue count,
+   * at-risk count, consolidated count) and a `days`-day review load forecast in Europe/Oslo.
+   * Accepts an array of FSRS cards or a `{ [questionId]: { fsrs, updatedAt } }` record map.
+   * @param {FsrsCardLike[] | Record<string, FsrsCardLike> | null | undefined} fsrsCards
+   * @param {number} [nowMs=Date.now()]
+   * @param {number} [days=14]
+   * @returns {FsrsForecastResult}
+   */
+  function computeFsrsForecast(fsrsCards, nowMs = Date.now(), days = 14) {
+    const tMs = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
+    const safeDays = Math.max(1, Math.min(60, Math.round(Number(days) || 14)));
+    const dayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
+    const todayIso = dayFormat.format(new Date(tMs));
+    const todayUtcMs = parseIsoDayUtcMs(todayIso) || Date.UTC(2026, 0, 1);
+
+    /** @type {FsrsForecastBucket[]} */
+    const buckets = [];
+    /** @type {Map<string, FsrsForecastBucket>} */
+    const bucketByDay = new Map();
+    for (let i = 0; i < safeDays; i++) {
+      const day = formatUtcMsAsIsoDay(todayUtcMs + i * MS_PER_DAY);
+      /** @type {FsrsForecastBucket} */
+      const bucket = {
+        day,
+        label: i === 0 ? 'Today' : i === 1 ? 'Tmrw' : formatIsoDayShort(day),
+        dayOffset: i,
+        isToday: i === 0,
+        count: 0,
+        overdueCount: 0,
+        scheduledCount: 0,
+        byCourse: {},
+      };
+      buckets.push(bucket);
+      bucketByDay.set(day, bucket);
+    }
+
+    /** @type {FsrsCardLike[]} */
+    const cardList = [];
+    if (Array.isArray(fsrsCards)) {
+      for (const item of fsrsCards) {
+        if (!isPlainRecord(item)) continue;
+        if (isPlainRecord(item.fsrs)) {
+          cardList.push({
+            questionId: typeof item.questionId === 'string' ? item.questionId : undefined,
+            courseId: typeof item.courseId === 'string' ? item.courseId : undefined,
+            updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : undefined,
+            .../** @type {FsrsCardLike} */ (item.fsrs),
+          });
+        } else {
+          cardList.push(/** @type {FsrsCardLike} */ (item));
+        }
+      }
+    } else if (isPlainRecord(fsrsCards)) {
+      for (const [key, raw] of Object.entries(fsrsCards)) {
+        if (!isPlainRecord(raw)) continue;
+        const inner = isPlainRecord(raw.fsrs) ? /** @type {FsrsCardLike} */ (raw.fsrs) : /** @type {FsrsCardLike} */ (raw);
+        const courseFromKey = key.includes(':') ? key.split(':')[0] : '';
+        cardList.push({
+          questionId: typeof raw.questionId === 'string' ? raw.questionId : key,
+          courseId: typeof raw.courseId === 'string' ? raw.courseId : courseFromKey,
+          updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : undefined,
+          ...inner,
+        });
+      }
+    }
+
+    let trackedCards = 0;
+    let retrievabilitySum = 0;
+    let overdueCount = 0;
+    let atRiskCount = 0;
+    let stableCount = 0;
+    let laterCount = 0;
+
+    for (const card of cardList) {
+      const rawStab = Number(card.stability);
+      const rawSched = Number(card.scheduledDays);
+      const rawReps = Number(card.reps);
+      const dueMs = typeof card.due === 'string' && card.due ? Date.parse(card.due) : NaN;
+      const hasCardData =
+        (Number.isFinite(rawStab) && rawStab > 0) ||
+        (Number.isFinite(rawReps) && rawReps > 0) ||
+        Number.isFinite(dueMs);
+      if (!hasCardData) continue;
+
+      const stability = Math.max(
+        0.2,
+        Number.isFinite(rawStab) && rawStab > 0
+          ? rawStab
+          : Number.isFinite(rawSched) && rawSched > 0
+          ? rawSched
+          : 1.0
+      );
+
+      let elapsedDays = 0;
+      const lastReviewMs = typeof card.lastReview === 'string' && card.lastReview ? Date.parse(card.lastReview) : NaN;
+      const updatedMs = typeof card.updatedAt === 'string' && card.updatedAt ? Date.parse(card.updatedAt) : NaN;
+      if (Number.isFinite(lastReviewMs)) {
+        elapsedDays = Math.max(0, (tMs - lastReviewMs) / MS_PER_DAY);
+      } else if (Number.isFinite(dueMs)) {
+        const sched = Number.isFinite(rawSched) && rawSched > 0 ? rawSched : stability;
+        const inferredLastMs = dueMs - sched * MS_PER_DAY;
+        elapsedDays = Math.max(0, (tMs - inferredLastMs) / MS_PER_DAY);
+      } else if (Number.isFinite(updatedMs)) {
+        elapsedDays = Math.max(0, (tMs - updatedMs) / MS_PER_DAY);
+      }
+
+      const r = resolveFsrsRetrievability(stability, elapsedDays);
+      trackedCards++;
+      retrievabilitySum += r;
+      if (r < 0.8) atRiskCount++;
+      if (stability >= 7) stableCount++;
+
+      if (Number.isFinite(dueMs)) {
+        const cid =
+          card.courseId ||
+          (typeof card.questionId === 'string' && card.questionId.includes(':')
+            ? card.questionId.split(':')[0]
+            : '');
+        if (dueMs <= tMs) {
+          overdueCount++;
+          buckets[0].overdueCount++;
+          buckets[0].count++;
+          if (cid) buckets[0].byCourse[cid] = (buckets[0].byCourse[cid] || 0) + 1;
+        } else {
+          const dueDay = dayFormat.format(new Date(dueMs));
+          const target = bucketByDay.get(dueDay);
+          if (target) {
+            target.scheduledCount++;
+            target.count++;
+            if (cid) target.byCourse[cid] = (target.byCourse[cid] || 0) + 1;
+          } else if (dueDay < todayIso) {
+            overdueCount++;
+            buckets[0].overdueCount++;
+            buckets[0].count++;
+            if (cid) buckets[0].byCourse[cid] = (buckets[0].byCourse[cid] || 0) + 1;
+          } else {
+            laterCount++;
+          }
+        }
+      }
+    }
+
+    const avgRetrievabilityPct =
+      trackedCards > 0 ? Math.round((retrievabilitySum / trackedCards) * 100) : null;
+    const dueNext7Days = buckets.slice(0, Math.min(7, buckets.length)).reduce((s, b) => s + b.count, 0);
+    const dueNext14Days = buckets.reduce((s, b) => s + b.count, 0);
+
+    /** @type {FsrsForecastBucket | null} */
+    let peakDay = null;
+    for (const b of buckets) {
+      if (b.count > 0 && (!peakDay || b.count > peakDay.count)) {
+        peakDay = b;
+      }
+    }
+
+    return {
+      todayIso,
+      days: safeDays,
+      trackedCards,
+      avgRetrievabilityPct,
+      overdueCount,
+      atRiskCount,
+      stableCount,
+      dueNext7Days,
+      dueNext14Days,
+      laterCount,
+      peakDay,
+      buckets,
+    };
+  }
+
+  /**
+   * Analyze active study hours, UPI, accuracy, and Beat-AI rate across the 24-hour clock
+   * in `tz` (default `Europe/Oslo`), highlighting the #1 peak performance hour.
+   * @param {StudyAttemptLike[] | null | undefined} attempts
+   * @param {string} [tz='Europe/Oslo']
+   * @returns {HourlyPerformanceResult}
+   */
+  function computeHourlyPerformance(attempts, tz = 'Europe/Oslo') {
+    let safeTz = typeof tz === 'string' && tz.trim() ? tz.trim() : 'Europe/Oslo';
+    /** @type {Intl.DateTimeFormat} */
+    let hourFmt;
+    try {
+      hourFmt = new Intl.DateTimeFormat('en-GB', { timeZone: safeTz, hour: '2-digit', hourCycle: 'h23' });
+    } catch {
+      safeTz = 'Europe/Oslo';
+      hourFmt = new Intl.DateTimeFormat('en-GB', { timeZone: safeTz, hour: '2-digit', hourCycle: 'h23' });
+    }
+
+    /** @type {StudyAttemptLike[][]} */
+    const byHour = Array.from({ length: 24 }, () => []);
+    let totalAttempts = 0;
+
+    for (const a of Array.isArray(attempts) ? attempts : []) {
+      if (!a || !a.timestamp) continue;
+      const ms = parseTimestampMs(a.timestamp);
+      if (!ms) continue;
+      const rawH = Number(hourFmt.format(new Date(ms)));
+      if (!Number.isFinite(rawH)) continue;
+      const h = ((Math.floor(rawH) % 24) + 24) % 24;
+      byHour[h].push(a);
+      totalAttempts++;
+    }
+
+    /** @type {HourlyPerformanceBucket[]} */
+    const hours = byHour.map((arr, h) => {
+      const padH = String(h).padStart(2, '0');
+      const nextH = String((h + 1) % 24).padStart(2, '0');
+      const sec = arr.reduce((s, a) => s + Math.max(0, Number(a.activeSec) || 0), 0);
+      const activeMin = Math.round((sec / 60) * 10) / 10;
+      const activeHours = Math.round((sec / 3600) * 100) / 100;
+      const paceArr = arr.filter((a) => Number.isFinite(Number(a.paceRatio)) && Number(a.paceRatio) > 0);
+      const avgPaceRatio = paceArr.length
+        ? Math.round((paceArr.reduce((s, a) => s + Number(a.paceRatio), 0) / paceArr.length) * 100) / 100
+        : null;
+      const accuracyPct = arr.length
+        ? Math.round((arr.reduce((s, a) => s + Number(a.qualityAccuracy || 0), 0) / arr.length) * 100)
+        : null;
+      const beatAiRatePct = arr.length
+        ? Math.round((arr.filter((a) => Boolean(a.beatAi)).length / arr.length) * 100)
+        : null;
+      const upi = arr.length ? computeWeightedUpi(arr, 0.9) : null;
+
+      return {
+        hour: h,
+        label: padH,
+        rangeLabel: `${padH}:00–${nextH}:00`,
+        attempts: arr.length,
+        activeMin,
+        activeHours,
+        upi,
+        accuracyPct,
+        beatAiRatePct,
+        avgPaceRatio,
+        isPeak: false,
+      };
+    });
+
+    const populated = hours.filter((b) => b.attempts > 0);
+    const multiSample = populated.filter((b) => b.attempts >= 2);
+    const candidates = multiSample.length ? multiSample : populated;
+
+    /** @type {HourlyPerformanceBucket | null} */
+    let peakHour = null;
+    let bestScore = -Infinity;
+    for (const b of candidates) {
+      const score =
+        (b.upi ?? 70) * 0.65 +
+        (b.beatAiRatePct ?? 50) * 0.25 +
+        Math.min(20, b.attempts * 2) * 0.5;
+      if (
+        score > bestScore ||
+        (score === bestScore &&
+          peakHour !== null &&
+          ((b.upi ?? 0) > (peakHour.upi ?? 0) ||
+            ((b.upi ?? 0) === (peakHour.upi ?? 0) && b.attempts > peakHour.attempts)))
+      ) {
+        bestScore = score;
+        peakHour = b;
+      }
+    }
+    if (peakHour) peakHour.isPeak = true;
+
+    /** @type {HourlyPerformanceBucket | null} */
+    let mostActiveHour = null;
+    for (const b of populated) {
+      if (
+        !mostActiveHour ||
+        b.activeMin > mostActiveHour.activeMin ||
+        (b.activeMin === mostActiveHour.activeMin && b.attempts > mostActiveHour.attempts)
+      ) {
+        mostActiveHour = b;
+      }
+    }
+
+    return {
+      timezone: safeTz,
+      hours,
+      totalAttempts,
+      activeHourCount: populated.length,
+      peakHour,
+      mostActiveHour,
+    };
+  }
+
+  /**
+   * Escape a single CSV cell per RFC-4180 and neutralize spreadsheet formula injection
+   * (`=`, `+`, `-`, `@`, tab, or CR prefixes on string cells).
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function escapeCsvCell(value) {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '';
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    let str = String(value);
+    if (/^[\t\r ]*[=+\-@]/.test(str) || /^[\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
+    if (/[",\r\n]/.test(str)) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  }
+
+  /**
+   * Build an RFC-4180 escaped, formula-injection-guarded CSV of logged study attempts.
+   * @param {StudyAttemptLike[] | null | undefined} attempts
+   * @returns {string}
+   */
+  function buildAttemptsCsv(attempts) {
+    const header = [
+      'timestamp',
+      'oslo_day',
+      'course_id',
+      'topic_id',
+      'question_id',
+      'kind',
+      'profile',
+      'dlpfc_tier',
+      'active_sec',
+      'ai_par_sec',
+      'pace_ratio',
+      'accuracy_pct',
+      'beat_ai',
+      'hints_used',
+      'ref_used',
+      'ref_sec',
+      'verification_tier',
+      'source',
+    ].join(',');
+    const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo' });
+    const rows = [header];
+
+    for (const a of Array.isArray(attempts) ? attempts : []) {
+      if (!a) continue;
+      const ms = parseTimestampMs(a.timestamp);
+      const osloDay = ms ? dayFmt.format(new Date(ms)) : '';
+      const qAcc =
+        a.qualityAccuracy !== undefined && a.qualityAccuracy !== null && Number.isFinite(Number(a.qualityAccuracy))
+          ? Math.round(Number(a.qualityAccuracy) * 100)
+          : '';
+      const pace =
+        a.paceRatio !== undefined && a.paceRatio !== null && Number.isFinite(Number(a.paceRatio))
+          ? Math.round(Number(a.paceRatio) * 100) / 100
+          : '';
+      const tier = resolveAttemptTier(a, null);
+      const row = [
+        a.timestamp ?? '',
+        osloDay,
+        a.courseId ?? (typeof a.questionId === 'string' && a.questionId.includes(':') ? a.questionId.split(':')[0] : ''),
+        a.topicId ?? '',
+        a.questionId ?? '',
+        a.kind ?? '',
+        a.profile ?? '',
+        tier,
+        Math.max(0, Math.round(Number(a.activeSec) || 0)),
+        Math.max(0, Math.round(Number(a.aiParSec || a.parSec) || 0)),
+        pace,
+        qAcc,
+        Boolean(a.beatAi),
+        Math.max(0, Math.round(Number(a.hintsUsed) || 0)),
+        Boolean(a.refUsed),
+        Math.max(0, Math.round(Number(a.refSec) || 0)),
+        a.verificationTier ?? '',
+        a.source ?? '',
+      ].map(escapeCsvCell);
+      rows.push(row.join(','));
+    }
+
+    return rows.join('\r\n');
+  }
+
+  /**
+   * Build an RFC-4180 escaped, formula-injection-guarded CSV of the Oslo daily telemetry ledger.
+   * @param {DailySeriesRowLike[] | null | undefined} dailySeries
+   * @returns {string}
+   */
+  function buildDailySeriesCsv(dailySeries) {
+    const header = [
+      'day',
+      'is_today',
+      'active_min',
+      'screen_min',
+      'off_screen_min',
+      'efficiency_pct',
+      'attempts',
+      'adjusted_units',
+      'upi',
+      'accuracy_pct',
+      'avg_pace_ratio',
+      'high_min',
+      'med_min',
+      'low_min',
+      'has_screen_log',
+    ].join(',');
+    const sorted = [...(Array.isArray(dailySeries) ? dailySeries : [])]
+      .filter((d) => Boolean(d && typeof d.day === 'string'))
+      .sort((a, b) => a.day.localeCompare(b.day));
+    const rows = [header];
+
+    for (const d of sorted) {
+      const row = [
+        d.day,
+        Boolean(d.isToday),
+        Math.round(Math.max(0, Number(d.activeMin) || 0) * 10) / 10,
+        Math.round(Math.max(0, Number(d.screenMin) || 0) * 10) / 10,
+        Math.round(Math.max(0, Number(d.offScreenMin) || 0) * 10) / 10,
+        d.efficiencyPct ?? '',
+        Math.max(0, Math.round(Number(d.attempts) || 0)),
+        Math.round(Math.max(0, Number(d.adjustedUnits) || 0) * 10) / 10,
+        d.upi ?? '',
+        d.accuracyPct ?? '',
+        d.avgPaceRatio ?? '',
+        Math.round(Math.max(0, Number(d.highMin) || 0) * 10) / 10,
+        Math.round(Math.max(0, Number(d.medMin) || 0) * 10) / 10,
+        Math.round(Math.max(0, Number(d.lowMin) || 0) * 10) / 10,
+        Boolean(d.hasScreenLog),
+      ].map(escapeCsvCell);
+      rows.push(row.join(','));
+    }
+
+    return rows.join('\r\n');
+  }
+
   const api = {
     calibratedParSec,
     isAutoGradedAttempt,
@@ -1328,6 +2142,13 @@
     aggregateDailyBuckets,
     computeNiceAxisMax,
     sortTopicMatrixRows,
+    reconcileDayEfficiency,
+    buildOsloHeatmap,
+    computeFsrsForecast,
+    computeHourlyPerformance,
+    escapeCsvCell,
+    buildAttemptsCsv,
+    buildDailySeriesCsv,
   };
 
   /** @type {{ StudyCore?: Record<string, unknown> }} */ (root).StudyCore = {
