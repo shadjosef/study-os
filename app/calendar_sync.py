@@ -12,6 +12,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import threading
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -163,12 +164,18 @@ def find_gcalendar_bin() -> str | None:
 
 
 def parse_iso(dt_str: str | None) -> datetime | None:
-    if not dt_str:
+    if not isinstance(dt_str, str):
+        return None
+    cleaned = dt_str.strip()
+    if not cleaned:
         return None
     try:
-        if len(dt_str) == 10 and dt_str[4] == "-":
-            return datetime.fromisoformat(dt_str + "T00:00:00+01:00").astimezone(OSLO_TZ)
-        return datetime.fromisoformat(dt_str.replace("Z", "+00:00")).astimezone(OSLO_TZ)
+        if len(cleaned) == 10 and cleaned[4] == "-" and cleaned[7] == "-":
+            return datetime.fromisoformat(cleaned + "T00:00:00").replace(tzinfo=OSLO_TZ)
+        parsed = datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=OSLO_TZ)
+        return parsed.astimezone(OSLO_TZ)
     except ValueError:
         return None
 
@@ -178,6 +185,8 @@ def classify_event(
     description: str = "",
     courses_by_id: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
+    summary = str(summary or "")
+    description = str(description or "")
     summary_low = summary.lower()
     if any(re.search(p, summary_low) for p in NON_STUDY_PATTERNS):
         return None
@@ -261,17 +270,21 @@ def normalize_raw_events(
     courses_by_id: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     blocks: list[dict[str, Any]] = []
-    for ev in raw_events:
+    for ev in raw_events or []:
+        if not isinstance(ev, dict):
+            continue
         if ev.get("status") == "cancelled":
             continue
-        summary = (ev.get("summary") or "").strip()
+        summary = str(ev.get("summary") or "").strip()
         summary_low = summary.lower()
-        description = (ev.get("description") or "").strip()
-        start_raw = (ev.get("start") or {}).get("dateTime")
-        end_raw = (ev.get("end") or {}).get("dateTime")
+        description = str(ev.get("description") or "").strip()
+        start_obj = ev.get("start")
+        end_obj = ev.get("end")
+        start_raw = start_obj.get("dateTime") if isinstance(start_obj, dict) else (start_obj if isinstance(start_obj, str) else None)
+        end_raw = end_obj.get("dateTime") if isinstance(end_obj, dict) else (end_obj if isinstance(end_obj, str) else None)
         start_dt = parse_iso(start_raw)
         end_dt = parse_iso(end_raw)
-        if not start_dt or not end_dt:
+        if not start_dt or not end_dt or end_dt <= start_dt:
             continue
         info = classify_event(summary, description, courses_by_id=courses_by_id)
         if not info:
@@ -378,8 +391,8 @@ def _fetch_gcalendar_events(
         cursor = window_start
         while cursor <= window_end:
             chunk_end = min(window_end, cursor + timedelta(days=chunk_days - 1))
-            s_str = cursor.strftime("%Y-%m-%d") + "T00:00:00+01:00"
-            e_str = chunk_end.strftime("%Y-%m-%d") + "T23:59:59+01:00"
+            s_str = cursor.astimezone(OSLO_TZ).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+            e_str = chunk_end.astimezone(OSLO_TZ).replace(hour=23, minute=59, second=59, microsecond=0).isoformat()
             try:
                 proc = subprocess.run(
                     [
@@ -470,9 +483,13 @@ def refresh_calendar_cache(
             "blocks": blocks,
         }
         cache_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = cache_path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        tmp.replace(cache_path)
+        tmp = cache_path.parent / f".{cache_path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+        try:
+            tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            tmp.replace(cache_path)
+        except OSError:
+            tmp.unlink(missing_ok=True)
+            raise
         return payload
 
     # Fallback: return existing cache if present, or inspect Canvas-Archive CURRENT.json
@@ -540,15 +557,18 @@ def build_auto_queue_for_block(
         return {"questionIds": [], "estimatedMinutes": 0.0, "strategy": "Select any course to begin."}
 
     bank = courses_by_id[cid]
-    questions = [q for q in bank.get("questions", []) if q.get("available", True)]
+    progress_records = progress_records or {}
+    questions = [q for q in bank.get("questions", []) if isinstance(q, dict) and q.get("id") and q.get("available", True)]
     target_topics = set(str(t) for t in (block.get("topicIds") or []))
     profile = block.get("recommendedProfile") or "learning"
-    budget_min = float(block.get("attemptBudgetMinutes") or 35.0)
+    budget_min = max(5.0, float(block.get("attemptBudgetMinutes") or 35.0))
     is_recall = block.get("blockKind") == "recall_sprint"
-    now_iso = datetime.now(OSLO_TZ).isoformat()
+    now = datetime.now(OSLO_TZ)
+    now_iso = now.isoformat()
 
     start_lbl = str(block.get("startLabel") or "")
-    block_hour = int(start_lbl.split(":")[0]) if ":" in start_lbl and start_lbl.split(":")[0].isdigit() else datetime.now(OSLO_TZ).hour
+    parsed_hour = int(start_lbl.split(":")[0]) if ":" in start_lbl and start_lbl.split(":")[0].isdigit() else -1
+    block_hour = parsed_hour if 0 <= parsed_hour <= 23 else now.hour
 
     if is_recall:
         dlpfc_mode = "low_dlpfc"
@@ -586,7 +606,11 @@ def build_auto_queue_for_block(
         status = rec.get("status") or "not_started"
         fsrs = rec.get("fsrs") or {}
         due = fsrs.get("due")
-        is_due = bool(due and due <= now_iso and status in ("done", "revisit"))
+        if due and status in ("done", "revisit"):
+            due_dt = parse_iso(str(due))
+            is_due = (due_dt <= now) if due_dt is not None else (str(due) <= now_iso)
+        else:
+            is_due = False
         in_topic = 0 if (not target_topics or str(q.get("topicId")) in target_topics) else 1
         tier = q_eff_tier(q)
         qm = round(q_minutes(q), 1)
@@ -666,7 +690,7 @@ def build_auto_queue_for_block(
         chosen = [ranked[0]["id"]]
         acc_min = q_minutes(ranked[0])
 
-    topic_label = f"Topic(s) {', '.join(block['topicIds'])}" if block.get("topicIds") else "Course priority"
+    topic_label = f"Topic(s) {', '.join(str(t) for t in block['topicIds'])}" if block.get("topicIds") else "Course priority"
     mode_tag = {
         "high_dlpfc": "Hard · Multi-step",
         "med_dlpfc": "Medium · Standard practice",

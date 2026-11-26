@@ -12,6 +12,7 @@ and basal-ganglia / parietal procedural chunking across 3 cognitive tiers:
 """
 from __future__ import annotations
 
+import math
 import re
 from typing import Any
 
@@ -23,17 +24,43 @@ _QUANT_RE = re.compile(
 )
 
 
+def _safe_int(val: Any, default: int) -> int:
+    if isinstance(val, bool) or val is None:
+        return default
+    try:
+        f = float(val)
+        if not math.isfinite(f):
+            return default
+        return int(f)
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
+def _safe_float(val: Any, default: float) -> float:
+    if isinstance(val, bool) or val is None:
+        return default
+    try:
+        f = float(val)
+        return f if math.isfinite(f) else default
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
 def classify_intrinsic_dlpfc(q: dict[str, Any]) -> tuple[int, str]:
     """Determines intrinsic `(dlpfcBase, cognitiveType)` for an unchunked question."""
+    if not isinstance(q, dict):
+        return 2, "procedural"
     cid = str(q.get("courseId") or "")
     kind = str(q.get("kind") or "mcq")
-    diff = int(q.get("difficulty") or 2)
-    target = float(
-        ((q.get("pacing") or {}).get("learning") or {}).get("target")
-        or (4.0 if kind == "mcq" else 12.0)
-    )
-    wf = len(q.get("wiseflowFields") or [])
-    pts = float(q.get("points") or 0)
+    diff = _safe_int(q.get("difficulty"), 2)
+    pacing = q.get("pacing") if isinstance(q.get("pacing"), dict) else {}
+    learning = pacing.get("learning") if isinstance(pacing.get("learning"), dict) else {}
+    default_target = 4.0 if kind == "mcq" else 12.0
+    raw_target = _safe_float(learning.get("target"), 0.0)
+    target = raw_target if raw_target > 0 else default_target
+    raw_wf = q.get("wiseflowFields")
+    wf = len(raw_wf) if isinstance(raw_wf, (list, tuple)) else 0
+    pts = _safe_float(q.get("points"), 0.0)
     prompt = f"{q.get('promptMarkdown') or ''} {q.get('contextMarkdown') or ''}"
     col = str(q.get("collectionId") or "")
 
@@ -93,23 +120,29 @@ def effective_dlpfc_tier(q: dict[str, Any], rec: dict[str, Any] | None = None) -
       procedural speed-drilling, and multi-rep consolidated items (`reps >= 2`, `stability >= 5d`)
       down into `Low-dlPFC` spaced recall.
     """
+    if not isinstance(q, dict):
+        return 2, False
     raw_base = q.get("dlpfcBase")
-    base = int(raw_base) if raw_base in (1, 2, 3) else classify_intrinsic_dlpfc(q)[0]
-    if not rec:
+    base = int(raw_base) if (not isinstance(raw_base, bool) and raw_base in (1, 2, 3)) else classify_intrinsic_dlpfc(q)[0]
+    if not isinstance(rec, dict) or not rec:
         return base, False
 
     status = str(rec.get("status") or "not_started")
-    p_diff = rec.get("personalDifficulty")
-    fsrs = rec.get("fsrs") or {}
-    last_g = fsrs.get("lastGrade")
-    reps = int(fsrs.get("reps") or 0)
-    stab = float(fsrs.get("stability") or 0.0)
+    p_diff = _safe_int(rec.get("personalDifficulty"), 0)
+    raw_fsrs = rec.get("fsrs")
+    fsrs = raw_fsrs if isinstance(raw_fsrs, dict) else {}
+    raw_last_g = fsrs.get("lastGrade")
+    last_g = _safe_int(raw_last_g, -1) if raw_last_g is not None else None
+    if last_g == -1:
+        last_g = None
+    reps = max(0, _safe_int(fsrs.get("reps"), 0))
+    stab = max(0.0, _safe_float(fsrs.get("stability"), 0.0))
 
     if p_diff == 3 or status == "revisit" or last_g == 1:
         escalated = min(3, max(base, 2 if q.get("kind") == "mcq" else 3))
         return escalated, False
 
-    if status == "done" and (last_g is None or int(last_g) >= 3):
+    if status == "done" and (last_g is None or last_g >= 3):
         if p_diff == 1 or (reps >= 2 and stab >= 5.0):
             return 1, base > 1
         if base == 3 and reps >= 1:
@@ -120,13 +153,15 @@ def effective_dlpfc_tier(q: dict[str, Any], rec: dict[str, Any] | None = None) -
 
 def circadian_dlpfc_target(hour: int, today_high_dlpfc_min: float = 0.0) -> tuple[str, str]:
     """Returns `(modeKey, shortRationale)` for a given local hour (`0..23`) and daily High-dlPFC usage."""
-    if 6 <= hour < 15:
-        if today_high_dlpfc_min >= HIGH_DLPFC_DAILY_CAP_MIN:
+    hr = _safe_float(hour, -1.0)
+    used = max(0.0, _safe_float(today_high_dlpfc_min, 0.0))
+    if 6 <= hr < 15:
+        if used >= HIGH_DLPFC_DAILY_CAP_MIN:
             return (
                 "med_dlpfc",
-                f"4.5h High-dlPFC cap reached ({today_high_dlpfc_min / 60.0:.1f}h) · Procedural Downshift",
+                f"4.5h High-dlPFC cap reached ({used / 60.0:.1f}h) · Procedural Downshift",
             )
         return ("high_dlpfc", "08:00–15:00 Peak Capacity · High-dlPFC Novel Synthesis")
-    if 15 <= hour < 18:
+    if 15 <= hr < 18:
         return ("med_dlpfc", "15:00–18:00 Afternoon Downshift · Med-dlPFC Procedural Drills")
     return ("low_dlpfc", "Evening Wind-Down · Low-dlPFC Recall & Spaced Review")

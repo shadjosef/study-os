@@ -16,15 +16,20 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta, timezone
 import hashlib
+import ipaddress
 import json
+import os
 from pathlib import Path
 import re
+import socket
+import threading
 from typing import Any
 import urllib.parse
 import urllib.request
 from zoneinfo import ZoneInfo
 
 OSLO_TZ = ZoneInfo("Europe/Oslo")
+_ICS_UNESCAPE_RE = re.compile(r"\\([nN,;\\])")
 
 
 def schedule_state_path(data_dir: Path) -> Path:
@@ -50,9 +55,13 @@ def save_custom_schedule(data_dir: Path, payload: dict[str, Any]) -> dict[str, A
     payload["updatedAt"] = datetime.now(OSLO_TZ).isoformat()
     path = schedule_state_path(data_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    tmp = path.parent / f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+    try:
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        tmp.replace(path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
     return payload
 
 
@@ -74,7 +83,7 @@ def default_schedule_prefs() -> dict[str, Any]:
 
 def _daily_study_minutes(prefs: dict[str, Any]) -> tuple[int, int]:
     wake, bed = prefs.get("wakeTime"), prefs.get("bedTime")
-    if wake is not None or bed is not None:
+    if (wake is not None and wake != "") or (bed is not None and bed != ""):
         def parse(value):
             if not isinstance(value, str) or not re.fullmatch(r"(?:[01]\d|2[0-3]):[0-5]\d", value):
                 raise ValueError("Enter a wake-up time and a bedtime.")
@@ -118,19 +127,61 @@ def estimate_recommended_study_hours(
     }
 
 
-def fetch_timeedit_ics(url: str, timeout_sec: int = 12) -> str:
-    """Fetch a TimeEdit (or standard webcal/https) `.ics` feed safely via stdlib."""
-    clean = url.strip()
+def _is_forbidden_ip(ip_str: str) -> bool:
+    try:
+        addr = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return False
+    return (
+        addr.is_private
+        or addr.is_loopback
+        or addr.is_link_local
+        or addr.is_multicast
+        or addr.is_reserved
+        or addr.is_unspecified
+    )
+
+
+def _validate_public_ics_url(url: str) -> str:
+    clean = str(url or "").strip()
     if clean.startswith("webcal://"):
         clean = "https://" + clean[len("webcal://") :]
     parsed = urllib.parse.urlsplit(clean)
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+    if parsed.scheme not in ("http", "https") or not parsed.netloc or not parsed.hostname:
         raise ValueError("TimeEdit link must be a valid http(s):// or webcal:// .ics URL.")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("TimeEdit link must not include embedded credentials.")
+    host = parsed.hostname.rstrip(".").lower()
+    if host in ("localhost",) or host.endswith((".localhost", ".local", ".internal")):
+        raise ValueError("TimeEdit link must point to a public calendar host.")
+    if _is_forbidden_ip(host):
+        raise ValueError("TimeEdit link must point to a public calendar host.")
+    try:
+        infos = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
+        for info in infos:
+            sockaddr = info[4]
+            if sockaddr and _is_forbidden_ip(str(sockaddr[0])):
+                raise ValueError("TimeEdit link must point to a public calendar host.")
+    except socket.gaierror:
+        pass
+    return clean
+
+
+class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        validated = _validate_public_ics_url(urllib.parse.urljoin(req.full_url, newurl))
+        return super().redirect_request(req, fp, code, msg, headers, validated)
+
+
+def fetch_timeedit_ics(url: str, timeout_sec: int = 12) -> str:
+    """Fetch a TimeEdit (or standard webcal/https) `.ics` feed safely via stdlib."""
+    clean = _validate_public_ics_url(url)
     req = urllib.request.Request(
         clean,
         headers={"User-Agent": "Study-OS-Timetable-Sync/1.0 (Read-Only ICS)"},
     )
-    with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+    opener = urllib.request.build_opener(_SafeRedirectHandler())
+    with opener.open(req, timeout=timeout_sec) as resp:
         raw = resp.read(2_500_000)
     return raw.decode("utf-8", errors="replace")
 
@@ -146,14 +197,10 @@ def _unfold_ics_lines(ics_text: str) -> list[str]:
 
 
 def _unescape_ics_value(val: str) -> str:
-    return (
-        val.replace("\\n", "\n")
-        .replace("\\N", "\n")
-        .replace("\\,", ",")
-        .replace("\\;", ";")
-        .replace("\\\\", "\\")
-        .strip()
-    )
+    return _ICS_UNESCAPE_RE.sub(
+        lambda m: "\n" if m.group(1) in ("n", "N") else m.group(1),
+        val,
+    ).strip()
 
 
 def _parse_ics_dt(raw_val: str, params: str = "", default_tz: ZoneInfo = OSLO_TZ) -> datetime | None:
@@ -162,7 +209,7 @@ def _parse_ics_dt(raw_val: str, params: str = "", default_tz: ZoneInfo = OSLO_TZ
     tz_m = re.search(r"TZID=([^;:]+)", params or "", re.I)
     if tz_m:
         try:
-            tz = ZoneInfo(tz_m.group(1).strip())
+            tz = ZoneInfo(tz_m.group(1).strip().strip('"'))
         except Exception:
             tz = default_tz
 
@@ -183,20 +230,29 @@ def _parse_ics_dt(raw_val: str, params: str = "", default_tz: ZoneInfo = OSLO_TZ
 
 def parse_ics_events(ics_text: str, tz: ZoneInfo = OSLO_TZ) -> list[dict[str, Any]]:
     """Parse RFC 5545 `VEVENT` entries from a TimeEdit or calendar `.ics` file."""
+    if not isinstance(ics_text, str) or not ics_text.strip():
+        return []
     events: list[dict[str, Any]] = []
     in_event = False
+    nested_depth = 0
     cur: dict[str, tuple[str, str]] = {}
 
     for line in _unfold_ics_lines(ics_text):
         u = line.strip()
-        if u == "BEGIN:VEVENT":
+        u_upper = u.upper()
+        if u_upper == "BEGIN:VEVENT":
             in_event = True
+            nested_depth = 0
             cur = {}
             continue
-        if u == "END:VEVENT":
+        if u_upper == "END:VEVENT":
             in_event = False
-            dt_start = _parse_ics_dt(*(cur.get("DTSTART") or ("", ""))[::-1], default_tz=tz) if "DTSTART" in cur else None
-            dt_end = _parse_ics_dt(*(cur.get("DTEND") or ("", ""))[::-1], default_tz=tz) if "DTEND" in cur else None
+            nested_depth = 0
+            status_val = _unescape_ics_value((cur.get("STATUS") or ("", ""))[1]).upper()
+            if status_val == "CANCELLED":
+                continue
+            dt_start = _parse_ics_dt(cur["DTSTART"][1], cur["DTSTART"][0], default_tz=tz) if "DTSTART" in cur else None
+            dt_end = _parse_ics_dt(cur["DTEND"][1], cur["DTEND"][0], default_tz=tz) if "DTEND" in cur else None
             summary = _unescape_ics_value((cur.get("SUMMARY") or ("", ""))[1])
             desc = _unescape_ics_value((cur.get("DESCRIPTION") or ("", ""))[1])
             loc = _unescape_ics_value((cur.get("LOCATION") or ("", ""))[1])
@@ -218,12 +274,19 @@ def parse_ics_events(ics_text: str, tz: ZoneInfo = OSLO_TZ) -> list[dict[str, An
                 )
             continue
 
-        if in_event and ":" in line:
-            left, val = line.split(":", 1)
-            parts = left.split(";", 1)
-            prop = parts[0].upper().strip()
-            params = parts[1] if len(parts) > 1 else ""
-            cur[prop] = (params, val)
+        if in_event:
+            if u_upper.startswith("BEGIN:"):
+                nested_depth += 1
+                continue
+            if u_upper.startswith("END:"):
+                nested_depth = max(0, nested_depth - 1)
+                continue
+            if nested_depth == 0 and ":" in line:
+                left, val = line.split(":", 1)
+                parts = left.split(";", 1)
+                prop = parts[0].upper().strip()
+                params = parts[1] if len(parts) > 1 else ""
+                cur[prop] = (params, val)
 
     events.sort(key=lambda e: e["start"])
     return events
@@ -294,7 +357,9 @@ def generate_adaptive_schedule(
     now_dt: datetime | None = None,
 ) -> dict[str, Any]:
     """Build a 14-day schedule combining fixed TimeEdit classes + adaptive study blocks."""
-    now = (now_dt or datetime.now(OSLO_TZ)).astimezone(OSLO_TZ)
+    base_now = now_dt or datetime.now(OSLO_TZ)
+    now = base_now.replace(tzinfo=OSLO_TZ) if base_now.tzinfo is None else base_now.astimezone(OSLO_TZ)
+    days_ahead = max(0, int(days_ahead))
     start_day = now.date()
     end_limit = now + timedelta(days=days_ahead)
 
@@ -303,7 +368,7 @@ def generate_adaptive_schedule(
     day_start_m, day_end_m = _daily_study_minutes(prefs)
     block_min = max(25, min(90, int(prefs.get("blockMinutes") or 50)))
     break_min = max(5, min(30, int(prefs.get("breakMinutes") or 10)))
-    rest_days = {int(x) for x in (prefs.get("restDays") or []) if str(x).isdigit()}
+    rest_days = {int(x) for x in (prefs.get("restDays") or []) if str(x).isdigit() and 0 <= int(x) <= 6}
     custom_weights = prefs.get("courseWeights") or {}
 
     # 1. Convert fixed events within [start_day, start_day + days_ahead] into normalized blocks
@@ -312,13 +377,17 @@ def generate_adaptive_schedule(
     class_minutes_week1 = 0.0
     week1_cutoff = now + timedelta(days=7)
 
-    for ev in fixed_events:
+    for ev in fixed_events or []:
+        if not isinstance(ev, dict):
+            continue
         try:
-            sdt = datetime.fromisoformat(str(ev["start"]).replace("Z", "+00:00")).astimezone(OSLO_TZ)
-            edt = datetime.fromisoformat(str(ev["end"]).replace("Z", "+00:00")).astimezone(OSLO_TZ)
+            sdt_raw = datetime.fromisoformat(str(ev["start"]).replace("Z", "+00:00"))
+            edt_raw = datetime.fromisoformat(str(ev["end"]).replace("Z", "+00:00"))
+            sdt = sdt_raw.replace(tzinfo=OSLO_TZ) if sdt_raw.tzinfo is None else sdt_raw.astimezone(OSLO_TZ)
+            edt = edt_raw.replace(tzinfo=OSLO_TZ) if edt_raw.tzinfo is None else edt_raw.astimezone(OSLO_TZ)
         except Exception:
             continue
-        if edt <= now - timedelta(hours=2) or sdt > end_limit:
+        if edt <= sdt or edt <= now - timedelta(hours=2) or sdt > end_limit:
             continue
         dur = max(15, int(round((edt - sdt).total_seconds() / 60.0)))
         if sdt < week1_cutoff and edt > now:
@@ -405,9 +474,9 @@ def generate_adaptive_schedule(
         course_weights = [(cid, 1.0) for cid in courses_by_id]
 
     # Build weighted round-robin course rotation
-    total_w = sum(w for _, w in course_weights)
+    total_w = max(1e-6, sum(w for _, w in course_weights))
     blocks_per_week = max(0, int((weekly_study_hours * 60.0 + 1e-6) // block_min))
-    total_target_blocks = blocks_per_week * 2  # across 14 days
+    total_target_blocks = int(round(blocks_per_week * (days_ahead / 7.0))) if blocks_per_week > 0 else 0
     quotas = {cid: max(1, int(round(total_target_blocks * (w / total_w)))) for cid, w in course_weights}
 
     # 3. Slot study blocks into free daily intervals across the next 14 days
@@ -552,8 +621,8 @@ def parse_universal_schedule_payload(
             raise ValueError("No VEVENT items found in pasted .ics text.")
         out_ics: list[dict[str, Any]] = []
         for idx, ev in enumerate(evs, 1):
-            sdt = datetime.fromisoformat(ev["start"]).astimezone(OSLO_TZ)
-            edt = datetime.fromisoformat(ev["end"]).astimezone(OSLO_TZ)
+            sdt = datetime.fromisoformat(str(ev["start"]).replace("Z", "+00:00")).astimezone(OSLO_TZ)
+            edt = datetime.fromisoformat(str(ev["end"]).replace("Z", "+00:00")).astimezone(OSLO_TZ)
             dur = max(15, int(round((edt - sdt).total_seconds() / 60.0)))
             cid, tids = match_course_for_text(f"{ev['summary']} {ev.get('description', '')}", courses_by_id)
             out_ics.append(
@@ -605,27 +674,34 @@ def parse_universal_schedule_payload(
         raw_date = str(item.get("date") or "").strip()
 
         # Accept either full ISO (`2026-11-17T09:00:00+01:00`) or `date` + `startTime`/`endTime` (`09:00`)
-        if "T" in raw_start:
-            sdt = datetime.fromisoformat(raw_start.replace("Z", "+00:00"))
-            if sdt.tzinfo is None:
-                sdt = sdt.replace(tzinfo=OSLO_TZ)
+        try:
+            if "T" in raw_start:
+                sdt = datetime.fromisoformat(raw_start.replace("Z", "+00:00"))
+                if sdt.tzinfo is None:
+                    sdt = sdt.replace(tzinfo=OSLO_TZ)
+                else:
+                    sdt = sdt.astimezone(OSLO_TZ)
+            elif raw_date and re.match(r"^\d{1,2}:\d{2}$", raw_start or str(item.get("startTime") or "")):
+                hm = raw_start or str(item.get("startTime"))
+                h, m = (int(x) for x in hm.split(":"))
+                sdt = datetime.combine(date.fromisoformat(raw_date), time(h, m), tzinfo=OSLO_TZ)
             else:
-                sdt = sdt.astimezone(OSLO_TZ)
-        elif raw_date and re.match(r"^\d{1,2}:\d{2}$", raw_start or str(item.get("startTime") or "")):
-            hm = raw_start or str(item.get("startTime"))
-            h, m = (int(x) for x in hm.split(":"))
-            sdt = datetime.combine(date.fromisoformat(raw_date), time(h, m), tzinfo=OSLO_TZ)
-        else:
+                continue
+
+            if raw_end and "T" in raw_end:
+                edt = datetime.fromisoformat(raw_end.replace("Z", "+00:00"))
+                edt = edt.replace(tzinfo=OSLO_TZ) if edt.tzinfo is None else edt.astimezone(OSLO_TZ)
+            elif raw_date and re.match(r"^\d{1,2}:\d{2}$", raw_end or str(item.get("endTime") or "")):
+                hm_e = raw_end or str(item.get("endTime"))
+                h, m = (int(x) for x in hm_e.split(":"))
+                edt = datetime.combine(sdt.date(), time(h, m), tzinfo=OSLO_TZ)
+            else:
+                dur_m = int(item.get("durationMinutes") or 50)
+                edt = sdt + timedelta(minutes=max(15, dur_m))
+        except (ValueError, TypeError):
             continue
 
-        if raw_end and "T" in raw_end:
-            edt = datetime.fromisoformat(raw_end.replace("Z", "+00:00"))
-            edt = edt.replace(tzinfo=OSLO_TZ) if edt.tzinfo is None else edt.astimezone(OSLO_TZ)
-        elif raw_date and re.match(r"^\d{1,2}:\d{2}$", raw_end or str(item.get("endTime") or "")):
-            hm_e = raw_end or str(item.get("endTime"))
-            h, m = (int(x) for x in hm_e.split(":"))
-            edt = datetime.combine(sdt.date(), time(h, m), tzinfo=OSLO_TZ)
-        else:
+        if edt <= sdt:
             dur_m = int(item.get("durationMinutes") or 50)
             edt = sdt + timedelta(minutes=max(15, dur_m))
 
@@ -673,15 +749,27 @@ def parse_universal_schedule_payload(
     return normalized
 
 
+def _escape_ics_text(val: str) -> str:
+    return (
+        val.replace("\\", "\\\\")
+        .replace("\r\n", "\\n")
+        .replace("\r", "\\n")
+        .replace("\n", "\\n")
+        .replace(",", "\\,")
+        .replace(";", "\\;")
+    )
+
+
 def export_blocks_to_ics(blocks: list[dict[str, Any]], cal_name: str = "Study-OS Adaptive Schedule") -> str:
     """Serialize Study-OS schedule blocks to standard RFC 5545 `.ics` format."""
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    safe_cal_name = _escape_ics_text(str(cal_name or "Study-OS Adaptive Schedule"))
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
         "PRODID:-//Study-OS//Adaptive Study Schedule//EN",
         "CALSCALE:GREGORIAN",
-        f"X-WR-CALNAME:{cal_name}",
+        f"X-WR-CALNAME:{safe_cal_name}",
     ]
     for b in blocks:
         try:
@@ -690,11 +778,12 @@ def export_blocks_to_ics(blocks: list[dict[str, Any]], cal_name: str = "Study-OS
         except Exception:
             continue
         uid = re.sub(r"[^A-Za-z0-9._@-]", "-", str(b.get("eventId") or "block")) + "@study-os.local"
-        summary = str(b.get("summary") or "Study Block").replace(",", "\\,").replace(";", "\\;")
-        cid = str(b.get("courseId") or "")
-        mode = str(b.get("dlpfcMode") or ("low_dlpfc" if b.get("blockKind") == "recall_sprint" else "med_dlpfc"))
+        summary = _escape_ics_text(str(b.get("summary") or "Study Block"))
+        cid = re.sub(r"[\r\n]", "", str(b.get("courseId") or ""))
+        mode = re.sub(r"[\r\n]", "", str(b.get("dlpfcMode") or ("low_dlpfc" if b.get("blockKind") == "recall_sprint" else "med_dlpfc")))
+        prof = re.sub(r"[\r\n]", "", str(b.get("recommendedProfile", "learning")))
         launch = f"https://studyos.no/?course={cid}&autostart=1&dlpfc={mode}" if cid else "https://studyos.no/"
-        desc = f"DLPFC Tier: {mode} | Course: {cid} | Profile: {b.get('recommendedProfile', 'learning')}\\nOpen in Study-OS: {launch}".replace(",", "\\,")
+        desc = _escape_ics_text(f"DLPFC Tier: {mode} | Course: {cid} | Profile: {prof}\nOpen in Study-OS: {launch}")
         lines.extend(
             [
                 "BEGIN:VEVENT",

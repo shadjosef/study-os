@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timedelta
+import glob
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
+import math
 import mimetypes
 mimetypes.add_type("application/wasm", ".wasm")
 import os
@@ -83,13 +85,69 @@ from tutor_bridge import LiveTutor, with_source_links  # noqa: E402
 
 OSLO_TZ = ZoneInfo("Europe/Oslo")
 STATE_LOCK = threading.RLock()
+MAX_JSON_BODY_BYTES = 8 * 1024 * 1024  # 8 MiB JSON request body cap
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+LOOPBACK_CLIENT_IPS = {"127.0.0.1", "::1", "::ffff:127.0.0.1"}
+
+
+class PayloadTooLargeError(ValueError):
+    """Raised when a client request exceeds the allowed byte limit."""
+
+
+class BadRequestError(ValueError):
+    """Raised when a client request body or parameter is malformed."""
+
+
+def _parse_iso_aware(raw: Any, default_tz: ZoneInfo = OSLO_TZ) -> datetime | None:
+    if not isinstance(raw, str):
+        return None
+    cleaned = raw.strip()
+    if not cleaned:
+        return None
+    try:
+        dt = datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
+        return dt.replace(tzinfo=default_tz) if dt.tzinfo is None else dt
+    except ValueError:
+        return None
+
+
+def _parse_finite_float(val: Any, default: float, field: str) -> float:
+    if val is None or val == "":
+        return default
+    if isinstance(val, bool):
+        raise BadRequestError(f"Invalid numeric value for '{field}'.")
+    try:
+        num = float(val)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise BadRequestError(f"Invalid numeric value for '{field}'.") from exc
+    if not math.isfinite(num):
+        raise BadRequestError(f"Non-finite value for '{field}'.")
+    return num
+
+
+def _parse_finite_int(val: Any, default: int, field: str) -> int:
+    if val is None or val == "":
+        return default
+    if isinstance(val, bool):
+        raise BadRequestError(f"Invalid integer value for '{field}'.")
+    try:
+        num = float(val)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise BadRequestError(f"Invalid integer value for '{field}'.") from exc
+    if not math.isfinite(num):
+        raise BadRequestError(f"Non-finite value for '{field}'.")
+    return int(num)
 
 
 def atomic_write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    tmp = path.parent / f".{path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+    try:
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        tmp.replace(path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def append_jsonl(path: Path, row: dict[str, Any]) -> None:
@@ -101,17 +159,17 @@ def append_jsonl(path: Path, row: dict[str, Any]) -> None:
 
 def merge_course_practice(bank: dict[str, Any], supplement: dict[str, Any]) -> dict[str, Any]:
     """Append bundled practice without replacing any matching items in the main bank."""
-    if bank["courseId"] != supplement["courseId"]:
+    if not bank.get("courseId") or bank.get("courseId") != supplement.get("courseId"):
         return bank
     merged = dict(bank)
     main_exam = bank.get("examInfo") or {}
-    if not main_exam.get("date") and supplement.get("examInfo", {}).get("date"):
+    if not main_exam.get("date") and (supplement.get("examInfo") or {}).get("date"):
         merged["examInfo"] = {**main_exam, **supplement["examInfo"]}
     for field in ("topics", "collections", "questions"):
         entries = list(bank.get(field) or [])
-        ids = {entry["id"] for entry in entries}
-        for entry in supplement.get(field, []):
-            if entry["id"] not in ids:
+        ids = {entry.get("id") for entry in entries if isinstance(entry, dict) and entry.get("id") is not None}
+        for entry in supplement.get(field, []) or []:
+            if isinstance(entry, dict) and entry.get("id") is not None and entry["id"] not in ids:
                 entries.append(entry)
                 ids.add(entry["id"])
         merged[field] = entries
@@ -147,10 +205,23 @@ class StudyStore:
         atomic_write_json(self.progress_path, state)
 
     def load_course_bank(self, course_id: str) -> dict[str, Any] | None:
-        if not course_id or "/" in course_id or "\\" in course_id or ".." in course_id:
+        if (
+            not isinstance(course_id, str)
+            or not course_id
+            or course_id in (".", "..")
+            or ".." in course_id
+            or "/" in course_id
+            or "\\" in course_id
+            or "\x00" in course_id
+            or not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", course_id)
+        ):
             return None
-        bank_file = self.courses_dir / course_id / "bank.json"
-        if not bank_file.is_file():
+        courses_root = self.courses_dir.resolve()
+        try:
+            bank_file = (courses_root / course_id / "bank.json").resolve()
+        except OSError:
+            return None
+        if courses_root not in bank_file.parents or not bank_file.is_file():
             return None
         supplement_file = self.root / "examples" / "math-2588" / "bank.json"
         has_supplement = course_id == "math-2588" and supplement_file.is_file()
@@ -265,9 +336,9 @@ class StudyStore:
         if not force and self.calendar_path.is_file():
             try:
                 cached = json.loads(self.calendar_path.read_text(encoding="utf-8"))
-                updated = cached.get("updatedAt")
-                if updated:
-                    age_min = (datetime.now(OSLO_TZ) - datetime.fromisoformat(updated)).total_seconds() / 60.0
+                updated_dt = _parse_iso_aware(cached.get("updatedAt"))
+                if updated_dt is not None:
+                    age_min = (datetime.now(OSLO_TZ) - updated_dt).total_seconds() / 60.0
                     if age_min < 120 and cached.get("blocks"):
                         return cached
             except Exception:
@@ -288,7 +359,7 @@ class StudyStore:
                 if s.get("calendarEventId")
                 and (int(s.get("reviewedCount") or 0) > 0 or float(s.get("activeSec") or 0) >= 60.0)
             }
-            analytics = build_full_analytics(self.root, courses_by_id, progress)
+            analytics = build_full_analytics(self.root, courses_by_id, progress, data_dir=self.data_dir)
             today_high_min = float((analytics.get("dlpfcBudget") or {}).get("todayHighMinutes") or 0.0)
 
             now = datetime.now(OSLO_TZ)
@@ -300,9 +371,9 @@ class StudyStore:
                 b_copy["completed"] = b.get("eventId") in completed_event_ids
                 # Determine live vs upcoming vs past (overdue debt if uncompleted within 14d)
                 is_recent_debt = False
-                try:
-                    st = datetime.fromisoformat(b["startIso"])
-                    en = datetime.fromisoformat(b["endIso"])
+                st = _parse_iso_aware(b.get("startIso"))
+                en = _parse_iso_aware(b.get("endIso"))
+                if st is not None and en is not None:
                     if st - (en - st) * 0.25 <= now <= en:
                         b_copy["timingState"] = "live_now"
                     elif now < st:
@@ -310,7 +381,7 @@ class StudyStore:
                     else:
                         b_copy["timingState"] = "past"
                         is_recent_debt = (not b_copy["completed"]) and en >= debt_cutoff
-                except Exception:
+                else:
                     b_copy["timingState"] = "upcoming"
 
                 if b_copy.get("blockKind") in ("study_block", "recall_sprint") and (
@@ -360,8 +431,9 @@ CANVAS_BROWSER_API = "/api/canvas/browser/"
 CANVAS_EXTENSION_ROUTES = {CANVAS_BROWSER_API + "link", CANVAS_BROWSER_API + "snapshot"}
 
 
-def read_source_links() -> dict:
-    path = STORE.data_dir / "state" / "question-source-links.json"
+def read_source_links(data_dir: Path | None = None) -> dict:
+    base_dir = data_dir if data_dir is not None else STORE.data_dir
+    path = base_dir / "state" / "question-source-links.json"
     try:
         links = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -373,7 +445,33 @@ def read_source_links() -> dict:
 
 class StudyOSHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, directory=str(PUBLIC_DIR), **kwargs)
+        srv = kwargs.get("server") or (args[2] if len(args) >= 3 else None)
+        pub_dir = getattr(srv, "public_dir", PUBLIC_DIR)
+        super().__init__(*args, directory=str(pub_dir), **kwargs)
+
+    def _store(self) -> StudyStore:
+        return getattr(self.server, "store", STORE)
+
+    def _public_dir(self) -> Path:
+        return Path(getattr(self.server, "public_dir", PUBLIC_DIR)).resolve()
+
+    def _live_tutor(self) -> LiveTutor:
+        return getattr(self.server, "live_tutor", LIVE_TUTOR)
+
+    def _canvas_browser(self) -> CanvasBrowser:
+        return getattr(self.server, "canvas_browser", CANVAS_BROWSER)
+
+    def _trusted_local_origins(self) -> set[str]:
+        port = self.server.server_address[1]
+        origins = {
+            f"http://127.0.0.1:{port}",
+            f"http://localhost:{port}",
+            f"http://[::1]:{port}",
+            "app://obsidian.md",
+        }
+        if port == 80:
+            origins.update({"http://127.0.0.1", "http://localhost", "http://[::1]"})
+        return origins
 
     def log_message(self, fmt: str, *args: Any) -> None:
         # Quiet clean logging
@@ -381,10 +479,14 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             super().log_message(fmt, *args)
 
     def end_headers(self) -> None:
-        # Allow local Obsidian Desktop plugin (`app://obsidian.md`) & localhost access
+        # Baseline browser hardening headers on every response
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "strict-origin-when-cross-origin")
+        # Allow local Obsidian Desktop plugin (`app://obsidian.md`) & localhost access only (no wildcard '*')
         route = urllib.parse.urlsplit(self.path).path
+        origin = self.headers.get("Origin")
         if route.startswith(CANVAS_BROWSER_API):
-            origin = self.headers.get("Origin")
             if route in CANVAS_EXTENSION_ROUTES:
                 self.send_header("Vary", "Origin")
                 if self.is_loopback_request() and extension_origin(origin):
@@ -394,15 +496,73 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         elif not route.startswith("/api/tutor/") and route not in {
             "/api/canvas/sync", "/api/canvas/add-file", "/api/canvas/documents", "/api/canvas-file"
         }:
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            if origin and self.is_valid_host() and origin in self._trusted_local_origins():
+                self.send_header("Vary", "Origin")
+                self.send_header("Access-Control-Allow-Origin", origin)
+                self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+                self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
+    def list_directory(self, path: str | os.PathLike[str]) -> None:
+        self.send_json({"error": "Forbidden"}, status=403)
+        return None
+
+    def _validate_static_request(self) -> bool:
+        raw_route = urllib.parse.urlsplit(self.path).path
+        once = urllib.parse.unquote(raw_route)
+        twice = urllib.parse.unquote(once)
+        for cand in (raw_route, once, twice):
+            if "\x00" in cand or "\\" in cand:
+                return False
+            if any(seg == ".." for seg in cand.split("/")):
+                return False
+        public_root = self._public_dir()
+        translated = Path(self.translate_path(self.path))
+        try:
+            resolved = translated.resolve()
+        except OSError:
+            return False
+        if resolved != public_root and public_root not in resolved.parents:
+            return False
+        if resolved.is_dir():
+            for idx_name in ("index.html", "index.htm"):
+                idx_file = resolved / idx_name
+                if idx_file.exists():
+                    try:
+                        idx_resolved = idx_file.resolve()
+                    except OSError:
+                        return False
+                    if public_root not in idx_resolved.parents:
+                        return False
+                    break
+        return True
+
     def do_OPTIONS(self) -> None:
+        if not self.is_valid_host():
+            self.send_json({"error": "Invalid Host header."}, status=403)
+            return
         self.send_response(HTTPStatus.NO_CONTENT)
         self.end_headers()
+
+    def do_HEAD(self) -> None:
+        if not self.is_valid_host():
+            self.send_response(HTTPStatus.FORBIDDEN)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        route = urllib.parse.urlsplit(self.path).path
+        if route.startswith("/api/"):
+            self.send_response(HTTPStatus.METHOD_NOT_ALLOWED)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        if not self._validate_static_request():
+            self.send_response(HTTPStatus.FORBIDDEN)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        super().do_HEAD()
 
     def send_json(self, payload: Any, status: int = 200) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -457,14 +617,51 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             except (BrokenPipeError, ConnectionResetError):
                 pass
 
-    def read_json_body(self) -> dict[str, Any]:
-        length = int(self.headers.get("Content-Length") or 0)
-        if length <= 0 or length > 16 * 1024 * 1024:
+    def read_json_body(self, max_bytes: int = MAX_JSON_BODY_BYTES) -> dict[str, Any]:
+        if self.headers.get("Transfer-Encoding"):
+            raise BadRequestError("Transfer-Encoding is not supported; include Content-Length.")
+        raw_len = self.headers.get("Content-Length")
+        if raw_len is None or raw_len.strip() == "":
             return {}
+        try:
+            length = int(raw_len.strip())
+        except ValueError as exc:
+            raise BadRequestError("Invalid Content-Length header.") from exc
+        if length < 0:
+            raise BadRequestError("Invalid Content-Length header.")
+        if length == 0:
+            return {}
+        if length > max_bytes:
+            self.close_connection = True
+            raise PayloadTooLargeError(f"Request body exceeds {max_bytes} bytes limit.")
         raw = self.rfile.read(length)
-        return json.loads(raw.decode("utf-8"))
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise BadRequestError("Request body must be valid UTF-8.") from exc
+        try:
+            parsed = json.loads(text)
+        except (ValueError, RecursionError) as exc:
+            raise BadRequestError("Malformed JSON payload.") from exc
+        if not isinstance(parsed, dict):
+            raise BadRequestError("JSON body must be an object.")
+        return parsed
 
     def do_GET(self) -> None:
+        if not self.is_valid_host():
+            self.send_json({"error": "Invalid Host header."}, status=403)
+            return
+        try:
+            self._handle_get()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except BadRequestError as exc:
+            self.send_json({"error": str(exc)}, status=400)
+        except Exception:
+            self.send_json({"error": "Internal server error."}, status=500)
+
+    def _handle_get(self) -> None:
+        store = self._store()
         parsed = urllib.parse.urlsplit(self.path)
         route = parsed.path
         qs = urllib.parse.parse_qs(parsed.query)
@@ -479,7 +676,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 return
             try:
                 with STATE_LOCK:
-                    result = CANVAS_BROWSER.status()
+                    result = self._canvas_browser().status()
             except (ValueError, OSError):
                 self.send_json({"error": "Study-OS could not read the saved Canvas sync."}, status=503)
                 return
@@ -491,7 +688,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 self.send_json({"error": "Connect from the desktop Study-OS app."}, status=403)
                 return
             if route.endswith("/live"):
-                self.send_json(LIVE_TUTOR.current())
+                self.send_json(self._live_tutor().current())
             else:
                 self.send_json({"script": str(ROOT_DIR / "tools" / "study_os_mcp.py"),
                                 "port": self.server.server_address[1]})
@@ -499,32 +696,49 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
 
         if route == "/api/bootstrap":
             force_cal = (qs.get("refresh_calendar") or ["0"])[0] == "1"
-            self.send_json(STORE.build_bootstrap(force_calendar=force_cal))
+            self.send_json(store.build_bootstrap(force_calendar=force_cal))
             return
 
         if route.startswith("/api/course/"):
             cid = urllib.parse.unquote(route[len("/api/course/") :]).strip("/")
-            bank = STORE.load_course_bank(cid)
+            bank = store.load_course_bank(cid)
             if not bank:
                 self.send_json({"error": f"Course '{cid}' not found"}, status=404)
                 return
             try:
-                links = read_source_links()
+                links = read_source_links(store.data_dir)
             except (OSError, ValueError):
                 links = {}
             self.send_json(with_source_links(bank, links))
             return
 
         if route.startswith("/api/course-asset/"):
-            rest = urllib.parse.unquote(route[len("/api/course-asset/") :]).lstrip("/")
+            raw_rest = route[len("/api/course-asset/") :]
+            rest = urllib.parse.unquote(raw_rest).lstrip("/")
+            if "\x00" in rest or "\\" in rest or any(seg == ".." for seg in rest.split("/")):
+                self.send_json({"error": "Forbidden"}, status=403)
+                return
             parts = rest.split("/", 1)
             if len(parts) != 2:
                 self.send_json({"error": "Invalid asset path"}, status=400)
                 return
             cid, rel = parts
-            c_root = (STORE.courses_dir / cid).resolve()
+            if (
+                not cid
+                or cid in (".", "..")
+                or ".." in cid
+                or not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", cid)
+                or not rel
+            ):
+                self.send_json({"error": "Forbidden"}, status=403)
+                return
+            courses_root = store.courses_dir.resolve()
+            c_root = (courses_root / cid).resolve()
+            if courses_root not in c_root.parents:
+                self.send_json({"error": "Forbidden"}, status=403)
+                return
             target = (c_root / rel).resolve()
-            if c_root not in target.parents:
+            if c_root not in target.parents or courses_root not in target.parents:
                 self.send_json({"error": "Forbidden"}, status=403)
                 return
             self.send_file_path(target)
@@ -533,17 +747,26 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         if route == "/api/obsidian/section":
             rel_file = (qs.get("file") or [""])[0]
             heading = (qs.get("heading") or [""])[0]
-            if not rel_file:
+            if not rel_file or "\x00" in rel_file:
                 self.send_json({"available": False, "error": "Missing file parameter"}, status=400)
                 return
-            self.send_json(extract_reference_section(ROOT_DIR, rel_file, heading))
+            self.send_json(extract_reference_section(store.root, rel_file, heading))
             return
 
         if route == "/api/vault-asset":
             rel_path = (qs.get("path") or [""])[0].strip().lstrip("/\\")
             from_dir = (qs.get("from") or [""])[0].strip()
             open_native = (qs.get("open") or ["0"])[0] == "1"
-            v_root = vault_root(ROOT_DIR, STORE.data_dir)
+            if not rel_path or "\x00" in rel_path or "\x00" in from_dir:
+                self.send_json({"error": "Invalid vault asset path"}, status=400)
+                return
+            if open_native and not self.is_local_canvas_request(require_origin=False):
+                self.send_json({"error": "Open vault assets from local Study-OS."}, status=403)
+                return
+            v_root = vault_root(store.root, store.data_dir).resolve()
+            if not v_root.is_dir():
+                self.send_json({"error": "Vault asset not found"}, status=404)
+                return
             candidates = []
             if from_dir:
                 candidates.append((v_root / from_dir / rel_path).resolve())
@@ -555,10 +778,23 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 if cand.is_file() and v_root in cand.parents:
                     resolved_match = cand
                     break
-            if not resolved_match and fname:
-                for match in v_root.rglob(fname):
-                    if match.is_file() and ".obsidian" not in match.parts:
-                        resolved_match = match
+            if (
+                not resolved_match
+                and fname
+                and fname not in (".", "..")
+                and "/" not in fname
+                and "\\" not in fname
+                and not any(ch in fname for ch in "*?[]")
+            ):
+                for match in v_root.rglob(glob.escape(fname)):
+                    if match.name != fname or ".obsidian" in match.parts:
+                        continue
+                    try:
+                        resolved_cand = match.resolve()
+                    except OSError:
+                        continue
+                    if resolved_cand.is_file() and v_root in resolved_cand.parents:
+                        resolved_match = resolved_cand
                         break
             if not resolved_match:
                 self.send_json({"error": "Vault asset not found"}, status=404)
@@ -576,10 +812,17 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         if route == "/api/canvas-file":
             rel_path = (qs.get("path") or [""])[0].strip().lstrip("/\\")
             open_native = (qs.get("open") or ["0"])[0] == "1"
-            archive_root = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
+            if not rel_path or "\x00" in rel_path:
+                self.send_json({"error": "Invalid Canvas file path"}, status=400)
+                return
+            if open_native and not self.is_local_canvas_request(require_origin=False):
+                self.send_json({"error": "Open Canvas files from local Study-OS."}, status=403)
+                return
+            archive_root = resolve_canvas_archive(store.root, store.data_dir)
             if archive_root is None:
                 self.send_json({"error": "Canvas-Archive not configured or not found"}, status=404)
                 return
+            archive_root = archive_root.resolve()
             target = (archive_root / rel_path).resolve()
             if not target.is_file() or archive_root not in target.parents:
                 self.send_json({"error": "Original Canvas file not found"}, status=404)
@@ -595,22 +838,23 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             return
 
         if route == "/api/canvas/status":
-            _, courses_by_id = STORE.discover_courses()
-            self.send_json(inspect_canvas_archive(ROOT_DIR, STORE.data_dir, courses_by_id))
+            with STATE_LOCK:
+                _, courses_by_id = store.discover_courses()
+            self.send_json(inspect_canvas_archive(store.root, store.data_dir, courses_by_id))
             return
 
         if route == "/api/canvas/documents":
             if not self.is_local_canvas_request(require_origin=False):
                 self.send_json({"error": "Open course files from local Study-OS."}, status=403)
                 return
-            archive = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
+            archive = resolve_canvas_archive(store.root, store.data_dir)
             canvas_id = (qs.get("course") or [""])[0]
             tutoring = qs.get("for") == ["tutor"]
             self.send_json({"files": canvas_course_documents(archive, canvas_id, tutoring=tutoring) if archive else []})
             return
 
         if route == "/api/schedule/export.ics":
-            boot = STORE.build_bootstrap(force_calendar=False)
+            boot = store.build_bootstrap(force_calendar=False)
             ics_body = export_blocks_to_ics(boot.get("calendar", {}).get("blocks") or []).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/calendar; charset=utf-8")
@@ -625,27 +869,53 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 payload = {
                     "exportedAt": datetime.now(OSLO_TZ).isoformat(),
                     "format": "study-os-backup-v1",
-                    "progress": STORE.load_progress(),
-                    "attempts": read_jsonl(STORE.attempts_path, max_lines=20000),
-                    "sessions": read_jsonl(STORE.sessions_path, max_lines=5000),
+                    "progress": store.load_progress(),
+                    "attempts": read_jsonl(store.attempts_path, max_lines=20000),
+                    "sessions": read_jsonl(store.sessions_path, max_lines=5000),
                 }
             self.send_json(payload)
             return
 
-        # Serve SPA static files (fallback to index.html for client-side routes)
+        if route.startswith("/api/"):
+            self.send_json({"error": "Unknown API endpoint"}, status=404)
+            return
+
+        if not self._validate_static_request():
+            self.send_json({"error": "Forbidden"}, status=403)
+            return
+
+        # Serve SPA static files
         super().do_GET()
 
     def is_loopback_request(self) -> bool:
         port = self.server.server_address[1]
-        return (
-            self.client_address[0] == "127.0.0.1"
-            and self.headers.get("Host") in {f"127.0.0.1:{port}", f"localhost:{port}"}
-        )
+        host = (self.headers.get("Host") or "").strip().lower()
+        allowed_hosts = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+        if port == 80:
+            allowed_hosts.update({"127.0.0.1", "localhost", "[::1]"})
+        return self.client_address[0] in LOOPBACK_CLIENT_IPS and host in allowed_hosts
+
+    def is_valid_host(self) -> bool:
+        if self.headers.get("Host") is None:
+            return self.client_address[0] in LOOPBACK_CLIENT_IPS
+        return self.is_loopback_request()
+
+    def is_allowed_post_origin(self) -> bool:
+        if not self.is_valid_host():
+            return False
+        origin = self.headers.get("Origin")
+        if origin is not None:
+            return origin in self._trusted_local_origins()
+        sec_fetch_site = (self.headers.get("Sec-Fetch-Site") or "").strip().lower()
+        return sec_fetch_site != "cross-site"
 
     def is_local_canvas_request(self, *, require_origin: bool = True) -> bool:
         origin = self.headers.get("Origin")
+        host = (self.headers.get("Host") or "").strip().lower()
+        sec_fetch_site = (self.headers.get("Sec-Fetch-Site") or "").strip().lower()
         return self.is_loopback_request() and (
-            origin == f"http://{self.headers.get('Host')}" or (origin is None and not require_origin)
+            (origin is not None and origin.lower() == f"http://{host}")
+            or (origin is None and not require_origin and sec_fetch_site != "cross-site")
         )
 
     def handle_canvas_browser(self, route: str) -> None:
@@ -664,24 +934,30 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "0"))
             limit = MAX_SNAPSHOT_BYTES if action == "snapshot" else 4096
-            if not 0 < length <= limit or self.headers.get_content_type() != "application/json":
-                raise ValueError
-            payload = self.read_json_body()
-            if not isinstance(payload, dict):
-                raise ValueError
+            if length > limit:
+                self.close_connection = True
+                self.send_json({"error": "Oversized Canvas Browser Sync request."}, status=413)
+                return
+            if length <= 0 or self.headers.get_content_type() != "application/json":
+                raise BadRequestError("Invalid Canvas Browser Sync request.")
+            payload = self.read_json_body(max_bytes=limit)
+        except PayloadTooLargeError:
+            self.send_json({"error": "Oversized Canvas Browser Sync request."}, status=413)
+            return
         except (ValueError, RecursionError):
-            self.send_json({"error": "Invalid or oversized Canvas Browser Sync request."}, status=400)
+            self.send_json({"error": "Invalid Canvas Browser Sync request."}, status=400)
             return
         try:
             with STATE_LOCK:
+                cb = self._canvas_browser()
                 if action == "code":
-                    result = CANVAS_BROWSER.issue_code()
+                    result = cb.issue_code()
                 elif action == "disconnect":
-                    result = CANVAS_BROWSER.disconnect()
+                    result = cb.disconnect()
                 elif action == "link":
-                    result = CANVAS_BROWSER.link(origin, payload.get("code"))
+                    result = cb.link(origin, payload.get("code"))
                 else:
-                    result = CANVAS_BROWSER.import_snapshot(origin, self.headers.get("Authorization", ""), payload)
+                    result = cb.import_snapshot(origin, self.headers.get("Authorization", ""), payload)
         except PermissionError as exc:
             self.send_json({"error": str(exc)}, status=403)
             return
@@ -694,15 +970,20 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         self.send_json(result)
 
     def handle_canvas_sync(self) -> None:
+        store = self._store()
         if not self.is_local_canvas_request():
             self.send_json({"error": "Open Canvas Sync from the local Study-OS app."}, status=403)
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= 16384 or self.headers.get_content_type() != "application/json":
+            if length > 16384:
+                self.close_connection = True
+                self.send_json({"error": "Canvas Sync request is too large."}, status=413)
+                return
+            if length <= 0 or self.headers.get_content_type() != "application/json":
                 raise ValueError
-            body = self.read_json_body()
-            if not isinstance(body, dict) or body.get("action") not in ("status", "start"):
+            body = self.read_json_body(max_bytes=16384)
+            if body.get("action") not in ("status", "start"):
                 raise ValueError
             options = None
             if body["action"] == "start":
@@ -725,10 +1006,13 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                         ed_token=token.strip(), ed_region=region, ed_only=(mode == "ed"),
                         ed_include=True, ed_remember=(remember and bool(token.strip())),
                     )
+        except PayloadTooLargeError:
+            self.send_json({"error": "Canvas Sync request is too large."}, status=413)
+            return
         except ValueError:
             self.send_json({"error": "Invalid Canvas Sync request."}, status=400)
             return
-        archive = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
+        archive = resolve_canvas_archive(store.root, store.data_dir)
         if archive is None:
             self.send_json({"error": "Connect your Canvas-Archive folder first."}, status=404)
             return
@@ -736,16 +1020,21 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         self.send_json(result, status=status)
 
     def handle_canvas_add_file(self) -> None:
+        store = self._store()
         if not self.is_local_canvas_request():
             self.send_json({"error": "Add books and PDFs from local Study-OS."}, status=403)
             return
         try:
             size = int(self.headers.get("Content-Length", "-1"))
+            if size > MAX_DOCUMENT_BYTES:
+                self.close_connection = True
+                self.send_json({"error": "File exceeds the 200 MB upload limit."}, status=413)
+                return
             canvas_id = self.headers.get("X-Study-Course", "")
             encoded_name = self.headers.get("X-Study-Name", "")
             name = urllib.parse.unquote(encoded_name, errors="strict")
             if (
-                not 0 < size <= MAX_DOCUMENT_BYTES
+                size <= 0
                 or self.headers.get("Transfer-Encoding")
                 or self.headers.get_content_type() != "application/octet-stream"
                 or not re.fullmatch(r"(?:local-)?[0-9]{1,20}", canvas_id)
@@ -756,7 +1045,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         except ValueError:
             self.send_json({"error": "Choose a PDF, EPUB or PowerPoint file up to 200 MB."}, status=400)
             return
-        archive = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
+        archive = resolve_canvas_archive(store.root, store.data_dir)
         if archive is None:
             self.send_json({"error": "Connect your Canvas-Archive folder first."}, status=404)
             return
@@ -770,15 +1059,20 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             return
         try:
             size = int(self.headers.get("Content-Length", "0"))
-            if not 0 < size <= 420_000 or self.headers.get_content_type() != "application/json":
+            if size > 420_000:
+                self.close_connection = True
+                self.send_json({"error": "Tutor request exceeds size limit."}, status=413)
+                return
+            if size <= 0 or self.headers.get_content_type() != "application/json":
                 raise ValueError("Invalid tutor request.")
-            body = self.read_json_body()
-            if not isinstance(body, dict):
-                raise ValueError("Invalid tutor request.")
+            body = self.read_json_body(max_bytes=420_000)
             if route.endswith("/live"):
-                LIVE_TUTOR.update(body)
+                self._live_tutor().update(body)
             else:
                 self.save_source_link(body)
+        except PayloadTooLargeError:
+            self.send_json({"error": "Tutor request exceeds size limit."}, status=413)
+            return
         except (OSError, ValueError) as error:
             self.send_json({"error": str(error) if isinstance(error, ValueError) else "Could not save the source link."},
                            status=400)
@@ -786,14 +1080,15 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         self.send_json({"ok": True})
 
     def save_source_link(self, body: dict) -> None:
+        store = self._store()
         course_id, question_id = body.get("courseId"), body.get("questionId")
         if not isinstance(course_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", course_id):
             raise ValueError("Choose a course.")
-        bank = STORE.load_course_bank(course_id) or {}
+        bank = store.load_course_bank(course_id) or {}
         if not any(q["id"] == question_id for q in bank.get("questions", [])):
             raise ValueError("Choose an exercise in this course.")
         path = body.get("path", "")
-        archive = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
+        archive = resolve_canvas_archive(store.root, store.data_dir)
         if path:
             page = body.get("page")
             if type(page) is not int or not 1 <= page <= 50_000 or not archive:
@@ -803,14 +1098,30 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             if not source:
                 raise ValueError("Choose a PDF already in this course's local library.")
         with STATE_LOCK:
-            links = read_source_links()
+            links = read_source_links(store.data_dir)
             if path:
                 links[question_id] = {"path": source["path"], "title": source["name"], "page": page}
             else:
                 links.pop(question_id, None)
-            atomic_write_json(STORE.data_dir / "state" / "question-source-links.json", links)
+            atomic_write_json(store.data_dir / "state" / "question-source-links.json", links)
 
     def do_POST(self) -> None:
+        if not self.is_valid_host():
+            self.send_json({"error": "Invalid Host header."}, status=403)
+            return
+        try:
+            self._handle_post()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+        except PayloadTooLargeError:
+            self.send_json({"error": "Request body too large."}, status=413)
+        except BadRequestError as exc:
+            self.send_json({"error": str(exc)}, status=400)
+        except Exception:
+            self.send_json({"error": "Internal server error."}, status=500)
+
+    def _handle_post(self) -> None:
+        store = self._store()
         parsed = urllib.parse.urlsplit(self.path)
         route = parsed.path
 
@@ -830,29 +1141,29 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             self.handle_canvas_add_file()
             return
 
-        try:
-            body = self.read_json_body()
-        except Exception as exc:
-            self.send_json({"error": f"Invalid JSON: {exc}"}, status=400)
+        if not self.is_allowed_post_origin():
+            self.send_json({"error": "Cross-origin POST requests are forbidden."}, status=403)
             return
 
+        body = self.read_json_body()
+
         if route == "/api/calendar/refresh":
-            self.send_json(STORE.build_bootstrap(force_calendar=True))
+            self.send_json(store.build_bootstrap(force_calendar=True))
             return
 
         if route == "/api/canvas/config":
             save_settings(
-                STORE.data_dir,
+                store.data_dir,
                 {
                     "canvasArchivePath": str(body.get("canvasArchivePath") or "").strip(),
                     "obsidianVaultPath": str(body.get("obsidianVaultPath") or "").strip(),
                 },
             )
-            self.send_json(STORE.build_bootstrap(force_calendar=False))
+            self.send_json(store.build_bootstrap(force_calendar=False))
             return
 
         if route == "/api/canvas/open-resync":
-            archive_dir = resolve_canvas_archive(ROOT_DIR, STORE.data_dir)
+            archive_dir = resolve_canvas_archive(store.root, store.data_dir)
             if archive_dir is None:
                 self.send_json({"ok": False, "error": "Canvas-Archive folder not found."}, status=404)
                 return
@@ -863,18 +1174,18 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         if route == "/api/canvas/import":
             with STATE_LOCK:
                 if body.get("action") == "demo":
-                    res = install_demo_course(ROOT_DIR, STORE.data_dir)
+                    res = install_demo_course(store.root, store.data_dir)
                 else:
-                    _, courses_by_id = STORE.discover_courses()
+                    _, courses_by_id = store.discover_courses()
                     sel_ids = body.get("canvasIds")
                     res = import_courses_from_canvas_archive(
-                        ROOT_DIR,
-                        STORE.data_dir,
+                        store.root,
+                        store.data_dir,
                         courses_by_id,
                         selected_canvas_ids=sel_ids if isinstance(sel_ids, list) else None,
                         overwrite=bool(body.get("overwrite", False)),
                     )
-                boot = STORE.build_bootstrap(force_calendar=False)
+                boot = store.build_bootstrap(force_calendar=False)
             self.send_json({**res, "bootstrap": boot}, status=200 if res.get("ok") else 400)
             return
 
@@ -883,10 +1194,13 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 self.send_json({"error": "Open the local Study-OS app to generate this schedule."}, status=403)
                 return
             with STATE_LOCK:
-                _, courses_by_id = STORE.discover_courses()
-                prog = STORE.load_progress()
-                cur_cfg = load_custom_schedule(STORE.data_dir)
-                prefs = {**default_schedule_prefs(), **(cur_cfg.get("prefs") or {}), **(body.get("prefs") or {})}
+                _, courses_by_id = store.discover_courses()
+                prog = store.load_progress()
+                cur_cfg = load_custom_schedule(store.data_dir)
+                incoming_prefs = body.get("prefs")
+                if incoming_prefs is not None and not isinstance(incoming_prefs, dict):
+                    raise BadRequestError("Invalid schedule preferences.")
+                prefs = {**default_schedule_prefs(), **(cur_cfg.get("prefs") or {}), **(incoming_prefs or {})}
                 ics_text = str(body.get("icsText") or "").strip()
                 te_url = str(prefs.get("timeeditUrl") or "").strip()
 
@@ -903,7 +1217,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                         fixed_events = cur_cfg["fixedEvents"]
                     else:
                         # Use Canvas-Archive TimeEdit snapshot if available
-                        fb = load_fallback_from_canvas_archive(ROOT_DIR, data_dir=STORE.data_dir, courses_by_id=courses_by_id)
+                        fb = load_fallback_from_canvas_archive(store.root, data_dir=store.data_dir, courses_by_id=courses_by_id)
                         fixed_events = [
                             {
                                 "id": b["eventId"],
@@ -930,7 +1244,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                     self.send_json({"error": str(exc)}, status=400)
                     return
                 save_custom_schedule(
-                    STORE.data_dir,
+                    store.data_dir,
                     {
                         "enabled": True,
                         "source": "timeedit_auto_scheduler",
@@ -940,7 +1254,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                         "fixedEvents": fixed_events if ics_text or cur_cfg.get("fixedEvents") and not te_url else [],
                     },
                 )
-                boot = STORE.build_bootstrap(force_calendar=True)
+                boot = store.build_bootstrap(force_calendar=True)
             study_count = sum(b["blockKind"] in ("study_block", "recall_sprint") for b in gen["blocks"])
             self.send_json({"ok": True, "estimate": gen["estimate"], "blockCount": len(gen["blocks"]), "studyCount": study_count, "bootstrap": boot})
             return
@@ -948,23 +1262,23 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
         if route == "/api/schedule/import-llm":
             with STATE_LOCK:
                 if body.get("action") == "reset":
-                    cur = load_custom_schedule(STORE.data_dir)
+                    cur = load_custom_schedule(store.data_dir)
                     cur["enabled"] = False
                     cur.pop("fixedEvents", None)
-                    save_custom_schedule(STORE.data_dir, cur)
-                    boot = STORE.build_bootstrap(force_calendar=True)
+                    save_custom_schedule(store.data_dir, cur)
+                    boot = store.build_bootstrap(force_calendar=True)
                     self.send_json({"ok": True, "reset": True, "bootstrap": boot})
                     return
 
                 raw_payload = str(body.get("payload") or "")
-                _, courses_by_id = STORE.discover_courses()
+                _, courses_by_id = store.discover_courses()
                 try:
                     blocks = parse_universal_schedule_payload(raw_payload, courses_by_id)
                 except Exception as exc:
                     self.send_json({"ok": False, "error": str(exc)}, status=400)
                     return
 
-                cur = load_custom_schedule(STORE.data_dir)
+                cur = load_custom_schedule(store.data_dir)
                 cur.update(
                     {
                         "enabled": True,
@@ -972,21 +1286,29 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                         "blocks": blocks,
                     }
                 )
-                save_custom_schedule(STORE.data_dir, cur)
-                boot = STORE.build_bootstrap(force_calendar=True)
+                save_custom_schedule(store.data_dir, cur)
+                boot = store.build_bootstrap(force_calendar=True)
             self.send_json({"ok": True, "blockCount": len(blocks), "bootstrap": boot})
             return
 
         if route == "/api/progress/status":
             # Mark 1 or multiple questions as not_started (uncomplete!), in_progress, done, revisit, or reset
-            qids = body.get("questionIds") or ([body["questionId"]] if body.get("questionId") else [])
+            raw_qids = body.get("questionIds")
+            if raw_qids is not None:
+                if not isinstance(raw_qids, list) or len(raw_qids) > 5000:
+                    raise BadRequestError("questionIds must be a list of IDs.")
+                qids = [str(x) for x in raw_qids if x]
+            elif body.get("questionId"):
+                qids = [str(body["questionId"])]
+            else:
+                qids = []
             new_status = str(body.get("status") or "not_started")
             reset_work = bool(body.get("resetWork", False))
             if new_status not in ("not_started", "in_progress", "done", "revisit"):
                 self.send_json({"error": "Invalid status"}, status=400)
                 return
             with STATE_LOCK:
-                prog = STORE.load_progress()
+                prog = store.load_progress()
                 recs = prog.setdefault("records", {})
                 now_iso = datetime.now(OSLO_TZ).isoformat()
                 for qid in qids:
@@ -998,7 +1320,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                             for k in ("savedDraft", "savedChoice", "savedWiseflow", "checkedRubricIndices", "activeElapsedSec", "hintsUsed"):
                                 rec.pop(k, None)
                             rec["draftResetAt"] = now_iso
-                STORE.save_progress(prog)
+                store.save_progress(prog)
             self.send_json({"ok": True, "updated": len(qids), "status": new_status})
             return
 
@@ -1007,8 +1329,14 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             if not qid:
                 self.send_json({"error": "Missing questionId"}, status=400)
                 return
+            hints_used = _parse_finite_int(body.get("hintsUsed"), 0, "hintsUsed") if "hintsUsed" in body else None
+            active_elapsed = (
+                round(_parse_finite_float(body.get("activeElapsedSec"), 0.0, "activeElapsedSec"), 1)
+                if "activeElapsedSec" in body
+                else None
+            )
             with STATE_LOCK:
-                prog = STORE.load_progress()
+                prog = store.load_progress()
                 rec = prog.setdefault("records", {}).setdefault(qid, {})
                 if "draft" in body:
                     rec["savedDraft"] = str(body["draft"] or "")
@@ -1018,10 +1346,10 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                     rec["savedWiseflow"] = body["wiseflowAnswers"]
                 if "checkedRubricIndices" in body:
                     rec["checkedRubricIndices"] = body["checkedRubricIndices"]
-                if "hintsUsed" in body:
-                    rec["hintsUsed"] = int(body["hintsUsed"] or 0)
-                if "activeElapsedSec" in body:
-                    rec["activeElapsedSec"] = round(float(body["activeElapsedSec"] or 0), 1)
+                if hints_used is not None:
+                    rec["hintsUsed"] = hints_used
+                if active_elapsed is not None:
+                    rec["activeElapsedSec"] = active_elapsed
                 if "profile" in body:
                     rec["lastProfile"] = str(body["profile"])
                 has_wf = any(str(v).strip() != "" for v in (rec.get("savedWiseflow") or {}).values())
@@ -1031,7 +1359,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 if (rec.get("status") in (None, "not_started")) and has_work:
                     rec["status"] = "in_progress"
                 rec["updatedAt"] = datetime.now(OSLO_TZ).isoformat()
-                STORE.save_progress(prog)
+                store.save_progress(prog)
             self.send_json({"ok": True})
             return
 
@@ -1043,19 +1371,28 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 return
 
             assisted = bool(body.get("assisted", False))
+            active_sec = _parse_finite_float(body.get("activeSec"), 1.0, "activeSec")
+            ai_par_sec = _parse_finite_float(body.get("aiParSec"), 120.0, "aiParSec")
+            hints_used = _parse_finite_int(body.get("hintsUsed"), 0, "hintsUsed")
+            hint_handicap_sec = _parse_finite_float(body.get("hintHandicapSec"), 30.0, "hintHandicapSec")
+            quality_accuracy = _parse_finite_float(body.get("qualityAccuracy"), 0.0, "qualityAccuracy")
+            focus_switch_count = _parse_finite_int(body.get("focusSwitchCount"), 0, "focusSwitchCount")
+            away_elapsed_sec = round(_parse_finite_float(body.get("awayElapsedSec"), 0.0, "awayElapsedSec"), 1)
+            manual_pause_count = _parse_finite_int(body.get("manualPauseCount"), 0, "manualPauseCount")
+
             metrics = compute_attempt_metrics(
-                active_sec=float(body.get("activeSec") or 1.0),
-                ai_par_sec=float(body.get("aiParSec") or 120.0),
-                hints_used=int(body.get("hintsUsed") or 0),
-                hint_handicap_sec=float(body.get("hintHandicapSec") or 30.0),
-                quality_accuracy=float(body.get("qualityAccuracy") or 0.0),
+                active_sec=active_sec,
+                ai_par_sec=ai_par_sec,
+                hints_used=hints_used,
+                hint_handicap_sec=hint_handicap_sec,
+                quality_accuracy=quality_accuracy,
                 assisted=assisted,
             )
-            fsrs_grade = int(body.get("fsrsGrade") or metrics["suggestedFsrsGrade"])
+            fsrs_grade = _parse_finite_int(body.get("fsrsGrade"), metrics["suggestedFsrsGrade"], "fsrsGrade")
             now = datetime.now(OSLO_TZ)
 
             with STATE_LOCK:
-                prog = STORE.load_progress()
+                prog = store.load_progress()
                 rec = prog.setdefault("records", {}).setdefault(qid, {})
                 prev_fsrs = dict(rec["fsrs"]) if isinstance(rec.get("fsrs"), dict) else None
                 rec["prevFsrsSnapshot"] = prev_fsrs
@@ -1095,9 +1432,9 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                     if prev_pb is None or metrics["effectiveSec"] < float(prev_pb):
                         rec["pbEffectiveSec"] = metrics["effectiveSec"]
 
-                STORE.save_progress(prog)
+                store.save_progress(prog)
 
-                _, courses_by_id = STORE.discover_courses()
+                _, courses_by_id = store.discover_courses()
                 q_obj = None
                 if cid in courses_by_id:
                     for cand_q in courses_by_id[cid].get("questions") or []:
@@ -1105,7 +1442,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                             q_obj = cand_q
                             break
                 raw_dlpfc = body.get("dlpfcTier")
-                if raw_dlpfc in (1, 2, 3):
+                if not isinstance(raw_dlpfc, bool) and raw_dlpfc in (1, 2, 3):
                     dlpfc_tier = int(raw_dlpfc)
                 elif q_obj is not None:
                     dlpfc_tier = effective_dlpfc_tier(q_obj, prev_fsrs and {"status": "done", "fsrs": prev_fsrs} or None)[0]
@@ -1124,18 +1461,18 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                     "kind": str(body.get("kind") or "mcq"),
                     "dlpfcTier": dlpfc_tier,
                     "profile": str(body.get("profile") or "learning"),
-                    "hintsUsed": int(body.get("hintsUsed") or 0),
+                    "hintsUsed": hints_used,
                     "assisted": assisted,
                     "fsrsGrade": fsrs_grade,
-                    "focusSwitchCount": int(body.get("focusSwitchCount") or 0),
-                    "awayElapsedSec": round(float(body.get("awayElapsedSec") or 0.0), 1),
-                    "manualPauseCount": int(body.get("manualPauseCount") or 0),
+                    "focusSwitchCount": focus_switch_count,
+                    "awayElapsedSec": away_elapsed_sec,
+                    "manualPauseCount": manual_pause_count,
                     "focusSwitches": clean_switches,
                     **metrics,
                 }
-                append_jsonl(STORE.attempts_path, attempt_row)
+                append_jsonl(store.attempts_path, attempt_row)
 
-                analytics = build_full_analytics(ROOT_DIR, courses_by_id, prog)
+                analytics = build_full_analytics(store.root, courses_by_id, prog, data_dir=store.data_dir)
 
             self.send_json(
                 {
@@ -1155,41 +1492,50 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 return
             grade_raw = body.get("fsrsGrade")
             pdiff_raw = body.get("personalDifficulty")
+            parsed_grade = max(1, min(4, _parse_finite_int(grade_raw, 3, "fsrsGrade"))) if grade_raw is not None else None
+            parsed_pdiff = (
+                None
+                if pdiff_raw in (None, 0, "auto", "")
+                else max(1, min(3, _parse_finite_int(pdiff_raw, 2, "personalDifficulty")))
+            )
             now = datetime.now(OSLO_TZ)
             with STATE_LOCK:
-                prog = STORE.load_progress()
+                prog = store.load_progress()
                 rec = prog.setdefault("records", {}).setdefault(qid, {})
-                if grade_raw is not None:
-                    grade = max(1, min(4, int(grade_raw)))
+                if parsed_grade is not None:
                     base_fsrs = rec.get("prevFsrsSnapshot") if "prevFsrsSnapshot" in rec else rec.get("fsrs")
-                    rec["fsrs"] = update_fsrs_card(base_fsrs, grade, now)
-                    rec["lastUserGrade"] = grade
+                    rec["fsrs"] = update_fsrs_card(base_fsrs, parsed_grade, now)
+                    rec["lastUserGrade"] = parsed_grade
                     # Map FSRS grade (1=Again, 2=Hard, 3=Good, 4=Easy) -> personalDifficulty (3=Hard, 2=Standard, 1=Easy)
-                    rec["personalDifficulty"] = 3 if grade in (1, 2) else (1 if grade == 4 else 2)
-                    if grade == 1:
+                    rec["personalDifficulty"] = 3 if parsed_grade in (1, 2) else (1 if parsed_grade == 4 else 2)
+                    if parsed_grade == 1:
                         rec["status"] = "revisit"
-                    elif grade in (3, 4) and rec.get("status") == "revisit":
+                    elif parsed_grade in (3, 4) and rec.get("status") == "revisit":
                         rec["status"] = "done"
                 elif pdiff_raw is not None:
                     if pdiff_raw in (0, "auto", ""):
                         rec.pop("personalDifficulty", None)
                     else:
-                        rec["personalDifficulty"] = max(1, min(3, int(pdiff_raw)))
+                        rec["personalDifficulty"] = parsed_pdiff
                 rec["updatedAt"] = now.isoformat()
-                STORE.save_progress(prog)
-                _, courses_by_id = STORE.discover_courses()
-                analytics = build_full_analytics(ROOT_DIR, courses_by_id, prog)
+                store.save_progress(prog)
+                _, courses_by_id = store.discover_courses()
+                analytics = build_full_analytics(store.root, courses_by_id, prog, data_dir=store.data_dir)
             self.send_json({"ok": True, "record": rec, "analytics": analytics})
             return
 
         if route == "/api/session":
             now = datetime.now(OSLO_TZ)
-            wall_sec = max(1.0, float(body.get("wallSec") or 60.0))
-            active_sec = max(0.0, float(body.get("activeSec") or 0.0))
+            wall_sec = max(1.0, _parse_finite_float(body.get("wallSec"), 60.0, "wallSec"))
+            active_sec = max(0.0, _parse_finite_float(body.get("activeSec"), 0.0, "activeSec"))
             focus_density = round(min(1.0, active_sec / wall_sec), 3) if wall_sec > 0 else 0.85
-            avg_q = float(body.get("avgAccuracy") or 0.0)
-            avg_pr = float(body.get("avgPaceRatio") or 0.0)
-            reviewed_count = int(body.get("reviewedCount") or 0)
+            avg_q = _parse_finite_float(body.get("avgAccuracy"), 0.0, "avgAccuracy")
+            avg_pr = _parse_finite_float(body.get("avgPaceRatio"), 0.0, "avgPaceRatio")
+            reviewed_count = _parse_finite_int(body.get("reviewedCount"), 0, "reviewedCount")
+            beat_ai_count = _parse_finite_int(body.get("beatAiCount"), 0, "beatAiCount")
+            focus_switch_count = _parse_finite_int(body.get("focusSwitchCount"), 0, "focusSwitchCount")
+            away_sec = round(max(0.0, _parse_finite_float(body.get("awaySec"), 0.0, "awaySec")), 1)
+            high_dlpfc_sec = round(max(0.0, _parse_finite_float(body.get("highDlpfcSec"), 0.0, "highDlpfcSec")), 1)
 
             upi = (
                 round(100.0 * (0.45 * avg_q + 0.35 * min(avg_pr, 1.35) + 0.20 * focus_density))
@@ -1207,13 +1553,13 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 "calendarEventId": body.get("calendarEventId") or "",
                 "calendarSummary": body.get("calendarSummary") or "",
                 "reviewedCount": reviewed_count,
-                "beatAiCount": int(body.get("beatAiCount") or 0),
+                "beatAiCount": beat_ai_count,
                 "activeSec": round(active_sec, 1),
                 "wallSec": round(wall_sec, 1),
                 "focusDensity": focus_density,
-                "focusSwitchCount": int(body.get("focusSwitchCount") or 0),
-                "awaySec": round(float(body.get("awaySec") or 0.0), 1),
-                "highDlpfcSec": round(float(body.get("highDlpfcSec") or 0.0), 1),
+                "focusSwitchCount": focus_switch_count,
+                "awaySec": away_sec,
+                "highDlpfcSec": high_dlpfc_sec,
                 "avgAccuracy": round(avg_q, 3),
                 "avgPaceRatio": round(avg_pr, 3),
                 "upi": upi,
@@ -1221,14 +1567,14 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             }
 
             with STATE_LOCK:
-                append_jsonl(STORE.sessions_path, session_row)
-                catalog, courses_by_id = STORE.discover_courses()
-                prog = STORE.load_progress()
-                analytics = build_full_analytics(ROOT_DIR, courses_by_id, prog)
-                cal = STORE.load_or_refresh_calendar(force=False)
-                sessions = read_jsonl(STORE.sessions_path, max_lines=200)
+                append_jsonl(store.sessions_path, session_row)
+                catalog, courses_by_id = store.discover_courses()
+                prog = store.load_progress()
+                analytics = build_full_analytics(store.root, courses_by_id, prog, data_dir=store.data_dir)
+                cal = store.load_or_refresh_calendar(force=False, courses_by_id=courses_by_id)
+                sessions = read_jsonl(store.sessions_path, max_lines=200)
                 try:
-                    write_obsidian_dashboard(ROOT_DIR, catalog, analytics, cal.get("blocks") or [], sessions)
+                    write_obsidian_dashboard(store.root, catalog, analytics, cal.get("blocks") or [], sessions)
                 except Exception:
                     pass
 
@@ -1239,13 +1585,15 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             # Supports both Study-OS backups and legacy `Economics I Original Questions.html` exports!
             imported = 0
             with STATE_LOCK:
-                prog = STORE.load_progress()
+                prog = store.load_progress()
                 recs = prog.setdefault("records", {})
                 if body.get("format") == "study-os-backup-v1" and isinstance(body.get("progress"), dict):
                     src_recs = body["progress"].get("records") or {}
-                    for qid, r in src_recs.items():
-                        recs[qid] = r
-                        imported += 1
+                    if isinstance(src_recs, dict):
+                        for qid, r in src_recs.items():
+                            if isinstance(r, dict):
+                                recs[str(qid)] = r
+                                imported += 1
                 elif isinstance(body.get("records"), dict):
                     # Legacy Economics I Original Questions (`econ-originals-v1`)
                     for old_id, r in body["records"].items():
@@ -1269,7 +1617,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                         if r.get("savedChoice") is not None:
                             dst["savedChoice"] = r["savedChoice"]
                         imported += 1
-                STORE.save_progress(prog)
+                store.save_progress(prog)
             self.send_json({"ok": True, "importedRecords": imported})
             return
 
@@ -1282,6 +1630,9 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--open", action="store_true", help="Open browser on start")
     args = parser.parse_args()
+
+    if args.host.strip().lower() not in LOOPBACK_HOSTS:
+        parser.error("Study-OS only binds to loopback hosts (127.0.0.1, localhost, or ::1).")
 
     url = f"http://{args.host}:{args.port}"
     try:
