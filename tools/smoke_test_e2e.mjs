@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Headless Chromium end-to-end smoke test for a built Study-OS static bundle.
+ * Headless Chromium end-to-end smoke & regression test suite for a built Study-OS static bundle.
  * Usage: node tools/smoke_test_e2e.mjs <dist-dir>
  * Keeps zero repo npm dependencies: resolves `playwright` from NODE_PATH or global/temp install.
  */
@@ -40,7 +40,14 @@ const MIME = {
   '.json': 'application/json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
   '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.wasm': 'application/wasm',
   '.md': 'text/markdown; charset=utf-8',
   '.txt': 'text/plain; charset=utf-8',
   '.xml': 'application/xml; charset=utf-8',
@@ -90,18 +97,53 @@ try {
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   ].find((p) => p && fs.existsSync(p));
   browser = await chromium.launch(sysChrome ? { headless: true, executablePath: sysChrome } : { headless: true });
-  const context = await browser.newContext();
-  const page = await context.newPage();
 
   const pageErrors = [];
+  const consoleErrors = [];
   const localFailures = [];
-  page.on('pageerror', (err) => pageErrors.push(String(err?.stack || err)));
-  page.on('response', (resp) => {
-    const u = resp.url();
-    if (u.startsWith(baseUrl) && resp.status() >= 400) {
-      localFailures.push(`${resp.status()} ${u}`);
-    }
-  });
+
+  async function mockExternalWorker(targetContext) {
+    // Prevent local E2E runs on 127.0.0.1 from hitting the live production Worker
+    // (whose strict CORS allowlist intentionally rejects ephemeral localhost origins).
+    await targetContext.route('https://*.workers.dev/**', async (route) => {
+      const reqUrl = new URL(route.request().url());
+      let body = { ok: true };
+      if (reqUrl.pathname === '/courses') {
+        body = { courses: [] };
+      } else if (reqUrl.pathname === '/leaderboard/public') {
+        body = { ranks: [], hasMoreRanks: false, totalMembers: 0, activeNow: 0, now: Date.now() };
+      } else if (reqUrl.pathname === '/auth/config') {
+        body = { googleClientId: '', turnstileSiteKey: '', openSignup: false };
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json; charset=utf-8',
+        headers: { 'Access-Control-Allow-Origin': baseUrl },
+        body: JSON.stringify(body),
+      });
+    });
+  }
+
+  function attachErrorTrackers(targetPage) {
+    targetPage.on('pageerror', (err) => pageErrors.push(`${targetPage.url()}: ${String(err?.stack || err)}`));
+    targetPage.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        const loc = msg.location()?.url || targetPage.url();
+        consoleErrors.push(`${loc}: ${msg.text()}`);
+      }
+    });
+    targetPage.on('response', (resp) => {
+      const u = resp.url();
+      if (u.startsWith(baseUrl) && resp.status() >= 400) {
+        localFailures.push(`${resp.status()} ${u}`);
+      }
+    });
+  }
+
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await mockExternalWorker(context);
+  const page = await context.newPage();
+  attachErrorTrackers(page);
 
   // 1. Main SPA `/` — cold visit must render courses with ZERO blocking signup modal
   await page.goto(`${baseUrl}/`, { waitUntil: 'domcontentloaded' });
@@ -147,7 +189,174 @@ try {
   }
   console.log('  PASS: Core SEO landing pages (/bi-oslo, /norsk, /universities, /courses/acct-2527, /uni/nhh)');
 
+  // 5. A11y landmark & semantics gate across core SPA + SEO/legal/course pages
+  const a11yRoutes = [
+    '/',
+    '/bi-oslo.html',
+    '/norsk.html',
+    '/universities.html',
+    '/privacy.html',
+    '/terms.html',
+    '/courses/acct-2527.html',
+  ];
+  for (const route of a11yRoutes) {
+    const resp = await page.goto(`${baseUrl}${route}`, { waitUntil: 'domcontentloaded' });
+    assert(resp && resp.status() === 200, `A11y route ${route} returned HTTP ${resp?.status()}`);
+    if (route === '/') {
+      await page.waitForSelector('[data-open-course], .course-card', { timeout: 15_000 });
+    }
+    const a11y = await page.evaluate(() => {
+      const h1s = [...document.querySelectorAll('h1')];
+      const imgsMissingAlt = [...document.querySelectorAll('img')]
+        .filter((img) => !img.hasAttribute('alt'))
+        .map((img) => img.getAttribute('src') || img.outerHTML.slice(0, 80));
+      return {
+        h1Count: h1s.length,
+        h1Text: (h1s[0]?.textContent || '').trim(),
+        hasMain: Boolean(document.querySelector('main#main-content')),
+        hasSkipLink: Boolean(document.querySelector('.skip-link')),
+        labeledNavCount: document.querySelectorAll('nav[aria-label]').length,
+        imgsMissingAlt,
+      };
+    });
+    assert(a11y.h1Count === 1, `${route}: expected exactly 1 <h1>, found ${a11y.h1Count}`);
+    assert(a11y.h1Text.length > 3, `${route}: <h1> text must be non-empty`);
+    assert(a11y.hasMain, `${route}: missing <main id="main-content"> landmark`);
+    assert(a11y.hasSkipLink, `${route}: missing .skip-link anchor`);
+    assert(a11y.labeledNavCount >= 1, `${route}: expected at least 1 <nav aria-label>`);
+    assert(
+      a11y.imgsMissingAlt.length === 0,
+      `${route}: found <img> missing alt attribute: ${a11y.imgsMissingAlt.join(', ')}`
+    );
+  }
+  console.log(`  PASS: A11y landmarks & semantics (${a11yRoutes.length} routes: single <h1>, #main-content, .skip-link, nav[aria-label], img[alt])`);
+
+  // 6. Core Web Vitals CLS gate (< 0.05) on static landing pages
+  const clsRoutes = ['/bi-oslo.html', '/norsk.html', '/universities.html'];
+  const clsPage = await context.newPage();
+  attachErrorTrackers(clsPage);
+  await clsPage.addInitScript(() => {
+    window.__studyOsCls = 0;
+    try {
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (!entry.hadRecentInput) window.__studyOsCls += entry.value;
+        }
+      }).observe({ type: 'layout-shift', buffered: true });
+    } catch {}
+  });
+  const clsReport = [];
+  for (const route of clsRoutes) {
+    const resp = await clsPage.goto(`${baseUrl}${route}`, { waitUntil: 'networkidle' });
+    assert(resp && resp.status() === 200, `CLS route ${route} returned HTTP ${resp?.status()}`);
+    await clsPage.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    );
+    await clsPage.waitForTimeout(100);
+    const cls = await clsPage.evaluate(() => Number(window.__studyOsCls || 0));
+    assert(Number.isFinite(cls) && cls < 0.05, `${route}: CLS ${cls.toFixed(4)} exceeded 0.05 budget`);
+    clsReport.push(`${route}=${cls.toFixed(4)}`);
+  }
+  await clsPage.close();
+  console.log(`  PASS: Core Web Vitals CLS < 0.05 (${clsReport.join(', ')})`);
+
+  // 7. Mobile responsive horizontal-overflow gate (390×844)
+  const mobileRoutes = ['/', '/bi-oslo.html', '/norsk.html', '/universities.html', '/privacy.html'];
+  const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await mockExternalWorker(mobileContext);
+  const mobilePage = await mobileContext.newPage();
+  attachErrorTrackers(mobilePage);
+  for (const route of mobileRoutes) {
+    const resp = await mobilePage.goto(`${baseUrl}${route}`, { waitUntil: 'networkidle' });
+    assert(resp && resp.status() === 200, `Mobile route ${route} returned HTTP ${resp?.status()}`);
+    if (route === '/') {
+      await mobilePage.waitForSelector('[data-open-course], .course-card', { timeout: 15_000 });
+    }
+    await mobilePage.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    );
+    const dims = await mobilePage.evaluate(() => ({
+      scrollWidth: document.documentElement.scrollWidth,
+      clientWidth: document.documentElement.clientWidth,
+    }));
+    assert(
+      dims.scrollWidth <= dims.clientWidth,
+      `${route} at 390×844 has horizontal overflow: scrollWidth=${dims.scrollWidth} > clientWidth=${dims.clientWidth}`
+    );
+  }
+  await mobileContext.close();
+  console.log(`  PASS: Mobile 390×844 zero horizontal overflow (${mobileRoutes.join(', ')})`);
+
+  // 8. PWA Service Worker lifecycle & Option B icon precache gate on `/`
+  const swContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await mockExternalWorker(swContext);
+  const swPage = await swContext.newPage();
+  attachErrorTrackers(swPage);
+  await swPage.goto(`${baseUrl}/`, { waitUntil: 'load' });
+  await swPage.waitForSelector('[data-open-course], .course-card', { timeout: 15_000 });
+  const swResult = await swPage.evaluate(async () => {
+    if (!('serviceWorker' in navigator)) {
+      return { supported: false };
+    }
+    const reg = await navigator.serviceWorker.register('./offline-worker.js');
+    const worker = reg.installing || reg.waiting || reg.active;
+    if (!worker) throw new Error('Service worker registration produced no worker instance');
+    if (worker.state !== 'activated') {
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error(`SW activation timed out (state=${worker.state})`)), 15_000);
+        const onState = () => {
+          if (worker.state === 'activated') {
+            clearTimeout(timeout);
+            worker.removeEventListener('statechange', onState);
+            resolve();
+          } else if (worker.state === 'redundant') {
+            clearTimeout(timeout);
+            worker.removeEventListener('statechange', onState);
+            reject(new Error('Service worker became redundant during install/activate'));
+          }
+        };
+        worker.addEventListener('statechange', onState);
+        onState();
+      });
+    }
+    const ready = await navigator.serviceWorker.ready;
+    const cacheKeys = await caches.keys();
+    const v2Key = cacheKeys.find((k) => k.includes('v2-option-b')) || '';
+    let cachedPaths = [];
+    if (v2Key) {
+      const cache = await caches.open(v2Key);
+      cachedPaths = (await cache.keys()).map((req) => new URL(req.url).pathname);
+    }
+    return {
+      supported: true,
+      scriptURL: ready.active?.scriptURL || '',
+      state: ready.active?.state || '',
+      cacheKeys,
+      v2Key,
+      cachedCount: cachedPaths.length,
+      hasFavicon: cachedPaths.includes('/favicon.ico'),
+      hasIcon192: cachedPaths.includes('/pwa/study-os-192.png'),
+      hasIcon512: cachedPaths.includes('/pwa/study-os-512.png'),
+      hasSelfSw: cachedPaths.some((p) => p.endsWith('/offline-worker.js')),
+    };
+  });
+  assert(swResult.supported, 'Service Worker API unavailable in Chromium test context');
+  assert(
+    swResult.scriptURL.endsWith('/offline-worker.js') && swResult.state === 'activated',
+    `Expected activated offline-worker.js, got script=${swResult.scriptURL} state=${swResult.state}`
+  );
+  assert(Boolean(swResult.v2Key), `Expected cache key containing 'v2-option-b', got: ${swResult.cacheKeys.join(', ')}`);
+  assert(swResult.hasFavicon, `Cache ${swResult.v2Key} missing /favicon.ico`);
+  assert(swResult.hasIcon192, `Cache ${swResult.v2Key} missing /pwa/study-os-192.png`);
+  assert(swResult.hasIcon512, `Cache ${swResult.v2Key} missing /pwa/study-os-512.png`);
+  assert(!swResult.hasSelfSw, `Cache ${swResult.v2Key} must NOT self-cache /offline-worker.js`);
+  await swContext.close();
+  console.log(`  PASS: PWA Service Worker (${swResult.v2Key}, ${swResult.cachedCount} assets, Option B icons cached, no self-cache)`);
+
+  await context.close();
+
   assert(pageErrors.length === 0, `Uncaught page errors:\n${pageErrors.join('\n')}`);
+  assert(consoleErrors.length === 0, `Console errors:\n${consoleErrors.join('\n')}`);
   assert(localFailures.length === 0, `Same-origin HTTP errors:\n${localFailures.join('\n')}`);
   console.log('ALL E2E SMOKE TESTS PASSED!');
 } finally {
