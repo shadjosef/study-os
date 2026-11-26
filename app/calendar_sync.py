@@ -126,6 +126,14 @@ NON_STUDY_PATTERNS = [
     r"\bhome admin\b",
     r"\burgent home admin\b",
     r"^admin:",
+    r"\bprepare oats\b",
+    r"\bbag/clothes\b",
+    r"\bpick up\b",
+    r"\btravel,\s*transition\b",
+    r"\bbreathing room\b",
+    r"\bfreezer\b",
+    r"\bskincare\b",
+    r"\bassessment\s+(?:preparation|arrival)\b",
     r"\bhome exam:\s*(?:equipment|login)",
     r"^\[done\]",
 ]
@@ -215,11 +223,15 @@ def classify_event(
 
     is_recall = bool(re.search(r"\b20\s*min|\bflashcard|\bnotebooklm|\brecall\b", summary_low))
     is_lecture = bool(
-        re.search(r"^\[bi class|\bforelesning\b|\bøving\b", summary_low)
-        or (re.search(r"\b(?:lecture|tutoring|ta session)\b", summary_low) and "follow-through" not in summary_low)
+        re.search(r"^\[bi class|\bforelesning\b|\bøving\b|\bextra session\b|\brevision session\b", summary_low)
+        or (re.search(r"\b(?:lecture|tutoring|ta session|seminar)\b", summary_low) and "follow-through" not in summary_low)
     )
     is_exam = bool(
         re.search(r"^\[exam\]|^\[bi exam\]|\beksamen\b", summary_low)
+        or (
+            re.search(r":\s*(?:(?:home|final|written|oral)\s+)?exam\b", summary_low)
+            and not re.search(r"\b(?:mark|repair|setup|warm-up|follow-through|prep|practice|after)\b", summary_low)
+        )
         or (
             re.search(r"\bmock exam\b|\bfull 3-hour paper\b", summary_low)
             and not re.search(r"\b(?:mark|repair|setup|warm-up|follow-through)\b", summary_low)
@@ -277,6 +289,18 @@ def normalize_raw_events(
         attempt_budget_min = round(focus_min * 0.76, 1)
         # Clean first paragraph of description for concise actionable instructions
         first_para = description.split("\n\n")[0].strip() if description else ""
+        if info["blockKind"] == "recall_sprint":
+            dlpfc_mode = "low_dlpfc"
+        elif start_dt.hour < 14:
+            dlpfc_mode = "high_dlpfc"
+        elif start_dt.hour < 18:
+            dlpfc_mode = "med_dlpfc"
+        else:
+            dlpfc_mode = "low_dlpfc"
+        start_iso = start_dt.isoformat()
+        end_iso = end_dt.isoformat()
+        start_lbl = start_dt.strftime("%H:%M")
+        end_lbl = end_dt.strftime("%H:%M")
         blocks.append(
             {
                 "eventId": ev.get("id") or f"ev-{int(start_dt.timestamp())}",
@@ -284,14 +308,20 @@ def normalize_raw_events(
                 "focusNote": first_para[:420],
                 "location": ev.get("location") or "",
                 "htmlLink": ev.get("htmlLink") or "",
-                "startIso": start_dt.isoformat(),
-                "endIso": end_dt.isoformat(),
+                "start": start_iso,
+                "end": end_iso,
+                "startIso": start_iso,
+                "endIso": end_iso,
                 "date": start_dt.strftime("%Y-%m-%d"),
-                "startLabel": start_dt.strftime("%H:%M"),
-                "endLabel": end_dt.strftime("%H:%M"),
+                "startTime": start_lbl,
+                "endTime": end_lbl,
+                "startLabel": start_lbl,
+                "endLabel": end_lbl,
                 "calendarMinutes": total_min,
+                "durationMinutes": total_min,
                 "focusMinutes": focus_min,
                 "attemptBudgetMinutes": attempt_budget_min,
+                "dlpfcMode": dlpfc_mode,
                 **info,
             }
         )
@@ -299,17 +329,112 @@ def normalize_raw_events(
     return blocks
 
 
+def _fetch_gcalendar_events(
+    gcal: str,
+    window_start: datetime,
+    window_end: datetime,
+) -> tuple[list[dict[str, Any]], str | None]:
+    """Fetch read-only events across all selected user calendars in 10-day chunks."""
+    env = os.environ.copy()
+    gcal_account = env.get("STUDY_OS_GCAL_ACCOUNT")
+    if gcal_account and not env.get("AGY_ACCOUNT"):
+        env["AGY_ACCOUNT"] = gcal_account
+
+    cal_ids: list[str] = []
+    error_msg: str | None = None
+    try:
+        cals_proc = subprocess.run(
+            [gcal, "readonly", "calendars", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+            env=env,
+        )
+        if cals_proc.returncode == 0 and cals_proc.stdout.strip().startswith("["):
+            for entry in json.loads(cals_proc.stdout):
+                cid = str(entry.get("id") or "").strip()
+                if not cid:
+                    continue
+                if "#holiday@" in cid or "#contacts@" in cid or "#weeknum@" in cid:
+                    continue
+                if entry.get("hidden") or entry.get("deleted"):
+                    continue
+                if entry.get("selected", True) or entry.get("primary") or entry.get("accessRole") == "owner":
+                    cal_ids.append(cid)
+        elif cals_proc.returncode != 0:
+            error_msg = (cals_proc.stderr or cals_proc.stdout or "").strip()[:240]
+    except Exception as exc:
+        error_msg = str(exc)[:240]
+
+    if not cal_ids:
+        cal_ids = ["primary"]
+
+    raw_by_id: dict[str, dict[str, Any]] = {}
+    ordered_raw: list[dict[str, Any]] = []
+    chunk_days = 10
+
+    for cal_id in cal_ids:
+        cursor = window_start
+        while cursor <= window_end:
+            chunk_end = min(window_end, cursor + timedelta(days=chunk_days - 1))
+            s_str = cursor.strftime("%Y-%m-%d") + "T00:00:00+01:00"
+            e_str = chunk_end.strftime("%Y-%m-%d") + "T23:59:59+01:00"
+            try:
+                proc = subprocess.run(
+                    [
+                        gcal,
+                        "readonly",
+                        "events",
+                        "--cal",
+                        cal_id,
+                        "--start",
+                        s_str,
+                        "--end",
+                        e_str,
+                        "--max",
+                        "250",
+                        "--json",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    check=False,
+                    env=env,
+                )
+                if proc.returncode == 0 and proc.stdout.strip().startswith(("[", "{")):
+                    parsed = json.loads(proc.stdout)
+                    items = parsed if isinstance(parsed, list) else parsed.get("items", parsed.get("events", []))
+                    for ev in items:
+                        eid = str(ev.get("id") or "")
+                        if eid and eid in raw_by_id:
+                            continue
+                        if eid:
+                            raw_by_id[eid] = ev
+                        ordered_raw.append(ev)
+                elif proc.returncode != 0 and not error_msg:
+                    error_msg = (proc.stderr or proc.stdout or "").strip()[:240]
+            except Exception as exc:
+                if not error_msg:
+                    error_msg = str(exc)[:240]
+            cursor = chunk_end + timedelta(days=1)
+
+    return ordered_raw, error_msg
+
+
 def refresh_calendar_cache(
     study_os_root: Path,
-    days_ahead: int = 14,
+    days_ahead: int = 21,
     data_dir: Path | None = None,
     courses_by_id: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     d_dir = data_dir or (study_os_root / "data")
     cache_path = d_dir / "state" / "calendar_cache.json"
     now = datetime.now(OSLO_TZ)
-    start_date = (now - timedelta(days=1)).strftime("%Y-%m-%d")
-    end_date = (now + timedelta(days=days_ahead)).strftime("%Y-%m-%d")
+    window_start = now - timedelta(days=1)
+    window_end = now + timedelta(days=days_ahead)
+    start_date = window_start.strftime("%Y-%m-%d")
+    end_date = window_end.strftime("%Y-%m-%d")
 
     # 1. If student configured an active TimeEdit / LLM Custom Schedule in Study-OS, serve it first!
     custom_sched = load_custom_schedule(d_dir)
@@ -330,32 +455,9 @@ def refresh_calendar_cache(
     error_msg = None
 
     if gcal:
-        try:
-            proc = subprocess.run(
-                [
-                    gcal,
-                    "readonly",
-                    "events",
-                    "--start",
-                    f"{start_date}T00:00:00+01:00",
-                    "--end",
-                    f"{end_date}T23:59:59+01:00",
-                    "--max",
-                    "250",
-                    "--json",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=15,
-                check=False,
-            )
-            if proc.returncode == 0 and proc.stdout.strip().startswith("["):
-                raw_events = json.loads(proc.stdout)
-                source = "google_calendar_live"
-            else:
-                error_msg = (proc.stderr or proc.stdout or "").strip()[:240]
-        except Exception as exc:
-            error_msg = str(exc)[:240]
+        raw_events, error_msg = _fetch_gcalendar_events(gcal, window_start, window_end)
+        if raw_events:
+            source = "google_calendar_live"
 
     if raw_events:
         blocks = normalize_raw_events(raw_events, courses_by_id=courses_by_id)

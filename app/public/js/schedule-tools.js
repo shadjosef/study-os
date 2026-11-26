@@ -65,14 +65,15 @@ window.StudySchedule = (() => {
     };
   }
 
-  async function readCalendar(text, now = Date.now(), { includeTransparent = false } = {}) {
+  async function readCalendar(text, now = Date.now(), { includeTransparent = false, days = includeTransparent ? 28 : 14 } = {}) {
     if (text.length > 2_000_000 || !/BEGIN:VCALENDAR/i.test(text)) {
       throw new Error('Choose a valid .ics calendar file under 2 MB.');
     }
     const { default: ICAL } = await import('../vendor/ical-2.2.1.mjs');
     const calendar = new ICAL.Component(ICAL.parse(text));
+    const horizonDays = Math.max(7, Math.min(60, Number(days) || 14));
     const from = wallTime(dateKey(now), '00:00');
-    const until = wallTime(moveDate(dateKey(now), 14), '00:00');
+    const until = wallTime(moveDate(dateKey(now), horizonDays), '00:00');
     ICAL.TimezoneService.reset();
     for (const component of calendar.getAllSubcomponents('vtimezone')) {
       ICAL.TimezoneService.register(new ICAL.Timezone(component));
@@ -114,7 +115,7 @@ window.StudySchedule = (() => {
       const summary = item.summary?.trim() || 'Busy';
       const uid = `${original.uid || summary}-${start}`;
       fixed.set(uid, { uid, start, end, summary, allDay: Boolean(item.startDate?.isDate), transparent });
-      if (fixed.size > 1500) throw new Error('This calendar has too many events in the next two weeks.');
+      if (fixed.size > 3000) throw new Error('This calendar has too many events in the selected window.');
     }
     for (const event of events) {
       if (event.isRecurrenceException() || !event.startDate) continue;
@@ -131,8 +132,88 @@ window.StudySchedule = (() => {
     return [...fixed.values()];
   }
 
+  function inferTopicsForBlock(summary, course) {
+    const low = summary.toLowerCase();
+    const out = [];
+    const add = id => { if (id && !out.includes(String(id))) out.push(String(id)); };
+    const topics = Array.isArray(course?.topics) ? course.topics : [];
+    const validIds = new Set(topics.map(t => String(t.id)));
+    const pushIfValid = id => { if (validIds.has(String(id))) add(id); };
+
+    // Explicit chapter / topic / lesson numbering (e.g. Ch8, Ch2-3, Topic 6, Lesson 12, DEB)
+    const rangeMatch = /\bch(?:apter)?\.?\s*(\d+)\s*[–—-]\s*(\d+)\b/i.exec(low);
+    if (rangeMatch) {
+      for (let n = Number(rangeMatch[1]); n <= Number(rangeMatch[2]) && n <= Number(rangeMatch[1]) + 4; n++) {
+        pushIfValid(n);
+      }
+    }
+    for (const m of low.matchAll(/\b(?:ch(?:apter)?\.?|topic|lesson)\s*(\d{1,2})\b/gi)) {
+      pushIfValid(m[1]);
+    }
+    if (/\bdeb\b|\bdouble[- ]entry|\bt-account|\btrial balance\b/i.test(low)) pushIfValid('DEB');
+
+    // Course-specific keyword fallbacks when no explicit chapter/lesson number is written
+    if (!out.length) {
+      const keywordRules = {
+        'acct-2527': [
+          [/\bnpv\b|\birr\b|\bpayback\b|\bresidual income\b|\bcapital charge\b|\barr\b|\bdiscount/, '10'],
+          [/\bfull cost|\babc\b|\bactivity[- ]based|\boverhead/, '8'],
+          [/\bbreak[- ]even|\bcvp\b|\bscarce|\brelevant cost|\bmargin of safety/, '7'],
+          [/\bcash[- ]?flow|\bindirect cash|\bprofit-to-cash/, '5'],
+          [/\bincome statement|\baccrual|\bdepreciation/, '3'],
+          [/\bbalance sheet|\bfinancial position/, '2'],
+          [/\breporting\/financing|\bfoundation/, '1'],
+        ],
+        'econ-2522': [
+          [/\binflation\b|\bcpi\b|\bphillips|\bmonetary/, '9'],
+          [/\bgdp\b|\bbusiness cycle|\bmultiplier/, '8'],
+          [/\bunion|\blorenz|\bgini\b/, '7'],
+          [/\bws[-–]ps\b|\bwage[- ]setting|\bprice[- ]setting|\blabou?r market/, '6'],
+          [/\bcompetitive market|\bsupply and demand|\bsurplus|\btariff|\bmarket equilibrium/, '5'],
+          [/\bemployment rent|\bincomplete contract|\bno[- ]shirking/, '4'],
+          [/\bmrs\b|\bmrt\b|\bindifference|\bbudget line/, '3'],
+          [/\bopportunity cost|\bisocost|\binnovation rent/, '2'],
+        ],
+        'math-2588': [
+          [/\btaylor|\blinearis/, '18'],
+          [/\belasticit/, '17'],
+          [/\bmarginal cost|\bcost optimum|\bprofit max/, '16'],
+          [/\bh[oô]pital/, '15'],
+          [/\bconvex|\bconcav|\binflection|\bcurvatur|\bsecond derivative/, '14'],
+          [/\bimplicit/, '13'],
+          [/\boptimis|\bstationary|\bextreme|\bmaxima\b|\bminima\b/, '12'],
+          [/\btangent|\bdifferenti|\bchain rule|\bproduct rule|\bquotient rule/, '11'],
+          [/\binverse|\blogarithm|\bexponential|\bln\b/, '10'],
+          [/\basymptote|\bcontinuit|\blimit/, '9'],
+          [/\bseries|\bgeometric\s+sum|\bannuit|\bperpetuit/, '4'],
+          [/\bpresent value|\bcash[- ]?flow|\birr\b|\bnpv\b/, '3'],
+        ],
+        'ob-2537': [
+          [/\bconflict|\bpower\b|\bpolitic|\bnegotiat/, '14'],
+          [/\bdecision|\bbias|\bheuristic/, '13'],
+          [/\bmotivation|\bjob design|\bjustice|\bexpectancy|\bequity/, '12'],
+          [/\bstructure|\bmatrix|\bmechanistic|\borganic/, '10'],
+          [/\bdiversity|\bcreativity/, '9'],
+          [/\bcommunication|\bchange|\blewin|\bkotter/, '8'],
+          [/\battitude|\bemotion|\bstress|\bburnout|\bsatisfaction/, '7'],
+          [/\bcharisma|\bfollowership/, '6'],
+          [/\bleadership|\btransformational/, '5'],
+          [/\bgroups?\b|\bteams?\b|\bgroupthink|\bpsychological safety/, '4'],
+          [/\bpersonality|\bbig five|\bperception|\battribution/, '3'],
+          [/\bculture/, '2'],
+        ],
+      };
+      for (const [pat, tid] of keywordRules[course?.courseId] || []) {
+        if (pat.test(low)) pushIfValid(tid);
+      }
+    }
+    const firstTopic = out.length ? topics.find(t => String(t.id) === out[0]) : null;
+    return { topicIds: out, topicTitle: firstTopic?.title ? String(firstTopic.title) : '' };
+  }
+
   function importStudyPlan(events, catalog, currentBlocks, now = Date.now()) {
     const normalize = name => name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const nonStudy = /^(?:sleep|morning routine|wind[- ]down|gym\b|fresh fitness|dinner|lunch|breakfast|batch prep|grocer|shower|free time|recovery|admin:|prepare oats|bag\/clothes|pick up|travel,\s*transition|assessment\s+(?:preparation|arrival))/i;
     const courseNames = new Map();
     for (const course of catalog) {
       for (const name of [course.code, course.title, course.shortTitle].filter(Boolean)) {
@@ -140,25 +221,46 @@ window.StudySchedule = (() => {
       }
       const shortName = course.shortTitle?.split(' & ')[0];
       if (shortName) courseNames.set(normalize(shortName), course);
-      if (shortName === 'Mathematics') {
+      const normCode = normalize(course.code || '');
+      if (normCode) {
+        courseNames.set(`${normCode}1`, course);
+        courseNames.set(`${normCode}5`, course);
+      }
+      if (shortName === 'Mathematics' || normCode === 'eba1181') {
         courseNames.set('maths', course);
         courseNames.set('math', course);
+        courseNames.set('eba1180', course);
+        courseNames.set('eba11805', course);
       }
+      if (shortName === 'Economics') courseNames.set('econ', course);
+      if (shortName === 'Accounting') courseNames.set('acct', course);
+      if (shortName === 'Programming') courseNames.set('python', course);
     }
     const appliedIds = new Set(currentBlocks.map(item => item.eventId));
     const result = [];
     for (const event of events) {
       if (event.allDay) continue;
-      const title = event.summary.replace(/^\[(?:high|med(?:ium)?|low)\s*dlpfc\]\s*/i, '');
+      const title = event.summary.replace(/^\[(?:high|med(?:ium)?|low)\s*dlpfc\]\s*/i, '').trim();
+      if (nonStudy.test(title)) continue;
       const [, name, topic] = /^(.+?)(?:\s*[:·]\s*|\s+[–—-]\s+)(.+)$/.exec(title) || [];
-      const course = courseNames.get(normalize(name || title));
+      const course = courseNames.get(normalize(name || title)) || courseFor(title, catalog);
       if (!course) continue;
       const id = `calendar-plan-${event.uid}`;
       if (event.end <= now && !appliedIds.has(id)) continue;
-      const kind = /^(?:(?:home|final|written|oral)\s+)?(?:exam|eksamen)(?:\s*[·:–—-]|$)/i.test(topic || '')
-        ? 'exam' : 'study_block';
-      result.push({ ...block(id, event.summary, event.start, event.end, kind, course.courseId),
-        optional: event.transparent });
+      const body = topic || title;
+      const kind = /^(?:(?:home|final|written|oral)\s+)?(?:exam|eksamen)(?:\s*[·:–—-]|$)/i.test(body)
+        ? 'exam'
+        : /\b(?:extra session|revision session|lecture|forelesning|tutoring|ta session|seminar)\b/i.test(body)
+        ? 'class_session'
+        : /\b(?:20\s*min|flashcard|notebooklm|recall)\b/i.test(body)
+        ? 'recall_sprint'
+        : 'study_block';
+      const hour = Number(timeLabel(event.start).split(':')[0]);
+      const dlpfcMode = kind === 'recall_sprint' ? 'low_dlpfc' : hour < 14 ? 'high_dlpfc' : hour < 18 ? 'med_dlpfc' : 'low_dlpfc';
+      const { topicIds, topicTitle } = inferTopicsForBlock(title, course);
+      const built = block(id, event.summary, event.start, event.end, kind, course.courseId, dlpfcMode, topicIds, topicTitle);
+      if (kind === 'exam' || kind === 'recall_sprint') built.recommendedProfile = 'exam';
+      result.push({ ...built, optional: event.transparent });
     }
     return result.sort((a, b) => a.startIso.localeCompare(b.startIso));
   }
