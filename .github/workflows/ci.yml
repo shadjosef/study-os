@@ -32,6 +32,7 @@ jobs:
           for f in \
             app/public/js/*.js \
             app/public/js/core/*.js \
+            app/public/offline-worker.js \
             canvas-sync-extension/*.js \
             community/*.mjs \
             tools/study-os-vscode/*.js \

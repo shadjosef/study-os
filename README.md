@@ -214,19 +214,22 @@ python3 app/server.py
 
 *(On Windows, install `tzdata` once via `py -3 -m pip install tzdata`. Double-click `Study OS.app` / `OPEN_STUDY_OS.command` on macOS or `OPEN_STUDY_OS.cmd` on Windows. See [Canvas Browser Sync](docs/canvas-browser-sync.md) and [`community/README.md`](community/README.md) for extension and backend details.)*
 
-**Build, audit & CLI tools:**
+**Build, test, audit & CLI tools:**
 
 ```bash
+node --test tests/core.test.mjs tests/worker/security.test.mjs  # 53 zero-dep core & edge-security tests
 python3 tools/cli.py rebuild-catalog            # Validate schemas, assets & refresh catalog
 python3 tools/cli.py status                     # Print live UPI & course telemetry JSON
-python3 tools/build_public_site.py --out dist   # Build static website bundle
+python3 tools/build_public_site.py --out dist   # Build static website bundle + PWA precache
 python3 tools/seo_audit.py --dir dist           # Audit all 23 sitemap URLs, .md mirrors & llms-full.txt
 ```
+
+See [`SECURITY.md`](SECURITY.md) for the local-first IndexedDB vault privacy model, WebAuthn/EU D1 architecture, and vulnerability reporting policy.
 
 <details>
 <summary><strong>Encrypted Member Library &amp; GitHub Pages Self-Hosting</strong></summary>
 
 - **Member library:** Paste a shared access string on the website to decrypt local question banks and linked source excerpts in-browser (**Remember on this browser** stores a non-extractable key; **Lock full library** clears it). Build or rotate keys with `tools/build_member_library.py` (Python + `cryptography`, keeping key files outside Git) and publish `study-os-members.zip` to a GitHub prerelease referenced by `site-pack/member-archive.json`.
-- **Self-hosting:** Run `python3 tools/build_public_site.py --sync-pack --cname yourdomain.me` and push to `main` — `.github/workflows/pages.yml` deploys automatically after `.github/workflows/ci.yml` passes Python `-Werror`, JS syntax, VSIX/MV3 validation, SEO/GEO audit, and headless Chromium E2E tests.
+- **Self-hosting:** Run `python3 tools/build_public_site.py --sync-pack --cname yourdomain.me` and push to `main` — `.github/workflows/pages.yml` deploys automatically after `.github/workflows/ci.yml` passes Python `-Werror`, JS syntax, 53 Node unit & edge-security tests, VSIX/MV3 validation, SEO/GEO audit, and headless Chromium E2E tests.
 
 </details>
