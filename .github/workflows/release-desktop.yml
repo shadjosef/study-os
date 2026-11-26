@@ -1,0 +1,205 @@
+name: Build & Release Verifiable Desktop Edition
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Optional version label for manual build (artifact only; no GitHub Release created unless pushed as v* tag)"
+        required: false
+        default: "dev"
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: "release-desktop-${{ github.ref }}"
+  cancel-in-progress: false
+
+jobs:
+  package-desktop:
+    name: Package Copyright-Safe Desktop Zips & Attestations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Verify Python bytecode and desktop tracker tests
+        run: |
+          python3 -Werror -m py_compile app/*.py tests/python/test_desktop_tracker.py
+          python3 -m unittest discover -s tests/python -p "test_desktop_tracker.py" -v
+
+      - name: Build deterministic copyright-safe macOS & Windows Desktop archives
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          import stat
+          from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+
+          ROOT = Path(".").resolve()
+          OUT = ROOT / "release-dist"
+          OUT.mkdir(parents=True, exist_ok=True)
+
+          # Private/web-deploy/copyright-risk builders strictly excluded from desktop packages
+          EXCLUDED_TOOLS = {
+              "build_member_library.py",
+              "build_public_site.py",
+              "geo_markdown.py",
+              "seo_audit.py",
+              "seo_pages.py",
+              "smoke_test_e2e.mjs",
+              "offline-worker.js",
+          }
+          EXCLUDED_DIRS = {".git", "__pycache__", "data", "site-pack", "community", "pdfcraft", ".pytest_cache"}
+          EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".DS_Store"}
+
+          FIXED_ZIP_TIME = (2026, 1, 1, 0, 0, 0)
+
+          def should_skip(rel_path: Path, *, platform_kind: str) -> bool:
+              parts = rel_path.parts
+              if any(p in EXCLUDED_DIRS for p in parts):
+                  return True
+              if any(p.startswith(".") for p in parts):
+                  return True
+              if rel_path.name == ".DS_Store" or rel_path.suffix in EXCLUDED_SUFFIXES:
+                  return True
+              if parts[0] == "tools" and len(parts) == 2 and parts[1] in EXCLUDED_TOOLS:
+                  return True
+              if platform_kind == "windows" and parts[0] == "tools" and rel_path.suffix == ".swift":
+                  return True
+              return False
+
+          def add_entry(zf: ZipFile, src: Path, arcname: str, executable: bool = False) -> None:
+              info = ZipInfo(filename=arcname, date_time=FIXED_ZIP_TIME)
+              info.compress_type = ZIP_DEFLATED
+              mode = 0o755 if executable else 0o644
+              info.external_attr = ((stat.S_IFREG | mode) << 16)
+              zf.writestr(info, src.read_bytes())
+
+          def build_archive(zip_name: str, top_folder: str, include_items: list[str], *, platform_kind: str) -> Path:
+              target = OUT / zip_name
+              with ZipFile(target, "w", compression=ZIP_DEFLATED) as zf:
+                  for item_name in include_items:
+                      src_root = ROOT / item_name
+                      if not src_root.exists():
+                          raise FileNotFoundError(f"Required release asset missing: {item_name}")
+                      if src_root.is_file():
+                          rel = src_root.relative_to(ROOT)
+                          is_exec = bool(src_root.stat().st_mode & 0o111) or rel.suffix == ".command"
+                          add_entry(zf, src_root, f"{top_folder}/{rel.as_posix()}", executable=is_exec)
+                          continue
+                      for path in sorted(src_root.rglob("*")):
+                          if not path.is_file():
+                              continue
+                          rel = path.relative_to(ROOT)
+                          if should_skip(rel, platform_kind=platform_kind):
+                              continue
+                          is_exec = bool(path.stat().st_mode & 0o111) or rel.as_posix().endswith(
+                              ("Study OS.app/Contents/MacOS/StudyOS", ".command")
+                          )
+                          add_entry(zf, path, f"{top_folder}/{rel.as_posix()}", executable=is_exec)
+              return target
+
+          mac_items = [
+              "Study OS.app",
+              "OPEN_STUDY_OS.command",
+              "app",
+              "tools",
+              "examples",
+              "docs",
+              "LICENSE",
+              "SECURITY.md",
+              "README.md",
+          ]
+          win_items = [
+              "OPEN_STUDY_OS.cmd",
+              "app",
+              "tools",
+              "examples",
+              "docs",
+              "LICENSE",
+              "SECURITY.md",
+              "README.md",
+          ]
+
+          mac_zip = build_archive("Study-OS-Desktop-macOS.zip", "Study-OS-Desktop", mac_items, platform_kind="macos")
+          win_zip = build_archive("Study-OS-Desktop-Windows.zip", "Study-OS-Desktop", win_items, platform_kind="windows")
+
+          # Safety audit: guarantee zero personal data/, private builders, or bytecode leaked into archives
+          for zpath in (mac_zip, win_zip):
+              with ZipFile(zpath) as zf:
+                  names = zf.namelist()
+                  assert names, f"Archive {zpath.name} is empty"
+                  for n in names:
+                      assert "/data/" not in f"/{n}", f"Forbidden data/ entry in {zpath.name}: {n}"
+                      assert not n.endswith("build_member_library.py"), f"Forbidden private builder in {zpath.name}: {n}"
+                      assert "__pycache__" not in n and not n.endswith(".pyc"), f"Bytecode leaked into {zpath.name}: {n}"
+                  assert any(n.endswith("/app/desktop_tracker.py") for n in names), f"Missing desktop_tracker.py in {zpath.name}"
+
+          # Generate verifiable SHA256SUMS.txt covering the exact uploaded release archives
+          checksum_lines = []
+          for label, file_path in [
+              ("Study-OS-Desktop-macOS.zip", mac_zip),
+              ("Study-OS-Desktop-Windows.zip", win_zip),
+          ]:
+              digest = hashlib.sha256(file_path.read_bytes()).hexdigest()
+              checksum_lines.append(f"{digest}  {label}")
+          (OUT / "SHA256SUMS.txt").write_text("\n".join(checksum_lines) + "\n", encoding="utf-8")
+          tracker_sha = hashlib.sha256((ROOT / "app" / "desktop_tracker.py").read_bytes()).hexdigest()
+          print("Built desktop release artifacts:")
+          for line in checksum_lines:
+              print(" ", line)
+          print(f"  app/desktop_tracker.py sourceSha256: {tracker_sha}")
+          PY
+          (cd release-dist && sha256sum -c SHA256SUMS.txt)
+
+      - name: Upload workflow build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: study-os-desktop-release
+          path: |
+            release-dist/Study-OS-Desktop-macOS.zip
+            release-dist/Study-OS-Desktop-Windows.zip
+            release-dist/SHA256SUMS.txt
+          retention-days: 30
+
+      - name: Generate SLSA build provenance attestations
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            release-dist/Study-OS-Desktop-macOS.zip
+            release-dist/Study-OS-Desktop-Windows.zip
+            release-dist/SHA256SUMS.txt
+
+      - name: Publish GitHub Release assets on version tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" \
+              release-dist/Study-OS-Desktop-macOS.zip \
+              release-dist/Study-OS-Desktop-Windows.zip \
+              release-dist/SHA256SUMS.txt \
+              --clobber
+          else
+            gh release create "$RELEASE_TAG" \
+              release-dist/Study-OS-Desktop-macOS.zip \
+              release-dist/Study-OS-Desktop-Windows.zip \
+              release-dist/SHA256SUMS.txt \
+              --title "Study-OS Desktop $RELEASE_TAG" \
+              --generate-notes
+          fi

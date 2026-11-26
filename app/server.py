@@ -60,6 +60,7 @@ from canvas_bridge import (  # noqa: E402
     save_settings,
 )
 from canvas_browser import CanvasBrowser, MAX_SNAPSHOT_BYTES, extension_origin  # noqa: E402
+from desktop_tracker import DesktopTracker  # noqa: E402
 from dlpfc import (  # noqa: E402
     classify_intrinsic_dlpfc,
     effective_dlpfc_tier,
@@ -188,6 +189,20 @@ class StudyStore:
         self.sessions_path = self.data_dir / "logs" / "sessions.jsonl"
         self.catalog_path = self.data_dir / "catalog.json"
         self._bank_cache: dict[str, tuple[tuple[int, int], dict[str, Any]]] = {}
+        self._desktop_tracker: DesktopTracker | None = None
+
+    def get_desktop_tracker(self) -> DesktopTracker:
+        with STATE_LOCK:
+            if self._desktop_tracker is None:
+                self._desktop_tracker = DesktopTracker(data_dir=self.data_dir)
+            return self._desktop_tracker
+
+    def stop_desktop_tracker(self) -> None:
+        with STATE_LOCK:
+            tracker = self._desktop_tracker
+            self._desktop_tracker = None
+        if tracker is not None:
+            tracker.stop()
 
     def load_progress(self) -> dict[str, Any]:
         if not self.progress_path.is_file():
@@ -461,6 +476,12 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
     def _canvas_browser(self) -> CanvasBrowser:
         return getattr(self.server, "canvas_browser", CANVAS_BROWSER)
 
+    def _desktop_tracker(self) -> DesktopTracker:
+        tracker = getattr(self.server, "desktop_tracker", None)
+        if tracker is not None:
+            return tracker
+        return self._store().get_desktop_tracker()
+
     def _trusted_local_origins(self) -> set[str]:
         port = self.server.server_address[1]
         origins = {
@@ -668,6 +689,27 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
 
         if route == "/api/ping":
             self.send_json({"ok": True, "service": "study-os", "version": "1.0.0"})
+            return
+
+        if route == "/api/desktop/status":
+            if not self.is_local_canvas_request(require_origin=False):
+                self.send_json({"error": "Desktop telemetry is available from local Study-OS only."}, status=403)
+                return
+            self.send_json(self._desktop_tracker().status())
+            return
+
+        if route == "/api/desktop/export":
+            if not self.is_local_canvas_request(require_origin=False):
+                self.send_json({"error": "Desktop telemetry export is available from local Study-OS only."}, status=403)
+                return
+            bundle = self._desktop_tracker().export_audit_bundle()
+            body = json.dumps(bundle, ensure_ascii=False, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="study-os-desktop-telemetry.json"')
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
             return
 
         if route == CANVAS_BROWSER_API + "status":
@@ -1146,6 +1188,14 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             return
 
         body = self.read_json_body()
+
+        if route == "/api/desktop/config":
+            try:
+                updated = self._desktop_tracker().update_config(body)
+            except ValueError as exc:
+                raise BadRequestError(str(exc)) from exc
+            self.send_json(updated)
+            return
 
         if route == "/api/calendar/refresh":
             self.send_json(store.build_bootstrap(force_calendar=True))
@@ -1652,6 +1702,8 @@ def main() -> None:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nShutting down Study-OS server.")
+    finally:
+        STORE.stop_desktop_tracker()
         server.server_close()
 
 
