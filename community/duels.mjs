@@ -4,6 +4,7 @@ const PENDING_TTL_MS = 2 * 60 * 60_000;   // 2 hours to accept (covers a full 75
 const ACCEPTED_TTL_MS = 15 * 60_000;      // 15 minutes for challenger to click Proceed once accepted
 const RECENT_STARTED_MS = 90_000;         // 90s window for recipient poller to pick up live room launch
 const RECENT_FEEDBACK_MS = 25_000;        // 25s window to show declined/cancelled notice
+const ID_RE = /^[0-9a-f-]{36}$/;
 
 function formatInviteRow(row, meId, now) {
   const isIncoming = row.target === meId;
@@ -143,7 +144,7 @@ export async function handleDuels({ request, url, db, me, now, data, reply }) {
   // 3. POST /duels/invite — send a break-aware direct duel challenge
   if (seg1 === 'invite' && !seg2 && request.method === 'POST') {
     const targetId = typeof data.targetId === 'string' ? data.targetId.trim() : '';
-    if (!targetId) return reply({ error: 'Choose a classmate to challenge.' }, 400);
+    if (!ID_RE.test(targetId)) return reply({ error: 'Choose a classmate to challenge.' }, 400);
     if (targetId === me.id) return reply({ error: 'You cannot challenge yourself.' }, 400);
 
     const target = await db.prepare('SELECT id, nickname, avatar, school, major FROM profiles WHERE id = ?').bind(targetId).first();
@@ -173,7 +174,9 @@ export async function handleDuels({ request, url, db, me, now, data, reply }) {
     }
 
     const subject = ALLOWED_SUBJECTS.has(data.subject) ? data.subject : 'mixed';
-    const note = typeof data.note === 'string' ? data.note.trim().replace(/\s+/g, ' ').slice(0, 90) : '';
+    const note = typeof data.note === 'string'
+      ? data.note.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().replace(/\s+/g, ' ').slice(0, 90)
+      : '';
     const id = `duel_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
 
     await db.prepare(`

@@ -61,12 +61,24 @@ async function fetchGoogleJwks(force = false) {
   if (!force && googleJwksCache.keys.length && now - googleJwksCache.fetchedAt < 3_600_000) {
     return googleJwksCache.keys;
   }
-  const res = await fetch(GOOGLE_JWKS_URL);
+  const res = await fetch(GOOGLE_JWKS_URL, { signal: AbortSignal.timeout(8_000) });
   if (!res.ok) throw new Error('Could not reach Google sign-in keys.');
   const body = await res.json();
   const keys = Array.isArray(body?.keys) ? body.keys : [];
   googleJwksCache = { keys, fetchedAt: now };
   return keys;
+}
+
+function extractRpId(origin) {
+  if (typeof origin !== 'string' || !origin) return '';
+  try {
+    const u = new URL(origin);
+    if (u.protocol === 'https:') return u.hostname;
+    if (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1')) return u.hostname;
+    return '';
+  } catch {
+    return '';
+  }
 }
 
 export async function verifyGoogleIdToken(idToken, expectedClientId, now = Date.now()) {
@@ -112,27 +124,41 @@ export async function verifyGoogleIdToken(idToken, expectedClientId, now = Date.
     throw new Error('Google token not yet valid.');
   }
 
-  let keys = await fetchGoogleJwks(false);
-  let jwk = keys.find((k) => k.kid === header.kid && k.kty === 'RSA');
+  let keys;
+  try {
+    keys = await fetchGoogleJwks(false);
+  } catch {
+    throw new Error('Could not reach Google sign-in keys.');
+  }
+  let jwk = keys.find((k) => k.kid === header.kid && k.kty === 'RSA' && (!k.use || k.use === 'sig'));
   if (!jwk) {
-    keys = await fetchGoogleJwks(true);
-    jwk = keys.find((k) => k.kid === header.kid && k.kty === 'RSA');
+    try {
+      keys = await fetchGoogleJwks(true);
+    } catch {
+      throw new Error('Could not reach Google sign-in keys.');
+    }
+    jwk = keys.find((k) => k.kid === header.kid && k.kty === 'RSA' && (!k.use || k.use === 'sig'));
   }
   if (!jwk) throw new Error('Google signing key not found.');
 
-  const pubKey = await crypto.subtle.importKey(
-    'jwk',
-    jwk,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['verify']
-  );
-  const ok = await crypto.subtle.verify(
-    'RSASSA-PKCS1-v1_5',
-    pubKey,
-    sigBytes,
-    encoder.encode(`${headerB64}.${payloadB64}`)
-  );
+  let ok = false;
+  try {
+    const pubKey = await crypto.subtle.importKey(
+      'jwk',
+      jwk,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+    ok = await crypto.subtle.verify(
+      'RSASSA-PKCS1-v1_5',
+      pubKey,
+      sigBytes,
+      encoder.encode(`${headerB64}.${payloadB64}`)
+    );
+  } catch {
+    ok = false;
+  }
   if (!ok) throw new Error('Google token signature verification failed.');
 
   return {
@@ -290,8 +316,8 @@ export async function handlePublicAuth({
     });
   }
   if (request.method !== 'POST') return reply({ error: 'Method not allowed.' }, 405);
-  const webOrigin = request.headers.get('Origin');
-  const rpId = new URL(webOrigin).hostname;
+  const webOrigin = request.headers.get('Origin') || '';
+  const rpId = extractRpId(webOrigin);
 
   if (path === '/auth/recovery') {
     const key = typeof data.key === 'string' && data.key.length <= 100
@@ -378,7 +404,9 @@ export async function handlePublicAuth({
     const newsletterOptInAt = newsletterOptIn ? now : 0;
     const tosAcceptedAt = data.tosAccepted === false ? 0 : now;
 
-    const consumed = await db.prepare('DELETE FROM oauth_pending WHERE ticket = ?').bind(ticket).run();
+    const consumed = await db.prepare(
+      "DELETE FROM oauth_pending WHERE ticket = ? AND provider = 'google' AND expires_at >= ?"
+    ).bind(ticket, now).run();
     if (!consumed.meta.changes) {
       return reply({ error: 'Google sign-up session already used.' }, 409);
     }
@@ -427,6 +455,7 @@ export async function handlePublicAuth({
   }
 
   if (path === '/auth/passkey/login/options') {
+    if (!webOrigin || !rpId) return reply({ error: 'Passkeys require a valid web origin.' }, 400);
     await db.prepare('DELETE FROM auth_challenges WHERE expires_at < ?').bind(now).run();
     const challenge = toBase64Url(crypto.getRandomValues(new Uint8Array(32)));
     await db.prepare(
@@ -441,6 +470,7 @@ export async function handlePublicAuth({
   }
 
   if (path === '/auth/passkey/login/verify') {
+    if (!webOrigin || !rpId) return reply({ error: 'Passkeys require a valid web origin.' }, 400);
     const credId = typeof data.credentialId === 'string' ? data.credentialId.trim() : '';
     if (!/^[A-Za-z0-9_-]{8,512}$/.test(credId)) {
       return reply({ error: 'Invalid passkey credential.' }, 400);
@@ -451,8 +481,8 @@ export async function handlePublicAuth({
     if (!clientData || !authData || authData.length < 37 || !sigBytes) {
       return reply({ error: 'Invalid passkey assertion.' }, 400);
     }
-    const { type, origin, challenge } = clientData.json || {};
-    if (type !== 'webauthn.get' || origin !== webOrigin || typeof challenge !== 'string') {
+    const { type, origin, challenge, crossOrigin } = clientData.json || {};
+    if (type !== 'webauthn.get' || origin !== webOrigin || crossOrigin === true || typeof challenge !== 'string') {
       return reply({ error: 'Passkey origin or type mismatch.' }, 400);
     }
 
@@ -555,7 +585,9 @@ export async function handlePublicAuth({
     if (!found) {
       return reply({ error: 'That device code is invalid or expired.' }, 401);
     }
-    const consumed = await db.prepare('DELETE FROM device_link_codes WHERE code_hash = ?').bind(codeHash).run();
+    const consumed = await db.prepare(
+      'DELETE FROM device_link_codes WHERE code_hash = ? AND expires_at >= ?'
+    ).bind(codeHash, now).run();
     if (!consumed.meta.changes) {
       return reply({ error: 'That device code was already used.' }, 401);
     }
@@ -574,8 +606,8 @@ export async function handlePublicAuth({
 }
 
 export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, now, data, reply, digest }) {
-  const webOrigin = request.headers.get('Origin');
-  const rpId = new URL(webOrigin).hostname;
+  const webOrigin = request.headers.get('Origin') || '';
+  const rpId = extractRpId(webOrigin);
 
   if (path === '/auth/recovery/create' && request.method === 'POST') {
     const raw = Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => LINK_ALPHABET[byte & 31]).join('');
@@ -645,6 +677,7 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
   }
 
   if (path === '/auth/passkey/register/options' && request.method === 'POST') {
+    if (!webOrigin || !rpId) return reply({ error: 'Passkeys require a valid web origin.' }, 400);
     await db.prepare('DELETE FROM auth_challenges WHERE expires_at < ?').bind(now).run();
     const existing = await db.prepare('SELECT credential_id FROM passkeys WHERE profile_id = ?')
       .bind(me.id).all();
@@ -680,6 +713,7 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
   }
 
   if (path === '/auth/passkey/register/verify' && request.method === 'POST') {
+    if (!webOrigin || !rpId) return reply({ error: 'Passkeys require a valid web origin.' }, 400);
     const credId = typeof data.credentialId === 'string' ? data.credentialId.trim() : '';
     const alg = Number(data.algorithm);
     const spkiB64 = typeof data.publicKeySpki === 'string' ? data.publicKeySpki.trim() : '';
@@ -692,8 +726,8 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
     if (!clientData || !authData || authData.length < 37 || !spkiBytes) {
       return reply({ error: 'Incomplete passkey registration data.' }, 400);
     }
-    const { type, origin, challenge } = clientData.json || {};
-    if (type !== 'webauthn.create' || origin !== webOrigin || typeof challenge !== 'string') {
+    const { type, origin, challenge, crossOrigin } = clientData.json || {};
+    if (type !== 'webauthn.create' || origin !== webOrigin || crossOrigin === true || typeof challenge !== 'string') {
       return reply({ error: 'Passkey origin or type mismatch.' }, 400);
     }
 
@@ -730,7 +764,7 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
 
   if (path === '/auth/passkey/delete' && request.method === 'POST') {
     const credId = typeof data.id === 'string' ? data.id.trim() : '';
-    if (!credId) return reply({ error: 'Choose a passkey.' }, 400);
+    if (!credId || credId.length > 512) return reply({ error: 'Choose a passkey.' }, 400);
     await db.prepare('DELETE FROM passkeys WHERE credential_id = ? AND profile_id = ?')
       .bind(credId, me.id).run();
     return reply({ ok: true });

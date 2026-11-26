@@ -228,9 +228,11 @@ export function cleanEdSnapshot(raw) {
   return { syncedAt, courses, threads };
 }
 
+const MAX_BACKUP_PAYLOAD_BYTES = 900_000;
+
 async function mergePersonalEdBackup(db, profileId, courses, threads, syncedAtIso, now) {
   const snapshot = cleanEdSnapshot({ syncedAt: syncedAtIso, courses, threads });
-  if (!snapshot) return { syncedCourses: 0, threadCount: 0 };
+  if (!snapshot) return { syncedCourses: 0, threadCount: 0, overflow: false };
   const row = await db.prepare('SELECT payload FROM study_backups WHERE profile_id = ?')
     .bind(profileId).first();
   if (row) {
@@ -240,8 +242,10 @@ async function mergePersonalEdBackup(db, profileId, courses, threads, syncedAtIs
       payload = { format: 'study-os-backup-v1', syncedAt: syncedAtIso, progress: { records: {} }, attempts: [], sessions: [], customSchedule: { enabled: false, prefs: {}, blocks: [] } };
     }
     payload.edSnapshot = snapshot;
+    const serialized = JSON.stringify(payload);
+    if (serialized.length > MAX_BACKUP_PAYLOAD_BYTES) return { syncedCourses: 0, threadCount: 0, overflow: true };
     await db.prepare('UPDATE study_backups SET payload = ?, updated_at = ? WHERE profile_id = ?')
-      .bind(JSON.stringify(payload), now, profileId).run();
+      .bind(serialized, now, profileId).run();
   } else {
     const payload = {
       format: 'study-os-backup-v1',
@@ -252,12 +256,14 @@ async function mergePersonalEdBackup(db, profileId, courses, threads, syncedAtIs
       customSchedule: { enabled: false, prefs: {}, blocks: [] },
       edSnapshot: snapshot,
     };
+    const serialized = JSON.stringify(payload);
+    if (serialized.length > MAX_BACKUP_PAYLOAD_BYTES) return { syncedCourses: 0, threadCount: 0, overflow: true };
     await db.prepare(`
       INSERT INTO study_backups(profile_id, payload, updated_at, record_count, attempt_count, session_count)
       VALUES (?, ?, ?, 0, 0, 0)
-    `).bind(profileId, JSON.stringify(payload), now).run();
+    `).bind(profileId, serialized, now).run();
   }
-  return { syncedCourses: snapshot.courses.length, threadCount: snapshot.threads.length };
+  return { syncedCourses: snapshot.courses.length, threadCount: snapshot.threads.length, overflow: false };
 }
 
 async function mergePersonalCanvasBackup(db, profileId, courses, syncedAtIso, now, canvasOriginRaw = DEFAULT_CANVAS_ORIGIN) {
@@ -303,8 +309,10 @@ async function mergePersonalCanvasBackup(db, profileId, courses, syncedAtIso, no
       payload = { format: 'study-os-backup-v1', syncedAt: syncedAtIso, progress: { records: {} }, attempts: [], sessions: [], customSchedule: { enabled: false, prefs: {}, blocks: [] } };
     }
     payload.canvasSnapshot = snapshot;
+    const serialized = JSON.stringify(payload);
+    if (serialized.length > MAX_BACKUP_PAYLOAD_BYTES) return { syncedCourses: 0, deadlineCount: 0, overflow: true };
     await db.prepare('UPDATE study_backups SET payload = ?, updated_at = ? WHERE profile_id = ?')
-      .bind(JSON.stringify(payload), now, profileId).run();
+      .bind(serialized, now, profileId).run();
   } else {
     const payload = {
       format: 'study-os-backup-v1',
@@ -315,12 +323,14 @@ async function mergePersonalCanvasBackup(db, profileId, courses, syncedAtIso, no
       customSchedule: { enabled: false, prefs: {}, blocks: [] },
       canvasSnapshot: snapshot,
     };
+    const serialized = JSON.stringify(payload);
+    if (serialized.length > MAX_BACKUP_PAYLOAD_BYTES) return { syncedCourses: 0, deadlineCount: 0, overflow: true };
     await db.prepare(`
       INSERT INTO study_backups(profile_id, payload, updated_at, record_count, attempt_count, session_count)
       VALUES (?, ?, ?, 0, 0, 0)
-    `).bind(profileId, JSON.stringify(payload), now).run();
+    `).bind(profileId, serialized, now).run();
   }
-  return { syncedCourses: cleanCourses.length, deadlineCount };
+  return { syncedCourses: cleanCourses.length, deadlineCount, overflow: false };
 }
 
 async function upsertCommunityCourses(db, profileId, entries, source, now, canvasOrigin = DEFAULT_CANVAS_ORIGIN, school = '') {
@@ -469,9 +479,10 @@ export async function handleCourses({ path, request, db, data, me, isAdmin, now,
       ? new Date(data.capturedAt).toISOString()
       : new Date(now).toISOString();
 
-    let personal = { syncedCourses: 0, deadlineCount: 0, threadCount: 0 };
+    let personal = { syncedCourses: 0, deadlineCount: 0, threadCount: 0, overflow: false };
     if (source === 'canvas') {
       personal = { ...(await mergePersonalCanvasBackup(db, me.id, data.courses, syncedAtIso, now, canvasOrigin)), threadCount: 0 };
+      if (personal.overflow) return reply({ error: 'Synced backup exceeds storage limit.' }, 413);
       // Auto-populate profile school & Canvas origin if not chosen yet
       if (!me.school && school) {
         await db.prepare(`
@@ -481,7 +492,8 @@ export async function handleCourses({ path, request, db, data, me, isAdmin, now,
       }
     } else if (source === 'ed') {
       const edRes = await mergePersonalEdBackup(db, me.id, data.courses, Array.isArray(data.threads) ? data.threads : [], syncedAtIso, now);
-      personal = { syncedCourses: edRes.syncedCourses, deadlineCount: 0, threadCount: edRes.threadCount };
+      if (edRes.overflow) return reply({ error: 'Synced backup exceeds storage limit.' }, 413);
+      personal = { syncedCourses: edRes.syncedCourses, deadlineCount: 0, threadCount: edRes.threadCount, overflow: false };
     }
 
     const deduped = new Map();

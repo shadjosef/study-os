@@ -27,6 +27,53 @@ const maxInputBytes = 65_536;
 const maxSyncBytes = 524_288;
 const maxIcsBytes = 2_100_000;
 const chromeExtOriginPattern = /^chrome-extension:\/\/[a-p]{32}$/;
+const chromeExtIdPattern = /^[a-p]{32}$/;
+const BASE_SECURITY_HEADERS = Object.freeze({
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'X-Frame-Options': 'DENY',
+});
+const ALLOWED_METHODS = new Set(['GET', 'POST', 'OPTIONS']);
+
+export function normalizeOrigin(raw) {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === 'null') return '';
+  try {
+    const u = new URL(trimmed);
+    if (u.username || u.password) return '';
+    if (u.protocol === 'https:') return u.origin;
+    if (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1')) return u.origin;
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+function allowedExtensionOrigin(webOrigin, env) {
+  if (!webOrigin || !chromeExtOriginPattern.test(webOrigin)) return false;
+  const pinned = typeof env?.CHROME_EXTENSION_IDS === 'string'
+    ? env.CHROME_EXTENSION_IDS.split(',').map((s) => s.trim().toLowerCase()).filter((id) => chromeExtIdPattern.test(id))
+    : [];
+  if (!pinned.length) return true;
+  const extId = webOrigin.slice('chrome-extension://'.length);
+  return pinned.includes(extId);
+}
+
+function isValidShareUrl(rawUrl, allowedWebOrigins) {
+  if (typeof rawUrl !== 'string' || !rawUrl || /[\u0000-\u001f\u007f\s]/.test(rawUrl)) return false;
+  if (rawUrl.startsWith('/?')) {
+    return /[?&](?:play|join_room)=/i.test(rawUrl);
+  }
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password) return false;
+    if (allowedWebOrigins.size > 0 && !allowedWebOrigins.has(parsed.origin)) return false;
+    return parsed.searchParams.has('play') || parsed.searchParams.has('join_room');
+  } catch {
+    return false;
+  }
+}
 const extensionAllowedPaths = new Set([
   '/auth/extension-link',
   '/courses/sync',
@@ -104,14 +151,24 @@ function profileSummary(me, isAdmin, now) {
   };
 }
 
-function equalProof(expected, supplied) {
+export function equalProof(expected, supplied) {
   if (!proofPattern.test(expected || '') || !proofPattern.test(supplied || '')) return false;
   let different = 0;
   for (let i = 0; i < expected.length; i++) different |= expected.charCodeAt(i) ^ supplied.charCodeAt(i);
   return different === 0;
 }
 
+class PayloadTooLargeError extends Error {
+  constructor() { super('Request too large.'); }
+}
+
 async function readJson(request, limitBytes = maxInputBytes) {
+  const declaredLen = request.headers.get('Content-Length');
+  if (declaredLen !== null && declaredLen.trim() !== '') {
+    const parsedLen = Number(declaredLen);
+    if (!Number.isFinite(parsedLen) || parsedLen < 0) throw new Error('Invalid request');
+    if (parsedLen > limitBytes) throw new PayloadTooLargeError();
+  }
   const reader = request.body?.getReader();
   if (!reader) throw new Error('Missing request body');
   const chunks = [];
@@ -122,10 +179,11 @@ async function readJson(request, limitBytes = maxInputBytes) {
     size += value.length;
     if (size > limitBytes) {
       await reader.cancel();
-      throw new Error('Request too large');
+      throw new PayloadTooLargeError();
     }
     chunks.push(value);
   }
+  if (size === 0) throw new Error('Missing request body');
   const input = new TextDecoder().decode(await new Blob(chunks).arrayBuffer());
   const data = JSON.parse(input);
   if (!data || Array.isArray(data) || typeof data !== 'object') throw new Error('Invalid request');
@@ -141,26 +199,38 @@ export default {
     const headers = {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
-      'X-Content-Type-Options': 'nosniff',
+      ...BASE_SECURITY_HEADERS,
       'Vary': 'Origin',
     };
-    const url = new URL(request.url);
+    const reply = (data, status = 200) => Response.json(data, { status, headers });
+    let url;
+    try {
+      url = new URL(request.url);
+    } catch {
+      return reply({ error: 'Invalid request URL.' }, 400);
+    }
     const path = url.pathname;
-    const webOrigin = request.headers.get('Origin');
-    const isAllowedWeb = Boolean(webOrigin && (webOrigin === env.WEB_ORIGIN || webOrigin === env.WEB_ADDITIONAL_ORIGIN));
+    const rawOrigin = request.headers.get('Origin');
+    const normalizedWebOrigin = normalizeOrigin(rawOrigin);
+    const allowedWebOrigins = new Set(
+      [normalizeOrigin(env?.WEB_ORIGIN), normalizeOrigin(env?.WEB_ADDITIONAL_ORIGIN)].filter(Boolean)
+    );
+    const isAllowedWeb = Boolean(normalizedWebOrigin && rawOrigin === normalizedWebOrigin && allowedWebOrigins.has(normalizedWebOrigin));
     const isAllowedExt = Boolean(
       extensionAllowedPaths.has(path) && (
-        (webOrigin && chromeExtOriginPattern.test(webOrigin)) ||
-        (!webOrigin && request.headers.get('X-Study-OS-Client') === 'extension')
+        allowedExtensionOrigin(rawOrigin, env) ||
+        (!rawOrigin && request.headers.get('X-Study-OS-Client') === 'extension')
       )
     );
     if (isAllowedWeb) {
-      headers['Access-Control-Allow-Origin'] = webOrigin;
-    } else if (isAllowedExt && webOrigin) {
-      headers['Access-Control-Allow-Origin'] = webOrigin;
+      headers['Access-Control-Allow-Origin'] = normalizedWebOrigin;
+    } else if (isAllowedExt && rawOrigin) {
+      headers['Access-Control-Allow-Origin'] = rawOrigin;
     }
-    const reply = (data, status = 200) => Response.json(data, { status, headers });
     if (!isAllowedWeb && !isAllowedExt) return reply({ error: 'Origin not allowed.' }, 403);
+    if (!ALLOWED_METHODS.has(request.method)) {
+      return reply({ error: 'Method not allowed.' }, 405);
+    }
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: {
         ...headers,
@@ -170,6 +240,7 @@ export default {
       } });
     }
 
+    try {
     const db = env.DB;
     let data = {};
     if (request.method === 'POST') {
@@ -177,7 +248,10 @@ export default {
         ? maxIcsBytes
         : (path === '/sync' || path === '/courses/sync' || path === '/materials/chunk' || path === '/feedback') ? maxSyncBytes : maxInputBytes;
       try { data = await readJson(request, limit); }
-      catch { return reply({ error: 'Invalid request.' }, 400); }
+      catch (err) {
+        if (err instanceof PayloadTooLargeError) return reply({ error: 'Request too large.' }, 413);
+        return reply({ error: 'Invalid request.' }, 400);
+      }
     }
     const humanError = await checkHuman(request, env, path, data, reply);
     if (humanError) return humanError;
@@ -317,8 +391,8 @@ export default {
     }
     if (path.startsWith('/ai/')) {
       const corsHeaders = headers['Access-Control-Allow-Origin']
-        ? { 'Access-Control-Allow-Origin': headers['Access-Control-Allow-Origin'], Vary: 'Origin' }
-        : { Vary: 'Origin' };
+        ? { ...BASE_SECURITY_HEADERS, 'Access-Control-Allow-Origin': headers['Access-Control-Allow-Origin'], Vary: 'Origin' }
+        : { ...BASE_SECURITY_HEADERS, Vary: 'Origin' };
       return handleAi({ request, path, db, env, me, isAdmin, now, data, reply, corsHeaders });
     }
     if (path === '/feedback' || path === '/admin/feedback') {
@@ -326,8 +400,8 @@ export default {
     }
     if (path === '/materials' || path.startsWith('/materials/')) {
       const corsHeaders = headers['Access-Control-Allow-Origin']
-        ? { 'Access-Control-Allow-Origin': headers['Access-Control-Allow-Origin'], Vary: 'Origin' }
-        : { Vary: 'Origin' };
+        ? { ...BASE_SECURITY_HEADERS, 'Access-Control-Allow-Origin': headers['Access-Control-Allow-Origin'], Vary: 'Origin' }
+        : { ...BASE_SECURITY_HEADERS, Vary: 'Origin' };
       return handleMaterials({ request, url, path, db, me, now, data, reply, corsHeaders });
     }
     if (path.startsWith('/admin/')) {
@@ -357,7 +431,7 @@ export default {
         const shareUrl = typeof data.url === 'string' ? data.url.trim().slice(0, 900) : '';
         const title = typeof data.title === 'string' ? data.title.trim().replace(/\s+/g, ' ').slice(0, 100) : 'Shared Study Playlist';
         const note = typeof data.note === 'string' ? data.note.trim().replace(/\s+/g, ' ').slice(0, 180) : '';
-        const hasValidUrl = /^(?:https:\/\/[^\s]+|\/\?)[^\s]*[?&](?:play|join_room)=/i.test(shareUrl);
+        const hasValidUrl = isValidShareUrl(shareUrl, allowedWebOrigins);
         if (!idPattern.test(recipient) || recipient === me.id || !hasValidUrl) {
           return reply({ error: 'Choose a classmate and a valid Study-OS playlist link.' }, 400);
         }
@@ -557,7 +631,8 @@ export default {
       const blocked = await db.prepare(`
         SELECT p.id, p.nickname FROM blocks b JOIN profiles p ON p.id = b.blocked WHERE b.owner = ?
       `).bind(me.id).all();
-      const mePayload = { ...me, ...profileSummary(me, isAdmin, now) };
+      const { primary_token_hash: _pth, contact_email: _ce, session_last_used_at: _slu, ...safeMe } = me;
+      const mePayload = { ...safeMe, ...profileSummary(me, isAdmin, now) };
       if (isAdmin) {
         const mk = await getAdminMemberKey(db, env);
         if (mk) mePayload.memberKey = mk;
@@ -608,7 +683,10 @@ export default {
                 OR (blocked = ? AND owner = study_sets.owner)
             )
           `).bind(id, me.id, me.id).first();
-          return set ? reply({ ...set, cards: JSON.parse(set.cards) }) : reply({ error: 'That set is unavailable.' }, 404);
+          if (!set) return reply({ error: 'That set is unavailable.' }, 404);
+          let parsedCards;
+          try { parsedCards = JSON.parse(set.cards); } catch { return reply({ error: 'That set is unavailable.' }, 404); }
+          return reply({ ...set, cards: parsedCards });
         }
         const { results } = await db.prepare(`
           SELECT s.id, s.title, s.card_count, s.owner, p.nickname, p.avatar FROM study_sets s JOIN profiles p ON p.id = s.owner
@@ -732,5 +810,8 @@ export default {
     }
 
     return reply({ error: 'Unknown action.' }, 404);
+    } catch {
+      return reply({ error: 'Internal server error.' }, 500);
+    }
   },
 };

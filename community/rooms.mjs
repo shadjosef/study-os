@@ -457,7 +457,11 @@ export async function handleRooms({ request, url, db, me, now, data, canUseCommu
       });
       const result = await db.prepare(`
         INSERT OR IGNORE INTO study_rooms(code, owner, mode, created_at, starts_at, ends_at, deck)
-        SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (${activeRoom})
+        SELECT ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (
+          SELECT room.code FROM room_members m JOIN study_rooms room ON room.code = m.code
+          WHERE m.profile = ? AND room.closed_at = 0
+            AND ((room.starts_at = 0 AND room.created_at > ?) OR room.ends_at > ?)
+        )
       `).bind(generated, me.id, data.mode, now, startsAt, endsAt, deckMeta, me.id, now - lobbyDuration, now).run();
       return result.meta.changes ? reply({ code: generated }, 201) : reply({ error: 'Try creating the room again.' }, 409);
     }
@@ -471,7 +475,11 @@ export async function handleRooms({ request, url, db, me, now, data, canUseCommu
           OR (r.mode = 'group' AND r.starts_at > 0 AND r.ends_at > ?)
         )
         AND (SELECT COUNT(*) FROM room_members WHERE code = r.code) < CASE WHEN r.mode = 'duel' THEN 2 ELSE 8 END
-        AND NOT EXISTS (${activeRoom})
+        AND NOT EXISTS (
+          SELECT room.code FROM room_members m JOIN study_rooms room ON room.code = m.code
+          WHERE m.profile = ? AND room.closed_at = 0
+            AND ((room.starts_at = 0 AND room.created_at > ?) OR room.ends_at > ?)
+        )
         AND NOT EXISTS (
           SELECT 1 FROM room_members other JOIN blocks b
             ON (b.owner = ? AND b.blocked = other.profile) OR (b.blocked = ? AND b.owner = other.profile)
