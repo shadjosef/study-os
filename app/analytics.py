@@ -4,7 +4,9 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import json
 import math
+import os
 from pathlib import Path
+import threading
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -13,7 +15,44 @@ from dlpfc import HIGH_DLPFC_DAILY_CAP_MIN, circadian_dlpfc_target, classify_int
 OSLO_TZ = ZoneInfo("Europe/Oslo")
 
 
+def _safe_float(val: Any, default: float = 0.0) -> float:
+    if isinstance(val, bool) or val is None:
+        return default
+    try:
+        f = float(val)
+        return f if math.isfinite(f) else default
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
+def _safe_int(val: Any, default: int = 0) -> int:
+    if isinstance(val, bool) or val is None:
+        return default
+    try:
+        f = float(val)
+        return int(f) if math.isfinite(f) else default
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
+def _parse_iso_aware(raw: Any, default_tz: ZoneInfo = OSLO_TZ) -> datetime | None:
+    if not isinstance(raw, str):
+        return None
+    cleaned = raw.strip()
+    if not cleaned:
+        return None
+    try:
+        dt = datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=default_tz)
+        return dt
+    except ValueError:
+        return None
+
+
 def clamp(v: float, lo: float, hi: float) -> float:
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v):
+        return lo
     return max(lo, min(hi, v))
 
 
@@ -25,7 +64,7 @@ def is_auto_graded_attempt(a: dict[str, Any]) -> bool:
 
 
 def difficulty_upi_multiplier(tier: int, profile: str = "learning") -> float:
-    base = {1: 0.85, 2: 1.00, 3: 1.22}.get(int(tier or 2), 1.00)
+    base = {1: 0.85, 2: 1.00, 3: 1.22}.get(_safe_int(tier, 2), 1.00)
     exam_bonus = 1.08 if str(profile or "learning").lower() == "exam" else 1.0
     return base * exam_bonus
 
@@ -48,10 +87,12 @@ def compute_attempt_metrics(
     - Hard (Tier 3) and Exam-Par runs receive a UPI difficulty bonus; Easy (Tier 1) scales conservatively.
     - Self-graded written tasks cap pace ratio at 1.00 and carry reduced weight in aggregate UPI.
     """
-    q = clamp(float(quality_accuracy), 0.0, 1.0)
-    par = max(15.0, float(ai_par_sec))
-    handicap = max(0, int(hints_used)) * max(0.0, float(hint_handicap_sec))
-    effective_sec = max(1.0, float(active_sec) + handicap)
+    q = clamp(_safe_float(quality_accuracy, 0.0), 0.0, 1.0)
+    par = max(15.0, _safe_float(ai_par_sec, 120.0))
+    clean_hints = max(0, _safe_int(hints_used, 0))
+    clean_active = max(0.0, _safe_float(active_sec, 0.0))
+    handicap = clean_hints * max(0.0, _safe_float(hint_handicap_sec, 0.0))
+    effective_sec = max(1.0, clean_active + handicap)
     delta_sec = round(effective_sec - par, 1)  # negative = faster than AI Par!
 
     if q < 0.6:
@@ -61,7 +102,7 @@ def compute_attempt_metrics(
         max_pr = 1.50 if auto_graded else 1.00
         raw_ratio = clamp(par / max(effective_sec, 0.25 * par), 0.35, max_pr)
         pace_ratio = round(raw_ratio * q, 3)
-        beat_ai = bool(q >= 0.85 and int(hints_used) == 0 and (not assisted) and effective_sec <= par)
+        beat_ai = bool(q >= 0.85 and clean_hints == 0 and (not assisted) and effective_sec <= par)
 
     # Single-question difficulty & verification-aware UPI preview
     mult = difficulty_upi_multiplier(dlpfc_tier, profile)
@@ -72,15 +113,15 @@ def compute_attempt_metrics(
     # FSRS rating auto-suggestion: 1=Again, 2=Hard, 3=Good, 4=Easy
     if q < 0.6:
         fsrs_grade = 1
-    elif hints_used > 0 or assisted or effective_sec > par * 1.25 or q < 0.85:
+    elif clean_hints > 0 or assisted or effective_sec > par * 1.25 or q < 0.85:
         fsrs_grade = 2
-    elif beat_ai and hints_used == 0 and effective_sec <= par * 0.85 and q >= 0.99:
+    elif beat_ai and clean_hints == 0 and effective_sec <= par * 0.85 and q >= 0.99:
         fsrs_grade = 4
     else:
         fsrs_grade = 3
 
     return {
-        "activeSec": round(active_sec, 1),
+        "activeSec": round(clean_active, 1),
         "effectiveSec": round(effective_sec, 1),
         "aiParSec": round(par, 1),
         "hintHandicapSec": round(handicap, 1),
@@ -96,8 +137,12 @@ def compute_attempt_metrics(
 def update_fsrs_card(prev: dict[str, Any] | None, grade: int, now: datetime | None = None) -> dict[str, Any]:
     """Compact FSRS-5 inspired memory state update (`grade` in 1..4)."""
     t = now or datetime.now(OSLO_TZ)
-    g = int(clamp(grade, 1, 4))
-    if not prev or not prev.get("reps"):
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=OSLO_TZ)
+    raw_g = _safe_float(grade, 3.0)
+    g = int(clamp(round(raw_g), 1, 4))
+    prev_reps = _safe_int(prev.get("reps"), 0) if isinstance(prev, dict) else 0
+    if not isinstance(prev, dict) or prev_reps <= 0:
         init_s = {1: 0.4, 2: 1.2, 3: 3.2, 4: 7.5}[g]
         init_d = clamp(6.8 - (g - 1) * 1.1, 1.0, 10.0)
         interval_days = 0.02 if g == 1 else round(init_s, 2)
@@ -112,17 +157,17 @@ def update_fsrs_card(prev: dict[str, Any] | None, grade: int, now: datetime | No
             "due": due.isoformat(),
         }
 
-    s = float(prev.get("stability") or 1.5)
-    d = float(prev.get("difficulty") or 5.0)
-    reps = int(prev.get("reps") or 0) + 1
-    lapses = int(prev.get("lapses") or 0)
+    s_raw = _safe_float(prev.get("stability"), 1.5)
+    s = s_raw if s_raw > 0.0 else 1.5
+    d = clamp(_safe_float(prev.get("difficulty"), 5.0), 1.0, 10.0)
+    reps = prev_reps + 1
+    lapses = max(0, _safe_int(prev.get("lapses"), 0))
     last_rev = prev.get("lastReview")
     elapsed_days = 1.0
     if last_rev:
-        try:
-            elapsed_days = max(0.05, (t - datetime.fromisoformat(last_rev)).total_seconds() / 86400.0)
-        except Exception:
-            elapsed_days = 1.0
+        last_dt = _parse_iso_aware(str(last_rev), default_tz=t.tzinfo or OSLO_TZ)
+        if last_dt is not None:
+            elapsed_days = max(0.05, (t - last_dt).total_seconds() / 86400.0)
 
     retrievability = math.pow(1.0 + elapsed_days / (9.0 * max(0.2, s)), -1.0)
     d_next = clamp(d - 0.55 * (g - 3), 1.0, 10.0)
@@ -185,20 +230,20 @@ def aggregate_attempt_group(attempts: list[dict[str, Any]], focus_density: float
             "upi": None,
         }
     n = len(attempts)
-    avg_q = sum(float(a.get("qualityAccuracy", 0.0)) for a in attempts) / n
-    avg_pr = sum(min(1.35 if is_auto_graded_attempt(a) else 1.00, float(a.get("paceRatio", 0.0))) for a in attempts) / n
+    avg_q = sum(_safe_float(a.get("qualityAccuracy"), 0.0) for a in attempts) / n
+    avg_pr = sum(min(1.35 if is_auto_graded_attempt(a) else 1.00, max(0.0, _safe_float(a.get("paceRatio"), 0.0))) for a in attempts) / n
     beat_rate = sum(1 for a in attempts if a.get("beatAi")) / n
-    avg_delta = sum(float(a.get("deltaSec", 0.0)) for a in attempts) / n
-    tot_min = sum(float(a.get("activeSec", 0.0)) for a in attempts) / 60.0
-    fd = clamp(focus_density, 0.0, 1.0)
+    avg_delta = sum(_safe_float(a.get("deltaSec"), 0.0) for a in attempts) / n
+    tot_min = sum(max(0.0, _safe_float(a.get("activeSec"), 0.0)) for a in attempts) / 60.0
+    fd = clamp(_safe_float(focus_density, 0.88), 0.0, 1.0)
     weighted_sum = 0.0
     total_w = 0.0
     for a in attempts:
         auto = is_auto_graded_attempt(a)
         w = 1.0 if auto else 0.45
-        q_val = clamp(float(a.get("qualityAccuracy", 0.0)), 0.0, 1.0)
-        pr_val = min(1.35 if auto else 1.00, float(a.get("paceRatio", 0.0)))
-        tier = int(a.get("dlpfcTier") or (1 if str(a.get("kind") or "") == "mcq" else 2))
+        q_val = clamp(_safe_float(a.get("qualityAccuracy"), 0.0), 0.0, 1.0)
+        pr_val = min(1.35 if auto else 1.00, max(0.0, _safe_float(a.get("paceRatio"), 0.0)))
+        tier = _safe_int(a.get("dlpfcTier"), 1 if str(a.get("kind") or "") == "mcq" else 2)
         mult = difficulty_upi_multiplier(tier, str(a.get("profile") or "learning"))
         item_score = 100.0 * (0.45 * q_val + 0.35 * pr_val + 0.20 * fd) * mult
         weighted_sum += w * clamp(item_score, 0.0, 150.0)
@@ -216,15 +261,15 @@ def aggregate_attempt_group(attempts: list[dict[str, Any]], focus_density: float
 
 
 def time_of_day_bucket(iso_ts: str) -> str:
-    try:
-        h = datetime.fromisoformat(iso_ts.replace("Z", "+00:00")).astimezone(OSLO_TZ).hour
-        if h < 12:
-            return "morning_06_12"
-        if h < 17:
-            return "afternoon_12_17"
-        return "evening_17_23"
-    except Exception:
+    dt = _parse_iso_aware(iso_ts)
+    if dt is None:
         return "unknown"
+    h = dt.astimezone(OSLO_TZ).hour
+    if h < 12:
+        return "morning_06_12"
+    if h < 17:
+        return "afternoon_12_17"
+    return "evening_17_23"
 
 
 def pearson_r(xs: list[float], ys: list[float]) -> float | None:
@@ -243,7 +288,14 @@ def pearson_r(xs: list[float], ys: list[float]) -> float | None:
 
 def compute_correlations(sessions: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Correlates 5-second subjective check-ins & context tags with objective session UPI & Beat-AI rate."""
-    valid = [s for s in sessions if isinstance(s.get("checkIn"), dict) and s.get("upi") is not None]
+    valid = [
+        s for s in sessions
+        if isinstance(s, dict)
+        and isinstance(s.get("checkIn"), dict)
+        and isinstance(s.get("upi"), (int, float))
+        and not isinstance(s.get("upi"), bool)
+        and math.isfinite(float(s["upi"]))
+    ]
     insights: list[dict[str, Any]] = []
     if len(valid) < 2:
         return [
@@ -265,6 +317,8 @@ def compute_correlations(sessions: list[dict[str, Any]]) -> list[dict[str, Any]]
             (float(s["checkIn"][key]), float(s["upi"]))
             for s in valid
             if isinstance(s["checkIn"].get(key), (int, float))
+            and not isinstance(s["checkIn"].get(key), bool)
+            and math.isfinite(float(s["checkIn"][key]))
         ]
         if len(pairs) >= 3:
             xs, ys = [p[0] for p in pairs], [p[1] for p in pairs]
@@ -287,14 +341,18 @@ def compute_correlations(sessions: list[dict[str, Any]]) -> list[dict[str, Any]]
                 )
 
     # Tag comparisons (e.g. BI Library vs Home, Low Sleep, Phone Distraction, Flow State)
+    def _session_tags(sess: dict[str, Any]) -> list[str]:
+        raw_tags = sess["checkIn"].get("tags")
+        return [str(t) for t in raw_tags] if isinstance(raw_tags, list) else []
+
     all_tags: set[str] = set()
     for s in valid:
-        for t in s["checkIn"].get("tags") or []:
-            all_tags.add(str(t))
+        for t in _session_tags(s):
+            all_tags.add(t)
 
     for tag in sorted(all_tags):
-        with_t = [float(s["upi"]) for s in valid if tag in (s["checkIn"].get("tags") or [])]
-        without_t = [float(s["upi"]) for s in valid if tag not in (s["checkIn"].get("tags") or [])]
+        with_t = [float(s["upi"]) for s in valid if tag in _session_tags(s)]
+        without_t = [float(s["upi"]) for s in valid if tag not in _session_tags(s)]
         if len(with_t) >= 2 and len(without_t) >= 2:
             avg_w = sum(with_t) / len(with_t)
             avg_wo = sum(without_t) / len(without_t)
@@ -316,30 +374,47 @@ def compute_correlations(sessions: list[dict[str, Any]]) -> list[dict[str, Any]]
 def build_full_analytics(
     study_os_root: Path,
     courses_by_id: dict[str, dict[str, Any]],
-    progress_state: dict[str, Any],
+    progress_state: dict[str, Any] | None,
+    data_dir: Path | None = None,
 ) -> dict[str, Any]:
-    attempts = read_jsonl(study_os_root / "data" / "logs" / "attempts.jsonl")
-    sessions = read_jsonl(study_os_root / "data" / "logs" / "sessions.jsonl")
-    records: dict[str, dict[str, Any]] = progress_state.get("records") or {}
+    d_dir = data_dir if data_dir is not None else (study_os_root / "data")
+    attempts = read_jsonl(d_dir / "logs" / "attempts.jsonl")
+    sessions = read_jsonl(d_dir / "logs" / "sessions.jsonl")
+    records: dict[str, dict[str, Any]] = (progress_state or {}).get("records") or {}
 
     now = datetime.now(OSLO_TZ)
     now_iso = now.isoformat()
     today_str = now.strftime("%Y-%m-%d")
-    seven_days_ago = (now - timedelta(days=7)).isoformat()
+    seven_days_dt = now - timedelta(days=7)
+
+    def _oslo_day(ts_val: Any) -> str:
+        dt = _parse_iso_aware(ts_val)
+        if dt is not None:
+            return dt.astimezone(OSLO_TZ).strftime("%Y-%m-%d")
+        raw = str(ts_val or "")
+        if len(raw) >= 10 and raw[4:5] == "-" and raw[7:8] == "-":
+            return raw[:10]
+        return ""
+
+    def _is_since_seven_days(ts_val: Any) -> bool:
+        dt = _parse_iso_aware(ts_val)
+        if dt is not None:
+            return dt >= seven_days_dt
+        return str(ts_val or "") >= seven_days_dt.isoformat()
 
     avg_focus_density = (
-        sum(float(s.get("focusDensity", 0.88)) for s in sessions) / len(sessions)
+        sum(_safe_float(s.get("focusDensity"), 0.88) for s in sessions) / len(sessions)
         if sessions
         else 0.88
     )
 
     overall = aggregate_attempt_group(attempts, avg_focus_density)
     last_7d = aggregate_attempt_group(
-        [a for a in attempts if (a.get("timestamp") or "") >= seven_days_ago],
+        [a for a in attempts if _is_since_seven_days(a.get("timestamp"))],
         avg_focus_density,
     )
     today_metrics = aggregate_attempt_group(
-        [a for a in attempts if (a.get("timestamp") or "").startswith(today_str)],
+        [a for a in attempts if _oslo_day(a.get("timestamp")) == today_str],
         avg_focus_density,
     )
 
@@ -364,7 +439,8 @@ def build_full_analytics(
     q_lookup: dict[str, dict[str, Any]] = {}
     for bank in courses_by_id.values():
         for q in bank.get("questions") or []:
-            q_lookup[q["id"]] = q
+            if isinstance(q, dict) and q.get("id"):
+                q_lookup[str(q["id"])] = q
 
     today_dlpfc_sec = {1: 0.0, 2: 0.0, 3: 0.0}
     today_focus_switches = 0
@@ -374,7 +450,7 @@ def build_full_analytics(
         cid = str(a.get("courseId") or "unknown")
         tid = f"{cid}:{a.get('topicId') or 'general'}"
         raw_tier = a.get("dlpfcTier")
-        if raw_tier in (1, 2, 3):
+        if not isinstance(raw_tier, bool) and raw_tier in (1, 2, 3):
             tier = int(raw_tier)
         else:
             q_obj = q_lookup.get(str(a.get("questionId") or ""))
@@ -389,10 +465,10 @@ def build_full_analytics(
         bucket_push(g_slot, time_of_day_bucket(str(a.get("timestamp") or "")), a)
         bucket_push(g_dlpfc, tier_key, a)
 
-        if str(a.get("timestamp") or "").startswith(today_str):
-            today_dlpfc_sec[tier] += float(a.get("activeSec") or 0.0)
-            today_focus_switches += int(a.get("focusSwitchCount") or 0)
-            today_away_sec += float(a.get("awayElapsedSec") or 0.0)
+        if _oslo_day(a.get("timestamp")) == today_str:
+            today_dlpfc_sec[tier] += max(0.0, _safe_float(a.get("activeSec"), 0.0))
+            today_focus_switches += max(0, _safe_int(a.get("focusSwitchCount"), 0))
+            today_away_sec += max(0.0, _safe_float(a.get("awayElapsedSec"), 0.0))
 
     by_dlpfc: dict[str, Any] = {}
     by_course_tier: dict[str, Any] = {}
@@ -432,31 +508,43 @@ def build_full_analytics(
     weak_topics: list[dict[str, Any]] = []
 
     for cid, bank in courses_by_id.items():
-        qs = [q for q in bank.get("questions", []) if q.get("available", True)]
+        qs = [q for q in bank.get("questions", []) if isinstance(q, dict) and q.get("id") and q.get("available", True)]
         by_tier = {
             "1": {"total": 0, "done": 0, "revisit": 0, "in_progress": 0, "dueFsrs": 0},
             "2": {"total": 0, "done": 0, "revisit": 0, "in_progress": 0, "dueFsrs": 0},
             "3": {"total": 0, "done": 0, "revisit": 0, "in_progress": 0, "dueFsrs": 0},
         }
         counts: dict[str, Any] = {"total": len(qs), "not_started": 0, "in_progress": 0, "done": 0, "revisit": 0, "dueFsrs": 0, "beatAiItems": 0, "byTier": by_tier}
-        topic_titles = {str(t["id"]): t["title"] for t in bank.get("topics") or []}
+        topic_titles = {
+            str(t.get("id")): str(t.get("title") or f"Topic {t.get('id')}")
+            for t in (bank.get("topics") or [])
+            if isinstance(t, dict) and t.get("id") is not None
+        }
         topic_revisit: dict[str, int] = {}
 
         for q in qs:
             rec = records.get(q["id"]) or {}
+            if not isinstance(rec, dict):
+                rec = {}
             st = rec.get("status") or "not_started"
-            t_key_str = str(min(3, max(1, int(q.get("dlpfcBase") or classify_intrinsic_dlpfc(q)[0]))))
+            raw_base = q.get("dlpfcBase")
+            base_tier = int(raw_base) if (not isinstance(raw_base, bool) and raw_base in (1, 2, 3)) else classify_intrinsic_dlpfc(q)[0]
+            t_key_str = str(min(3, max(1, base_tier)))
             tb = by_tier[t_key_str]
             tb["total"] += 1
             counts[st if st in counts else "not_started"] += 1
             if st in tb:
                 tb[st] += 1
-            if (rec.get("beatAiCount") or 0) > 0:
+            if _safe_int(rec.get("beatAiCount"), 0) > 0:
                 counts["beatAiItems"] += 1
-            fsrs = rec.get("fsrs") or {}
-            if fsrs.get("due") and fsrs["due"] <= now_iso and st in ("done", "revisit"):
-                counts["dueFsrs"] += 1
-                tb["dueFsrs"] += 1
+            fsrs = rec.get("fsrs") if isinstance(rec.get("fsrs"), dict) else {}
+            due_raw = fsrs.get("due")
+            if due_raw and st in ("done", "revisit"):
+                due_dt = _parse_iso_aware(str(due_raw))
+                is_due = (due_dt <= now) if due_dt is not None else (str(due_raw) <= now_iso)
+                if is_due:
+                    counts["dueFsrs"] += 1
+                    tb["dueFsrs"] += 1
             if st == "revisit":
                 tid = str(q.get("topicId") or "")
                 topic_revisit[tid] = topic_revisit.get(tid, 0) + 1
@@ -482,13 +570,13 @@ def build_full_analytics(
     # Active day streak & XP
     active_days: set[str] = set()
     for a in attempts:
-        ts = str(a.get("timestamp") or "")
-        if len(ts) >= 10:
-            active_days.add(ts[:10])
+        dk = _oslo_day(a.get("timestamp"))
+        if dk:
+            active_days.add(dk)
     for s in sessions:
-        ts = str(s.get("endedAt") or "")
-        if len(ts) >= 10:
-            active_days.add(ts[:10])
+        dk = _oslo_day(s.get("endedAt") or s.get("startedAt"))
+        if dk:
+            active_days.add(dk)
 
     streak = 0
     cursor = now.date()
@@ -507,18 +595,9 @@ def build_full_analytics(
 
     correlations = compute_correlations(sessions)
 
-    def _oslo_day(ts_val: Any) -> str:
-        raw = str(ts_val or "")
-        if not raw:
-            return ""
-        try:
-            return datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(OSLO_TZ).strftime("%Y-%m-%d")
-        except Exception:
-            return raw[:10] if len(raw) >= 10 else ""
-
     def _attempt_tier(a_item: dict[str, Any]) -> int:
         raw_t = a_item.get("dlpfcTier")
-        if raw_t in (1, 2, 3):
+        if not isinstance(raw_t, bool) and raw_t in (1, 2, 3):
             return int(raw_t)
         q_o = q_lookup.get(str(a_item.get("questionId") or ""))
         return classify_intrinsic_dlpfc(q_o)[0] if q_o else (1 if a_item.get("kind") == "mcq" else 2)
@@ -526,8 +605,9 @@ def build_full_analytics(
     def _adj_units(a_item: dict[str, Any]) -> float:
         tier = _attempt_tier(a_item)
         tier_w = 1.35 if tier == 3 else (0.75 if tier == 1 else 1.0)
-        par_sec = max(45.0, float(a_item.get("aiParSec") or a_item.get("parSec") or (90 if a_item.get("kind") == "mcq" else 300)))
-        q_acc = clamp(float(a_item.get("qualityAccuracy", 0.8)), 0.3, 1.0)
+        default_par = 90.0 if a_item.get("kind") == "mcq" else 300.0
+        par_sec = max(45.0, _safe_float(a_item.get("aiParSec") or a_item.get("parSec"), default_par))
+        q_acc = clamp(_safe_float(a_item.get("qualityAccuracy"), 0.8), 0.3, 1.0)
         return (par_sec / 180.0) * tier_w * q_acc
 
     last7_days_set = {(now.date() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)}
@@ -573,7 +653,7 @@ def build_full_analytics(
         if not dk:
             continue
         dr = _ensure_day(dk)
-        sec = max(0.0, float(a.get("activeSec") or 0.0))
+        sec = max(0.0, _safe_float(a.get("activeSec"), 0.0))
         tier = _attempt_tier(a)
         cid = str(a.get("courseId") or "")
         dr["attempts"].append(a)
@@ -593,8 +673,8 @@ def build_full_analytics(
         if not dk:
             continue
         dr = _ensure_day(dk)
-        dr["sessActiveSec"] += max(0.0, float(s.get("activeSec") or 0.0))
-        dr["awaySec"] += max(0.0, float(s.get("awaySec") or 0.0))
+        dr["sessActiveSec"] += max(0.0, _safe_float(s.get("activeSec"), 0.0))
+        dr["awaySec"] += max(0.0, _safe_float(s.get("awaySec"), 0.0))
 
     daily_series: list[dict[str, Any]] = []
     for dk in sorted(day_buckets.keys())[-60:]:
@@ -718,14 +798,18 @@ def build_full_analytics(
     }
 
     # Persist compact AI snapshot so LLM agents can read 1 small file for complete study context!
-    snap_path = study_os_root / "data" / "logs" / "ai_context_snapshot.json"
+    snap_path = d_dir / "logs" / "ai_context_snapshot.json"
     snap_path.parent.mkdir(parents=True, exist_ok=True)
     snap_payload = {
         **summary,
         "recentSessions": sessions[-10:],
     }
-    tmp = snap_path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(snap_payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(snap_path)
+    tmp = snap_path.parent / f".{snap_path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+    try:
+        tmp.write_text(json.dumps(snap_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(snap_path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
 
     return summary

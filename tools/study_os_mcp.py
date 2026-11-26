@@ -19,11 +19,41 @@ from urllib.parse import quote, urlencode
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 from uuid import uuid4
 from xml.etree import ElementTree
-from zipfile import ZipFile
+from zipfile import BadZipFile, ZipFile
 
-from mcp.server.fastmcp import FastMCP
-from mcp.types import ToolAnnotations
-from pypdf import PdfReader
+try:
+    from mcp.server.fastmcp import FastMCP
+    from mcp.types import ToolAnnotations
+    HAS_MCP_SDK = True
+except ImportError:  # pragma: no cover - optional runtime dependency (`uv run --script`)
+    HAS_MCP_SDK = False
+
+    class ToolAnnotations:  # type: ignore[no-redef]
+        def __init__(self, **kwargs: Any) -> None:
+            self.annotations = kwargs
+
+    class FastMCP:  # type: ignore[no-redef]
+        def __init__(self, name: str, instructions: str = "") -> None:
+            self.name = name
+            self.instructions = instructions
+            self._tools: dict[str, Any] = {}
+
+        def tool(self, annotations: Any = None):
+            def decorator(fn: Any) -> Any:
+                self._tools[fn.__name__] = fn
+                return fn
+            return decorator
+
+        def run(self, *args: Any, **kwargs: Any) -> None:
+            raise RuntimeError(
+                "The 'mcp' SDK is required to run the stdio MCP server. "
+                "Launch via `uv run --script tools/study_os_mcp.py`."
+            )
+
+try:
+    from pypdf import PdfReader
+except ImportError:  # pragma: no cover - optional runtime dependency
+    PdfReader = None  # type: ignore[assignment]
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "app"))
 from timetable_planner import parse_universal_schedule_payload  # noqa: E402
@@ -206,19 +236,29 @@ def material_index(course_id: str) -> list[dict[str, str]]:
 
 
 def slide_excerpt(source, start: int, count: int) -> list[dict]:
-    with ZipFile(source) as slides:
-        members = {info.filename: info for info in slides.infolist()}
-        results = []
-        for page in range(start, start + count):
-            entry = members.get(f"ppt/slides/slide{page}.xml")
-            if entry is None:
-                break
-            if entry.file_size > 2 * 1024 * 1024:
-                raise ValueError("This slide is too large to parse. Open the original deck.")
-            xml = ElementTree.fromstring(slides.read(entry))
-            tag = "{http://schemas.openxmlformats.org/drawingml/2006/main}t"
-            results.append({"number": page, "text": " ".join(node.text or "" for node in xml.iter(tag))[:10_000]})
-        return results
+    if start < 1 or count < 1:
+        return []
+    max_slide_bytes = 2 * 1024 * 1024
+    try:
+        with ZipFile(source) as slides:
+            members = {info.filename: info for info in slides.infolist()}
+            results = []
+            for page in range(start, start + count):
+                entry = members.get(f"ppt/slides/slide{page}.xml")
+                if entry is None:
+                    break
+                if entry.file_size > max_slide_bytes:
+                    raise ValueError("This slide is too large to parse. Open the original deck.")
+                with slides.open(entry) as fh:
+                    raw = fh.read(max_slide_bytes + 1)
+                if len(raw) > max_slide_bytes:
+                    raise ValueError("This slide is too large to parse. Open the original deck.")
+                xml = ElementTree.fromstring(raw)
+                tag = "{http://schemas.openxmlformats.org/drawingml/2006/main}t"
+                results.append({"number": page, "text": " ".join(node.text or "" for node in xml.iter(tag))[:10_000]})
+            return results
+    except (BadZipFile, ElementTree.ParseError) as exc:
+        raise ValueError("Could not parse slide deck.") from exc
 
 
 @server.tool(annotations=READ)
@@ -248,15 +288,24 @@ def read_course_file(course_id: str, source_id: str, start: int = 1, count: int 
                 source.write(chunk)
             source.seek(0)
             if kind == "pdf":
+                if PdfReader is None:
+                    raise ValueError("PDF text extraction requires the optional 'pypdf' package.")
                 pdf = PdfReader(source)
-                pages = [{"number": i + 1, "text": pdf.pages[i].extract_text()[:10_000]}
+                pages = [{"number": i + 1, "text": (pdf.pages[i].extract_text() or "")[:10_000]}
                          for i in range(start - 1, min(len(pdf.pages), start - 1 + number))]
                 return {**file, "pageCount": len(pdf.pages), "pages": pages}
             if kind == "pptx":
                 return {**file, "slides": slide_excerpt(source, start, number)}
             if kind == "ipynb":
-                cells = json.load(source).get("cells", [])
-                lines = "\n\n".join("".join(cell.get("source", [])) for cell in cells).splitlines()
+                try:
+                    nb_data = json.load(source)
+                    cells = nb_data.get("cells", []) if isinstance(nb_data, dict) else []
+                    lines = "\n\n".join(
+                        "".join(cell.get("source") or []) if isinstance(cell, dict) else ""
+                        for cell in cells
+                    ).splitlines()
+                except (ValueError, TypeError) as exc:
+                    raise ValueError("Could not parse notebook JSON.") from exc
             else:
                 lines = source.read().decode("utf-8-sig", errors="replace").splitlines()
     except URLError as error:
@@ -272,7 +321,9 @@ def search_questions(course_id: str, query: str = "", topic_id: str = "", limit:
     terms = re.findall(r"[\w'-]+", query.casefold())[:12]
     found = []
     for q in bank(course_id).get("questions", []):
-        if not q.get("available", True) or (topic_id and str(q["topicId"]) != topic_id):
+        if not isinstance(q, dict):
+            continue
+        if not q.get("available", True) or (topic_id and str(q.get("topicId") or "") != topic_id):
             continue
         fields = ("title", "promptMarkdown", "contextMarkdown", "searchText")
         text = " ".join(str(q.get(field, "")) for field in fields).casefold()
@@ -289,7 +340,7 @@ def read_question(question_id: str, include_answers: bool = False) -> dict[str, 
     ensure_tutoring_allowed()
     course_id = question_id.split(":", 1)[0]
     course = bank(course_id)
-    question = next((q for q in course.get("questions", []) if q["id"] == question_id), None)
+    question = next((q for q in course.get("questions", []) if isinstance(q, dict) and q.get("id") == question_id), None)
     if question is None:
         raise ValueError("Question not found. Use the ID from search_questions.")
     result = metadata(question)
@@ -340,9 +391,14 @@ def circadian_dlpfc_blueprint(wake_time: str = "07:30", bed_time: str = "23:00")
     """
     boot = call_api("/api/bootstrap")
     prefs = (boot.get("scheduleConfig") or {}).get("prefs") or {}
-    wake = str(prefs.get("wakeTime") or wake_time)
-    bed = str(prefs.get("bedTime") or bed_time)
-    wh, wm = (int(x) for x in wake.split(":")[:2]) if ":" in wake else (7, 30)
+    wake = str(prefs.get("wakeTime") or wake_time).strip()
+    bed = str(prefs.get("bedTime") or bed_time).strip()
+    wake_m_match = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", wake)
+    wh, wm = (int(wake_m_match.group(1)), int(wake_m_match.group(2))) if wake_m_match else (7, 30)
+    if not wake_m_match:
+        wake = "07:30"
+    if not re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", bed):
+        bed = "23:00"
     wake_m = wh * 60 + wm
     fmt = lambda mins: f"{(mins // 60) % 24:02d}:{mins % 60:02d}"
     course_load = []
@@ -415,11 +471,16 @@ def draft_study_set(title: str, cards: list[tuple[str, str]]) -> dict[str, Any]:
     break or evening access. The link contains the cards, so omit private
     information and material that the student cannot share.
     """
+    if not isinstance(title, str) or not isinstance(cards, (list, tuple)):
+        raise ValueError("Use a title of up to 80 characters and 1–30 cards.")
     title = title.strip()
     if not title or len(title) > 80 or not 1 <= len(cards) <= 30:
         raise ValueError("Use a title of up to 80 characters and 1–30 cards.")
     pairs = []
-    for question, answer in cards:
+    for item in cards:
+        if not isinstance(item, (list, tuple)) or len(item) != 2 or not all(isinstance(f, str) for f in item):
+            raise ValueError("Each card must be a (question, answer) pair of plain text strings.")
+        question, answer = item
         pair = (question.strip(), answer.strip())
         if any(not field or len(field) > 250 for field in pair):
             raise ValueError("Use plain text up to 250 characters per field.")
