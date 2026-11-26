@@ -145,6 +145,7 @@
   <noscript><link rel="stylesheet" href="./vendor/katex.min.css"></noscript>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <!-- Top Global Navigation (hidden during active runner mode for zero distraction) -->
   <header id="global-header" class="topbar">
     <div class="topbar-inner">
@@ -409,7 +410,7 @@
     <textarea readonly rows="14" aria-label="Question and answers"></textarea>
     <form method="dialog"><button type="submit" class="ghost-btn">Close</button></form>
   </dialog>
-  <main class="container">
+  <main id="main-content" class="container" tabindex="-1">
     <aside id="mobile-sync-tip" class="mobile-sync-tip" aria-label="Get your plan on this phone" hidden>
       <div>
         <strong>Bring your study plan here</strong>
@@ -491,7 +492,7 @@
             <button type="button" data-home-mins="50" class="active" aria-pressed="true">50m</button>
             <button type="button" data-home-mins="75" aria-pressed="false">75m</button>
           </div>
-          <select id="home-semester-filter" title="Filter by semester" style="padding:7px 10px;font-size:13px" hidden></select>
+          <select id="home-semester-filter" aria-label="Filter by semester" title="Filter by semester" style="padding:7px 10px;font-size:13px" hidden></select>
         </div>
       </div>
       <div id="courses-grid" class="courses-grid"></div>
@@ -1521,6 +1522,7 @@
   <script defer src="./js/core/fsrs.js"></script>
   <script defer src="./js/core/grading.js"></script>
   <script defer src="./js/core/schedule.js"></script>
+  <script defer src="./js/core/analytics.js"></script>
   <script defer src="./js/render.js"></script>
   <script defer src="./js/local-sources.js"></script>
   <script defer src="./js/pdfcraft-editor.js"></script>

@@ -66,6 +66,9 @@ window.StudyMetrics = (() => {
   };
 
   function isoWeekKey(isoDay) {
+    if (typeof window.StudyCore?.isoWeekKey === 'function') {
+      return window.StudyCore.isoWeekKey(isoDay);
+    }
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(isoDay || ''));
     if (!m) return isoDay;
     const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
@@ -75,6 +78,9 @@ window.StudyMetrics = (() => {
   }
 
   function aggregateBuckets(dailySeries, granularity, rangeDays) {
+    if (typeof window.StudyCore?.aggregateDailyBuckets === 'function') {
+      return window.StudyCore.aggregateDailyBuckets(dailySeries, granularity, rangeDays);
+    }
     const sorted = [...(dailySeries || [])].sort((a, b) => a.day.localeCompare(b.day));
     if (!sorted.length) return [];
 
@@ -187,6 +193,9 @@ window.StudyMetrics = (() => {
   }
 
   function niceMax(rawMax, minFloor = 1) {
+    if (typeof window.StudyCore?.computeNiceAxisMax === 'function') {
+      return window.StudyCore.computeNiceAxisMax(rawMax, minFloor);
+    }
     const v = Math.max(minFloor, Number(rawMax) || 0);
     const pow = Math.pow(10, Math.floor(Math.log10(v)));
     const norm = v / pow;
@@ -501,14 +510,16 @@ window.StudyMetrics = (() => {
 
     const course = availableCourses.find((c) => c.courseId === uiState.topicCourseId) || availableCourses[0];
     const rawTopics = [...(matrix[course.courseId] || [])];
-    const sorted = rawTopics.sort((a, b) => {
-      if (uiState.topicSort === 'worked') return (b.workedMin - a.workedMin) || (b.coveragePct - a.coveragePct);
-      if (uiState.topicSort === 'lacking') {
-        const score = (t) => (t.revisitCount > 0 ? -20 : 0) + t.ratioToPar * 100 + (t.doneCount / Math.max(1, t.totalCount)) * 40;
-        return score(a) - score(b);
-      }
-      return (a.order ?? 0) - (b.order ?? 0);
-    });
+    const sorted = typeof window.StudyCore?.sortTopicMatrixRows === 'function'
+      ? window.StudyCore.sortTopicMatrixRows(rawTopics, uiState.topicSort)
+      : rawTopics.sort((a, b) => {
+          if (uiState.topicSort === 'worked') return (b.workedMin - a.workedMin) || (b.coveragePct - a.coveragePct);
+          if (uiState.topicSort === 'lacking') {
+            const score = (t) => (t.revisitCount > 0 ? -20 : 0) + t.ratioToPar * 100 + (t.doneCount / Math.max(1, t.totalCount)) * 40;
+            return score(a) - score(b);
+          }
+          return (a.order ?? 0) - (b.order ?? 0);
+        });
 
     const totalWorkedMin = rawTopics.reduce((s, t) => s + t.workedMin, 0);
     const totalParMin = rawTopics.reduce((s, t) => s + t.recommendedMin, 0);
@@ -826,7 +837,7 @@ window.StudyMetrics = (() => {
               <option value="weekly" ${uiState.heroGranularity === 'weekly' ? 'selected' : ''}>Weekly</option>
               <option value="monthly" ${uiState.heroGranularity === 'monthly' ? 'selected' : ''}>Monthly</option>
             </select>
-            <div class="mc-seg" id="mc-hero-range-seg" ${uiState.heroGranularity !== 'daily' ? 'hidden' : ''}>
+            <div class="mc-seg" id="mc-hero-range-seg" role="group" aria-label="Date range" ${uiState.heroGranularity !== 'daily' ? 'hidden' : ''}>
               <button type="button" class="mc-seg-btn ${uiState.heroRange === 14 ? 'active' : ''}" data-hero-range="14">14D</button>
               <button type="button" class="mc-seg-btn ${uiState.heroRange === 30 ? 'active' : ''}" data-hero-range="30">30D</button>
               <button type="button" class="mc-seg-btn ${uiState.heroRange === 90 ? 'active' : ''}" data-hero-range="90">All</button>
@@ -845,7 +856,7 @@ window.StudyMetrics = (() => {
               <h3 class="mc-card-title">Active Work vs Screen Time</h3>
               <p class="mc-card-sub">Spot slacking: bright bar = real work inside muted total screen time</p>
             </div>
-            <div class="mc-seg">
+            <div class="mc-seg" role="group" aria-label="Screen time granularity">
               <button type="button" class="mc-seg-btn ${uiState.screenGranularity === 'daily' ? 'active' : ''}" data-screen-gran="daily">Daily</button>
               <button type="button" class="mc-seg-btn ${uiState.screenGranularity === 'weekly' ? 'active' : ''}" data-screen-gran="weekly">Weekly</button>
             </div>
@@ -866,11 +877,11 @@ window.StudyMetrics = (() => {
               <p class="mc-card-sub">Compare Oslo study hours across courses or DLPFC difficulty tiers</p>
             </div>
             <div class="mc-controls">
-              <div class="mc-seg">
+              <div class="mc-seg" role="group" aria-label="Breakdown dimension">
                 <button type="button" class="mc-seg-btn ${uiState.stackMode === 'course' ? 'active' : ''}" data-stack-mode="course">Course</button>
                 <button type="button" class="mc-seg-btn ${uiState.stackMode === 'dlpfc' ? 'active' : ''}" data-stack-mode="dlpfc">Difficulty</button>
               </div>
-              <div class="mc-seg">
+              <div class="mc-seg" role="group" aria-label="Breakdown granularity">
                 <button type="button" class="mc-seg-btn ${uiState.stackGranularity === 'daily' ? 'active' : ''}" data-stack-gran="daily">Daily</button>
                 <button type="button" class="mc-seg-btn ${uiState.stackGranularity === 'weekly' ? 'active' : ''}" data-stack-gran="weekly">Weekly</button>
               </div>
@@ -970,7 +981,7 @@ window.StudyMetrics = (() => {
           <button type="button" class="primary-btn" id="btn-copy-ai-brief">Copy AI Brief</button>
           <small class="muted">Local agents also read <code>Study-OS/data/logs/ai_context_snapshot.json</code></small>
         </div>
-        <textarea id="txt-ai-brief" readonly style="font-family:ui-monospace,monospace;font-size:12px;min-height:190px">${esc(ctx.aiBriefText || '')}</textarea>
+        <textarea id="txt-ai-brief" aria-label="AI Coach and telemetry brief" readonly style="font-family:ui-monospace,monospace;font-size:12px;min-height:190px">${esc(ctx.aiBriefText || '')}</textarea>
       </details>
     `;
 

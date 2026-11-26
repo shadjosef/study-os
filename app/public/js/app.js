@@ -27,7 +27,23 @@ window.StudyApp = (() => {
     effectiveDifficulty: coreEffectiveDifficulty,
     effectiveDlpfc: coreEffectiveDlpfc,
     gradeFromPct,
-  } = window.StudyCore;
+    calibratedParSec: coreCalibratedParSec,
+    isAutoGradedAttempt: coreIsAutoGradedAttempt,
+    computeWeightedUpi: coreComputeWeightedUpi,
+    resolveAttemptTier: coreResolveAttemptTier,
+    computeAttemptAdjustedUnits: coreComputeAttemptAdjustedUnits,
+    summarizeAttemptBucket: coreSummarizeAttemptBucket,
+    computeOsloStreakDays: coreComputeOsloStreakDays,
+    computeCheckInCorrelations: coreComputeCheckInCorrelations,
+    classifyVerificationTiers: coreClassifyVerificationTiers,
+    buildTopicMasteryMatrix: coreBuildTopicMasteryMatrix,
+    normalizeAttemptHistoryList: coreNormalizeAttemptHistoryList,
+    isBetterExamAttempt: coreIsBetterExamAttempt,
+    countExamAidUnits: coreCountExamAidUnits,
+    inferCompletedAttempts: coreInferCompletedAttempts,
+    computeExamPaperProgress: coreComputeExamPaperProgress,
+    computeExamAidStats: coreComputeExamAidStats,
+  } = window.StudyCore || {};
 
   let boot = {
     mode: 'local',
@@ -297,6 +313,9 @@ window.StudyApp = (() => {
   }
 
   function normalizeAttemptHistoryList(list) {
+    if (typeof coreNormalizeAttemptHistoryList === 'function') {
+      return coreNormalizeAttemptHistoryList(list);
+    }
     if (!Array.isArray(list)) return [];
     const byKey = new Map();
     for (const item of list) {
@@ -346,6 +365,9 @@ window.StudyApp = (() => {
   }
 
   function isBetterExamAttempt(candPct, candAids, prevPct, prevAids) {
+    if (typeof coreIsBetterExamAttempt === 'function') {
+      return coreIsBetterExamAttempt(candPct, candAids, prevPct, prevAids);
+    }
     if (!Number.isFinite(prevPct) || prevPct < 0) return true;
     if (candPct > prevPct + 0.04) return true;
     if (Math.abs(candPct - prevPct) <= 0.04) {
@@ -357,11 +379,17 @@ window.StudyApp = (() => {
   }
 
   function countExamAidUnits(hints, refQs, openBook = false) {
+    if (typeof coreCountExamAidUnits === 'function') {
+      return coreCountExamAidUnits(hints, refQs, openBook);
+    }
     if (hints == null && refQs == null) return null;
     return Math.max(0, Number(hints || 0)) + (openBook ? 0 : Math.max(0, Number(refQs || 0)));
   }
 
   function inferCompletedAttempts(entry) {
+    if (typeof coreInferCompletedAttempts === 'function') {
+      return coreInferCompletedAttempts(entry);
+    }
     if (!isRecord(entry)) return 0;
     const explicit = Number(entry.completedAttempts);
     const histComplete = Array.isArray(entry.attemptHistory)
@@ -776,6 +804,9 @@ window.StudyApp = (() => {
   }
 
   function calibratedParSec(q, profile = 'learning') {
+    if (typeof coreCalibratedParSec === 'function') {
+      return coreCalibratedParSec(q, profile);
+    }
     if (!q) return 90;
     const prof = profile === 'exam' ? 'exam' : 'learning';
     const rawLearnSec = Math.max(20, Math.round((Number(q.pacing?.learning?.target) || (q.kind === 'mcq' ? 2 : 6)) * 60));
@@ -806,12 +837,18 @@ window.StudyApp = (() => {
   }
 
   function isAutoGradedAttempt(a) {
+    if (typeof coreIsAutoGradedAttempt === 'function') {
+      return coreIsAutoGradedAttempt(a);
+    }
     if (typeof a?.autoGraded === 'boolean') return a.autoGraded;
     const k = String(a?.kind || '').toLowerCase();
     return k === 'mcq' || k === 'wiseflow' || k === 'flowmulti';
   }
 
   function computeWeightedUpi(attempts, focusDensity = 0.9) {
+    if (typeof coreComputeWeightedUpi === 'function') {
+      return coreComputeWeightedUpi(attempts, focusDensity);
+    }
     if (!Array.isArray(attempts) || !attempts.length) return null;
     const fd = Math.max(0, Math.min(1, Number(focusDensity) || 0.9));
     let weightedSum = 0;
@@ -916,10 +953,12 @@ window.StudyApp = (() => {
       return 'night_23_06';
     };
     const attemptTier = (a) => {
+      if (typeof coreResolveAttemptTier === 'function') return coreResolveAttemptTier(a, qTierLookup);
       const raw = Number(a.dlpfcTier || qTierLookup[a.questionId] || (a.kind === 'mcq' ? 1 : 2));
       return Math.min(3, Math.max(1, Number.isFinite(raw) ? raw : 2));
     };
     const attemptAdjUnits = (a) => {
+      if (typeof coreComputeAttemptAdjustedUnits === 'function') return coreComputeAttemptAdjustedUnits(a, qTierLookup);
       const tier = attemptTier(a);
       const tierW = tier === 3 ? 1.35 : tier === 1 ? 0.75 : 1.0;
       const parSec = Math.max(45, Number(a.aiParSec || a.parSec || (a.kind === 'mcq' ? 90 : 300)));
@@ -1104,6 +1143,9 @@ window.StudyApp = (() => {
       });
 
     const summarizeBucket = (arr) => {
+      if (typeof coreSummarizeAttemptBucket === 'function') {
+        return coreSummarizeAttemptBucket(arr, qTierLookup, 0.9);
+      }
       const totalSec = arr.reduce((s, a) => s + Math.max(0, Number(a.activeSec || 0)), 0);
       const pArr = arr.filter((a) => Number.isFinite(Number(a.paceRatio)) && Number(a.paceRatio) > 0);
       return {
@@ -1137,16 +1179,21 @@ window.StudyApp = (() => {
     const prev7Adj = Math.round(prev7Attempts.reduce((s, a) => s + attemptAdjUnits(a), 0) * 10) / 10;
 
     // Streak in Oslo days
-    let streakDays = 0;
-    for (let i = 0; i < 60; i++) {
-      const dk = dayFormat.format(new Date(Date.now() - i * 86_400_000));
-      const dr = dayMap.get(dk);
-      if (dr && (dr.attempts.length > 0 || dr.activeSec >= 180)) {
-        streakDays++;
-      } else if (i > 0) {
-        break;
-      }
-    }
+    const streakDays = typeof coreComputeOsloStreakDays === 'function'
+      ? coreComputeOsloStreakDays(dayMap, Date.now(), 60, 'Europe/Oslo')
+      : (() => {
+          let days = 0;
+          for (let i = 0; i < 60; i++) {
+            const dk = dayFormat.format(new Date(Date.now() - i * 86_400_000));
+            const dr = dayMap.get(dk);
+            if (dr && (dr.attempts.length > 0 || dr.activeSec >= 180)) {
+              days++;
+            } else if (i > 0) {
+              break;
+            }
+          }
+          return days;
+        })();
 
     const todayRow = dayMap.get(today);
     const todayAttempts = todayRow ? todayRow.attempts : [];
@@ -1157,105 +1204,119 @@ window.StudyApp = (() => {
     const todaySessions = (ws.sessions || []).filter((session) => toOsloDay(session.endedAt) === today);
 
     // Check-in subjective-to-UPI correlations (when 3+ check-in sessions exist)
-    const checkedSessions = (ws.sessions || []).filter((s) => s?.checkIn && Number.isFinite(Number(s.upi)));
-    const correlations = [];
-    if (checkedSessions.length >= 3) {
-      for (const [field, label] of [['focus', 'Focus Rating ↔ Session UPI'], ['energy', 'Energy Level ↔ Session UPI'], ['startInertia', 'Start Inertia ↔ Session UPI']]) {
-        const hi = checkedSessions.filter((s) => Number(s.checkIn[field] || 0) >= 4);
-        const lo = checkedSessions.filter((s) => Number(s.checkIn[field] || 0) > 0 && Number(s.checkIn[field]) <= 2);
-        if (hi.length && lo.length) {
-          const avgHi = Math.round(hi.reduce((sum, s) => sum + Number(s.upi), 0) / hi.length);
-          const avgLo = Math.round(lo.reduce((sum, s) => sum + Number(s.upi), 0) / lo.length);
-          const diff = avgHi - avgLo;
-          correlations.push({
-            label,
-            summary: `High (${avgHi} UPI) vs Low (${avgLo} UPI) → ${diff >= 0 ? '+' : ''}${diff} UPI impact across ${hi.length + lo.length} sessions.`,
-          });
-        }
-      }
-    }
+    const correlations = typeof coreComputeCheckInCorrelations === 'function'
+      ? coreComputeCheckInCorrelations(ws.sessions || [])
+      : (() => {
+          const checkedSessions = (ws.sessions || []).filter((s) => s?.checkIn && Number.isFinite(Number(s.upi)));
+          const out = [];
+          if (checkedSessions.length >= 3) {
+            for (const [field, label] of [['focus', 'Focus Rating ↔ Session UPI'], ['energy', 'Energy Level ↔ Session UPI'], ['startInertia', 'Start Inertia ↔ Session UPI']]) {
+              const hi = checkedSessions.filter((s) => Number(s.checkIn[field] || 0) >= 4);
+              const lo = checkedSessions.filter((s) => Number(s.checkIn[field] || 0) > 0 && Number(s.checkIn[field]) <= 2);
+              if (hi.length && lo.length) {
+                const avgHi = Math.round(hi.reduce((sum, s) => sum + Number(s.upi), 0) / hi.length);
+                const avgLo = Math.round(lo.reduce((sum, s) => sum + Number(s.upi), 0) / lo.length);
+                const diff = avgHi - avgLo;
+                out.push({
+                  label,
+                  summary: `High (${avgHi} UPI) vs Low (${avgLo} UPI) → ${diff >= 0 ? '+' : ''}${diff} UPI impact across ${hi.length + lo.length} sessions.`,
+                });
+              }
+            }
+          }
+          return out;
+        })();
 
     // Topic Coverage & Hours Worked vs AI-Par Recommended Hours Before Exam
-    const topicMatrix = {};
-    for (const c of boot.catalog || []) {
-      const statsList = Array.isArray(c.topicStats) && c.topicStats.length
-        ? c.topicStats
-        : (c.topics || []).map((t) => ({
-            id: String(t.id),
-            title: t.title || `Topic ${t.id}`,
-            questionCount: Math.max(1, Math.round((c.questionCount || 10) / Math.max(1, (c.topics || []).length))),
-            parMinutes: Math.max(20, Math.round(((c.questionCount || 10) * 3.5) / Math.max(1, (c.topics || []).length))),
-            questionIds: [],
-          }));
-      topicMatrix[c.courseId] = statsList.map((ts, orderIdx) => {
-        const tid = String(ts.id);
-        const qIds = Array.isArray(ts.questionIds) ? ts.questionIds : [];
-        let doneCount = 0;
-        let revisitCount = 0;
-        let recordCreditMin = 0;
-        const avgQParMin = ts.questionCount > 0 ? (Number(ts.parMinutes) || 20) / ts.questionCount : 3;
-        const attemptedQids = new Set((topicAttempts[`${c.courseId}::${tid}`] || []).map((a) => a.questionId));
-        for (const qid of qIds) {
-          const rec = records[qid];
-          if (!rec) continue;
-          if (rec.status === 'done') {
-            doneCount++;
-            if (!attemptedQids.has(qid)) recordCreditMin += avgQParMin * 0.85;
-          } else if (rec.status === 'revisit') {
-            revisitCount++;
+    const topicMatrix = typeof coreBuildTopicMasteryMatrix === 'function'
+      ? coreBuildTopicMasteryMatrix(boot.catalog || [], records, topicAttemptSec, topicAttempts)
+      : (() => {
+          const matrix = {};
+          for (const c of boot.catalog || []) {
+            const statsList = Array.isArray(c.topicStats) && c.topicStats.length
+              ? c.topicStats
+              : (c.topics || []).map((t) => ({
+                  id: String(t.id),
+                  title: t.title || `Topic ${t.id}`,
+                  questionCount: Math.max(1, Math.round((c.questionCount || 10) / Math.max(1, (c.topics || []).length))),
+                  parMinutes: Math.max(20, Math.round(((c.questionCount || 10) * 3.5) / Math.max(1, (c.topics || []).length))),
+                  questionIds: [],
+                }));
+            matrix[c.courseId] = statsList.map((ts, orderIdx) => {
+              const tid = String(ts.id);
+              const qIds = Array.isArray(ts.questionIds) ? ts.questionIds : [];
+              let doneCount = 0;
+              let revisitCount = 0;
+              let recordCreditMin = 0;
+              const avgQParMin = ts.questionCount > 0 ? (Number(ts.parMinutes) || 20) / ts.questionCount : 3;
+              const attemptedQids = new Set((topicAttempts[`${c.courseId}::${tid}`] || []).map((a) => a.questionId));
+              for (const qid of qIds) {
+                const rec = records[qid];
+                if (!rec) continue;
+                if (rec.status === 'done') {
+                  doneCount++;
+                  if (!attemptedQids.has(qid)) recordCreditMin += avgQParMin * 0.85;
+                } else if (rec.status === 'revisit') {
+                  revisitCount++;
+                }
+              }
+              const tk = `${c.courseId}::${tid}`;
+              const tAtts = topicAttempts[tk] || [];
+              const workedMin = Math.round(((topicAttemptSec[tk] || 0) / 60 + recordCreditMin) * 10) / 10;
+              const recommendedMin = Math.max(15, Math.round(Number(ts.parMinutes) || 20));
+              const ratioToPar = recommendedMin > 0 ? workedMin / recommendedMin : 0;
+              const totalCount = Math.max(1, Number(ts.questionCount) || qIds.length || 1);
+              const coveragePct = Math.min(100, Math.round((doneCount / totalCount) * 100));
+              const tPaceArr = tAtts.filter((a) => Number.isFinite(Number(a.paceRatio)) && Number(a.paceRatio) > 0);
+              const avgTopicPace = tPaceArr.length
+                ? Math.round((tPaceArr.reduce((s, a) => s + Number(a.paceRatio), 0) / tPaceArr.length) * 100) / 100
+                : null;
+              const avgTopicAcc = tAtts.length
+                ? tAtts.reduce((s, a) => s + Number(a.qualityAccuracy || 0), 0) / tAtts.length
+                : null;
+              const status = (ratioToPar >= 0.72 || coveragePct >= 75) && (avgTopicAcc == null || avgTopicAcc >= 0.72) && revisitCount <= 1
+                ? 'ready'
+                : (ratioToPar >= 0.3 || coveragePct >= 30)
+                ? 'building'
+                : 'lacking';
+              return {
+                id: tid,
+                order: orderIdx,
+                title: ts.title || `Topic ${tid}`,
+                workedMin,
+                recommendedMin,
+                ratioToPar,
+                doneCount,
+                totalCount,
+                revisitCount,
+                coveragePct,
+                avgPaceRatio: avgTopicPace,
+                avgAccuracy: avgTopicAcc,
+                status,
+              };
+            });
           }
-        }
-        const tk = `${c.courseId}::${tid}`;
-        const tAtts = topicAttempts[tk] || [];
-        const workedMin = Math.round(((topicAttemptSec[tk] || 0) / 60 + recordCreditMin) * 10) / 10;
-        // Exact 1.0x AI-Par target summed across this topic's exercises
-        const recommendedMin = Math.max(15, Math.round(Number(ts.parMinutes) || 20));
-        const ratioToPar = recommendedMin > 0 ? workedMin / recommendedMin : 0;
-        const totalCount = Math.max(1, Number(ts.questionCount) || qIds.length || 1);
-        const coveragePct = Math.min(100, Math.round((doneCount / totalCount) * 100));
-        const tPaceArr = tAtts.filter((a) => Number.isFinite(Number(a.paceRatio)) && Number(a.paceRatio) > 0);
-        const avgTopicPace = tPaceArr.length
-          ? Math.round((tPaceArr.reduce((s, a) => s + Number(a.paceRatio), 0) / tPaceArr.length) * 100) / 100
-          : null;
-        const avgTopicAcc = tAtts.length
-          ? tAtts.reduce((s, a) => s + Number(a.qualityAccuracy || 0), 0) / tAtts.length
-          : null;
-        const status = (ratioToPar >= 0.72 || coveragePct >= 75) && (avgTopicAcc == null || avgTopicAcc >= 0.72) && revisitCount <= 1
-          ? 'ready'
-          : (ratioToPar >= 0.3 || coveragePct >= 30)
-          ? 'building'
-          : 'lacking';
-        return {
-          id: tid,
-          order: orderIdx,
-          title: ts.title || `Topic ${tid}`,
-          workedMin,
-          recommendedMin,
-          ratioToPar,
-          doneCount,
-          totalCount,
-          revisitCount,
-          coveragePct,
-          avgPaceRatio: avgTopicPace,
-          avgAccuracy: avgTopicAcc,
-          status,
-        };
-      });
-    }
+          return matrix;
+        })();
 
-    const verification = { auto_graded: 0, ide_verified: 0, self_verified: 0, fast_flag: 0 };
-    for (const a of attempts) {
-      const vt = a.verificationTier || (
-        isAutoGradedAttempt(a)
-          ? 'auto_graded'
-          : a.source === 'ide_companion'
-          ? 'ide_verified'
-          : (Number(a.activeSec || 0) > 0 && Number(a.aiParSec || 0) >= 120 && Number(a.activeSec) < Number(a.aiParSec) * 0.12)
-          ? 'fast_flag'
-          : 'self_verified'
-      );
-      verification[vt] = (verification[vt] || 0) + 1;
-    }
+    const verification = typeof coreClassifyVerificationTiers === 'function'
+      ? coreClassifyVerificationTiers(attempts)
+      : (() => {
+          const out = { auto_graded: 0, ide_verified: 0, self_verified: 0, fast_flag: 0 };
+          for (const a of attempts) {
+            const vt = a.verificationTier || (
+              isAutoGradedAttempt(a)
+                ? 'auto_graded'
+                : a.source === 'ide_companion'
+                ? 'ide_verified'
+                : (Number(a.activeSec || 0) > 0 && Number(a.aiParSec || 0) >= 120 && Number(a.activeSec) < Number(a.aiParSec) * 0.12)
+                ? 'fast_flag'
+                : 'self_verified'
+            );
+            out[vt] = (out[vt] || 0) + 1;
+          }
+          return out;
+        })();
 
     boot.progress = { records };
     boot.recentSessions = (ws.sessions || []).slice(-25).reverse();
@@ -4418,6 +4479,9 @@ window.StudyApp = (() => {
   }
 
   function computeExamPaperProgress(qIds, records, attemptsByQid, savedResult = null, col = null) {
+    if (typeof coreComputeExamPaperProgress === 'function') {
+      return coreComputeExamPaperProgress(qIds, records, attemptsByQid, savedResult, col);
+    }
     const total = qIds.length;
     let done = 0;
     let revisit = 0;
@@ -4804,7 +4868,7 @@ window.StudyApp = (() => {
             <section class="panel exam-course-card course-card-maintenance" id="exam-card-${esc(c.courseId)}" style="border-left-color:${esc(c.color)}">
               <div class="row-between" style="margin-top:0">
                 <div style="flex:1;min-width:260px">
-                  <span class="eyebrow" style="color:${esc(c.color)}">${esc(c.code)} · ${esc(maint.eta)}</span>
+                  <span class="eyebrow exam-course-eyebrow" style="--course-accent:${esc(c.color)}">${esc(c.code)} · ${esc(maint.eta)}</span>
                   <h2>${esc(c.title)}</h2>
                   <p class="muted" style="font-size:13.5px;margin:6px 0 0">${esc(maint.detail)}</p>
                 </div>
@@ -4855,7 +4919,7 @@ window.StudyApp = (() => {
           <section class="panel exam-course-card" id="exam-card-${esc(c.courseId)}" style="border-left-color:${esc(c.color)}">
             <div class="row-between" style="margin-top:0;align-items:flex-start">
               <div style="flex:1;min-width:260px">
-                <span class="eyebrow" style="color:${esc(c.color)}">${esc(c.code)} · ${esc(c.examInfo?.format || 'Exam Preparation')}</span>
+                <span class="eyebrow exam-course-eyebrow" style="--course-accent:${esc(c.color)}">${esc(c.code)} · ${esc(c.examInfo?.format || 'Exam Preparation')}</span>
                 <h2>${esc(c.title)}</h2>
                 <div class="exam-course-prog">
                   <div class="exam-course-prog-meta">
@@ -6461,7 +6525,7 @@ window.StudyApp = (() => {
         </div>
 
         <div class="explorer-primary-bar" style="margin-top:12px">
-          <input type="search" id="flt-search" placeholder="Search concepts, formulas, question IDs…" style="min-width:190px;flex:1.2">
+          <input type="search" id="flt-search" aria-label="Search concepts, formulas, or question IDs" placeholder="Search concepts, formulas, question IDs…" style="min-width:190px;flex:1.2">
           <select id="flt-origin" aria-label="Source provenance" style="min-width:165px">
             <option value="all">All Sources (Official First)</option>
             <option value="official_only">Real BI Tasks Only (No Al)</option>
@@ -7409,6 +7473,9 @@ window.StudyApp = (() => {
   function computeExamAidStats() {
     const attempts = isStaticWeb ? (loadWebState().attempts || []) : [];
     const examResults = loadExamResultsMap();
+    if (typeof coreComputeExamAidStats === 'function') {
+      return coreComputeExamAidStats(attempts, examResults, boot.catalog || []);
+    }
     const courseById = new Map((boot.catalog || []).map((c) => [c.courseId, c]));
     const topicTitleMap = new Map();
     for (const c of boot.catalog || []) {
@@ -8513,7 +8580,7 @@ window.StudyApp = (() => {
                 <button type="button" class="ghost-btn" id="btn-copy-llm-prompt">Copy schedule prompt</button>
                 <button type="button" class="primary-btn" id="btn-apply-llm-sched">Apply pasted JSON / .ics →</button>
               </div>
-              <textarea id="llm-paste-box" style="min-height:92px;font-family:ui-monospace,monospace;font-size:12px" placeholder='Paste study-os-schedule-v1 JSON or BEGIN:VCALENDAR .ics here…'></textarea>
+              <textarea id="llm-paste-box" aria-label="Paste schedule JSON or iCalendar (.ics)" style="min-height:92px;font-family:ui-monospace,monospace;font-size:12px" placeholder='Paste study-os-schedule-v1 JSON or BEGIN:VCALENDAR .ics here…'></textarea>
             </div>
           </div>
         </details>
