@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Python stdlib bytecode & warning check
         run: |
@@ -66,9 +66,11 @@ jobs:
       - name: Headless Chromium E2E smoke test
         run: |
           mkdir -p /tmp/pw-ci
-          npm --prefix /tmp/pw-ci install --no-save playwright@1.52.0
-          /tmp/pw-ci/node_modules/.bin/playwright install --with-deps chromium
-          PLAYWRIGHT_MODULE=/tmp/pw-ci/node_modules/playwright node tools/smoke_test_e2e.mjs /tmp/study-os-ci-dist
+          npm --prefix /tmp/pw-ci install --no-save playwright-core@latest
+          if ! command -v google-chrome >/dev/null 2>&1 && ! command -v chromium >/dev/null 2>&1; then
+            /tmp/pw-ci/node_modules/.bin/playwright-core install chromium
+          fi
+          PLAYWRIGHT_MODULE=/tmp/pw-ci/node_modules/playwright-core node tools/smoke_test_e2e.mjs /tmp/study-os-ci-dist
 
       - name: Fresh-clone CLI & HTTP smoke test (zero data/)
         run: |

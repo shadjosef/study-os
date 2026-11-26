@@ -17,13 +17,19 @@ if (!fs.existsSync(path.join(distDir, 'index.html'))) {
 
 const require = createRequire(import.meta.url);
 let pw = null;
-for (const candidate of [process.env.PLAYWRIGHT_MODULE, 'playwright', '/tmp/pw-ci/node_modules/playwright'].filter(Boolean)) {
+for (const candidate of [
+  process.env.PLAYWRIGHT_MODULE,
+  'playwright-core',
+  'playwright',
+  '/tmp/pw-ci/node_modules/playwright-core',
+  '/tmp/pw-ci/node_modules/playwright',
+].filter(Boolean)) {
   try {
     pw = require(candidate);
     break;
   } catch {}
 }
-if (!pw) throw new Error('Playwright module not found. Set PLAYWRIGHT_MODULE or install playwright.');
+if (!pw) throw new Error('Playwright module not found. Set PLAYWRIGHT_MODULE or install playwright-core.');
 const { chromium } = pw;
 
 const MIME = {
@@ -76,7 +82,14 @@ const { server, baseUrl } = await startStaticServer(distDir);
 let browser;
 
 try {
-  browser = await chromium.launch({ headless: true });
+  const sysChrome = [
+    process.env.CHROME_PATH,
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ].find((p) => p && fs.existsSync(p));
+  browser = await chromium.launch(sysChrome ? { headless: true, executablePath: sysChrome } : { headless: true });
   const context = await browser.newContext();
   const page = await context.newPage();
 
