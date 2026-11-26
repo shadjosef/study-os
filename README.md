@@ -3,7 +3,7 @@
 <br/>
 
 <a href="https://studyos.no/">
-  <img src="app/public/pwa/study-os-192.png" alt="Study-OS" width="116" height="116" style="border-radius:26px" />
+  <img src="docs/screenshots/brand-icon.png" alt="Study-OS" width="116" height="116" />
 </a>
 
 <h1>Study-OS</h1>
@@ -17,16 +17,22 @@
 <p>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-147d64?style=flat-square&labelColor=334155" alt="License: MIT" /></a>
   <img src="https://img.shields.io/badge/built%20with-Zero--dep%20JS%20%26%20Python-147d64?style=flat-square&labelColor=334155" alt="Built with zero-dep JS & Python" /><br/>
-  <img src="https://img.shields.io/badge/runs%20on-Web%20%C2%B7%20macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-147d64?style=flat-square&labelColor=334155" alt="Runs on Web, macOS, Windows, Linux" /><br/>
+  <img src="https://img.shields.io/badge/runs%20on-Web%20%C2%B7%20macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-147d64?style=flat-square&labelColor=334155" alt="Runs on Web, macOS, Windows, Linux" />
+  <img src="https://img.shields.io/badge/tests-108%20passing-0f5f4c?style=flat-square&labelColor=334155" alt="108 automated tests passing" /><br/>
   <img src="https://img.shields.io/badge/local--first-EU%20GDPR-0f5f4c?style=flat-square&labelColor=334155" alt="Local-first EU GDPR" />
-  <a href="https://github.com/shadjosef/study-os/actions/workflows/ci.yml"><img src="https://github.com/shadjosef/study-os/actions/workflows/ci.yml/badge.svg" alt="Study-OS CI" /></a>
-  <a href="https://github.com/shadjosef/study-os/actions/workflows/pages.yml"><img src="https://github.com/shadjosef/study-os/actions/workflows/pages.yml/badge.svg" alt="Deploy Static Hub" /></a>
+  <a href="https://github.com/shadjosef/study-os/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/shadjosef/study-os/ci.yml?style=flat-square&label=CI&labelColor=334155" alt="Study-OS CI" /></a>
+  <a href="https://github.com/shadjosef/study-os/actions/workflows/pages.yml"><img src="https://img.shields.io/github/actions/workflow/status/shadjosef/study-os/pages.yml?style=flat-square&label=Pages&labelColor=334155" alt="Deploy Static Hub" /></a>
+</p>
+
+<p>
+  <a href="https://studyos.no/"><img src="https://img.shields.io/badge/OPEN%20STUDYOS.NO-147d64?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Open Study-OS on studyos.no" /></a>
 </p>
 
 <p>
   <a href="https://studyos.no/"><strong>Study-OS on studyos.no</strong></a> ·
   <a href="https://studyos.no/notes.html">Course Notes</a> ·
   <a href="https://studyos.no/bi-canvas-timeedit-sync.html">Chrome Extension</a> ·
+  <a href="docs/DESKTOP_TELEMETRY.md">Desktop Edition</a> ·
   <a href="https://studyos.no/universities.html">13+ Universities</a> ·
   <a href="https://studyos.no/norsk.html">Norsk</a>
 </p>
@@ -49,6 +55,7 @@
   <a href="#verified-exercises--interactive-worksheets">Verified Exercises</a> ·
   <a href="#comprehensive-reference-sheets">Reference Sheets</a> ·
   <a href="#adaptive-schedule--calendar-sync">Schedule &amp; Calendar</a> ·
+  <a href="#metrics-telemetry--opt-in-desktop-control">Metrics &amp; Desktop</a> ·
   <a href="#leaderboard-study-pods--1v1-duels">Leaderboard</a> ·
   <a href="#1-click-canvas-timeedit--ed-sync">Canvas Sync</a> ·
   <a href="#vs-code-companion-ai-tutor--mcp">VS Code &amp; MCP</a> ·
@@ -119,6 +126,18 @@
 - **Calendar-integrated study planning.** Sync lectures automatically from **TimeEdit / TP** (`.ics`) alongside **Canvas** assignment deadlines, and export your planned study blocks back to `.ics`.
 - **Circadian `High / Med / Low-dlPFC` slotting.** Set your wake-up time (with 8h sleep protected) and weekly paid work hours (`0–45h/wk`); Study-OS schedules heavy analytical blocks in peak morning focus and lighter recall in the evening.
 - **Early completion & Study Debt rollover.** Finish upcoming blocks ahead of schedule (`Done early ✓`), or let missed blocks roll transparently into a visible **Study Debt** stack until cleared.
+
+---
+
+## Metrics, Telemetry & Opt-In Desktop Control
+
+<p align="center">
+  <img src="docs/screenshots/metrics-telemetry-light.png" alt="Study-OS Metrics and Telemetry dashboard showing reconciled Oslo focus efficiency, UPI score, AI-Par pace, data sources strip, and SHA-256 JSON/CSV export" width="880" />
+</p>
+<p align="center"><sub>Institutional-grade Oslo telemetry with reconciled focus efficiency, 12-week consistency heatmap, FSRS-5 14-day review forecast, peak Oslo hour profile, and verifiable SHA-256 JSON &amp; CSV exports.</sub></p>
+
+- **Full-visibility analytics & data ownership.** Track active study hours vs. screen drift, UPI score, Pace vs. AI Par, 12-week Oslo consistency heatmap, FSRS-5 retention & 14-day due load, and peak study hours — with 1-click **SHA-256 Telemetry JSON** and **RFC-4180 CSV** exports.
+- **Opt-In Open-Source Desktop Edition (`app/desktop_tracker.py`).** Want OS-level app telemetry across VS Code, Excel, Obsidian, and PDFs plus an opt-in **Focus Shield**? Run locally on `127.0.0.1:8765` (off by default, AST-verified zero network imports, zero keylogging/screenshots, 1-click Pause/Incognito, live `sourceSha256` verification, and SLSA-attested GitHub Releases with `SHA256SUMS.txt`). See [`docs/DESKTOP_TELEMETRY.md`](docs/DESKTOP_TELEMETRY.md).
 
 ---
 
@@ -217,20 +236,20 @@ python3 app/server.py
 **Build, test, audit & CLI tools:**
 
 ```bash
-node --test tests/core.test.mjs tests/analytics.test.mjs tests/worker/security.test.mjs  # 67 zero-dep core, analytics & edge-security tests
-python3 -m unittest discover -s tests/python -v # 27 stdlib backend, HTTP security & FSRS parity tests
+node --test tests/core.test.mjs tests/analytics.test.mjs tests/metrics-reconcile.test.mjs tests/worker/security.test.mjs  # 73 zero-dep core, telemetry & edge-security tests
+python3 -m unittest discover -s tests/python -v # 35 stdlib backend, desktop tracker, HTTP security & FSRS parity tests
 python3 tools/cli.py rebuild-catalog            # Validate schemas, assets & refresh catalog
 python3 tools/cli.py status                     # Print live UPI & course telemetry JSON
 python3 tools/build_public_site.py --out dist   # Build static website bundle + PWA precache
 python3 tools/seo_audit.py --dir dist           # Audit all 23 sitemap URLs, .md mirrors & llms-full.txt
 ```
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full system design, [`CONTRIBUTING.md`](CONTRIBUTING.md) for local development & PR checks, and [`SECURITY.md`](SECURITY.md) for the local-first IndexedDB vault privacy model, WebAuthn/EU D1 architecture, and vulnerability reporting policy.
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full system design, [`docs/DESKTOP_TELEMETRY.md`](docs/DESKTOP_TELEMETRY.md) for the verifiable local desktop tracker specification, [`CONTRIBUTING.md`](CONTRIBUTING.md) for local development & PR checks, and [`SECURITY.md`](SECURITY.md) for the local-first IndexedDB vault privacy model, WebAuthn/EU D1 architecture, and vulnerability reporting policy.
 
 <details>
 <summary><strong>Encrypted Member Library &amp; GitHub Pages Self-Hosting</strong></summary>
 
 - **Member library:** Paste a shared access string on the website to decrypt local question banks and linked source excerpts in-browser (**Remember on this browser** stores a non-extractable key; **Lock full library** clears it). Build or rotate keys with `tools/build_member_library.py` (Python + `cryptography`, keeping key files outside Git) and publish `study-os-members.zip` to a GitHub prerelease referenced by `site-pack/member-archive.json`.
-- **Self-hosting:** Run `python3 tools/build_public_site.py --sync-pack --cname yourdomain.me` and push to `main` — `.github/workflows/pages.yml` deploys automatically after `.github/workflows/ci.yml` passes Python `-Werror`, 27 Python backend tests, JS syntax, `tsc` JSDoc checks, 67 Node unit & edge-security tests, VSIX/MV3 validation, SEO/GEO audit, and 8-gate headless Chromium E2E tests (including A11y, CLS, mobile overflow & PWA Service Worker checks).
+- **Self-hosting:** Run `python3 tools/build_public_site.py --sync-pack --cname yourdomain.me` and push to `main` — `.github/workflows/pages.yml` deploys automatically after `.github/workflows/ci.yml` passes Python `-Werror`, 35 Python backend/desktop tests, JS syntax, `tsc` JSDoc checks, 73 Node unit & edge-security tests, VSIX/MV3 validation, SEO/GEO audit, and 8-gate headless Chromium E2E tests (including A11y, CLS, mobile overflow & PWA Service Worker checks).
 
 </details>
