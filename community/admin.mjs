@@ -276,7 +276,11 @@ export async function handleAdmin({ request, url, db, env, me, isAdmin, now, dat
       const conflict = await db.prepare('SELECT 1 FROM profiles WHERE nickname = ? AND id <> ?')
         .bind(nextNick, memberId).first();
       if (conflict) return reply({ error: 'That nickname is taken.' }, 409);
-      await db.prepare('UPDATE profiles SET nickname = ? WHERE id = ?').bind(nextNick, memberId).run();
+      try {
+        await db.prepare('UPDATE profiles SET nickname = ? WHERE id = ?').bind(nextNick, memberId).run();
+      } catch {
+        return reply({ error: 'That nickname is taken.' }, 409);
+      }
       return reply({ ok: true });
     }
     if (action === 'remove') {

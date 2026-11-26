@@ -633,8 +633,8 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
                 limit,
                 remaining: Math.max(0, limit - (gotAny ? usedAfter : usedBefore)),
               })}\n\n`));
-            } catch (err) {
-              controller.enqueue(enc.encode(`data: ${JSON.stringify({ error: err?.message || 'Stream interrupted.' })}\n\n`));
+            } catch {
+              controller.enqueue(enc.encode(`data: ${JSON.stringify({ error: 'Stream interrupted.' })}\n\n`));
             } finally {
               controller.close();
             }
@@ -646,6 +646,9 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
           headers: {
             'Content-Type': 'text/event-stream; charset=utf-8',
             'Cache-Control': 'no-cache, no-store',
+            'X-Content-Type-Options': 'nosniff',
+            'Referrer-Policy': 'strict-origin-when-cross-origin',
+            'X-Frame-Options': 'DENY',
             ...corsHeaders,
           },
         });
@@ -675,7 +678,7 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
       }
     }
     if (!result) {
-      return reply({ error: firstError?.message || 'Adamlite is temporarily busy. Please try again.' }, 502);
+      return reply({ error: 'Adamlite is temporarily busy. Please try again.' }, 502);
     }
 
     await bumpUsage(db, me.id, dayUtc, now);
@@ -779,7 +782,7 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
       }
     }
     if (!result) {
-      return reply({ error: firstError?.message || 'Could not generate set right now. Try again or use "Your Own AI".' }, 502);
+      return reply({ error: 'Could not generate set right now. Try again or use "Your Own AI".' }, 502);
     }
 
     let parsedSet;
@@ -787,7 +790,10 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
       const fallbackTitle = [courseCode, courseTitle].filter(Boolean).join(' · ') || 'Custom Study Set';
       parsedSet = parseGeneratedSetJson(result.reply, fallbackTitle);
     } catch (err) {
-      return reply({ error: err?.message || 'AI output could not be parsed. Please try again.' }, 502);
+      const safeMsg = err?.message === 'AI returned no valid practice questions. Try again.'
+        ? err.message
+        : 'AI output could not be parsed. Please try again.';
+      return reply({ error: safeMsg }, 502);
     }
 
     await bumpUsage(db, me.id, dayUtc, now);
@@ -953,7 +959,7 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
       }
     }
     if (!result) {
-      return reply({ error: firstError?.message || 'Could not generate schedule right now — try Quick auto-plan.' }, 502);
+      return reply({ error: 'Could not generate schedule right now — try Quick auto-plan.' }, 502);
     }
 
     let parsedPlan;
@@ -968,7 +974,10 @@ export async function handleAi({ request, path, db, env, me, isAdmin, now, data,
         sleepHours,
       });
     } catch (err) {
-      return reply({ error: err?.message || 'Could not parse generated schedule. Please try again.' }, 502);
+      const safeMsg = typeof err?.message === 'string' && err.message.startsWith('Hydrogen returned no valid study blocks')
+        ? err.message
+        : 'Could not parse generated schedule. Please try again.';
+      return reply({ error: safeMsg }, 502);
     }
 
     await bumpUsage(db, me.id, dayUtc, now);

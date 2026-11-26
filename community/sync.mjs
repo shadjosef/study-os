@@ -5,9 +5,14 @@ const MAX_PAYLOAD_BYTES = 500_000;
 const MAX_RECORDS = 5000;
 const MAX_ATTEMPTS = 5000;
 const MAX_SESSIONS = 500;
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function isObj(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
+
+function isSafeKey(k) {
+  return typeof k === 'string' && k.length > 0 && !FORBIDDEN_KEYS.has(k);
 }
 
 function canvasForSync(raw) {
@@ -46,7 +51,7 @@ function cleanCompletedEvents(raw) {
   const out = {};
   let count = 0;
   for (const [k, v] of Object.entries(raw)) {
-    if (typeof k !== 'string' || !k || k.length > 160) continue;
+    if (!isSafeKey(k) || k.length > 160) continue;
     if (typeof v === 'string' && Number.isFinite(Date.parse(v))) {
       out[k] = { at: new Date(v).toISOString(), early: false, method: 'manual' };
     } else if (isObj(v) && typeof v.at === 'string' && Number.isFinite(Date.parse(v.at))) {
@@ -68,7 +73,7 @@ function cleanDismissedEvents(raw) {
   const out = {};
   let count = 0;
   for (const [k, v] of Object.entries(raw)) {
-    if (typeof k !== 'string' || !k || k.length > 160) continue;
+    if (!isSafeKey(k) || k.length > 160) continue;
     if (typeof v === 'string' && Number.isFinite(Date.parse(v))) {
       out[k] = new Date(v).toISOString();
       if (++count >= 300) break;
@@ -373,7 +378,7 @@ function cleanTelemetryByDevice(raw) {
       if (isObj(vals.courseSec)) {
         let cc = 0;
         for (const [cid, sec] of Object.entries(vals.courseSec)) {
-          if (typeof cid !== 'string' || !cid || cid.length > 48) continue;
+          if (!isSafeKey(cid) || cid.length > 48) continue;
           const n = Math.min(86400, Math.max(0, Math.round(Number(sec) || 0)));
           if (n > 0) {
             courseSec[cid] = n;
@@ -450,7 +455,7 @@ export async function handleSync({ request, db, me, now, data, reply }) {
       return reply({ error: 'Invalid sync payload.' }, 400);
     }
     const recordEntries = Object.entries(rawRecords)
-      .filter(([qid, rec]) => typeof qid === 'string' && qid.includes(':') && qid.length <= 160 && isObj(rec))
+      .filter(([qid, rec]) => isSafeKey(qid) && qid.includes(':') && qid.length <= 160 && isObj(rec))
       .slice(0, MAX_RECORDS);
     const records = Object.fromEntries(recordEntries);
 
@@ -468,7 +473,7 @@ export async function handleSync({ request, db, me, now, data, reply }) {
           updatedAt: typeof data.customSchedule.updatedAt === 'string' ? data.customSchedule.updatedAt.slice(0, 64) : '',
           aiSummary: typeof data.customSchedule.aiSummary === 'string' ? data.customSchedule.aiSummary.slice(0, 260) : '',
           modelLabel: typeof data.customSchedule.modelLabel === 'string' ? data.customSchedule.modelLabel.slice(0, 60) : '',
-          prefs: Object.fromEntries(Object.entries(data.customSchedule.prefs).filter(([key]) => key !== 'timeeditUrl')),
+          prefs: Object.fromEntries(Object.entries(data.customSchedule.prefs).filter(([key]) => isSafeKey(key) && key !== 'timeeditUrl')),
           blocks: data.customSchedule.blocks.filter(isObj).slice(0, 200),
           completedEvents: cleanCompletedEvents(data.customSchedule.completedEvents),
           dismissedEvents: cleanDismissedEvents(data.customSchedule.dismissedEvents),

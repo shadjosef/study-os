@@ -108,14 +108,15 @@ export async function handleMaterials({ request, url, path, db, me, now, data, r
     if (!Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > MAX_FILE_BYTES) {
       return reply({ error: `Each file must be under ${Math.round(MAX_FILE_BYTES / (1024 * 1024))} MB.` }, 413);
     }
-    if (!Number.isSafeInteger(chunkCount) || chunkCount < 1 || chunkCount > MAX_CHUNKS_PER_FILE) {
+    const expectedMaxChunks = Math.max(1, Math.ceil(sizeBytes / CHUNK_BYTES));
+    if (!Number.isSafeInteger(chunkCount) || chunkCount < 1 || chunkCount > MAX_CHUNKS_PER_FILE || chunkCount > expectedMaxChunks) {
       return reply({ error: 'Invalid upload chunk count.' }, 400);
     }
 
     const usage = await db.prepare(`
       SELECT COUNT(*) AS cnt, COALESCE(SUM(size_bytes), 0) AS totalBytes
       FROM user_materials
-      WHERE profile_id = ? AND complete = 1
+      WHERE profile_id = ?
     `).bind(me.id).first();
 
     if (Number(usage?.cnt || 0) >= MAX_FILES_PER_USER) {
@@ -142,6 +143,14 @@ export async function handleMaterials({ request, url, path, db, me, now, data, r
       return reply({ error: 'Invalid material chunk.' }, 400);
     }
     if (!chunkB64 || chunkB64.length > 420_000 || !B64_RE.test(chunkB64)) {
+      return reply({ error: 'Invalid base64 chunk data.' }, 400);
+    }
+    try {
+      const decoded = decodeBase64ToBytes(chunkB64);
+      if (decoded.byteLength > CHUNK_BYTES + 1024) {
+        return reply({ error: 'Chunk exceeds maximum chunk size.' }, 413);
+      }
+    } catch {
       return reply({ error: 'Invalid base64 chunk data.' }, 400);
     }
 
@@ -211,7 +220,12 @@ export async function handleMaterials({ request, url, path, db, me, now, data, r
       ORDER BY chunk_index ASC
     `).bind(id).all();
 
-    const parts = (results || []).map((r) => decodeBase64ToBytes(r.data_b64));
+    let parts;
+    try {
+      parts = (results || []).map((r) => decodeBase64ToBytes(r.data_b64));
+    } catch {
+      return reply({ error: 'Stored file data is corrupt.' }, 500);
+    }
     const total = parts.reduce((sum, p) => sum + p.byteLength, 0);
     const merged = new Uint8Array(total);
     let offset = 0;
@@ -221,15 +235,20 @@ export async function handleMaterials({ request, url, path, db, me, now, data, r
     }
 
     const meta = ALLOWED_MIMES.get(row.mimeType) || { inline: false };
-    const safeFile = String(row.title || 'material').replace(/["\r\n\\]/g, '_');
+    const rawTitle = cleanTitle(row.title) || 'material';
+    const safeAscii = rawTitle.replace(/[^\x20-\x7e]|["\\;]/g, '_') || 'material';
+    const utf8Encoded = encodeURIComponent(rawTitle);
     return new Response(merged, {
       status: 200,
       headers: {
         ...corsHeaders,
         'Content-Type': meta.inline ? row.mimeType : 'application/octet-stream',
-        'Content-Disposition': `${meta.inline ? 'inline' : 'attachment'}; filename="${safeFile}"`,
+        'Content-Disposition': `${meta.inline ? 'inline' : 'attachment'}; filename="${safeAscii}"; filename*=UTF-8''${utf8Encoded}`,
         'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'X-Frame-Options': 'DENY',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
       },
     });
   }

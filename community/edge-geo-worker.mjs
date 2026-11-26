@@ -105,8 +105,10 @@ export default {
         headers.set('Content-Type', 'text/markdown; charset=utf-8');
         headers.set('Vary', 'Accept');
         headers.set('X-Markdown-Source', mdPath);
+        headers.set('X-Content-Type-Options', 'nosniff');
+        headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
         if (bot && env?.DB) {
-          ctx.waitUntil(recordBotHit(env.DB, bot, url.pathname, 'markdown-negotiated').catch(() => {}));
+          ctx?.waitUntil?.(recordBotHit(env.DB, bot, url.pathname, 'markdown-negotiated').catch(() => {}));
         }
         return new Response(method === 'HEAD' ? null : upstream.body, {
           status: upstream.status,
@@ -122,7 +124,7 @@ export default {
       const fmt = url.pathname.endsWith('.md') || url.pathname === '/llms.txt' || url.pathname === '/llms-full.txt'
         ? 'markdown-direct'
         : 'html';
-      ctx.waitUntil(recordBotHit(env.DB, bot, url.pathname, fmt).catch(() => {}));
+      ctx?.waitUntil?.(recordBotHit(env.DB, bot, url.pathname, fmt).catch(() => {}));
     }
 
     if (mdPath && response.ok) {

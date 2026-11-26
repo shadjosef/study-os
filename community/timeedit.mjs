@@ -5,12 +5,32 @@ const ALLOWED_TIMETABLE_ORIGINS = new Set([
   'https://tp.uio.no',
 ]);
 
-function isAllowedTimetableUrl(raw) {
+export function isPrivateOrIpHost(rawHost) {
+  const host = String(rawHost || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
+  if (!host) return true;
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) {
+    return true;
+  }
+  // Reject IPv6 literals (including ::1, fc00::/7, fe80::/10, ::ffff:127.0.0.1)
+  if (host.includes(':')) return true;
+  // Reject dotted/decimal/octal/hex IPv4 literals (e.g. 127.0.0.1, 169.254.169.254, 2130706433, 0x7f000001)
+  if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(host) || /^(?:0x[0-9a-f]+|0[0-7]+|\d+)$/i.test(host)) {
+    return true;
+  }
+  return false;
+}
+
+export function isAllowedTimetableUrl(raw) {
   try {
     const input = typeof raw === 'string' ? raw.trim() : '';
-    const url = new URL(input.replace(/^webcal:/i, 'https:'));
-    if (input.length > 4096 || !ALLOWED_TIMETABLE_ORIGINS.has(url.origin) ||
-        url.username || url.password || url.hash) return null;
+    if (!input || input.length > 4096 || /[\u0000-\u001f\u007f]/.test(input)) return null;
+    if (!/^(?:https|webcal):\/\//i.test(input)) return null;
+    const pathPart = input.replace(/^(?:https|webcal):\/\/[^/?#]*/i, '').split(/[?#]/, 1)[0];
+    if (/(?:%00|%2e%2e|%2f\.|\.\.|\\)/i.test(pathPart)) return null;
+    const url = new URL(input.replace(/^webcal:\/\//i, 'https://'));
+    if (url.protocol !== 'https:' || url.port || url.username || url.password || url.hash) return null;
+    if (isPrivateOrIpHost(url.hostname) || !ALLOWED_TIMETABLE_ORIGINS.has(url.origin)) return null;
+    if (/(?:%00|%2e%2e|\\)/i.test(url.pathname)) return null;
     const looksIcal = /\.ics$/i.test(url.pathname) || /\/ical(?:\.php)?$/i.test(url.pathname);
     if (!looksIcal) return null;
     return url;
@@ -58,10 +78,16 @@ export async function pushTimeEditFeed(db, profileId, data, now, reply) {
   }
   let sourceUrl = '';
   if (typeof data.sourceUrl === 'string') {
-    try {
-      const u = new URL(data.sourceUrl.trim());
-      if (ALLOWED_TIMETABLE_ORIGINS.has(u.origin)) sourceUrl = u.href.slice(0, 1024);
-    } catch {}
+    const rawSource = data.sourceUrl.trim();
+    if (rawSource && rawSource.length <= 4096 && !/[\u0000-\u001f\u007f]/.test(rawSource)) {
+      try {
+        const u = new URL(rawSource);
+        if (u.protocol === 'https:' && !u.port && !u.username && !u.password && !u.hash
+            && !isPrivateOrIpHost(u.hostname) && ALLOWED_TIMETABLE_ORIGINS.has(u.origin)) {
+          sourceUrl = u.href.slice(0, 1024);
+        }
+      } catch {}
+    }
   }
   await db.prepare(`
     INSERT INTO user_timeedit_feeds(profile_id, ics_text, source_url, updated_at)
