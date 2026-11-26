@@ -232,6 +232,19 @@ html[data-theme="dark"] .ghost-btn:hover { background: rgba(255, 255, 255, 0.11)
 .gpa-target-box input { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font-size: 14px; }
 .gpa-result-banner { margin-top: 12px; padding: 11px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--line)); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); font-size: 14px; }
 
+/* Interactive WISEflow FLOWmulti Mini-Tryout */
+.wf-demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin: 12px 0; }
+.wf-demo-field { display: grid; gap: 5px; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-alt); }
+.wf-demo-field label { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.wf-demo-field input { width: 100%; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.wf-demo-hint { font-size: 12px; min-height: 17px; color: var(--muted); }
+.wf-demo-field.ok { border-color: color-mix(in srgb, #10b981 55%, var(--line)); }
+.wf-demo-field.ok .wf-demo-hint { color: #059669; font-weight: 600; }
+:root[data-theme="dark"] .wf-demo-field.ok .wf-demo-hint { color: #34d399; }
+.wf-demo-field.bad { border-color: color-mix(in srgb, #e11d48 55%, var(--line)); }
+.wf-demo-field.bad .wf-demo-hint { color: #be123c; font-weight: 600; }
+:root[data-theme="dark"] .wf-demo-field.bad .wf-demo-hint { color: #fb7185; }
+
 /* Legal & 404 Pages */
 .legal-shell { max-width: 780px; margin: 0 auto; padding: clamp(16px, 4vw, 36px) 16px 48px; }
 .legal-card { margin-top: 16px; padding: clamp(20px, 4vw, 32px); }

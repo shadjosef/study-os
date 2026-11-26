@@ -10438,11 +10438,12 @@ window.StudyApp = (() => {
       }
     }
 
-    // Prompt unsigned-in visitors to unlock full Study-OS right on opening ANY link (drops them right on target course/filters after login!)
-    if (isStaticWeb && window.StudyCommunity?.enabled && !window.StudyCommunity.isSignedIn() && !/bot|crawler|spider|lighthouse/i.test(navigator.userAgent || '')) {
+    // Only auto-open the sign-in/unlock modal on initial load when an explicit invite/pass code is in the URL;
+    // cold visitors should be able to explore courses and solve Question #1 immediately with zero friction.
+    if (isStaticWeb && window.StudyCommunity?.enabled && !window.StudyCommunity.isSignedIn() && Boolean(qAccessCode) && !/bot|crawler|spider|lighthouse/i.test(navigator.userAgent || '')) {
       window.StudyCommunity.requireProfile({
         allowDemo: true,
-        forcePrompt: Boolean(qAccessCode),
+        forcePrompt: true,
         prefillCode: qAccessCode,
       }).then(async (ok) => {
         if (!ok) return;

@@ -1649,6 +1649,39 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       </div>
     </article>
 
+    <section class="panel seo-card" style="margin-bottom:16px" id="wf-live-demo">
+      <span class="eyebrow">Interactive Tryout · Zero Login Required</span>
+      <h2>Test BI WISEflow FLOWmulti Formatting Live (EXC / BØK 3430)</h2>
+      <p>
+        <strong>Mini-case:</strong> Nordic Tech AS buys a machine for <strong>NOK 200,000</strong> today (<code>t = 0</code>), generating <strong>NOK 120,000</strong> at <code>t = 1</code> and <strong>NOK 130,000</strong> at <code>t = 2</code> (discount rate <code>r = 10%</code>). Enter all three boxes using official WISEflow numeric rules (dot <code>.</code> decimal, leading <code>-</code> for cash outflows, <code>±2%</code> tolerance):
+      </p>
+      <div class="wf-demo-grid">
+        <div class="wf-demo-field" data-wf-box="cf0">
+          <label for="wf-in-cf0">1. Initial Cash Flow at t = 0 (NOK)</label>
+          <input id="wf-in-cf0" type="text" inputmode="text" placeholder="e.g. -200000" autocomplete="off">
+          <span class="wf-demo-hint" id="wf-msg-cf0">Include sign for cash outflow</span>
+        </div>
+        <div class="wf-demo-field" data-wf-box="pv">
+          <label for="wf-in-pv">2. Present Value of Inflows (t = 1 &amp; t = 2)</label>
+          <input id="wf-in-pv" type="text" inputmode="text" placeholder="e.g. 216528.93" autocomplete="off">
+          <span class="wf-demo-hint" id="wf-msg-pv">Use dot (.) decimal, never comma</span>
+        </div>
+        <div class="wf-demo-field" data-wf-box="npv">
+          <label for="wf-in-npv">3. Net Present Value — NPV (NOK)</label>
+          <input id="wf-in-npv" type="text" inputmode="text" placeholder="e.g. 16528.93" autocomplete="off">
+          <span class="wf-demo-hint" id="wf-msg-npv">±2% tolerance around exact NPV</span>
+        </div>
+      </div>
+      <div class="seo-cta-row">
+        <button type="button" class="primary-btn" id="wf-check-btn">Check FLOWmulti Answers</button>
+        <button type="button" class="ghost-btn" id="wf-fill-btn">Show Worked Values</button>
+        <a class="ghost-btn" href="./?view=exams" rel="nofollow">Open All {total_flowmulti} FLOWmulti Worksheets →</a>
+      </div>
+      <div class="gpa-result-banner" id="wf-demo-status" aria-live="polite">
+        Try typing <code>200000</code> (missing minus) or <code>216528,93</code> (Norwegian comma) to see the exact WISEflow formatting pitfalls Study-OS catches.
+      </div>
+    </section>
+
     <section class="panel seo-card" style="margin-bottom:16px">
       <span class="eyebrow">Exam-day checklist · Avoid technical point loss</span>
       <h2>WISEflow FLOWmulti Formatting Rules</h2>
@@ -1724,6 +1757,75 @@ def generate_seo_pages(out_dir: Path, bootstrap: dict[str, Any], base_url: str =
       </nav>
     </footer>
   </main>
+  <script>
+    (function () {{
+      var SPEC = [
+        {{ key: 'cf0', target: -200000, tol: 0.001, requireNeg: true }},
+        {{ key: 'pv', target: 216528.93, tol: 0.02, requireNeg: false }},
+        {{ key: 'npv', target: 16528.93, tol: 0.02, requireNeg: false }}
+      ];
+      function checkAll() {{
+        var passed = 0;
+        SPEC.forEach(function (item) {{
+          var wrap = document.querySelector('[data-wf-box="' + item.key + '"]');
+          var inp = document.getElementById('wf-in-' + item.key);
+          var msg = document.getElementById('wf-msg-' + item.key);
+          var raw = String(inp.value || '').trim();
+          wrap.classList.remove('ok', 'bad');
+          if (!raw) {{
+            wrap.classList.add('bad');
+            msg.textContent = 'Enter a numeric value first.';
+            return;
+          }}
+          if (raw.indexOf(',') !== -1) {{
+            wrap.classList.add('bad');
+            msg.textContent = 'Comma detected — WISEflow numeric boxes require dot (.) decimals and no thousand commas.';
+            return;
+          }}
+          if (/^\\(.*\\)$/.test(raw)) {{
+            wrap.classList.add('bad');
+            msg.textContent = 'Parentheses detected — use a leading minus sign (e.g. -200000) on WISEflow.';
+            return;
+          }}
+          var cleaned = raw.replace(/\\s+/g, '');
+          var num = Number(cleaned);
+          if (!Number.isFinite(num)) {{
+            wrap.classList.add('bad');
+            msg.textContent = 'Enter digits only (no NOK text or currency symbols).';
+            return;
+          }}
+          if (item.requireNeg && num > 0 && Math.abs(num - Math.abs(item.target)) <= Math.abs(item.target) * 0.02) {{
+            wrap.classList.add('bad');
+            msg.textContent = 'Missing minus sign! Cash outflows at t = 0 must be negative (-200000).';
+            return;
+          }}
+          var diff = Math.abs(num - item.target);
+          var allowed = Math.abs(item.target) * item.tol;
+          if (diff <= allowed) {{
+            wrap.classList.add('ok');
+            msg.textContent = '✓ Accepted inside WISEflow ±2% band (exact: ' + item.target + ').';
+            passed++;
+          }} else {{
+            wrap.classList.add('bad');
+            msg.textContent = 'Outside ±2% tolerance — check discounting (120000/1.1 + 130000/1.1²).';
+          }}
+        }});
+        var status = document.getElementById('wf-demo-status');
+        if (passed === SPEC.length) {{
+          status.innerHTML = '<strong>3/3 passed!</strong> Ready for full 3-hour papers? Open the <a href="./?view=exams" rel="nofollow">WISEflow Exams Hub →</a>';
+        }} else {{
+          status.textContent = passed + '/3 boxes accepted — fix the highlighted WISEflow rule(s) above and check again.';
+        }}
+      }}
+      document.getElementById('wf-check-btn')?.addEventListener('click', checkAll);
+      document.getElementById('wf-fill-btn')?.addEventListener('click', function () {{
+        document.getElementById('wf-in-cf0').value = '-200000';
+        document.getElementById('wf-in-pv').value = '216528.93';
+        document.getElementById('wf-in-npv').value = '16528.93';
+        checkAll();
+      }});
+    }})();
+  </script>
 </body>
 </html>
 """
