@@ -23,56 +23,52 @@ jobs:
       - name: Python stdlib bytecode & warning check
         run: |
           python3 -Werror -m py_compile \
-            app/server.py \
-            app/analytics.py \
-            app/calendar_sync.py \
-            app/canvas_bridge.py \
-            app/canvas_browser.py \
-            app/timetable_planner.py \
-            app/obsidian_sync.py \
-            app/dlpfc.py \
-            app/tutor_bridge.py \
-            tools/cli.py \
-            tools/build_public_site.py \
-            tools/geo_markdown.py \
-            tools/seo_pages.py \
-            tools/seo_audit.py \
-            tools/build_member_library.py \
-            tools/study_os_mcp.py
+            app/*.py \
+            tools/*.py \
+            tools/study-os-vscode/build_vsix.py
 
-      - name: Frontend & Obsidian plugin JS syntax check
+      - name: Frontend, Worker, Chrome, VS Code & Obsidian JS syntax check
         run: |
-          node --check app/public/js/render.js
-          node --check app/public/js/local-sources.js
-          node --check app/public/js/layouts.js
-          node --check app/public/js/runner.js
-          node --check app/public/js/pdfcraft-editor.js
-          node --check app/public/js/pdf-reader.js
-          node --check app/public/js/question-copy.js
-          node --check app/public/js/study-tutor.js
-          node --check app/public/js/tutor-bridge.js
-          node --check app/public/js/rooms.js
-          node --check app/public/js/app.js
-          node --check app/public/js/canvas-connect.js
-          node --check app/public/js/schedule-tools.js
-          node --check canvas-sync-extension/background.js
-          node --check canvas-sync-extension/popup.js
-          node --check canvas-sync-extension/studyos-bridge.js
-          node --check app/public/js/members.js
-          node --check app/public/js/study-sets.js
-          node --check app/public/js/community.js
-          node --check app/public/js/ai-tutor.js
-          node --check app/public/js/playbook.js
-          node --check community/worker.mjs
-          node --check community/ai.mjs
-          node --check community/rooms.mjs
-          node --check community/admin.mjs
-          node --check community/auth.mjs
-          node --check community/courses.mjs
-          node --check community/human.mjs
-          node --check community/timeedit.mjs
-          node --check community/sync.mjs
-          node --check obsidian-plugin/main.js
+          for f in \
+            app/public/js/*.js \
+            canvas-sync-extension/*.js \
+            community/*.mjs \
+            tools/study-os-vscode/*.js \
+            tools/smoke_test_e2e.mjs \
+            obsidian-plugin/main.js; do
+            node --check "$f"
+          done
+
+      - name: Validate Chrome extension manifest & VS Code .vsix XML
+        run: |
+          python3 - <<'PY'
+          import json, zipfile, xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          m = json.loads(Path("canvas-sync-extension/manifest.json").read_text(encoding="utf-8"))
+          assert m["manifest_version"] == 3, "Chrome extension must be Manifest V3"
+          assert len(m["description"]) <= 132, f"CWS description exceeds 132 chars: {len(m['description'])}"
+
+          vsix = Path("app/public/downloads/study-os-companion.vsix")
+          with zipfile.ZipFile(vsix) as zf:
+              ET.fromstring(zf.read("[Content_Types].xml"))
+              ET.fromstring(zf.read("extension.vsixmanifest"))
+              assert "extension/icon.png" in zf.namelist(), "VSIX missing icon.png"
+              assert "extension/LICENSE" in zf.namelist(), "VSIX missing LICENSE"
+          print(f"Extensions verified: Chrome Sync v{m['version']} & VS Code Companion VSIX XML OK")
+          PY
+
+      - name: Build static site & run SEO/GEO audit
+        run: |
+          python3 tools/build_public_site.py --out /tmp/study-os-ci-dist
+          python3 tools/seo_audit.py --dir /tmp/study-os-ci-dist
+
+      - name: Headless Chromium E2E smoke test
+        run: |
+          mkdir -p /tmp/pw-ci
+          npm --prefix /tmp/pw-ci install --no-save playwright@1.52.0
+          /tmp/pw-ci/node_modules/.bin/playwright install --with-deps chromium
+          PLAYWRIGHT_MODULE=/tmp/pw-ci/node_modules/playwright node tools/smoke_test_e2e.mjs /tmp/study-os-ci-dist
 
       - name: Fresh-clone CLI & HTTP smoke test (zero data/)
         run: |

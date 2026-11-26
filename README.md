@@ -1,5 +1,10 @@
 # Study-OS · Free Canvas LMS Sync, WISEflow Exam Prep & Study Workspace
 
+[![Study-OS CI](https://github.com/shadjosef/study-os/actions/workflows/ci.yml/badge.svg)](https://github.com/shadjosef/study-os/actions/workflows/ci.yml)
+[![Deploy Static Hub](https://github.com/shadjosef/study-os/actions/workflows/pages.yml/badge.svg)](https://github.com/shadjosef/study-os/actions/workflows/pages.yml)
+[![Live Site](https://img.shields.io/badge/Live-studyos.no-0f766e)](https://studyos.no/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **[Open Study-OS (`https://studyos.no`)](https://studyos.no/)** · [BI Oslo Guide](https://studyos.no/bi-oslo.html) · [Norsk](https://studyos.no/norsk.html) · [All Universities](https://studyos.no/universities.html) · [BI WISEflow Simulator](https://studyos.no/wiseflow-practice.html) · [GPA Calculator](https://studyos.no/gpa-calculator.html) · [Canvas & TimeEdit/TP Sync](https://studyos.no/bi-canvas-timeedit-sync.html) · [Course Notes](https://studyos.no/notes.html)
 
 Open-source (`MIT`), ad-free, zero-dependency university exam-prep workspace built in Oslo, Norway for **BI Norwegian Business School**, **UiA**, **NTNU**, **UiO**, **NHH**, **UiB**, **OsloMet**, **UiS**, **UiT**, **USN**, **NMBU**, **HVL**, **Kristiania**, and any `*.instructure.com` Canvas school. Includes **1,185 practice questions** across 5 core BI courses (**[EXC / SØK 3420](https://studyos.no/courses/econ-2522.html)**, **[EXC / BØK 3430](https://studyos.no/courses/acct-2527.html)**, **[EXC / ORG 3460](https://studyos.no/courses/ob-2537.html)**, **[EBA 3400](https://studyos.no/courses/prog-3021.html)**, **[EBA 1181 / 1180](https://studyos.no/courses/math-2588.html)**), a **3-pane side-by-side workspace (`Task | Reference | Answer`)**, **BI WISEflow `FLOWmulti` (`±2%`) exam simulator**, **Norwegian ECTS GPA Calculator**, **Rated Duels & Study Pods**, **Adaptive Timetable**, **Adamlite AI Tutor**, **VS Code / Antigravity Companion (`v0.3.1`)**, and 1-click **Canvas / TimeEdit / TP / Ed Discussion** browser sync (`Study-OS Sync v1.7.2`).
@@ -18,6 +23,41 @@ Open-source (`MIT`), ad-free, zero-dependency university exam-prep workspace bui
 - **Zero-Login Norwegian ECTS GPA Calculator**: Calculate weighted `A=5` to `E=1` averages and target grades needed for MSc / Siviløkonom admission at [`studyos.no/gpa-calculator.html`](https://studyos.no/gpa-calculator.html).
 - **Scheduled Queue with Early Completion & Study Debt Rollover**: Plan around TimeEdit / TP lectures & part-time shifts, complete blocks ahead of schedule (`Done early ✓`), and roll missed blocks into a visible **Study Debt** stack until cleared.
 - **Offline & Mobile Support**: Install as a PWA or save courses for offline use; use Google / Passkey cloud sync (Cloudflare Workers + D1 EU GDPR) or JSON backup export across desktop and phone.
+
+## System Architecture
+
+```mermaid
+flowchart LR
+  subgraph Client["Student Browser (Zero-Dependency Local-First PWA)"]
+    SPA["Study-OS SPA\n3-Pane Runner · FSRS-5 · WISEflow ±2%"]
+    IDB["IndexedDB Vault\nPrivate PDFs up to 260 MB"]
+    EXT["Study-OS Sync v1.7.2\nMV3 Chrome Extension"]
+  end
+
+  subgraph Campus["Signed-In University Portals (Same-Origin Only)"]
+    CANVAS["Canvas LMS\n(13+ NO Unis & *.instructure.com)"]
+    TT["TimeEdit & TP\n(.ics Timetables)"]
+    ED["Ed Discussion"]
+  end
+
+  subgraph Edge["Static Hosting & EU Edge Backend (~$0/mo)"]
+    GHP["GitHub Pages\nStatic SPA + 23 SEO/GEO Pages + llms-full.txt"]
+    CFW["Cloudflare Workers + D1 (EU)\nAuth · Sync · Duels · Study Pods · AI Tutor"]
+  end
+
+  subgraph DevTools["Developer & IDE Integrations"]
+    VSC["VS Code / Antigravity Companion v0.3.1\n(.ipynb Deep-Link + CodeLens Par HUD)"]
+    MCP["Python MCP Server\n(tools/study_os_mcp.py)"]
+  end
+
+  EXT -->|"Same-origin read (zero cookies exported)"| Campus
+  EXT -->|"Local-only PDF bytes"| IDB
+  EXT -->|"6-char paired metadata sync"| CFW
+  GHP --> SPA
+  SPA <-->|"Cloud sync & real-time duels"| CFW
+  SPA <-->|"vscode:// & ?ide_complete=1"| VSC
+  SPA <-->|"Local API (127.0.0.1:8765)"| MCP
+```
 
 ## Full member library
 
