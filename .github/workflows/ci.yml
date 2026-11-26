@@ -31,6 +31,7 @@ jobs:
         run: |
           for f in \
             app/public/js/*.js \
+            app/public/js/core/*.js \
             canvas-sync-extension/*.js \
             community/*.mjs \
             tools/study-os-vscode/*.js \
@@ -38,6 +39,15 @@ jobs:
             obsidian-plugin/main.js; do
             node --check "$f"
           done
+
+      - name: Run Node unit tests
+        run: |
+          mapfile -t test_files < <(find tests -name '*.test.mjs' -type f | sort)
+          if [ "${#test_files[@]}" -eq 0 ]; then
+            echo "No *.test.mjs test files found under tests/" >&2
+            exit 1
+          fi
+          node --test "${test_files[@]}"
 
       - name: Validate Chrome extension manifest & VS Code .vsix XML
         run: |
