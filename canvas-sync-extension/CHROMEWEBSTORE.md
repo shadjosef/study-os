@@ -8,13 +8,13 @@
 Study-OS Sync
 
 **Short Description** [REQUIRED]
-One-click & auto-sync for Canvas LMS (BI, UiA, NHH, UiO, NTNU+), TimeEdit/TP timetables, Ed Discussion & opt-in focus stats.
+One-click & auto-sync for university Canvas LMS courses, TimeEdit/TP timetables, Ed Discussion & opt-in local focus stats.
 
 **Detailed Description** [REQUIRED]
 Study-OS Sync connects your signed-in university Canvas LMS, TimeEdit or TP class timetable, and Ed Discussion tabs directly to your Study-OS dashboard in one click.
 
 Key Features
-One-click sync across Canvas LMS (BI, UiA, UiB, UiO, NTNU, OsloMet, NHH, UiS, UiT, USN, NMBU, HVL, Kristiania, and any Instructure Canvas school), TimeEdit and Norwegian TP timetables, and Ed Discussion.
+One-click sync across Norwegian universities and any Instructure Canvas school, TimeEdit and Norwegian TP timetables, and Ed Discussion.
 Automatic background refreshes whenever you open your signed-in school tabs (Canvas and Ed every 12 hours, timetables every 3 days), with a one-click toggle to pause auto-sync anytime.
 Direct in-browser Canvas PDF viewing inside Study-OS: opens your lecture slides using your own signed-in browser session so copyrighted course files never touch external servers.
 Opt-in on-device browser focus stats: when explicitly enabled by you, tallies daily Study vs. Distraction vs. Other category minutes locally on your device without storing URLs, page titles, or browsing history.

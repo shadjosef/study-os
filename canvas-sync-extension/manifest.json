@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Study-OS Sync",
-  "version": "1.7.1",
-  "description": "One-click & auto-sync for Canvas LMS (BI, UiA, NHH, UiO, NTNU+), TimeEdit/TP timetables, Ed Discussion & opt-in focus stats.",
+  "version": "1.7.2",
+  "description": "One-click & auto-sync for university Canvas LMS courses, TimeEdit/TP timetables, Ed Discussion & opt-in local focus stats.",
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",

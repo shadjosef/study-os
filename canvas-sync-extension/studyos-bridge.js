@@ -2,7 +2,7 @@
 // Never sends copyrighted files to any remote server: Canvas PDF fetches stay strictly
 // inside the user's own browser between their authenticated Canvas tab and IndexedDB.
 (() => {
-  const EXT_VERSION = '1.7.1';
+  const EXT_VERSION = '1.7.2';
   function pushTelemetryToPage() {
     try {
       chrome.runtime.sendMessage({ action: 'getFocusTelemetry' }, (resp) => {
