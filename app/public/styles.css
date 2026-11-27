@@ -15291,6 +15291,49 @@ html[data-theme="dark"] .study-tour-popover {
   font-size: 12.5px !important;
 }
 
+/* Course Explorer Concept Subtitles, Clickable Chapter Badges & Grouped Headers */
+.exp-row-concept {
+  margin: 2px 0 3px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.exp-topic-pill {
+  border: 1px solid var(--line);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 176px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.exp-topic-pill:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.exp-chapter-group-row td {
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel-alt));
+  border-top: 1.5px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 8px 12px !important;
+}
+.exp-chapter-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.exp-chapter-group-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
 /* Global Reduced-Motion Accessibility Safety */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

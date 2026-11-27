@@ -6613,6 +6613,8 @@ window.StudyApp = (() => {
             <button type="button" class="preset-chip" data-chip-diff="1" data-layout-tier="1" aria-pressed="false">${window.StudyLayout.label(1)}</button>
             <button type="button" class="preset-chip" data-chip-horizon="10plus" aria-pressed="false">10m+ Horizon</button>
             ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-chip-kind="wiseflow" aria-pressed="false">Worksheets</button>' : ''}
+            <button type="button" class="preset-chip exp-priority-chip" id="chip-exam-priority" aria-pressed="true" title="Toggle Exam Priority sorting ON (exams &amp; tutoring first) or OFF (chapter syllabus order)">★ Exam Priority</button>
+            <button type="button" class="preset-chip" id="chip-group-chapter" aria-pressed="false" title="Group exercises under Chapter / Topic headings (works with Exam Priority ON or OFF)">Group by Chapter</button>
             <button type="button" class="preset-chip" id="chip-reset-filters">Reset</button>
             <button type="button" class="preset-chip exp-share-chip" id="chip-share-filters" title="Copy a direct link with all active filters applied">Share Link</button>
           </div>
@@ -6685,7 +6687,8 @@ window.StudyApp = (() => {
             </label>
             <label class="field-label">Sort Tasks By
               <select id="flt-sort">
-                <option value="exam_relevance" ${defaultSort === 'exam_relevance' ? 'selected' : ''}>Exam Relevance (BI Exam · Tutoring · Slides)</option>
+                <option value="exam_relevance" ${defaultSort === 'exam_relevance' ? 'selected' : ''}>Exam Priority (BI Exam · Tutoring · Slides)</option>
+                <option value="chapter_order">Chapter / Syllabus Order (Ch 1 → End)</option>
                 <option value="deep_first" ${defaultSort === 'deep_first' ? 'selected' : ''}>Hard First (Interleaved)</option>
                 <option value="horizon_desc">Longest Horizon First (Al Par ↓)</option>
                 <option value="diff_desc">Difficulty: hard first</option>
@@ -6753,6 +6756,52 @@ window.StudyApp = (() => {
     // Composable filter + 3-state column header sort state
     let realTasksOnly = false;
     let colSort = { col: null, dir: null };
+    let groupByChapter = false;
+
+    const topicMetaById = new Map();
+    (bank.topics || []).forEach((t, idx) => {
+      const idStr = String(t.id);
+      const fullTitle = String(t.title || `Topic ${idStr}`).trim();
+      let shortLabel = `T${idStr}`;
+      let conceptOnly = fullTitle;
+      const chMatch = fullTitle.match(/^(?:Chapter|Ch\.?)\s*(\d+)\s*[·:—-]\s*(.+)$/i);
+      const lesMatch = fullTitle.match(/^Lesson\s*(\d+)\s*[:·—-]\s*(.+)$/i);
+      if (chMatch) {
+        conceptOnly = chMatch[2].trim();
+        const paren = conceptOnly.match(/\(([^)]{3,26})\)/);
+        const core = paren ? paren[1].trim() : conceptOnly.replace(/^Measuring\s*&\s*Reporting\s+/i, '').trim();
+        shortLabel = `Ch ${chMatch[1]} · ${core.length > 22 ? core.slice(0, 21).trimEnd() + '…' : core}`;
+      } else if (lesMatch) {
+        conceptOnly = lesMatch[2].trim();
+        shortLabel = `L${lesMatch[1]} · ${conceptOnly.length > 22 ? conceptOnly.slice(0, 21).trimEnd() + '…' : conceptOnly}`;
+      } else if (/^DEB$/i.test(idStr)) {
+        conceptOnly = fullTitle;
+        shortLabel = 'DEB · Bookkeeping';
+      } else {
+        const clean = fullTitle.replace(/^\d+\.\s*/, '').trim();
+        conceptOnly = clean;
+        shortLabel = `T${idStr} · ${clean.length > 20 ? clean.slice(0, 19).trimEnd() + '…' : clean}`;
+      }
+      topicMetaById.set(idStr, { id: idStr, fullTitle, shortLabel, conceptOnly, order: idx });
+    });
+
+    const conceptSubtitleFor = (q, topicMeta) => {
+      const rawHeading = String(q.obsidianLink?.heading || '').trim();
+      const cleaned = rawHeading
+        .replace(/\$([^$]+)\$/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/^\d+\.\s*Lesson\s+\d+\s*[:·—-]\s*/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const isGeneric = !cleaned || /^worked example from the tutoring material$/i.test(cleaned);
+      const candidate = isGeneric ? (topicMeta?.conceptOnly || '') : cleaned;
+      if (!candidate) return '';
+      const normTitle = String(q.title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+      const normCand = candidate.replace(/^\d+(?:\.\d+)?\s+/, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      if (normCand.length >= 6 && normTitle.includes(normCand)) return '';
+      return candidate;
+    };
+
     const COL_FIRST_DIR = {
       question: 'asc',
       topic: 'asc',
@@ -6768,12 +6817,24 @@ window.StudyApp = (() => {
       const dVal = document.getElementById('flt-diff')?.value || 'all';
       const hVal = document.getElementById('flt-horizon')?.value || 'all';
       const kVal = document.getElementById('flt-kind')?.value || 'all';
+      const sortVal = document.getElementById('flt-sort')?.value || defaultSort;
 
       const realChip = document.getElementById('chip-real-only');
       if (realChip) {
         const isRealActive = realTasksOnly || oVal === 'official_only';
         realChip.classList.toggle('active', isRealActive);
         realChip.setAttribute('aria-pressed', String(isRealActive));
+      }
+      const prioChip = document.getElementById('chip-exam-priority');
+      if (prioChip) {
+        const isPrio = sortVal === 'exam_relevance' && !colSort.col;
+        prioChip.classList.toggle('active', isPrio);
+        prioChip.setAttribute('aria-pressed', String(isPrio));
+      }
+      const grpChip = document.getElementById('chip-group-chapter');
+      if (grpChip) {
+        grpChip.classList.toggle('active', groupByChapter);
+        grpChip.setAttribute('aria-pressed', String(groupByChapter));
       }
       root.querySelectorAll('[data-chip-origin]').forEach((chip) => {
         const on = oVal === chip.dataset.chipOrigin;
@@ -6849,6 +6910,7 @@ window.StudyApp = (() => {
         sortEl.value = 'horizon_desc';
       } else {
         realTasksOnly = false;
+        groupByChapter = false;
         colSort = { col: null, dir: null };
         oEl.value = 'all';
         document.getElementById('flt-topic').value = 'all';
@@ -6930,7 +6992,8 @@ window.StudyApp = (() => {
           return false;
         }
         if (qTerm) {
-          const hay = `${q.localId || ''} ${q.title || ''} ${q.promptMarkdown || ''} ${q.contextMarkdown || ''} ${q.searchText || ''} ${(q.tags || []).join(' ')}`.toLowerCase();
+          const tMeta = topicMetaById.get(String(q.topicId));
+          const hay = `${q.localId || ''} ${q.title || ''} ${q.obsidianLink?.heading || ''} ${tMeta?.fullTitle || ''} ${q.promptMarkdown || ''} ${q.contextMarkdown || ''} ${q.searchText || ''} ${(q.tags || []).join(' ')}`.toLowerCase();
           if (!hay.includes(qTerm)) return false;
         }
         return true;
@@ -6984,6 +7047,16 @@ window.StudyApp = (() => {
           }
           if (cmp !== 0) return cmp * mult;
           return provOrder(a) - provOrder(b) || String(a.title || '').localeCompare(String(b.title || ''), undefined, { numeric: true });
+        });
+      } else if (sortVal === 'chapter_order') {
+        filtered.sort((a, b) => {
+          const oa = topicMetaById.get(String(a.topicId))?.order ?? topicNum(a);
+          const ob = topicMetaById.get(String(b.topicId))?.order ?? topicNum(b);
+          if (oa !== ob) return oa - ob;
+          const pa = provOrder(a);
+          const pb = provOrder(b);
+          if (pa !== pb) return pa - pb;
+          return String(a.localId || a.title || '').localeCompare(String(b.localId || b.title || ''), undefined, { numeric: true, sensitivity: 'base' });
         });
       } else if (sortVal === 'exam_relevance') {
         filtered.sort((a, b) => {
@@ -7138,47 +7211,96 @@ window.StudyApp = (() => {
       if (syncUrl) syncCourseFilterUrl();
 
       const tbody = document.getElementById('exp-table-body');
-      tbody.innerHTML = matches
-        .slice(0, 500)
-        .map((q) => {
-          const rec = getProgressRecord(q.id);
-          const st = rec?.status || 'not_started';
-          const lp = clockSec(calibratedParSec(q, 'learning'));
-          const ep = clockSec(calibratedParSec(q, 'exam'));
-          const pb = rec?.pbEffectiveSec ? `${clockSec(rec.pbEffectiveSec)}${rec.beatAiCount ? ' · Par' : ''}` : '—';
-          const hasWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
-          const kindBadge = hasWf
-            ? `<span class="badge live" style="font-size:11px">Worksheet</span>`
-            : `<small>${esc(q.kind)}</small>`;
-          const dlpfc = effectiveDlpfc(q, rec);
-          const diffBadge = `<span class="diff-badge diff-${dlpfc.tier}" data-layout-tier="${dlpfc.tier}"${dlpfc.chunked
-            ? ' title="Previously mastered problem with fewer new steps"' : ''}>${window.StudyLayout.label(dlpfc.tier)}</span>`;
-          const provPill = window.StudyProvenance
-            ? window.StudyProvenance.badgeHtml(q, bank, { showModel: true, short: true })
-            : '';
-          const relScore = examRelevanceScore(q, bank);
-          const priorityPill = relScore >= 88
-            ? `<span class="exam-priority-pill" title="High exam relevance: official BI exam, tutoring, lecture slide, or assignment task">★ Exam Priority</span>`
-            : '';
-          return `<tr>
-            <td><strong>${esc(q.title)}</strong><div class="exp-row-meta">${priorityPill}${provPill}<small class="muted">${esc(q.localId || q.id)}</small></div></td>
-            <td><span class="badge">T${esc(q.topicId)}</span></td>
-            <td>${diffBadge}</td>
-            <td>${kindBadge}</td>
-            <td><small><b>${lp}</b> / ${ep}</small></td>
-            <td><small>${pb}</small></td>
-            <td>
-              <div class="status-group">
-                <button type="button" class="st-btn ${st === 'not_started' ? 'active-not_started' : ''}" data-row-qid="${esc(q.id)}" data-row-st="not_started" title="Mark Uncomplete">○</button>
-                <button type="button" class="st-btn ${st === 'in_progress' ? 'active-in_progress' : ''}" data-row-qid="${esc(q.id)}" data-row-st="in_progress" title="In Progress">◐</button>
-                <button type="button" class="st-btn ${st === 'done' ? 'active-done' : ''}" data-row-qid="${esc(q.id)}" data-row-st="done" title="Done">✓</button>
-                <button type="button" class="st-btn ${st === 'revisit' ? 'active-revisit' : ''}" data-row-qid="${esc(q.id)}" data-row-st="revisit" title="Revisit">⚑</button>
+      const renderRowHtml = (q) => {
+        const rec = getProgressRecord(q.id);
+        const st = rec?.status || 'not_started';
+        const lp = clockSec(calibratedParSec(q, 'learning'));
+        const ep = clockSec(calibratedParSec(q, 'exam'));
+        const pb = rec?.pbEffectiveSec ? `${clockSec(rec.pbEffectiveSec)}${rec.beatAiCount ? ' · Par' : ''}` : '—';
+        const hasWf = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
+        const kindBadge = hasWf
+          ? `<span class="badge live" style="font-size:11px">Worksheet</span>`
+          : `<small>${esc(q.kind)}</small>`;
+        const dlpfc = effectiveDlpfc(q, rec);
+        const diffBadge = `<span class="diff-badge diff-${dlpfc.tier}" data-layout-tier="${dlpfc.tier}"${dlpfc.chunked
+          ? ' title="Previously mastered problem with fewer new steps"' : ''}>${window.StudyLayout.label(dlpfc.tier)}</span>`;
+        const provPill = window.StudyProvenance
+          ? window.StudyProvenance.badgeHtml(q, bank, { showModel: true, short: true })
+          : '';
+        const relScore = examRelevanceScore(q, bank);
+        const priorityPill = relScore >= 88
+          ? `<span class="exam-priority-pill" title="High exam relevance: official BI exam, tutoring, lecture slide, or assignment task">★ Exam Priority</span>`
+          : '';
+        const tMeta = topicMetaById.get(String(q.topicId));
+        const conceptSub = conceptSubtitleFor(q, tMeta);
+        const topicShort = tMeta?.shortLabel || `T${q.topicId}`;
+        const topicFull = tMeta?.fullTitle || `Topic ${q.topicId}`;
+        return `<tr>
+          <td>
+            <strong>${esc(q.title)}</strong>
+            ${conceptSub ? `<div class="exp-row-concept">${esc(conceptSub)}</div>` : ''}
+            <div class="exp-row-meta">${priorityPill}${provPill}<small class="muted">${esc(q.localId || q.id)}</small></div>
+          </td>
+          <td><button type="button" class="badge exp-topic-pill" data-pick-topic="${esc(q.topicId)}" title="Filter to ${esc(topicFull)}">${esc(topicShort)}</button></td>
+          <td>${diffBadge}</td>
+          <td>${kindBadge}</td>
+          <td><small><b>${lp}</b> / ${ep}</small></td>
+          <td><small>${pb}</small></td>
+          <td>
+            <div class="status-group">
+              <button type="button" class="st-btn ${st === 'not_started' ? 'active-not_started' : ''}" data-row-qid="${esc(q.id)}" data-row-st="not_started" title="Mark Uncomplete">○</button>
+              <button type="button" class="st-btn ${st === 'in_progress' ? 'active-in_progress' : ''}" data-row-qid="${esc(q.id)}" data-row-st="in_progress" title="In Progress">◐</button>
+              <button type="button" class="st-btn ${st === 'done' ? 'active-done' : ''}" data-row-qid="${esc(q.id)}" data-row-st="done" title="Done">✓</button>
+              <button type="button" class="st-btn ${st === 'revisit' ? 'active-revisit' : ''}" data-row-qid="${esc(q.id)}" data-row-st="revisit" title="Revisit">⚑</button>
+            </div>
+          </td>
+          <td><button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" data-solo-qid="${esc(q.id)}">Practice →</button></td>
+        </tr>`;
+      };
+
+      const visibleMatches = matches.slice(0, 500);
+      if (groupByChapter && document.getElementById('flt-topic')?.value === 'all') {
+        const byChapter = new Map();
+        for (const q of visibleMatches) {
+          const tid = String(q.topicId ?? 'other');
+          if (!byChapter.has(tid)) byChapter.set(tid, []);
+          byChapter.get(tid).push(q);
+        }
+        const orderedGroups = [...byChapter.entries()].sort((a, b) => {
+          const oa = topicMetaById.get(a[0])?.order ?? 999;
+          const ob = topicMetaById.get(b[0])?.order ?? 999;
+          return oa - ob || a[0].localeCompare(b[0], undefined, { numeric: true });
+        });
+        tbody.innerHTML = orderedGroups.map(([tid, qs]) => {
+          const tMeta = topicMetaById.get(tid);
+          const doneCnt = qs.filter((q) => (getProgressRecord(q.id)?.status || '') === 'done').length;
+          const headTitle = tMeta?.fullTitle || `Topic ${tid}`;
+          return `<tr class="exp-chapter-group-row">
+            <td colspan="8">
+              <div class="exp-chapter-group-head">
+                <strong>${esc(headTitle)}</strong>
+                <span class="exp-chapter-group-right">
+                  <span class="muted">${qs.length} exercise${qs.length === 1 ? '' : 's'}${doneCnt ? ` · ${doneCnt} done` : ''}</span>
+                  <button type="button" class="mini-tool-btn" data-pick-topic="${esc(tid)}">Focus chapter →</button>
+                </span>
               </div>
             </td>
-            <td><button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" data-solo-qid="${esc(q.id)}">Practice →</button></td>
-          </tr>`;
-        })
-        .join('');
+          </tr>${qs.map(renderRowHtml).join('')}`;
+        }).join('');
+      } else {
+        tbody.innerHTML = visibleMatches.map(renderRowHtml).join('');
+      }
+
+      tbody.querySelectorAll('[data-pick-topic]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const tEl = document.getElementById('flt-topic');
+          if (!tEl) return;
+          const target = String(btn.dataset.pickTopic || '');
+          tEl.value = tEl.value === target ? 'all' : target;
+          syncFilterChipUi();
+          refreshTable();
+        });
+      });
 
       tbody.querySelectorAll('[data-row-st]').forEach((btn) => {
         btn.addEventListener('click', async () => {
@@ -7262,6 +7384,26 @@ window.StudyApp = (() => {
         syncFilterChipUi();
         refreshTable();
       });
+    });
+
+    document.getElementById('chip-exam-priority')?.addEventListener('click', () => {
+      const sortEl = document.getElementById('flt-sort');
+      if (!sortEl) return;
+      const currentlyOn = sortEl.value === 'exam_relevance' && !colSort.col;
+      colSort = { col: null, dir: null };
+      sortEl.value = currentlyOn ? 'chapter_order' : 'exam_relevance';
+      syncFilterChipUi();
+      refreshTable();
+    });
+
+    document.getElementById('chip-group-chapter')?.addEventListener('click', () => {
+      groupByChapter = !groupByChapter;
+      if (groupByChapter) {
+        const tEl = document.getElementById('flt-topic');
+        if (tEl && tEl.value !== 'all') tEl.value = 'all';
+      }
+      syncFilterChipUi();
+      refreshTable();
     });
 
     document.getElementById('chip-reset-filters')?.addEventListener('click', () => {
