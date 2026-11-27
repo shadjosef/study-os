@@ -6648,6 +6648,7 @@ window.StudyApp = (() => {
           </details>`;
         })() : ''}
         ${localLibrary}
+        <div id="course-ed-feed-slot"></div>
 
         <div class="preset-chips-bar exp-composable-filters" role="group" aria-label="Composable source and difficulty filters">
           <div class="exp-filter-row">
@@ -7497,6 +7498,16 @@ window.StudyApp = (() => {
         });
       });
     };
+
+    const courseEdSlot = document.getElementById('course-ed-feed-slot');
+    if (courseEdSlot) {
+      renderEdFeedInto(courseEdSlot, {
+        limit: 4,
+        title: `Ed Discussion · ${cMeta.code || cMeta.shortTitle || 'Course Q&A'}`,
+        courseCode: cMeta.code || '',
+        collapsible: true,
+      });
+    }
 
     root.querySelectorAll('[data-pick-course]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -8742,10 +8753,15 @@ window.StudyApp = (() => {
 
   function renderEdFeedInto(container, opts = {}) {
     if (!container) return 0;
-    const snap = isStaticWeb ? loadWebState().edSnapshot : null;
-    const allThreads = Array.isArray(snap?.threads) ? snap.threads : [];
+    const snap = loadWebState().edSnapshot || null;
+    const rawThreads = Array.isArray(snap?.threads) ? snap.threads : [];
+    const normCode = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9ÆØÅ]/g, '');
+    const filterCode = opts.courseCode ? normCode(opts.courseCode) : '';
+    const allThreads = filterCode
+      ? rawThreads.filter((t) => normCode(t.courseCode || t.courseName) === filterCode || normCode(t.courseName).includes(filterCode))
+      : rawThreads;
     if (!allThreads.length) {
-      if (opts.emptyHint) {
+      if (opts.emptyHint && !filterCode) {
         container.innerHTML = `<p class="muted ed-feed-empty-hint">${esc(opts.emptyHint)}</p>`;
       } else {
         container.innerHTML = '';
@@ -8772,8 +8788,9 @@ window.StudyApp = (() => {
       const visible = showAll ? filtered : filtered.slice(0, baseLimit);
       const syncedAgo = formatRelativePostAge(snap?.syncedAt);
 
-      container.innerHTML = `
+      const innerFeedHtml = `
         <div class="ed-feed-wrap">
+          ${opts.collapsible ? '' : `
           <div class="row-between ed-feed-head">
             <div class="row-actions" style="gap:7px;flex-wrap:wrap">
               <h3 class="ed-feed-title">${esc(title)}</h3>
@@ -8787,7 +8804,7 @@ window.StudyApp = (() => {
                   <button type="button" class="ed-filter-pill ${activeCourse === c.key ? 'active' : ''}" data-ed-feed-course="${esc(c.key)}">${esc(c.label)}</button>
                 `).join('')}
               </div>` : ''}
-          </div>
+          </div>`}
           <div class="ed-feed-list">
             ${visible.map((t, idx) => {
               const snippet = String(t.snippet || '').trim();
@@ -8831,6 +8848,10 @@ window.StudyApp = (() => {
             </div>` : ''}
         </div>`;
 
+      container.innerHTML = opts.collapsible
+        ? `<details class="curriculum" style="margin:10px 0 6px"><summary>${esc(title)} · ${filtered.length} recent post${filtered.length === 1 ? '' : 's'}${syncedAgo ? ` (synced ${esc(syncedAgo)})` : ''}</summary><div style="margin-top:8px">${innerFeedHtml}</div></details>`
+        : innerFeedHtml;
+
       container.querySelectorAll('[data-ed-feed-course]').forEach((btn) => {
         btn.addEventListener('click', () => {
           activeCourse = btn.dataset.edFeedCourse || 'all';
@@ -8859,9 +8880,9 @@ window.StudyApp = (() => {
   function renderScheduleStudio() {
     const root = document.getElementById('schedule-studio-root');
     const cfg = boot.scheduleConfig || {};
-    const wsNow = isStaticWeb ? loadWebState() : {};
+    const wsNow = loadWebState();
     const personalCanvas = isStaticWeb ? wsNow.canvasSnapshot : null;
-    const personalEd = isStaticWeb ? wsNow.edSnapshot : null;
+    const personalEd = wsNow.edSnapshot || null;
     const edThreads = Array.isArray(personalEd?.threads) ? personalEd.threads : [];
     const snapOrigin = safeCanvasOrigin(personalCanvas?.canvasOrigin || personalCanvas?.courses?.[0]?.url || '');
     const validCanvasId = id => /^[1-9][0-9]{0,19}$/.test(id || '');
@@ -11593,7 +11614,7 @@ window.StudyApp = (() => {
     onSchoolChanged,
     getBiSyncStatus,
     openBiSyncHub,
-    getEdSnapshot: () => (isStaticWeb ? loadWebState().edSnapshot : null),
+    getEdSnapshot: () => (loadWebState().edSnapshot || null),
     renderEdFeedInto,
     fetchCanvasPdfViaExtension,
     onDevModeChange,

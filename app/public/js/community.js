@@ -3910,8 +3910,21 @@ window.StudyCommunity = (() => {
     const feedEl = section.querySelector('#community-ed-feed');
     const badge = section.querySelector('#ed-hub-count-badge');
 
-    if (feedEl && window.StudyApp?.renderEdFeedInto) {
-      window.StudyApp.renderEdFeedInto(feedEl, { limit: 8, title: 'Recent Ed Discussion posts' });
+    const paintEdFeed = () => {
+      if (!feedEl || !window.StudyApp?.renderEdFeedInto) return;
+      const snap = window.StudyApp?.getEdSnapshot?.();
+      const hasLinkedCourses = Array.isArray(snap?.courses) && snap.courses.length > 0;
+      window.StudyApp.renderEdFeedInto(feedEl, {
+        limit: 8,
+        title: 'Recent Ed Discussion posts',
+        emptyHint: hasLinkedCourses
+          ? 'Ed courses are linked, but no recent posts were returned on the last sync (extension thread fetch on eu.edstem.org requires an active course session — open a course on Ed and re-sync, or click Open Forum ↗ below).'
+          : '',
+      });
+    };
+    paintEdFeed();
+    if (token && window.StudyApp?.syncCloudProgress) {
+      window.StudyApp.syncCloudProgress().then(() => paintEdFeed()).catch(() => {});
     }
     const controls = section.querySelector('#ed-hub-controls');
     const searchEl = section.querySelector('#ed-hub-search');
