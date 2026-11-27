@@ -2665,6 +2665,32 @@ def finalize_site(
     # Generate static indexable Oslo & per-course SEO pages plus sitemap.xml
     seo_urls = generate_seo_pages(out_dir, bootstrap)
 
+    # Inject lightweight first-party cookie-free telemetry beacon on static SEO/legal pages too.
+    telem_file = out_dir / "js" / "web-telemetry.js"
+    if community_marker and telem_file.is_file():
+        telem_hash = hashlib.sha256(telem_file.read_bytes()).hexdigest()[:8]
+        for html_file in sorted(out_dir.rglob("*.html")):
+            if html_file == index:
+                continue
+            rel_parts = html_file.relative_to(out_dir).parts
+            if rel_parts and rel_parts[0] in {"downloads", "pdfcraft"}:
+                continue
+            prefix = "../" * (len(rel_parts) - 1) if len(rel_parts) > 1 else "./"
+            page_txt = html_file.read_text(encoding="utf-8")
+            changed = False
+            if "data-community-api=" not in page_txt and "<html " in page_txt:
+                page_txt = page_txt.replace("<html ", f"<html{community_marker} ", 1)
+                changed = True
+            if "web-telemetry.js" not in page_txt and "</body>" in page_txt:
+                page_txt = page_txt.replace(
+                    "</body>",
+                    f'  <script defer src="{prefix}js/web-telemetry.js?v={telem_hash}"></script>\n</body>',
+                    1,
+                )
+                changed = True
+            if changed:
+                html_file.write_text(page_txt, encoding="utf-8")
+
     sw_src = APP_DIR / "public" / "offline-worker.js"
     uses_public_sw = sw_src.is_file()
     if not uses_public_sw:

@@ -1,14 +1,32 @@
 'use strict';
 
 window.StudyQuestionCopy = (() => {
+  const COPY_HIDDEN_SOLUTION_KEY = 'study-os-copy-hidden-solution-v1';
   let current;
+
+  function isCopyHiddenSolutionEnabled() {
+    try {
+      const raw = localStorage.getItem(COPY_HIDDEN_SOLUTION_KEY);
+      return raw == null ? true : raw === '1';
+    } catch {
+      return true;
+    }
+  }
+
+  function setCopyHiddenSolutionEnabled(enabled) {
+    try {
+      localStorage.setItem(COPY_HIDDEN_SOLUTION_KEY, enabled ? '1' : '0');
+    } catch {}
+    return Boolean(enabled);
+  }
 
   function answer(value, options) {
     if (value == null || String(value).trim() === '') return '(blank)';
     return String(options?.[Number(value)] ?? value);
   }
 
-  function compose({ question, course, topic, state, revealed, sources, transcript, lean = false }) {
+  function compose({ question, course, topic, state, revealed, includeHiddenSolution = false, sources, transcript, lean = false }) {
+    const showAnswerKey = Boolean(revealed || includeHiddenSolution);
     const promptTxt = question.promptMarkdown?.trim() || '';
     const blocks = [
       `# ${question.title}`,
@@ -46,16 +64,16 @@ window.StudyQuestionCopy = (() => {
       const selected = answer(state.wiseflow?.[field.id], choices);
       const correct = field.type === 'choice' ? answer(field.answerIndex, choices) : answer(field.expected);
       const allowed = choices?.length ? ` Options: ${choices.join(' / ')}.` : '';
-      response.push(`- ${field.label}${unit}.${allowed} Your answer: ${selected}.${revealed ? ` Expected: ${correct}.` : ''}`);
+      response.push(`- ${field.label}${unit}.${allowed} Your answer: ${selected}.${showAnswerKey ? ` Expected: ${correct}.` : ''}`);
     }
     if (options?.length) {
       response.push(`Your choice: ${answer(state.choice, options)}`);
-      if (revealed) response.push(`Correct choice: ${answer(question.answerIndex, options)}`);
+      if (showAnswerKey) response.push(`Correct choice: ${answer(question.answerIndex, options)}`);
     }
     if (question.numericCheck) {
       const unit = question.numericCheck.unit ? ` (${question.numericCheck.unit})` : '';
       response.push(`Numeric answer${unit}: ${answer(state.numericInput)}`);
-      if (revealed) response.push(`Expected numeric answer${unit}: ${answer(question.numericCheck.expected)}`);
+      if (showAnswerKey) response.push(`Expected numeric answer${unit}: ${answer(question.numericCheck.expected)}`);
     }
     if (state.draft?.trim()) {
       if (response.length) blocks.push('## Your answers', response.join('\n'));
@@ -63,15 +81,22 @@ window.StudyQuestionCopy = (() => {
     } else {
       blocks.push('## Your answers', response.length ? response.join('\n') : '(blank)');
     }
-    if (revealed && question.solutionMarkdown?.trim()) {
-      blocks.push('## Worked solution', question.solutionMarkdown.trim());
+    if (showAnswerKey && question.solutionMarkdown?.trim()) {
+      const heading = revealed
+        ? '## Worked solution'
+        : '## Official solution (hidden in UI — use to grade or guide without spoiling unless asked)';
+      blocks.push(heading, question.solutionMarkdown.trim());
     }
 
     return blocks.filter(Boolean).join('\n\n');
   }
 
-  function copied() {
-    window.StudyUI.toast('Question and answers copied for Adamlite.');
+  function copied(withHiddenSolution = false) {
+    window.StudyUI.toast(
+      withHiddenSolution
+        ? 'Question, your answer & hidden solution copied.'
+        : 'Question and answers copied for Adamlite.'
+    );
   }
 
   function showPreview(text) {
@@ -82,7 +107,7 @@ window.StudyQuestionCopy = (() => {
     field.select();
   }
 
-  async function copyAsync(text) {
+  async function copyAsync(text, withHiddenSolution = false) {
     try {
       if (window.ClipboardItem && navigator.clipboard?.write) {
         // Supply the text as a promise while the browser still has the copy gesture.
@@ -91,7 +116,7 @@ window.StudyQuestionCopy = (() => {
       } else {
         await navigator.clipboard.writeText(await text);
       }
-      copied();
+      copied(withHiddenSolution);
     } catch {
       showPreview(await text);
     }
@@ -108,7 +133,11 @@ window.StudyQuestionCopy = (() => {
     });
     current = context;
     const copyBtn = card.querySelector('#btn-copy-for-ai');
-    if (copyBtn) copyBtn.onclick = () => copyAsync(textForCopy(context));
+    if (copyBtn) copyBtn.onclick = () => {
+      const payload = buildCopyPayload(context);
+      window.StudyWebTelemetry?.track?.('copy_question', payload.withHiddenSolution ? 'btn_hidden_sol' : 'btn');
+      copyAsync(payload.text, payload.withHiddenSolution);
+    };
     window.StudyTutor.changed();
     window.StudyAiTutor?.syncContext?.();
   }
@@ -146,13 +175,30 @@ window.StudyQuestionCopy = (() => {
     };
   }
 
-  function textForCopy(context) {
+  function hasAnswerKey(question) {
+    if (!question) return false;
+    return Boolean(
+      question.solutionMarkdown?.trim()
+      || (question.kind === 'mcq' && question.answerIndex != null)
+      || (Array.isArray(question.wiseflowFields) && question.wiseflowFields.length)
+      || question.numericCheck
+    );
+  }
+
+  function buildCopyPayload(context) {
     const model = context.model;
     // Preserve the answer values at the moment the learner asks to copy.
     const state = { ...model.state, wiseflow: { ...model.state.wiseflow } };
-    return context.transcript
-      ? compose({ ...model, state, transcript: context.transcript })
-      : context.reading.then((transcript) => compose({ ...model, state, transcript }));
+    const includeHiddenSolution = Boolean(!model.blind && !model.revealed && isCopyHiddenSolutionEnabled() && hasAnswerKey(model.question));
+    const opts = { ...model, state, includeHiddenSolution };
+    const text = context.transcript
+      ? compose({ ...opts, transcript: context.transcript })
+      : context.reading.then((transcript) => compose({ ...opts, transcript }));
+    return { text, withHiddenSolution: includeHiddenSolution };
+  }
+
+  function textForCopy(context) {
+    return buildCopyPayload(context).text;
   }
 
   // Progressive Select All inside text boxes:
@@ -245,13 +291,14 @@ window.StudyQuestionCopy = (() => {
     const selected = selection.getRangeAt(0);
     if (selected.compareBoundaryPoints(Range.START_TO_START, wholeQuestion) > 0 ||
         selected.compareBoundaryPoints(Range.END_TO_END, wholeQuestion) < 0) return;
-    const text = textForCopy(current);
+    const { text, withHiddenSolution } = buildCopyPayload(current);
+    window.StudyWebTelemetry?.track?.('copy_question', withHiddenSolution ? 'page_hidden_sol' : 'page');
     event.preventDefault();
     if (typeof text === 'string' && event.clipboardData) {
       event.clipboardData.setData('text/plain', text);
-      copied();
+      copied(withHiddenSolution);
     } else {
-      copyAsync(text);
+      copyAsync(text, withHiddenSolution);
     }
   });
 
@@ -266,5 +313,12 @@ window.StudyQuestionCopy = (() => {
     return tutorPayload({ includeSolution });
   }
 
-  return { bind, tutorContext, tutorPayload, tutorPayloadAsync };
+  return {
+    bind,
+    tutorContext,
+    tutorPayload,
+    tutorPayloadAsync,
+    isCopyHiddenSolutionEnabled,
+    setCopyHiddenSolutionEnabled,
+  };
 })();

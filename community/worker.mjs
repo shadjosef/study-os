@@ -12,6 +12,7 @@ import { handleCourses } from './courses.mjs';
 import { handleAi } from './ai.mjs';
 import { handleFeedback } from './feedback.mjs';
 import { handleMaterials } from './materials.mjs';
+import { handleTelemetry } from './telemetry.mjs';
 
 const encoder = new TextEncoder();
 const hex = (bytes) => [...bytes].map((n) => n.toString(16).padStart(2, '0')).join('');
@@ -244,14 +245,20 @@ export default {
     const db = env.DB;
     let data = {};
     if (request.method === 'POST') {
-      const limit = (path === '/schedule/timeedit-push' || path === '/ai/tutor')
-        ? maxIcsBytes
-        : (path === '/sync' || path === '/courses/sync' || path === '/materials/chunk' || path === '/feedback') ? maxSyncBytes : maxInputBytes;
+      const limit = path === '/t'
+        ? 4_096
+        : (path === '/schedule/timeedit-push' || path === '/ai/tutor')
+          ? maxIcsBytes
+          : (path === '/sync' || path === '/courses/sync' || path === '/materials/chunk' || path === '/feedback') ? maxSyncBytes : maxInputBytes;
       try { data = await readJson(request, limit); }
       catch (err) {
         if (err instanceof PayloadTooLargeError) return reply({ error: 'Request too large.' }, 413);
         return reply({ error: 'Invalid request.' }, 400);
       }
+    }
+    if (path === '/t') {
+      if (!isAllowedWeb) return reply({ error: 'Origin not allowed.' }, 403);
+      return handleTelemetry({ request, db, env, now: Date.now(), data, headers });
     }
     const humanError = await checkHuman(request, env, path, data, reply);
     if (humanError) return humanError;

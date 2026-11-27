@@ -3305,6 +3305,10 @@ window.StudyUI = (() => {
     if (mathAutoEl && window.StudyRunner?.isMathParAutoRevealEnabled) {
       mathAutoEl.checked = Boolean(window.StudyRunner.isMathParAutoRevealEnabled());
     }
+    const copyHiddenSolEl = document.getElementById('settings-copy-hidden-sol');
+    if (copyHiddenSolEl && window.StudyQuestionCopy?.isCopyHiddenSolutionEnabled) {
+      copyHiddenSolEl.checked = Boolean(window.StudyQuestionCopy.isCopyHiddenSolutionEnabled());
+    }
     window.StudyApp?.syncSettingsRows?.();
     window.StudyCommunity?.renderSettingsSchoolMajor?.();
     if (!dialog.open) {
@@ -3550,6 +3554,11 @@ window.StudyUI = (() => {
     });
     document.getElementById('settings-math-par-answers')?.addEventListener('change', (ev) => {
       window.StudyRunner?.setMathParAutoRevealEnabled?.(ev.target.checked);
+    });
+    document.getElementById('settings-copy-hidden-sol')?.addEventListener('change', (ev) => {
+      const on = Boolean(ev.target.checked);
+      window.StudyQuestionCopy?.setCopyHiddenSolutionEnabled?.(on);
+      toast(on ? 'Hidden solution included on page copy (Practice Mode).' : 'Hidden solution excluded on page copy.');
     });
     document.querySelectorAll('#settings-autopause-seg [data-autopause-val]').forEach((btn) => {
       btn.addEventListener('click', () => {

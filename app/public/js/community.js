@@ -25,8 +25,12 @@ window.StudyCommunity = (() => {
   try { token = localStorage.getItem(keyName) || ''; } catch {}
 
   function useProfile(key) {
+    const wasSignedOut = !token;
     localStorage.setItem(keyName, key);
     token = key;
+    if (key && wasSignedOut) {
+      window.StudyWebTelemetry?.track?.('signup', 'session');
+    }
     if (!key) {
       currentProfile = null;
       if (window.StudyMembers?.isTransient?.()) {
@@ -1020,6 +1024,7 @@ window.StudyCommunity = (() => {
     </details>`;
 
   function renderEntry(root, error = '', onSignedIn = render, onDemo, prefillCode = '') {
+    window.StudyWebTelemetry?.track?.('auth_open', onDemo ? 'modal' : 'tab');
     const passkeyReady = supportsPasskeys();
     const localSchool = readLocalSchool();
     const localMajor = readLocalMajor();
@@ -2307,7 +2312,123 @@ window.StudyCommunity = (() => {
       }
     }
 
-    function renderAdminBody(body, { settings, invites, members, newsletterCount, now }) {
+    function renderAdminTelemetryHtml(t) {
+      if (!t || typeof t !== 'object') {
+        return `<div class="admin-section">
+          <h3>Anonymous &amp; web traffic (30d)</h3>
+          <p class="muted">First-party, cookie-free web telemetry is ready — run the D1 migration (<code>community/migrate_web_telemetry.sql</code>) to populate daily visitor &amp; funnel metrics.</p>
+        </div>`;
+      }
+      const td = t.today || {};
+      const w7 = t.last7d || {};
+      const w30 = t.last30d || {};
+      const ev30 = t.events30d || {};
+      const pct = (num, den) => den > 0 ? `${Math.round((num / den) * 100)}%` : '0%';
+      const maxBar = Math.max(1, ...(t.daily14 || []).map((d) => Number(d.total || 0)));
+      const barsHtml = (t.daily14 || []).map((d) => {
+        const tot = Number(d.total || 0);
+        const anon = Number(d.anon || 0);
+        const authed = Number(d.authed || 0);
+        const hTot = Math.max(tot > 0 ? 6 : 2, Math.round((tot / maxBar) * 68));
+        const hAuth = tot > 0 ? Math.round((authed / tot) * hTot) : 0;
+        const hAnon = Math.max(0, hTot - hAuth);
+        const label = String(d.day || '').slice(5);
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0" title="${esc(d.day)}: ${tot} visitors (${anon} anon, ${authed} signed in) · ${d.startedRun || 0} runs · ${d.attempted || 0} Qs">
+          <div style="width:100%;max-width:22px;height:70px;display:flex;flex-direction:column;justify-content:flex-end;gap:1px">
+            ${hAnon > 0 ? `<div style="height:${hAnon}px;border-radius:3px 3px 0 0;background:var(--accent-soft,rgba(15,110,87,.34));border:1px solid var(--accent,#0f6e57)"></div>` : ''}
+            ${hAuth > 0 ? `<div style="height:${hAuth}px;border-radius:${hAnon ? '0 0 3px 3px' : '3px'};background:var(--accent,#0f6e57)"></div>` : ''}
+            ${tot === 0 ? `<div style="height:2px;border-radius:2px;background:var(--line)"></div>` : ''}
+          </div>
+          <span style="font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums">${esc(label)}</span>
+        </div>`;
+      }).join('');
+
+      const funnelSteps = [
+        { label: 'Visitors (30d)', val: Number(w30.total || 0), sub: `${Number(w30.anon || 0)} anon · ${Number(w30.authed || 0)} signed in` },
+        { label: 'Started a run', val: Number(w30.startedRun || 0), sub: pct(w30.startedRun, w30.total) },
+        { label: 'Attempted Qs', val: Number(w30.attempted || 0), sub: `${pct(w30.attempted, w30.total)} · ${Number(ev30.questionsAttempted?.total || 0)} Qs (${Number(ev30.questionsAttempted?.anon || 0)} anon)` },
+        { label: 'Opened Sign-In', val: Number(w30.openedAuth || 0), sub: pct(w30.openedAuth, w30.total) },
+        { label: 'Signed In', val: Number(w30.signedUp || 0), sub: pct(w30.signedUp, w30.total) },
+      ];
+      const funnelBase = Math.max(1, funnelSteps[0].val);
+      const funnelHtml = funnelSteps.map((s) => {
+        const wPct = Math.min(100, Math.round((s.val / funnelBase) * 100));
+        return `<div style="margin:6px 0">
+          <div class="row-between" style="font-size:12.5px;margin-bottom:2px">
+            <span><strong>${esc(s.label)}</strong> <small class="muted">${esc(s.sub)}</small></span>
+            <strong style="font-variant-numeric:tabular-nums">${s.val}</strong>
+          </div>
+          <div style="height:6px;border-radius:999px;background:var(--surface-2,rgba(128,128,128,.14));overflow:hidden">
+            <div style="height:100%;width:${wPct}%;background:var(--accent,#0f6e57);border-radius:999px"></div>
+          </div>
+        </div>`;
+      }).join('');
+
+      const renderMiniList = (title, rows, fmt) => `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px">${esc(title)}</div>
+        ${rows.length
+          ? rows.map((r) => `<div class="row-between" style="font-size:12px;padding:2px 0;gap:8px">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(fmt(r)[0])}</span>
+              <span class="muted" style="flex-shrink:0;font-variant-numeric:tabular-nums">${esc(fmt(r)[1])}</span>
+            </div>`).join('')
+          : '<div class="muted" style="font-size:12px">No data yet</div>'}
+      </div>`;
+
+      const dev = t.devices || {};
+      const devTotal = Math.max(1, Number(dev.desktop || 0) + Number(dev.mobile || 0) + Number(dev.tablet || 0));
+      const devLine = `Desktop ${Math.round((Number(dev.desktop || 0) / devTotal) * 100)}% · Mobile ${Math.round((Number(dev.mobile || 0) / devTotal) * 100)}%${Number(dev.tablet || 0) ? ` · Tablet ${Math.round((Number(dev.tablet || 0) / devTotal) * 100)}%` : ''}`;
+
+      return `<div class="admin-section">
+        <div class="row-between" style="gap:8px;flex-wrap:wrap">
+          <h3 style="margin:0">Anonymous &amp; logged-in traffic</h3>
+          <span class="badge">Cookie-free · Daily hash · Zero IPs · EU D1</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin:10px 0">
+          <div style="border:1px solid var(--line);border-radius:10px;padding:9px 11px">
+            <div class="muted" style="font-size:11.5px">Today (${esc(t.todayDay || '')})</div>
+            <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums">${Number(td.total || 0)}</div>
+            <small class="muted">${Number(td.anon || 0)} anon · ${Number(td.authed || 0)} signed in</small>
+          </div>
+          <div style="border:1px solid var(--line);border-radius:10px;padding:9px 11px">
+            <div class="muted" style="font-size:11.5px">Last 7 days</div>
+            <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums">${Number(w7.total || 0)}</div>
+            <small class="muted">${Number(w7.anon || 0)} anon · ${Number(w7.authed || 0)} signed in</small>
+          </div>
+          <div style="border:1px solid var(--line);border-radius:10px;padding:9px 11px">
+            <div class="muted" style="font-size:11.5px">Last 30 days</div>
+            <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums">${Number(w30.total || 0)}</div>
+            <small class="muted">${Number(w30.anon || 0)} anon · ${Number(w30.authed || 0)} signed in</small>
+          </div>
+          <div style="border:1px solid var(--line);border-radius:10px;padding:9px 11px">
+            <div class="muted" style="font-size:11.5px">Qs attempted (30d)</div>
+            <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums">${Number(ev30.questionsAttempted?.total || 0)}</div>
+            <small class="muted">${Number(ev30.questionsAttempted?.anon || 0)} logged-out · ${Number(ev30.desktopDownloads?.total || 0)} Desktop DLs</small>
+          </div>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+          <div class="row-between" style="font-size:12px;margin-bottom:6px">
+            <strong>14-day daily visitors (Europe/Oslo)</strong>
+            <span class="muted">Solid = Signed in · Tinted = Anonymous</span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:4px">${barsHtml}</div>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+          <div class="row-between" style="font-size:12px;margin-bottom:4px">
+            <strong>Anonymous → Active → Sign-in funnel (30d)</strong>
+            <span class="muted">${esc(devLine)}</span>
+          </div>
+          ${funnelHtml}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">
+          ${renderMiniList('Top landing pages (30d)', (t.topPages || []).slice(0, 6), (r) => [r.dim, `${r.total} (${r.anon} anon)`])}
+          ${renderMiniList('Top referrers (30d)', (t.topReferrers || []).slice(0, 6), (r) => [r.host, String(r.visitors)])}
+          ${renderMiniList('Top courses & tabs (30d)', [...(t.topCourses || []).slice(0, 4), ...(t.topTabs || []).slice(0, 4)].slice(0, 6), (r) => [r.dim, `${r.total} (${r.anon} anon)`])}
+          ${renderMiniList('Countries (30d)', (t.countries || []).slice(0, 6), (r) => [r.country, String(r.visitors)])}
+        </div>
+      </div>`;
+    }
+
+    function renderAdminBody(body, { settings, invites, members, newsletterCount, telemetry, now }) {
       const inviteRows = (invites || []).map((inv) => {
         const expired = inv.expiresAt > 0 && inv.expiresAt <= now;
         const full = inv.maxUses > 0 && inv.uses >= inv.maxUses;
@@ -2357,6 +2478,7 @@ window.StudyCommunity = (() => {
       }).join('');
 
       body.innerHTML = `
+        ${renderAdminTelemetryHtml(telemetry)}
         <div class="admin-section">
           <div class="row-between">
             <h3>Joining access</h3>

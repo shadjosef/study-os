@@ -1604,6 +1604,10 @@ window.StudyRunner = (() => {
 
     const isExam = config.mode === 'exam';
     const examStyle = config.examStyle || (isExam ? 'blind' : 'guided');
+    window.StudyWebTelemetry?.track?.(
+      'run_start',
+      `${isExam ? 'exam' : 'practice'}:${String(config.courseMeta?.courseId || 'unknown')}`
+    );
     const sumParMin = validIds.reduce(
       (s, id) => s + Number(questionsById[id]?.pacing?.exam?.target || questionsById[id]?.pacing?.learning?.target || 3),
       0
@@ -4906,6 +4910,7 @@ window.StudyRunner = (() => {
     const dlpfcTier = window.StudyApp.effectiveDlpfc?.(q)?.tier || Number(q.dlpfcBase || 2);
     const autoGraded = Boolean(q.kind === 'mcq' || (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length) || q.numericCheck);
     pendingSaves += 1;
+    window.StudyWebTelemetry?.track?.('question_attempt', String(q.kind || 'written'));
     const res = await window.StudyApp.logAttempt({
       sessionId: run.sessionId,
       courseId: q.courseId,
@@ -5186,6 +5191,7 @@ window.StudyRunner = (() => {
     }
 
     const wasExam = activeRun.mode === 'exam';
+    window.StudyWebTelemetry?.track?.('run_complete', wasExam ? 'exam' : 'practice');
     if (wasExam) {
       const finalGrade = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(activeRun.paperSubmitted) });
       if (finalGrade && (activeRun.paperSubmitted || finalGrade.gradedCount >= Math.max(1, Math.ceil(finalGrade.totalCount * 0.5)))) {

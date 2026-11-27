@@ -2498,6 +2498,12 @@ window.StudyApp = (() => {
     currentView = viewName;
     if (opts.courseId) selectedCourseId = opts.courseId;
     if (opts.refFile) selectedRefFile = opts.refFile;
+    if (!opts.fromBoot) {
+      window.StudyWebTelemetry?.track?.('tab_view', String(viewName || 'home'));
+      if (viewName === 'course' && selectedCourseId) {
+        window.StudyWebTelemetry?.track?.('course_open', String(selectedCourseId));
+      }
+    }
     if (!opts.fromBoot && viewName !== 'course' && window.location.search) {
       const curParams = new URLSearchParams(window.location.search);
       const keepRefQuery = viewName === 'references' && curParams.get('view') === 'references';

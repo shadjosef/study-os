@@ -9,6 +9,7 @@
  */
 
 import { turnstileSiteKey } from './human.mjs';
+import { getAdminTelemetrySummary } from './telemetry.mjs';
 
 const idPattern = /^[0-9a-f-]{36}$/;
 const proofPattern = /^[0-9a-f]{64}$/;
@@ -161,7 +162,8 @@ export async function handleAdmin({ request, url, db, env, me, isAdmin, now, dat
       ORDER BY completed DESC, study_minutes DESC, nickname LIMIT 250
     `).all();
     const newsletterCount = (members || []).filter((m) => Number(m.newsletterOptIn) === 1).length;
-    return reply({ settings, invites, members, newsletterCount, now });
+    const telemetry = await getAdminTelemetrySummary(db, now);
+    return reply({ settings, invites, members, newsletterCount, telemetry, now });
   }
 
   if (path === '/admin/settings' && request.method === 'POST') {
