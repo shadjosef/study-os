@@ -1825,6 +1825,12 @@ window.StudyRunner = (() => {
                 <span class="pdf-inline-page-lbl" data-inline-page-lbl>${esc(entry.page || 1)}</span>
                 <button type="button" class="mini-tool-btn" data-inline-next aria-label="Next page" disabled>›</button>
               </span>
+              <span class="pdf-inline-zoom-grp" aria-label="Zoom">
+                <button type="button" class="mini-tool-btn" data-pdf-scale="-" aria-label="Zoom out" title="Zoom out">−</button>
+                <span class="pdf-inline-zoom-val" data-pdf-level>100%</span>
+                <button type="button" class="mini-tool-btn" data-pdf-scale="+" aria-label="Zoom in" title="Zoom in">+</button>
+              </span>
+              <button type="button" class="mini-tool-btn" data-pdf-fit="toggle" title="Toggle auto-trim blank margins" aria-pressed="true">Trim</button>
               <button type="button" class="mini-tool-btn" data-inline-crop-toggle hidden>Full page</button>
               <button type="button" class="mini-tool-btn" data-inline-invert title="Invert PDF colors (dark mode)" aria-label="Invert PDF colors">◐</button>
               ${window.StudyPdfCraft?.isAvailable?.() ? `<button type="button" class="mini-tool-btn pdf-edit-craft-btn" data-edit-inline-pdf="${esc(entry.key)}" title="Edit, highlight, annotate, sign, or OCR in PdfCraft (pure Rust WASM)">Edit</button>` : ''}
@@ -2738,7 +2744,7 @@ window.StudyRunner = (() => {
     const sourcePdfs = getQuestionSourcePdfs(q, sourcesMap, isBlindUnfinished, st.revealed);
     const lockedSourceRefs = getQuestionLockedSources(q, isBlindUnfinished, st.revealed, sourcePdfs);
     const uiPrefs = getRunnerUiPrefs();
-    const splitRatio = ['balanced', 'custom'].includes(uiPrefs.splitRatio) ? uiPrefs.splitRatio : 'wide-left';
+    const splitRatio = ['balanced', 'custom', 'wide-pdf'].includes(uiPrefs.splitRatio) ? uiPrefs.splitRatio : 'wide-left';
     const instantMcq = isInstantMcqEnabled(uiPrefs) && !isBlindUnfinished;
 
     // Guard invalid reader tab (e.g. if switched to question without PDFs or blind exam locks reference)
@@ -2961,7 +2967,8 @@ window.StudyRunner = (() => {
           ${
             isSplit && !isTriPane
               ? `
-                <button type="button" class="mini-tool-btn ${splitRatio === 'wide-left' ? 'active' : ''}" data-split-ratio="wide-left" title="Wider task pane">Wide Task</button>
+                <button type="button" class="mini-tool-btn ${splitRatio === 'wide-pdf' ? 'active' : ''}" data-split-ratio="wide-pdf" title="Extra-wide 72/28 pane for dense PDFs &amp; tables">Wide PDF</button>
+                <button type="button" class="mini-tool-btn ${splitRatio === 'wide-left' ? 'active' : ''}" data-split-ratio="wide-left" title="Wider task pane (62/38)">Wide Task</button>
                 <button type="button" class="mini-tool-btn ${splitRatio === 'balanced' ? 'active' : ''}" data-split-ratio="balanced" title="Balanced 50/50 Split">50/50</button>
               `
               : ''
@@ -3551,7 +3558,8 @@ window.StudyRunner = (() => {
       `;
     } else if (isSplit) {
       const initialWidth = splitRatio === 'custom'
-        ? Math.max(32, Math.min(68, Number(uiPrefs.splitWidth) || 62))
+        ? Math.max(32, Math.min(76, Number(uiPrefs.splitWidth) || 62))
+        : splitRatio === 'wide-pdf' ? 72
         : splitRatio === 'balanced' ? 50 : 62;
       card.innerHTML = `
         <div class="runner-split-grid" style="--task-share:${initialWidth}fr;--answer-share:${100 - initialWidth}fr">
@@ -3562,7 +3570,7 @@ window.StudyRunner = (() => {
             </div>
           </div>
           <div class="runner-divider" role="separator" aria-label="Resize task and answer panes" aria-orientation="vertical"
-              aria-valuemin="32" aria-valuemax="68" aria-valuenow="${initialWidth}" tabindex="0"></div>
+              aria-valuemin="32" aria-valuemax="76" aria-valuenow="${initialWidth}" tabindex="0"></div>
           <div class="runner-pane-right">
             ${statusBarHtml}
             <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
@@ -3653,7 +3661,11 @@ window.StudyRunner = (() => {
     });
     card.querySelector('#btn-open-tutor')?.addEventListener('click', window.StudyTutor.open);
     if (inlinePdf) {
-      const view = st.pdfViews[inlinePdf.key.replace(/#p\d+$/, '')] ||= { page: inlinePdf.page, zoom: 100, trim: true };
+      const view = st.pdfViews[inlinePdf.key.replace(/#p\d+$/, '')] ||= {
+        page: inlinePdf.page,
+        zoom: window.StudyPdf.getPreferredZoom?.() || 100,
+        trim: true,
+      };
       window.StudyPdf.mount(card.querySelector('#source-pdf-reader'), inlinePdf, view);
     } else if (inlineLocalMountItems.length) {
       window.StudyPdf.mountInlineFigures(card, inlineLocalMountItems, st.pdfViews);
@@ -3689,7 +3701,11 @@ window.StudyRunner = (() => {
         if (foundIdx >= 0) {
           st.selectedPdfIdx = foundIdx;
           const docViewKey = key.replace(/#p\d+$/, '');
-          const view = (st.pdfViews[docViewKey] ||= { page: sourcePdfs[foundIdx].page, zoom: 100, trim: true });
+          const view = (st.pdfViews[docViewKey] ||= {
+            page: sourcePdfs[foundIdx].page,
+            zoom: window.StudyPdf.getPreferredZoom?.() || 100,
+            trim: true,
+          });
           view.page = inlinePage > 0 ? inlinePage : sourcePdfs[foundIdx].page;
         }
         st.readerTab = 'pdf';
@@ -4031,7 +4047,7 @@ window.StudyRunner = (() => {
       if (divider) {
         const grid = divider.parentElement;
         function resize(width) {
-          const percent = Math.round(Math.max(32, Math.min(68, width)));
+          const percent = Math.round(Math.max(32, Math.min(76, width)));
           grid.style.setProperty('--task-share', percent + 'fr');
           grid.style.setProperty('--answer-share', (100 - percent) + 'fr');
           divider.setAttribute('aria-valuenow', percent);

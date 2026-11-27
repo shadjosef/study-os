@@ -1584,12 +1584,12 @@ html[data-theme="dark"] .preset-chip.active {
    Side-by-Side Split Workspace + Embedded Source PDF / Vault Reader
    -------------------------------------------------------------------------- */
 body.runner-split-wide .container {
-  max-width: 1340px;
+  max-width: min(1680px, calc(100vw - 64px));
   padding-top: 14px;
   padding-bottom: 48px;
 }
 body.runner-split-wide.runner-split-pdf .container {
-  max-width: 1500px;
+  max-width: min(1820px, calc(100vw - 56px));
 }
 .question-card.split-card {
   padding: 0;
@@ -1893,7 +1893,24 @@ html[data-theme="dark"][data-pdf-dark="1"] .pdf-figure-scroll {
 }
 .pdf-status { margin: 4px 8px; }
 .pdf-status:empty { display: none; }
-.pdf-zoom-scroll { overflow: auto; max-height: min(68vh, 860px); }
+.pdf-zoom-scroll { overflow: auto; max-height: min(80vh, 1120px); }
+.pdf-zoom-scroll.is-pdf-zoomed { cursor: grab; }
+.pdf-zoom-scroll.is-pdf-panning { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+.pdf-zoom-scroll.is-pdf-panning .textLayer { pointer-events: none; }
+.runner-pane-left-scroll:has(.pdf-figure) { padding: 12px 10px 22px; }
+.pdf-inline-zoom-grp {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.pdf-inline-zoom-val {
+  min-width: 2.8em;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
 .pdf-document-scroll { background: #fff; }
 .pdf-zoom-page { position: relative; overflow: hidden; margin-inline: auto; }
 .pdf-zoom-page :is(canvas, img) { position: absolute; display: block; cursor: default; }

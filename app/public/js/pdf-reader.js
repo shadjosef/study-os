@@ -16,6 +16,20 @@ window.StudyPdf = (() => {
 
   const geometry = new WeakMap();
   const pageText = new Map();
+  const PDF_ZOOM_PREF_KEY = 'study-os-pdf-zoom-v1';
+
+  function readPreferredZoom() {
+    try {
+      const n = Number(localStorage.getItem(PDF_ZOOM_PREF_KEY));
+      if (Number.isFinite(n) && n >= 80 && n <= 220) return Math.round(n);
+    } catch {}
+    return 100;
+  }
+
+  function savePreferredZoom(val) {
+    const clamped = Math.max(80, Math.min(220, Math.round(Number(val) || 100)));
+    try { localStorage.setItem(PDF_ZOOM_PREF_KEY, String(clamped)); } catch {}
+  }
 
   // Persistent LRU caches so opening, re-rendering, tab-switching, and Next/Prev are instantaneous (< 2ms on hit)
   const MAX_DOC_CACHE = 10;
@@ -290,17 +304,18 @@ window.StudyPdf = (() => {
         }
       }
     }
-    const extent = (counts) => {
-      const minimum = Math.max(2, Math.ceil(Math.max(...counts) / 45));
+    const extent = (counts, divisor) => {
+      const peak = Math.max(...counts);
+      const minimum = Math.max(3, Math.ceil(peak / divisor));
       return [counts.findIndex((n) => n >= minimum), counts.findLastIndex((n) => n >= minimum)];
     };
-    const [left, right] = extent(columnInk);
-    const [top, bottom] = extent(rowInk);
-    const axis = (first, last, limit) => first < 0 ? [0, limit] :
-      [Math.max(0, Math.floor(first / sampling) - limit * 0.025),
-        Math.min(limit, Math.ceil((last + 1) / sampling) + limit * 0.025)];
-    const [x0, x1] = axis(left, right, width);
-    const [y0, y1] = axis(top, bottom, height);
+    const [left, right] = extent(columnInk, 28);
+    const [top, bottom] = extent(rowInk, 42);
+    const axis = (first, last, limit, padRatio) => first < 0 ? [0, limit] :
+      [Math.max(0, Math.floor(first / sampling) - limit * padRatio),
+        Math.min(limit, Math.ceil((last + 1) / sampling) + limit * padRatio)];
+    const [x0, x1] = axis(left, right, width, 0.011);
+    const [y0, y1] = axis(top, bottom, height, 0.014);
     const bounds = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
     geometry.set(surface, bounds);
     return bounds;
@@ -314,11 +329,11 @@ window.StudyPdf = (() => {
     return copy;
   }
 
-  function computeRenderScale(original, targetCssWidth, maxScale = 2.4) {
+  function computeRenderScale(original, targetCssWidth, maxScale = 2.8) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const cssW = Math.max(460, Math.min(1200, Number(targetCssWidth) || 720));
+    const cssW = Math.max(560, Math.min(1500, Number(targetCssWidth) || 880));
     const desired = (cssW * dpr) / Math.max(1, original.width);
-    return Math.max(1.35, Math.min(maxScale, desired));
+    return Math.max(1.6, Math.min(maxScale, desired));
   }
 
   function renderCacheKey(docKey, pageNum, range, isInline) {
@@ -406,7 +421,9 @@ window.StudyPdf = (() => {
       }
       scroller.classList.toggle('is-pdf-zoomed', Math.abs(state.zoom - 100) >= 2);
       for (const button of root.querySelectorAll('[data-pdf-fit]')) {
-        const selected = (button.dataset.pdfFit === 'content') === Boolean(state.trim);
+        const selected = button.dataset.pdfFit === 'toggle'
+          ? Boolean(state.trim)
+          : (button.dataset.pdfFit === 'content') === Boolean(state.trim);
         button.setAttribute('aria-pressed', String(selected));
         button.classList.toggle('active', selected);
       }
@@ -423,6 +440,7 @@ window.StudyPdf = (() => {
       const pageX = scroller.scrollLeft + x - inset();
       const pageY = scroller.scrollTop + y;
       state.zoom = next;
+      savePreferredZoom(next);
       paint();
       scroller.scrollLeft = pageX * next / old + inset() - x;
       scroller.scrollTop = pageY * next / old - y;
@@ -431,11 +449,12 @@ window.StudyPdf = (() => {
     for (const button of root.querySelectorAll('[data-pdf-scale], [data-pdf-fit]')) {
       button.onclick = () => {
         if (button.dataset.pdfFit) {
-          state.trim = button.dataset.pdfFit === 'content';
-          state.zoom = 100;
+          state.trim = button.dataset.pdfFit === 'toggle'
+            ? !state.trim
+            : button.dataset.pdfFit === 'content';
           paint();
           scroller.scrollTo(0, 0);
-        } else setZoom(Math.round(state.zoom) + (button.dataset.pdfScale === '+' ? 25 : -25));
+        } else setZoom(Math.round(state.zoom) + (button.dataset.pdfScale === '+' ? 20 : -20));
       };
     }
     const resetBadgeBtn = root.querySelector('[data-pdf-zoom-reset]');
@@ -443,10 +462,56 @@ window.StudyPdf = (() => {
       resetBadgeBtn.onclick = (ev) => {
         ev.stopPropagation();
         state.zoom = 100;
+        savePreferredZoom(100);
         paint();
         scroller.scrollTo(0, 0);
       };
     }
+
+    // Smooth click-and-hold 2D drag-to-pan whenever zoomed in past fit width
+    let panState = null;
+    const onPanDown = (ev) => {
+      if (ev.pointerType !== 'mouse' || ev.button !== 0) return;
+      if (ev.target?.closest?.('button, a, input, select, summary')) return;
+      if (state.zoom <= 102 && scroller.scrollWidth <= scroller.clientWidth + 4) return;
+      panState = {
+        pointerId: ev.pointerId,
+        startX: ev.clientX,
+        startY: ev.clientY,
+        scrollLeft: scroller.scrollLeft,
+        scrollTop: scroller.scrollTop,
+        dragging: false,
+      };
+    };
+    const onPanMove = (ev) => {
+      if (!panState || ev.pointerId !== panState.pointerId) return;
+      const dx = ev.clientX - panState.startX;
+      const dy = ev.clientY - panState.startY;
+      if (!panState.dragging && Math.hypot(dx, dy) >= 5) {
+        panState.dragging = true;
+        scroller.classList.add('is-pdf-panning');
+        try { scroller.setPointerCapture(ev.pointerId); } catch {}
+      }
+      if (panState.dragging) {
+        ev.preventDefault();
+        scroller.scrollLeft = panState.scrollLeft - dx;
+        scroller.scrollTop = panState.scrollTop - dy;
+      }
+    };
+    const onPanUp = (ev) => {
+      if (!panState || ev.pointerId !== panState.pointerId) return;
+      const wasDragging = panState.dragging;
+      panState = null;
+      scroller.classList.remove('is-pdf-panning');
+      if (wasDragging) {
+        scroller.dataset.justPanned = String(Date.now());
+        try { scroller.releasePointerCapture(ev.pointerId); } catch {}
+      }
+    };
+    scroller.addEventListener('pointerdown', onPanDown);
+    scroller.addEventListener('pointermove', onPanMove);
+    scroller.addEventListener('pointerup', onPanUp);
+    scroller.addEventListener('pointercancel', onPanUp);
     const onWheel = (event) => {
       if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault();
@@ -519,6 +584,10 @@ window.StudyPdf = (() => {
         scroller.removeEventListener('gesturestart', onGestureStart);
         scroller.removeEventListener('gesturechange', onGestureChange);
         scroller.removeEventListener('gestureend', onGestureEnd);
+        scroller.removeEventListener('pointerdown', onPanDown);
+        scroller.removeEventListener('pointermove', onPanMove);
+        scroller.removeEventListener('pointerup', onPanUp);
+        scroller.removeEventListener('pointercancel', onPanUp);
         scroller.removeEventListener('touchstart', onTouchStart);
         scroller.removeEventListener('touchmove', onTouchMove);
         scroller.removeEventListener('touchend', onTouchEnd);
@@ -527,12 +596,13 @@ window.StudyPdf = (() => {
   }
 
   function bindExcerpts(root, states) {
+    const defZoom = readPreferredZoom();
     for (const figure of root.querySelectorAll('[data-pdf-excerpt]')) {
       const source = figure.querySelector('img');
       const scroller = figure.querySelector('.pdf-zoom-scroll');
       const page = figure.querySelector('.pdf-zoom-page');
       const id = figure.dataset.pdfExcerpt;
-      const state = states[id] ||= { zoom: 100, trim: false };
+      const state = states[id] ||= { zoom: defZoom, trim: true };
       bindZoom(figure, scroller, page, source, state, () => ({
         width: source.naturalWidth, height: source.naturalHeight,
       }));
@@ -689,7 +759,7 @@ window.StudyPdf = (() => {
       const dKey = docKeyFor(item.source);
       batch.docKeys.add(dKey);
       const state = (states[item.key] ||= {
-        zoom: 100,
+        zoom: readPreferredZoom(),
         trim: true,
         page: Math.max(1, Number(item.page) || 1),
         showFullPage: false,
@@ -838,7 +908,7 @@ window.StudyPdf = (() => {
                 notice.hidden = false;
               }
               const original = page.getViewport({ scale: 1 });
-              const scale = computeRenderScale(original, scroll.clientWidth || figure.clientWidth || 720, 2.2);
+              const scale = computeRenderScale(original, scroll.clientWidth || figure.clientWidth || 880, 2.6);
               viewport = page.getViewport({ scale });
               top = Math.floor(viewport.height * activeRange[0]);
               const bottom = Math.ceil(viewport.height * activeRange[1]);
@@ -913,6 +983,7 @@ window.StudyPdf = (() => {
         };
         scroll.onclick = (ev) => {
           if (ev.target?.closest?.('button, a, input, [data-pdf-zoom-reset]')) return;
+          if (Date.now() - Number(scroll.dataset.justPanned || 0) < 300) return;
           if (downPt && Math.hypot(ev.clientX - downPt.x, ev.clientY - downPt.y) > 6) return;
           const sel = window.getSelection?.()?.toString?.()?.trim();
           if (sel) return;
@@ -1329,5 +1400,6 @@ window.StudyPdf = (() => {
     hasSavedExcerpt: source => Boolean(savedRange(source, source.page)),
     textForPage,
     clearText: () => pageText.clear(),
+    getPreferredZoom: readPreferredZoom,
   };
 })();
