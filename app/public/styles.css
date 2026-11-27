@@ -959,17 +959,17 @@ html[data-theme="dark"][data-pdf-dark="1"] .pdf-figure img {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 14px 16px 48px;
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--ref-text-scale, 1));
   line-height: 1.56;
   overscroll-behavior: contain;
 }
 .ref-drawer-body h1,
 .ref-drawer-body h2 {
-  font-size: 16px;
+  font-size: calc(16px * var(--ref-text-scale, 1));
   margin-top: 14px;
 }
 .ref-drawer-body h3 {
-  font-size: 14px;
+  font-size: calc(14px * var(--ref-text-scale, 1));
   margin-top: 12px;
 }
 .ref-drawer-body .katex-display {
@@ -8666,16 +8666,16 @@ body.runner-split-wide.runner-split-ref .container {
   min-height: 0;
   overflow: auto;
   padding: 12px 14px 22px;
-  font-size: 13.5px;
+  font-size: calc(13.5px * var(--ref-text-scale, 1));
   line-height: 1.56;
 }
 .runner-pane-ref-scroll .markdown-body h1,
 .runner-pane-ref-scroll .markdown-body h2 {
-  font-size: 15px;
+  font-size: calc(15px * var(--ref-text-scale, 1));
   margin-top: 10px;
 }
 .runner-pane-ref-scroll .markdown-body h3 {
-  font-size: 13.8px;
+  font-size: calc(13.8px * var(--ref-text-scale, 1));
 }
 .runner-pane-ref-scroll .md-table-wrap,
 .ref-drawer-body .md-table-wrap {
@@ -8685,9 +8685,35 @@ body.runner-split-wide.runner-split-ref .container {
   border-radius: 10px;
 }
 .runner-pane-ref-scroll .markdown-body table {
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--ref-text-scale, 1));
   width: 100%;
   max-width: none;
+}
+.ref-text-zoom-pill {
+  position: fixed;
+  z-index: 65;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.14);
+  cursor: pointer;
+}
+.ref-text-zoom-pill:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ref-text-zoom-pill[hidden] {
+  display: none !important;
 }
 
 @media (max-width: 1019px) {
@@ -11496,7 +11522,10 @@ details[open] > summary > .exp-chev::before {
   border-radius: 7px;
 }
 .md-img-zoom-frame.is-zoomed .md-img-zoom-scroll {
+  overflow: auto;
+  max-height: 72vh;
   cursor: grab;
+  touch-action: none;
 }
 .md-img-zoom-scroll.is-panning {
   cursor: grabbing !important;
@@ -11506,10 +11535,12 @@ details[open] > summary > .exp-chev::before {
   display: block;
   height: auto;
   border-radius: 6px;
+  -webkit-user-drag: none;
 }
 .md-img-zoom-frame.is-zoomed .md-img-zoom-scroll > img {
-  cursor: zoom-out;
+  cursor: grab;
   box-shadow: none;
+  user-select: none;
 }
 .md-img-zoom-scroll.is-panning > img {
   cursor: grabbing !important;

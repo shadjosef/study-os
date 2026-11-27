@@ -3470,13 +3470,16 @@ window.StudyUI = (() => {
       // Smooth 2D pointer drag-to-pan when zoomed in
       lbStage.addEventListener('pointerdown', (ev) => {
         if (ev.button !== 0 || lightboxState.zoom <= 1.01) return;
-        if (ev.target !== lbImg) return;
+        if (ev.target !== lbImg && ev.target !== lbStage) return;
+        ev.preventDefault();
         const startX = ev.clientX;
         const startY = ev.clientY;
         const baseTx = lightboxState.tx;
         const baseTy = lightboxState.ty;
+        const pid = ev.pointerId;
         lbPanMoved = false;
         lbStage.classList.add('is-panning');
+        try { lbStage.setPointerCapture?.(pid); } catch {}
         const onMove = (mEv) => {
           const dx = mEv.clientX - startX;
           const dy = mEv.clientY - startY;
@@ -3487,6 +3490,7 @@ window.StudyUI = (() => {
         };
         const onUp = () => {
           lbStage.classList.remove('is-panning');
+          try { lbStage.releasePointerCapture?.(pid); } catch {}
           window.removeEventListener('pointermove', onMove);
           window.removeEventListener('pointerup', onUp);
           window.removeEventListener('pointercancel', onUp);
@@ -3691,77 +3695,218 @@ window.StudyUI = (() => {
     clearInterval(workTickHandle);
     workTickHandle = setInterval(renderWorkClockDom, 1000);
 
-    // Seamless trackpad pinch-to-zoom on inline markdown images + 1-click fullscreen lightbox
+    // Seamless trackpad pinch-to-zoom + 2D drag-to-pan on inline markdown images + 1-click fullscreen lightbox
     function ensurePinchImgWrap(img) {
       const existing = img.closest('.md-img-zoom-frame');
       if (existing) return existing;
       const frame = document.createElement('span');
       frame.className = 'md-img-zoom-frame';
       frame.dataset.zoomScale = '1';
+      const bar = document.createElement('span');
+      bar.className = 'md-img-zoom-bar';
+      bar.hidden = true;
+      const resetBtn = document.createElement('button');
+      resetBtn.type = 'button';
+      resetBtn.className = 'md-img-zoom-btn';
+      resetBtn.dataset.mdZoomAct = 'reset';
+      resetBtn.title = 'Reset image zoom to 100%';
+      resetBtn.textContent = '100% ↺';
+      const fullBtn = document.createElement('button');
+      fullBtn.type = 'button';
+      fullBtn.className = 'md-img-zoom-btn';
+      fullBtn.dataset.mdZoomAct = 'fullscreen';
+      fullBtn.title = 'Open fullscreen viewer';
+      fullBtn.textContent = '⤢';
+      bar.append(resetBtn, fullBtn);
       const scroll = document.createElement('span');
       scroll.className = 'md-img-zoom-scroll';
       img.replaceWith(frame);
       img.draggable = false;
       scroll.appendChild(img);
-      frame.append(scroll);
+      frame.append(bar, scroll);
+
+      resetBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        applyPinchImgScale(frame, 1);
+      });
+      fullBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (img.src) openLightbox(img.src, img.alt);
+      });
+
+      // Click-and-hold 2D drag-to-pan while zoomed in
+      scroll.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== 0 || !frame.classList.contains('is-zoomed')) return;
+        ev.preventDefault();
+        const startX = ev.clientX;
+        const startY = ev.clientY;
+        const startLeft = scroll.scrollLeft;
+        const startTop = scroll.scrollTop;
+        const pid = ev.pointerId;
+        let moved = false;
+        scroll.classList.add('is-panning');
+        try { scroll.setPointerCapture?.(pid); } catch {}
+        const onMove = (mEv) => {
+          const dx = mEv.clientX - startX;
+          const dy = mEv.clientY - startY;
+          if (!moved && Math.hypot(dx, dy) > 4) moved = true;
+          scroll.scrollLeft = startLeft - dx;
+          scroll.scrollTop = startTop - dy;
+        };
+        const onUp = () => {
+          scroll.classList.remove('is-panning');
+          try { scroll.releasePointerCapture?.(pid); } catch {}
+          if (moved) frame.dataset.suppressClickUntil = String(Date.now() + 350);
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+          window.removeEventListener('pointercancel', onUp);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+      });
       return frame;
     }
 
-    function applyPinchImgScale(frame, nextScale, clientX) {
+    function applyPinchImgScale(frame, nextScale, clientX, clientY) {
       if (!frame) return;
       const scroll = frame.querySelector('.md-img-zoom-scroll');
       const img = scroll?.querySelector('img');
+      const bar = frame.querySelector('.md-img-zoom-bar');
+      const resetBtn = bar?.querySelector('[data-md-zoom-act="reset"]');
       if (!scroll || !img) return;
       const clamped = Math.max(1, Math.min(3.5, Number(nextScale) || 1));
       const prev = Number(frame.dataset.zoomScale || 1) || 1;
       frame.dataset.zoomScale = clamped.toFixed(3);
-      frame.classList.toggle('is-zoomed', clamped > 1.02);
-      if (clamped <= 1.02) {
+      const isZoomed = clamped > 1.02;
+      frame.classList.toggle('is-zoomed', isZoomed);
+      if (bar) bar.hidden = !isZoomed;
+      if (resetBtn) resetBtn.textContent = `${Math.round(clamped * 100)}% ↺`;
+      if (!isZoomed) {
         frame.dataset.zoomScale = '1';
         img.style.width = '';
         img.style.maxWidth = '';
         scroll.scrollLeft = 0;
+        scroll.scrollTop = 0;
         return;
       }
       const box = scroll.getBoundingClientRect();
       const x = Number.isFinite(clientX) ? clientX - box.left : scroll.clientWidth / 2;
+      const y = Number.isFinite(clientY) ? clientY - box.top : scroll.clientHeight / 2;
       const pageX = scroll.scrollLeft + x;
+      const pageY = scroll.scrollTop + y;
+      const ratio = clamped / prev;
       img.style.width = `${Math.round(clamped * 100)}%`;
       img.style.maxWidth = 'none';
-      scroll.scrollLeft = Math.max(0, pageX * (clamped / prev) - x);
+      scroll.scrollLeft = Math.max(0, pageX * ratio - x);
+      scroll.scrollTop = Math.max(0, pageY * ratio - y);
+    }
+
+    // Pinch-to-scale reference text size (shows more lines/formulas in narrow split-screen without shrinking the app)
+    const REF_TEXT_SCALE_KEY = 'study-os-ref-text-scale-v1';
+    let refTextScale = (() => {
+      try {
+        const saved = Number(localStorage.getItem(REF_TEXT_SCALE_KEY));
+        return Number.isFinite(saved) && saved >= 0.7 && saved <= 1.45 ? saved : 1;
+      } catch {
+        return 1;
+      }
+    })();
+    document.documentElement.style.setProperty('--ref-text-scale', refTextScale.toFixed(3));
+    let refZoomPill = null;
+    let refZoomPillTimer = null;
+
+    function showRefZoomPill(targetEl) {
+      if (!refZoomPill) {
+        refZoomPill = document.createElement('button');
+        refZoomPill.type = 'button';
+        refZoomPill.className = 'ref-text-zoom-pill';
+        refZoomPill.title = 'Click to reset Reference text size to 100%';
+        refZoomPill.addEventListener('click', () => {
+          applyRefTextScale(1, null);
+        });
+        document.body.appendChild(refZoomPill);
+      }
+      const pct = Math.round(refTextScale * 100);
+      refZoomPill.textContent = pct === 100 ? 'Reference text · 100%' : `Reference text · ${pct}% · Reset ↺`;
+      if (targetEl?.getBoundingClientRect) {
+        const r = targetEl.getBoundingClientRect();
+        refZoomPill.style.top = `${Math.max(12, Math.round(r.top + 10))}px`;
+        refZoomPill.style.left = `${Math.max(12, Math.round(r.right - 185))}px`;
+      }
+      refZoomPill.hidden = false;
+      clearTimeout(refZoomPillTimer);
+      refZoomPillTimer = setTimeout(() => {
+        if (refZoomPill) refZoomPill.hidden = true;
+      }, pct === 100 ? 1100 : 2800);
+    }
+
+    function applyRefTextScale(nextScale, anchorEl) {
+      let clamped = Math.max(0.7, Math.min(1.45, Number(nextScale) || 1));
+      if (Math.abs(clamped - 1) < 0.025) clamped = 1;
+      refTextScale = clamped;
+      document.documentElement.style.setProperty('--ref-text-scale', clamped.toFixed(3));
+      try { localStorage.setItem(REF_TEXT_SCALE_KEY, clamped.toFixed(3)); } catch {}
+      showRefZoomPill(anchorEl);
     }
 
     document.addEventListener('wheel', (ev) => {
       if (!ev.ctrlKey && !ev.metaKey) return;
       const img = ev.target?.closest?.('.markdown-body img');
-      if (!img || !img.src || img.closest('.pdf-figure') || (img.clientWidth > 0 && img.clientWidth < 48)) return;
-      ev.preventDefault();
-      const frame = ensurePinchImgWrap(img);
-      const cur = Number(frame.dataset.zoomScale || 1) || 1;
-      const unit = ev.deltaMode === 1 ? 16 : 1;
-      applyPinchImgScale(frame, cur * Math.exp(-ev.deltaY * unit / 140), ev.clientX);
+      if (img && img.src && !img.closest('.pdf-figure') && !(img.clientWidth > 0 && img.clientWidth < 48)) {
+        ev.preventDefault();
+        const frame = ensurePinchImgWrap(img);
+        const cur = Number(frame.dataset.zoomScale || 1) || 1;
+        const unit = ev.deltaMode === 1 ? 16 : 1;
+        applyPinchImgScale(frame, cur * Math.exp(-ev.deltaY * unit / 140), ev.clientX, ev.clientY);
+        return;
+      }
+      const refPane = ev.target?.closest?.('.runner-pane-ref-scroll, .ref-drawer-body');
+      if (refPane) {
+        ev.preventDefault();
+        const unit = ev.deltaMode === 1 ? 16 : 1;
+        applyRefTextScale(refTextScale * Math.exp(-ev.deltaY * unit / 220), refPane);
+      }
     }, { passive: false });
 
     let mdGestureFrame = null;
     let mdGestureBase = 1;
+    let refGesturePane = null;
+    let refGestureBase = 1;
     document.addEventListener('gesturestart', (ev) => {
       const img = ev.target?.closest?.('.markdown-body img');
-      if (!img || !img.src || img.closest('.pdf-figure') || (img.clientWidth > 0 && img.clientWidth < 48)) return;
-      ev.preventDefault();
-      mdGestureFrame = ensurePinchImgWrap(img);
-      mdGestureBase = Number(mdGestureFrame.dataset.zoomScale || 1) || 1;
+      if (img && img.src && !img.closest('.pdf-figure') && !(img.clientWidth > 0 && img.clientWidth < 48)) {
+        ev.preventDefault();
+        mdGestureFrame = ensurePinchImgWrap(img);
+        mdGestureBase = Number(mdGestureFrame.dataset.zoomScale || 1) || 1;
+        return;
+      }
+      const refPane = ev.target?.closest?.('.runner-pane-ref-scroll, .ref-drawer-body');
+      if (refPane) {
+        ev.preventDefault();
+        refGesturePane = refPane;
+        refGestureBase = refTextScale;
+      }
     }, { passive: false });
     document.addEventListener('gesturechange', (ev) => {
-      if (!mdGestureFrame || !Number.isFinite(ev.scale)) return;
-      ev.preventDefault();
-      applyPinchImgScale(mdGestureFrame, mdGestureBase * ev.scale, ev.clientX);
+      if (mdGestureFrame && Number.isFinite(ev.scale)) {
+        ev.preventDefault();
+        applyPinchImgScale(mdGestureFrame, mdGestureBase * ev.scale, ev.clientX, ev.clientY);
+      } else if (refGesturePane && Number.isFinite(ev.scale)) {
+        ev.preventDefault();
+        applyRefTextScale(refGestureBase * ev.scale, refGesturePane);
+      }
     }, { passive: false });
     document.addEventListener('gestureend', () => {
       mdGestureFrame = null;
+      refGesturePane = null;
     }, { passive: true });
 
     // Click directly on any figure or markdown image -> seamless fullscreen lightbox!
     document.addEventListener('click', (e) => {
+      if (e.target?.closest?.('.md-img-zoom-bar')) return;
       const figImg = e.target?.closest?.('.pdf-figure:not([data-pdf-excerpt]) img');
       if (figImg && figImg.src) {
         openLightbox(figImg.src, figImg.alt, { isPdf: true });
@@ -3770,6 +3915,10 @@ window.StudyUI = (() => {
 
       const mdImg = e.target?.closest?.('.markdown-body img');
       if (mdImg && mdImg.src && !mdImg.closest('.pdf-figure') && !mdImg.closest('a[href]')) {
+        const zoomFrame = mdImg.closest('.md-img-zoom-frame');
+        if (zoomFrame && Number(zoomFrame.dataset.suppressClickUntil || 0) > Date.now()) {
+          return;
+        }
         if (mdImg.clientWidth > 0 && mdImg.clientWidth < 48) return;
         openLightbox(mdImg.src, mdImg.alt);
       }
