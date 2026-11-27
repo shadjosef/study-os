@@ -403,7 +403,7 @@ function collectEdTabContext() {
   return { region, host, tokens: Array.from(tokens).slice(0, 4), domCourses };
 }
 
-function stripEdDocumentXml(docStr, fallbackText = '') {
+function stripEdDocumentXml(docStr, fallbackText = '', maxLen = 1200) {
   const raw = typeof docStr === 'string' && docStr.trim() ? docStr : String(fallbackText || '');
   if (!raw.trim()) return '';
   let text = raw
@@ -426,7 +426,71 @@ function stripEdDocumentXml(docStr, fallbackText = '') {
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  return text.slice(0, 620);
+  return text.slice(0, maxLen);
+}
+
+function extractEdThreadReplies(detailPayload) {
+  const th = detailPayload?.thread;
+  if (!th || typeof th !== 'object') return { fullBody: '', replies: [] };
+  const userMap = new Map();
+  for (const u of (Array.isArray(detailPayload?.users) ? detailPayload.users : [])) {
+    if (u?.id) userMap.set(String(u.id), u);
+  }
+  const mapEntry = (item, isAnswer, isNested) => {
+    if (!item || item.is_private || item.deleted_at) return null;
+    const text = stripEdDocumentXml(item.content || '', item.document || '', 920);
+    if (!text) return null;
+    const u = item.user_id ? userMap.get(String(item.user_id)) : null;
+    const authorName = item.is_anonymous ? 'Anonymous' : (u?.name || item.user?.name || '');
+    const role = String(u?.course_role || item.user?.course_role || '').toLowerCase();
+    const isStaff = ['admin', 'staff', 'tutor', 'instructor'].includes(role);
+    return {
+      id: String(item.id || ''),
+      author: String(authorName).trim().slice(0, 60),
+      isStaff,
+      isEndorsed: Boolean(item.is_endorsed),
+      isAnswer: Boolean(isAnswer),
+      isNested: Boolean(isNested),
+      votes: Math.max(0, Number(item.vote_count) || 0),
+      text,
+      createdAt: item.created_at || th.updated_at || new Date().toISOString(),
+    };
+  };
+
+  const answers = (Array.isArray(th.answers) ? th.answers : [])
+    .filter((a) => a && !a.is_private && !a.deleted_at)
+    .sort((a, b) => {
+      const aScore = (a.is_endorsed ? 4 : 0) + (['admin', 'staff', 'tutor', 'instructor'].includes(String(userMap.get(String(a.user_id))?.course_role || '').toLowerCase()) ? 2 : 0);
+      const bScore = (b.is_endorsed ? 4 : 0) + (['admin', 'staff', 'tutor', 'instructor'].includes(String(userMap.get(String(b.user_id))?.course_role || '').toLowerCase()) ? 2 : 0);
+      if (bScore !== aScore) return bScore - aScore;
+      return (Number(b.vote_count) || 0) - (Number(a.vote_count) || 0);
+    });
+
+  const replies = [];
+  for (const ans of answers) {
+    const mapped = mapEntry(ans, true, false);
+    if (mapped) replies.push(mapped);
+    for (const sub of (Array.isArray(ans.comments) ? ans.comments : []).slice(0, 3)) {
+      const mSub = mapEntry(sub, false, true);
+      if (mSub) replies.push(mSub);
+      if (replies.length >= 10) break;
+    }
+    if (replies.length >= 10) break;
+  }
+  if (replies.length < 10) {
+    for (const c of (Array.isArray(th.comments) ? th.comments : [])) {
+      const mCom = mapEntry(c, false, false);
+      if (mCom) replies.push(mCom);
+      for (const sub of (Array.isArray(c.comments) ? c.comments : []).slice(0, 2)) {
+        const mSub = mapEntry(sub, false, true);
+        if (mSub) replies.push(mSub);
+        if (replies.length >= 10) break;
+      }
+      if (replies.length >= 10) break;
+    }
+  }
+  const fullBody = stripEdDocumentXml(th.content || '', th.document || '', 1200);
+  return { fullBody, replies: replies.slice(0, 10) };
 }
 
 async function fetchEdThreadsForCourses(apiHost, authHeaders, courses) {
@@ -452,7 +516,7 @@ async function fetchEdThreadsForCourses(apiHost, authHeaders, courses) {
         const authorName = t.is_anonymous ? 'Anonymous' : (u?.name || t.user?.name || '');
         const role = String(u?.course_role || t.user?.course_role || '').toLowerCase();
         const isStaff = ['admin', 'staff', 'tutor', 'instructor'].includes(role) || t.type === 'announcement';
-        const snippet = stripEdDocumentXml(t.content || '', t.document || '');
+        const snippet = stripEdDocumentXml(t.content || '', t.document || '', 1200);
         const rawType = String(t.type || '').toLowerCase();
         const type = rawType === 'announcement' ? 'announcement' : rawType === 'question' ? 'question' : 'post';
         all.push({
@@ -471,6 +535,7 @@ async function fetchEdThreadsForCourses(apiHost, authHeaders, courses) {
           isStaff,
           author: String(authorName).trim().slice(0, 60),
           replyCount: Math.max(0, Number(t.reply_count) || 0),
+          replies: [],
           createdAt: t.created_at || new Date().toISOString(),
           updatedAt: t.updated_at || t.created_at || new Date().toISOString(),
         });
@@ -481,7 +546,32 @@ async function fetchEdThreadsForCourses(apiHost, authHeaders, courses) {
     if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
     return Date.parse(b.updatedAt || b.createdAt || '') - Date.parse(a.updatedAt || a.createdAt || '');
   });
-  return all.slice(0, 60);
+  const top = all.slice(0, 60);
+
+  // Hydrate full replies & staff answers for threads that have replies (batched gently to avoid throttling)
+  const withReplies = top.filter((t) => t.replyCount > 0 || t.isAnswered).slice(0, 24);
+  for (let i = 0; i < withReplies.length; i += 4) {
+    const slice = withReplies.slice(i, i + 4);
+    await Promise.all(slice.map(async (item) => {
+      try {
+        const res = await fetch(`https://${apiHost}/api/threads/${item.id}`, {
+          credentials: 'include',
+          headers: { Accept: 'application/json', ...authHeaders },
+          signal: AbortSignal.timeout(6_000),
+        });
+        if (!res.ok) return;
+        const detail = await res.json().catch(() => null);
+        if (!detail?.thread) return;
+        const { fullBody, replies } = extractEdThreadReplies(detail);
+        if (fullBody && fullBody.length > item.snippet.length) item.snippet = fullBody;
+        if (replies.length) {
+          item.replies = replies;
+          if (replies.length > item.replyCount) item.replyCount = replies.length;
+        }
+      } catch {}
+    }));
+  }
+  return top;
 }
 
 async function fetchEdCoursesFromContext(ctx) {

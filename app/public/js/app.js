@@ -9035,16 +9035,53 @@ window.StudyApp = (() => {
     ).values()];
 
     let activeCourse = 'all';
+    let answeredOnly = false;
+    let searchTerm = '';
     let showAll = false;
+    const expandedThreads = new Set();
     const baseLimit = Math.max(2, Number(opts.limit) || 5);
     const title = opts.title || 'Ed Discussion';
 
     const paint = () => {
-      const filtered = activeCourse === 'all'
-        ? allThreads
-        : allThreads.filter((t) => (t.courseId || t.courseCode || t.courseName) === activeCourse);
+      const q = searchTerm.trim().toLowerCase();
+      const filtered = allThreads.filter((t) => {
+        if (activeCourse !== 'all' && (t.courseId || t.courseCode || t.courseName) !== activeCourse) return false;
+        if (answeredOnly && !t.isAnswered && !(Array.isArray(t.replies) && t.replies.length > 0)) return false;
+        if (q) {
+          const replyHay = Array.isArray(t.replies) ? t.replies.map((r) => `${r.author || ''} ${r.text || ''}`).join(' ') : '';
+          const hay = `${t.title || ''} ${t.snippet || ''} ${t.category || ''} ${t.author || ''} ${t.courseCode || ''} ${replyHay}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
       const visible = showAll ? filtered : filtered.slice(0, baseLimit);
       const syncedAgo = formatRelativePostAge(snap?.syncedAt);
+      const hasAnyAnswered = allThreads.some((t) => t.isAnswered || (Array.isArray(t.replies) && t.replies.length > 0));
+
+      const renderReplyItem = (r) => {
+        const rAge = formatRelativePostAge(r.createdAt);
+        const isOfficial = Boolean(r.isStaff || r.isEndorsed);
+        const roleBadge = r.isEndorsed && r.isStaff
+          ? '<span class="badge good">★ Staff · Endorsed</span>'
+          : r.isStaff
+          ? '<span class="badge good">★ Staff Answer</span>'
+          : r.isEndorsed
+          ? '<span class="badge good">✓ Endorsed Answer</span>'
+          : r.isAnswer
+          ? '<span class="badge">Answer</span>'
+          : '<span class="topic-mini-chip">Comment</span>';
+        return `<div class="ed-reply-item ${isOfficial ? 'is-official' : ''} ${r.isNested ? 'is-nested' : ''}">
+          <div class="ed-reply-head">
+            <div class="ed-feed-tags">
+              ${roleBadge}
+              <strong class="ed-reply-author">${esc(r.author || 'Anonymous')}</strong>
+              ${r.votes > 0 ? `<small class="muted">▲ ${r.votes}</small>` : ''}
+            </div>
+            ${rAge ? `<small class="muted">${esc(rAge)}</small>` : ''}
+          </div>
+          <div class="ed-reply-body">${esc(r.text || '')}</div>
+        </div>`;
+      };
 
       const innerFeedHtml = `
         <div class="ed-feed-wrap">
@@ -9055,24 +9092,41 @@ window.StudyApp = (() => {
               <span class="badge">${filtered.length} post${filtered.length === 1 ? '' : 's'}</span>
               ${syncedAgo ? `<small class="muted">Synced ${esc(syncedAgo)}</small>` : ''}
             </div>
-            ${courses.length > 1 ? `
-              <div class="ed-feed-pills" role="tablist" aria-label="Filter Ed posts by course">
+            <div class="ed-feed-pills" role="tablist" aria-label="Filter Ed posts">
+              ${hasAnyAnswered ? `<button type="button" class="ed-filter-pill ${answeredOnly ? 'active' : ''}" data-ed-answered-toggle="1">Answered</button>` : ''}
+              ${courses.length > 1 ? `
                 <button type="button" class="ed-filter-pill ${activeCourse === 'all' ? 'active' : ''}" data-ed-feed-course="all">All</button>
                 ${courses.slice(0, 6).map((c) => `
                   <button type="button" class="ed-filter-pill ${activeCourse === c.key ? 'active' : ''}" data-ed-feed-course="${esc(c.key)}">${esc(c.label)}</button>
-                `).join('')}
-              </div>` : ''}
+                `).join('')}` : ''}
+            </div>
           </div>`}
+          ${allThreads.length >= 4 ? `
+            <div class="ed-feed-search-row">
+              <input type="search" class="ed-feed-search-input" data-ed-feed-search placeholder="Search Ed posts &amp; replies…" value="${esc(searchTerm)}" aria-label="Search Ed Discussion posts and replies" />
+            </div>` : ''}
           <div class="ed-feed-list">
-            ${visible.map((t, idx) => {
+            ${visible.length ? visible.map((t, idx) => {
+              const tKey = `${t.courseId || ''}:${t.id || idx}`;
               const snippet = String(t.snippet || '').trim();
               const isLong = snippet.length > 180 || snippet.split('\n').length > 3;
+              const replies = Array.isArray(t.replies) ? t.replies : [];
+              const replyTotal = Math.max(replies.length, Number(t.replyCount) || 0);
+              const isOpen = expandedThreads.has(tKey);
+              const topOfficial = replies.find((r) => r.isStaff || r.isEndorsed) || replies[0] || null;
               const safeUrl = /^https:\/\/(?:(?:eu|us|au)\.)?edstem\.org\/courses\/\d+\/discussion\/\d+$/.test(t.url || '')
                 ? t.url
                 : `https://${/^(?:(?:eu|us|au)\.)?edstem\.org$/.test(t.host || '') ? t.host : 'eu.edstem.org'}/courses/${encodeURIComponent(t.courseId || '')}/discussion/${encodeURIComponent(t.id || '')}`;
               const age = formatRelativePostAge(t.updatedAt || t.createdAt);
+              const replyBtnLabel = replies.length
+                ? (isOpen
+                  ? `Hide repl${replies.length === 1 ? 'y' : 'ies'} ▴`
+                  : (topOfficial && (topOfficial.isStaff || topOfficial.isEndorsed)
+                    ? `View staff answer (${replies.length}) ▾`
+                    : `View ${replies.length} repl${replies.length === 1 ? 'y' : 'ies'} ▾`))
+                : (replyTotal > 0 ? (isOpen ? 'Hide ▴' : `View ${replyTotal} repl${replyTotal === 1 ? 'y' : 'ies'} ▾`) : '');
               return `
-                <article class="ed-feed-item ${t.isPinned || t.type === 'announcement' ? 'is-pinned' : ''}">
+                <article class="ed-feed-item ${t.isPinned || t.type === 'announcement' ? 'is-pinned' : ''} ${isOpen ? 'is-expanded' : ''}">
                   <div class="ed-feed-meta">
                     <div class="ed-feed-tags">
                       ${t.courseCode || t.courseName ? `<span class="course-code-pill">${esc(t.courseCode || t.courseName)}</span>` : ''}
@@ -9085,18 +9139,34 @@ window.StudyApp = (() => {
                     <small class="muted ed-feed-age">${t.number ? `#${t.number} · ` : ''}${esc(age)}</small>
                   </div>
                   <a class="ed-feed-post-title" href="${esc(safeUrl)}" target="_blank" rel="noopener">${esc(t.title)}</a>
-                  ${snippet ? `<div class="ed-feed-snippet ${isLong ? 'is-clamped' : ''}" data-ed-snippet="${idx}">${esc(snippet)}</div>` : ''}
+                  ${snippet ? `<div class="ed-feed-snippet ${isLong && !isOpen ? 'is-clamped' : ''}" data-ed-snippet="${idx}">${esc(snippet)}</div>` : ''}
+                  ${!isOpen && topOfficial ? `
+                    <button type="button" class="ed-reply-preview-btn" data-ed-replies-toggle="${esc(tKey)}" title="Click to read full reply thread">
+                      <span class="ed-reply-preview-tag">${topOfficial.isStaff ? '★ Staff' : topOfficial.isEndorsed ? '✓ Endorsed' : 'Reply'}</span>
+                      <span class="ed-reply-preview-text"><strong>${esc(topOfficial.author || 'Anonymous')}:</strong> ${esc(topOfficial.text.replace(/\s+/g, ' ').slice(0, 145))}${topOfficial.text.length > 145 ? '…' : ''}</span>
+                    </button>` : ''}
+                  ${isOpen ? `
+                    <div class="ed-replies-panel">
+                      ${replies.length
+                        ? replies.map(renderReplyItem).join('')
+                        : `<div class="ed-reply-sync-hint">
+                            <span>Replies for this post haven't been pulled yet. Reload the <strong>Study-OS Sync</strong> extension and click <strong>Sync again</strong> to load inline replies, or read directly on Ed.</span>
+                            <a class="link-btn" href="${esc(safeUrl)}" target="_blank" rel="noopener">Open thread in Ed ↗</a>
+                          </div>`}
+                    </div>` : ''}
                   <div class="ed-feed-foot">
                     <small class="muted">
-                      ${t.author ? `${esc(t.author)} · ` : ''}${t.replyCount} repl${t.replyCount === 1 ? 'y' : 'ies'}
+                      ${t.author ? `${esc(t.author)} · ` : ''}${replyTotal} repl${replyTotal === 1 ? 'y' : 'ies'}
                     </small>
-                    <div class="row-actions" style="gap:8px">
-                      ${isLong ? `<button type="button" class="link-btn ed-feed-more-btn" data-ed-expand="${idx}">Read more</button>` : ''}
+                    <div class="row-actions" style="gap:10px;flex-wrap:wrap">
+                      ${replyBtnLabel ? `<button type="button" class="link-btn ed-replies-toggle-btn" data-ed-replies-toggle="${esc(tKey)}">${esc(replyBtnLabel)}</button>` : ''}
+                      ${isLong && !replyBtnLabel ? `<button type="button" class="link-btn ed-feed-more-btn" data-ed-expand="${idx}">Read more</button>` : ''}
+                      ${isOpen && window.StudyAiTutor ? `<button type="button" class="link-btn" data-ed-ask-ai="${idx}">Ask Adamlite</button>` : ''}
                       <a class="link-btn" href="${esc(safeUrl)}" target="_blank" rel="noopener">Open in Ed ↗</a>
                     </div>
                   </div>
                 </article>`;
-            }).join('')}
+            }).join('') : '<p class="muted" style="margin:6px 0;font-size:12.5px">No matching Ed posts.</p>'}
           </div>
           ${filtered.length > baseLimit ? `
             <div class="ed-feed-toggle-row">
@@ -9115,6 +9185,51 @@ window.StudyApp = (() => {
           activeCourse = btn.dataset.edFeedCourse || 'all';
           showAll = false;
           paint();
+        });
+      });
+      container.querySelector('[data-ed-answered-toggle]')?.addEventListener('click', () => {
+        answeredOnly = !answeredOnly;
+        showAll = false;
+        paint();
+      });
+      const searchEl = container.querySelector('[data-ed-feed-search]');
+      if (searchEl) {
+        searchEl.addEventListener('input', () => {
+          const pos = searchEl.selectionStart;
+          searchTerm = searchEl.value;
+          paint();
+          const nextSearch = container.querySelector('[data-ed-feed-search]');
+          if (nextSearch) {
+            nextSearch.focus();
+            try { nextSearch.setSelectionRange(pos, pos); } catch {}
+          }
+        });
+      }
+      container.querySelectorAll('[data-ed-replies-toggle]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const k = btn.dataset.edRepliesToggle;
+          if (!k) return;
+          if (expandedThreads.has(k)) expandedThreads.delete(k);
+          else expandedThreads.add(k);
+          paint();
+        });
+      });
+      container.querySelectorAll('[data-ed-ask-ai]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const t = visible[Number(btn.dataset.edAskAi)];
+          if (!t || !window.StudyAiTutor) return;
+          const repText = (Array.isArray(t.replies) ? t.replies : [])
+            .slice(0, 4)
+            .map((r) => `${r.isStaff ? '[Staff] ' : ''}${r.author || 'Anonymous'}: ${r.text}`)
+            .join('\n\n');
+          window.StudyAiTutor.open({
+            courseContext: {
+              courseCode: t.courseCode || '',
+              courseTitle: t.courseName || 'Ed Discussion',
+              topicTitle: t.title || 'Ed Thread',
+              extraContext: `Ed Discussion #${t.number || ''} (${t.courseCode || ''}): ${t.title}\n\nQuestion:\n${t.snippet || ''}${repText ? `\n\nReplies:\n${repText}` : ''}`,
+            },
+          });
         });
       });
       container.querySelectorAll('[data-ed-expand]').forEach((btn) => {

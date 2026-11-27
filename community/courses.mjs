@@ -197,11 +197,31 @@ export function cleanEdSnapshot(raw) {
     const host = validEdHosts.has(rawHost) ? rawHost : 'eu.edstem.org';
     const title = cleanText(t.title, 180);
     if (!title) continue;
-    const snippet = cleanMultilineText(t.snippet || t.text || '', 650);
+    const snippet = cleanMultilineText(t.snippet || t.text || '', 1200);
     const createdAt = Number.isFinite(Date.parse(t.createdAt)) ? new Date(t.createdAt).toISOString() : syncedAt;
     const updatedAt = Number.isFinite(Date.parse(t.updatedAt)) ? new Date(t.updatedAt).toISOString() : createdAt;
     const num = Number(t.number);
     const type = ['announcement', 'question', 'post'].includes(t.type) ? t.type : 'post';
+    const rawReplies = Array.isArray(t.replies) ? t.replies.slice(0, 10) : [];
+    const replies = [];
+    for (const r of rawReplies) {
+      if (!r || typeof r !== 'object') continue;
+      const rText = cleanMultilineText(r.text || r.body || r.snippet || '', 950);
+      if (!rText) continue;
+      const rCreated = Number.isFinite(Date.parse(r.createdAt)) ? new Date(r.createdAt).toISOString() : createdAt;
+      const rVotes = Number(r.votes);
+      replies.push({
+        id: cleanText(String(r.id || ''), 32),
+        author: cleanText(r.author || '', 60),
+        isStaff: Boolean(r.isStaff),
+        isEndorsed: Boolean(r.isEndorsed),
+        isAnswer: Boolean(r.isAnswer),
+        isNested: Boolean(r.isNested),
+        votes: Number.isFinite(rVotes) && rVotes > 0 ? Math.min(9999, Math.floor(rVotes)) : 0,
+        text: rText,
+        createdAt: rCreated,
+      });
+    }
     threads.push({
       id,
       courseId,
@@ -217,7 +237,8 @@ export function cleanEdSnapshot(raw) {
       isAnswered: Boolean(t.isAnswered),
       isStaff: Boolean(t.isStaff),
       author: cleanText(t.author || '', 60),
-      replyCount: Math.max(0, Math.min(9999, Math.floor(Number(t.replyCount) || 0))),
+      replyCount: Math.max(replies.length, Math.min(9999, Math.floor(Number(t.replyCount) || 0))),
+      replies,
       createdAt,
       updatedAt,
       url: `https://${host}/courses/${courseId}/discussion/${id}`,
