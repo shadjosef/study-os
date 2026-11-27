@@ -158,9 +158,12 @@ window.StudyDesktopControl = (() => {
         background: currentColor;
         display: inline-block;
       }
+      .dc-card {
+        overflow-x: clip;
+      }
       .dc-controls-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
         gap: 10px;
         margin: 12px 0 14px;
       }
@@ -490,6 +493,7 @@ window.StudyDesktopControl = (() => {
       if (data && data.available === true) {
         state.mode = 'local';
         state.status = data;
+        lastLiveFetchAt = Date.now();
         state.error = '';
         return data;
       }
@@ -989,15 +993,41 @@ window.StudyDesktopControl = (() => {
     analyticsObserver.observe(root, { childList: true });
   }
 
+  let livePoller = null;
+  let lastLiveFetchAt = 0;
+
+  function getLiveStudyCategory() {
+    if (isStaticWebBuild() || !isLoopbackHost()) return '';
+    const st = state.status;
+    if (!st || !st.enabled || st.paused) return '';
+    if (Date.now() - lastLiveFetchAt > 25_000) return '';
+    const live = st.live;
+    if (!live || !live.active) return '';
+    const cat = String(live.category || '');
+    return (cat === 'deep_study' || cat === 'reading_notes') ? cat : '';
+  }
+
+  function startBackgroundLiveBridge() {
+    if (livePoller || isStaticWebBuild() || !isLoopbackHost()) return;
+    const tick = async () => {
+      const data = await fetchDesktopStatus();
+      if (data) lastLiveFetchAt = Date.now();
+    };
+    tick();
+    livePoller = setInterval(tick, 10_000);
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAutoObserver, { once: true });
+    document.addEventListener('DOMContentLoaded', () => { initAutoObserver(); startBackgroundLiveBridge(); }, { once: true });
   } else {
     initAutoObserver();
+    startBackgroundLiveBridge();
   }
 
   return {
     mount,
     refresh,
+    getLiveStudyCategory,
     getState: () => ({ mode: state.mode, status: state.status }),
   };
 })();

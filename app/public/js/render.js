@@ -1816,6 +1816,9 @@ window.StudyUI = (() => {
       return { state: 'solvingSec', courseId: activeCourseId };
     }
     if (!docFocused) {
+      const deskCat = window.StudyDesktopControl?.getLiveStudyCategory?.() || '';
+      if (deskCat === 'deep_study') return { state: 'solvingSec', courseId: activeCourseId };
+      if (deskCat === 'reading_notes') return { state: 'readingSec', courseId: '' };
       return workState.mode === 'working' ? { state: 'awaySec', courseId: '' } : { state: '', courseId: '' };
     }
     if (now - lastUserInteractionMs >= AFK_IDLE_THRESHOLD_MS) {

@@ -43,6 +43,10 @@ DEFAULT_CATEGORIES: dict[str, list[str]] = {
         "Code",
         "Cursor",
         "Antigravity",
+        "ChatGPT",
+        "Claude",
+        "Codex",
+        "Perplexity",
         "Terminal",
         "iTerm2",
         "Warp",
@@ -417,6 +421,9 @@ class DesktopTracker:
         self._config: dict[str, Any] = self._load_config()
         self._pending: dict[str, Any] | None = None
         self._last_shield_at: dict[str, float] = {}
+        self._live_category: str = "idle"
+        self._live_active: bool = False
+        self._live_ts: float = 0.0
 
         # Strictly off by default: only start a background thread if saved config opted in.
         if self.auto_start and self._config.get("enabled"):
@@ -683,8 +690,14 @@ class DesktopTracker:
             if is_idle:
                 self._pending["idleSec"] += step
                 category = "idle"
+                self._live_category = "idle"
+                self._live_active = False
+                self._live_ts = current.timestamp()
             elif app_name:
                 category = self.classify_app(app_name)
+                self._live_category = category
+                self._live_active = True
+                self._live_ts = current.timestamp()
                 self._pending["activeSec"] += step
                 self._pending["byCategory"][category] = self._pending["byCategory"].get(category, 0.0) + step
                 self._pending["byApp"][app_name] = self._pending["byApp"].get(app_name, 0.0) + step
@@ -744,17 +757,23 @@ class DesktopTracker:
             active_sec += max(0.0, float(row.get("activeSec") or 0.0))
             idle_sec += max(0.0, float(row.get("idleSec") or 0.0))
             shield_triggers += max(0, int(row.get("shieldTriggers") or 0))
-            raw_cats = row.get("byCategory")
-            if isinstance(raw_cats, dict):
-                for cat, secs in raw_cats.items():
-                    target = cat if cat in by_category else "other"
-                    by_category[target] += max(0.0, float(secs or 0.0))
             raw_apps = row.get("byApp")
-            if isinstance(raw_apps, dict):
+            has_apps = isinstance(raw_apps, dict) and bool(raw_apps)
+            if has_apps:
                 for app, secs in raw_apps.items():
                     clean = sanitize_app_name(app)
-                    if clean:
-                        by_app[clean] = by_app.get(clean, 0.0) + max(0.0, float(secs or 0.0))
+                    val = max(0.0, float(secs or 0.0))
+                    if clean and val > 0:
+                        by_app[clean] = by_app.get(clean, 0.0) + val
+                        cat = self.classify_app(clean)
+                        target = cat if cat in by_category else "other"
+                        by_category[target] += val
+            else:
+                raw_cats = row.get("byCategory")
+                if isinstance(raw_cats, dict):
+                    for cat, secs in raw_cats.items():
+                        target = cat if cat in by_category else "other"
+                        by_category[target] += max(0.0, float(secs or 0.0))
 
         top_apps = [
             {
@@ -803,6 +822,16 @@ class DesktopTracker:
         with self._lock:
             cfg = self.get_config()
             rows = self._combined_records_locked(current)
+            live_fresh = (
+                cfg["enabled"]
+                and not cfg["paused"]
+                and self._live_active
+                and (current.timestamp() - self._live_ts) <= max(20.0, self.sample_interval_sec * 4.0)
+            )
+            live_state = {
+                "category": self._live_category if live_fresh else "idle",
+                "active": bool(live_fresh),
+            }
         today_agg = self._aggregate_records(rows, day_filter=today_key)
         return {
             "available": True,
@@ -811,6 +840,7 @@ class DesktopTracker:
             "paused": cfg["paused"],
             "focusShieldEnabled": cfg["focusShieldEnabled"],
             "sessionActive": cfg["sessionActive"],
+            "live": live_state,
             "today": {
                 "day": today_key,
                 **today_agg,
