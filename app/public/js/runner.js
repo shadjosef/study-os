@@ -1044,6 +1044,7 @@ window.StudyRunner = (() => {
         draftImages: canRestoreWork && Array.isArray(rec.savedDraftImages) ? [...rec.savedDraftImages] : [],
         wiseflow: resumeStructured ? { ...(savedWork.wiseflow || {}), ...(rec.savedWiseflow || {}) } : {},
         wfGrade: null,
+        wfLiveChecks: {},
         numericInput: '',
         checkedRubrics: resumeStructured ? [...restoredRubrics] : [],
         flagged: false,
@@ -1115,6 +1116,7 @@ window.StudyRunner = (() => {
         draftImages: Array.isArray(st.draftImages) ? st.draftImages : [],
         wiseflow: st.wiseflow && typeof st.wiseflow === 'object' ? st.wiseflow : {},
         wfGrade: st.wfGrade || null,
+        wfLiveChecks: st.wfLiveChecks && typeof st.wfLiveChecks === 'object' ? st.wfLiveChecks : {},
         numericInput: typeof st.numericInput === 'string' ? st.numericInput : '',
         checkedRubrics: Array.isArray(st.checkedRubrics) ? st.checkedRubrics : [],
         flagged: Boolean(st.flagged),
@@ -1310,6 +1312,9 @@ window.StudyRunner = (() => {
         st.wiseflow = { ...st.wiseflow, ...rawSt.wiseflow };
       }
       if (rawSt.wfGrade) st.wfGrade = rawSt.wfGrade;
+      if (rawSt.wfLiveChecks && typeof rawSt.wfLiveChecks === 'object') {
+        st.wfLiveChecks = { ...rawSt.wfLiveChecks };
+      }
       if (typeof rawSt.numericInput === 'string' && rawSt.numericInput) st.numericInput = rawSt.numericInput;
       if (Array.isArray(rawSt.checkedRubrics) && rawSt.checkedRubrics.length) st.checkedRubrics = rawSt.checkedRubrics;
       st.flagged = Boolean(rawSt.flagged);
@@ -2305,7 +2310,101 @@ window.StudyRunner = (() => {
       ${page ? `data-pdf-page="${esc(page)}"` : ''}`;
   }
 
-  function renderWiseflowWorksheet(q, st) {
+  function hasWfFieldValue(f, rawVal) {
+    if (f?.type === 'choice') {
+      return rawVal !== '' && rawVal !== null && rawVal !== undefined && Number.isFinite(Number(rawVal));
+    }
+    return String(rawVal ?? '').trim() !== '';
+  }
+
+  function diagnoseWfLiveMismatch(f, res) {
+    if (!res || res.passed || f?.type === 'choice') return '';
+    if (res.empty || res.parensError || res.commaError || res.invalidFormat) return '';
+    const userVal = Number(res.userValue);
+    if (!Number.isFinite(userVal)) return '';
+    const relTol = Number(f.relTol ?? 0.02);
+    const absTol = Number(f.absTol ?? 0.02);
+    const targets = [Number(f.expected), ...(Array.isArray(f.altExpected) ? f.altExpected.map(Number) : [])]
+      .filter((t) => Number.isFinite(t));
+    for (const t of targets) {
+      if (Math.abs(t) <= 1e-9) continue;
+      const band = Math.max(relTol * Math.abs(t), absTol);
+      if (Math.abs(userVal + t) <= band + 1e-9) return 'sign';
+      if (
+        Math.abs(userVal * 1000 - t) <= band + 1e-9
+        || Math.abs(userVal / 1000 - t) <= band + 1e-9
+      ) {
+        return 'scale1000';
+      }
+      if (String(f.unit || '').trim() === '%' && Math.abs(userVal * 100 - t) <= band + 1e-9) {
+        return 'percent';
+      }
+    }
+    return '';
+  }
+
+  function evaluateWiseflowSheetWithPeeks(q, st) {
+    const base = evaluateWiseflowSheet(q, st);
+    const liveMap = st?.wfLiveChecks || {};
+    let earned = 0;
+    let total = 0;
+    let peekedCount = 0;
+    const details = {};
+    for (const [fid, d] of Object.entries(base.details || {})) {
+      const wasPeeked = Boolean(liveMap[fid]?.peeked);
+      const nextDetail = wasPeeked
+        ? { ...d, peeked: true, passed: false, earned: 0 }
+        : { ...d, peeked: false };
+      if (wasPeeked) peekedCount += 1;
+      details[fid] = nextDetail;
+      earned += Number(nextDetail.earned || 0);
+      total += Number(nextDetail.points || 0);
+    }
+    const accuracy = total > 0 ? earned / total : 0;
+    return { ...base, earned, total, accuracy, peekedCount, details };
+  }
+
+  function renderWfLiveFeedbackHtml(f, live) {
+    if (!live || !live.status) return '';
+    if (live.status === 'pass') {
+      if (live.peeked) {
+        return `<div class="wf-feedback wf-fb-peek"><span>✓ Matches expected — ready for downstream steps <span class="muted">(peeked · 0 pts on final check)</span></span></div>`;
+      }
+      if (f.type === 'choice') {
+        return `<div class="wf-feedback good"><span>✓ Right</span></div>`;
+      }
+      const note = live.exact
+        ? '✓ Right · Exact match'
+        : `✓ Right (within ±2% · exact: ${formatWfNum(live.matchedTarget ?? live.expected)})`;
+      return `<div class="wf-feedback good"><span>${esc(note)}</span></div>`;
+    }
+    if (live.status === 'peek') {
+      const valText = f.type === 'choice'
+        ? esc(live.expectedLabel || (f.options || [])[Number(f.answerIndex)] || '')
+        : `${esc(formatWfNum(live.expected ?? f.expected))}${f.unit ? ` ${esc(f.unit)}` : ''}`;
+      return `<div class="wf-feedback wf-fb-peek"><span>Answer: <strong>${valText}</strong> <span class="muted">· marked peeked (0 pts on final check — use for downstream steps)</span></span></div>`;
+    }
+    if (live.status === 'try') {
+      let msg = f.type === 'choice'
+        ? 'Not quite — re-read the statement & try again.'
+        : 'Not quite — double-check your workings & try again.';
+      if (live.empty) msg = 'Enter an answer first, then click Check.';
+      else if (live.parensError) msg = 'Format tip: use a leading minus sign (e.g. -50), never parentheses, in BI WISEflow.';
+      else if (live.commaError) msg = 'Format tip: use a dot (e.g. 7.25), never a comma, for decimals in BI WISEflow.';
+      else if (live.invalidFormat) msg = 'Enter a valid number (e.g. 1250 or -42.5).';
+      else if (live.hintKind === 'sign') msg = 'Almost! Right magnitude, opposite sign — check whether this should be + or −.';
+      else if (live.hintKind === 'scale1000') msg = 'Scale check: looks off by ×1,000 — check if the sheet uses £ vs £000 / £m.';
+      else if (live.hintKind === 'percent') msg = 'Scale check: enter as a percentage (e.g. 25, not 0.25).';
+
+      const showPeekBtn = !live.empty
+        ? `<button type="button" class="wf-peek-btn" data-wf-peek-id="${esc(f.id)}" title="Reveal this box's answer so you can continue downstream steps (0 pts on this box)">Show answer</button>`
+        : '';
+      return `<div class="wf-feedback wf-fb-try"><span>${esc(msg)}</span>${showPeekBtn}</div>`;
+    }
+    return '';
+  }
+
+  function renderWiseflowWorksheet(q, st, isBlindUnfinished = false) {
     const fields = Array.isArray(q.wiseflowFields) ? q.wiseflowFields : [];
     if (!fields.length) return '';
 
@@ -2323,14 +2422,24 @@ window.StudyRunner = (() => {
 
     const totalPts = fields.reduce((s, f) => s + Number(f.points ?? 1), 0);
     const grade = st.revealed && st.wfGrade ? st.wfGrade : null;
+    const canLiveCheck = activeRun?.mode === 'practice' && !isBlindUnfinished && !st.revealed;
+    const liveMap = st.wfLiveChecks || {};
+    const verifiedCount = canLiveCheck
+      ? fields.reduce((n, f) => n + (liveMap[f.id]?.status === 'pass' ? 1 : 0), 0)
+      : 0;
 
     const scoreBarHtml = grade
       ? `<div class="wf-score-bar">
            <span class="badge ${grade.accuracy >= 0.7 ? 'live' : 'bad'}">
-             Score: ${Number.isInteger(grade.earned) ? grade.earned : grade.earned.toFixed(1)} / ${totalPts} pts (${Math.round(grade.accuracy * 100)}%)
+             Score: ${Number.isInteger(grade.earned) ? grade.earned : grade.earned.toFixed(1)} / ${totalPts} pts (${Math.round(grade.accuracy * 100)}%)${grade.peekedCount ? ` · ${grade.peekedCount} peeked` : ''}
            </span>
          </div>`
-      : '';
+      : canLiveCheck
+        ? `<div class="wf-practice-bar">
+             <span class="wf-practice-hint">Step-by-step check · click <strong>Check</strong> (or press <kbd>Enter</kbd>) on any box to verify before continuing</span>
+             <span class="wf-practice-progress" id="wf-practice-progress">${verifiedCount} / ${fields.length} checked</span>
+           </div>`
+        : '';
 
     const groupsHtml = groups
       .map(([gName, gFields]) => {
@@ -2338,7 +2447,11 @@ window.StudyRunner = (() => {
           .map((f) => {
             const rawVal = st.wiseflow?.[f.id] ?? '';
             const g = grade?.details?.[f.id];
-            const rowCls = ['wf-row', g ? (g.passed ? 'wf-pass' : 'wf-fail') : ''].filter(Boolean).join(' ');
+            const live = canLiveCheck ? liveMap[f.id] : null;
+            const liveCls = !g && live?.status
+              ? (live.status === 'pass' ? (live.peeked ? 'wf-live-peek' : 'wf-live-pass') : live.status === 'peek' ? 'wf-live-peek' : 'wf-live-try')
+              : '';
+            const rowCls = ['wf-row', g ? (g.peeked ? 'wf-peeked' : g.passed ? 'wf-pass' : 'wf-fail') : liveCls].filter(Boolean).join(' ');
             const ptsLbl = `${f.points ?? 1} pt${Number(f.points ?? 1) === 1 ? '' : 's'}`;
 
             let controlHtml = '';
@@ -2384,41 +2497,51 @@ window.StudyRunner = (() => {
                    ${f.unit ? `<span class="wf-unit">${esc(f.unit)}</span>` : ''}
                  </div>
                `;
-             }
+            }
 
-             let fbHtml = '';
-             if (g) {
-               if (g.type === 'choice') {
-                 fbHtml = g.passed
-                   ? `<div class="wf-feedback good">Correct (${esc(g.expectedLabel)}) · +${g.points} pts</div>`
-                   : `<div class="wf-feedback bad">Expected: ${esc(g.expectedLabel)} · 0 / ${g.points} pts</div>`;
-               } else if (g.passed) {
-                 const tolNote = g.exact
-                   ? 'Exact match'
-                   : `Accepted · Expected: ${formatWfNum(g.expected)}`;
-                 fbHtml = `<div class="wf-feedback good">${esc(tolNote)} · +${g.points} pts</div>`;
-               } else if (g.parensError) {
-                 fbHtml = `<div class="wf-feedback bad">Use a leading minus sign (e.g. -50), never parentheses, in BI WISEflow. Expected: ${formatWfNum(
-                   g.expected
-                 )}</div>`;
-               } else if (g.commaError) {
-                 fbHtml = `<div class="wf-feedback bad">Use a dot (e.g. 7.25), never a comma, for decimals in BI WISEflow! Expected: ${formatWfNum(
-                   g.expected
-                 )}</div>`;
-               } else {
+            const hasVal = hasWfFieldValue(f, rawVal);
+            const checkBtnHtml = canLiveCheck
+              ? `<button type="button" class="wf-check-btn ${live?.status === 'pass' ? 'is-pass' : ''}" data-wf-check-id="${esc(f.id)}" title="Verify just this box without submitting the worksheet" ${hasVal ? '' : 'disabled'}>${live?.status === 'pass' ? '✓' : 'Check'}</button>`
+              : '';
+
+            let fbHtml = '';
+            if (g) {
+              if (g.peeked) {
+                const expTxt = g.type === 'choice' ? esc(g.expectedLabel) : esc(formatWfNum(g.expected));
+                fbHtml = `<div class="wf-feedback wf-fb-peek"><span>Peeked before submit · Expected: <strong>${expTxt}</strong> · 0 / ${g.points} pts</span></div>`;
+              } else if (g.type === 'choice') {
+                fbHtml = g.passed
+                  ? `<div class="wf-feedback good">Correct (${esc(g.expectedLabel)}) · +${g.points} pts</div>`
+                  : `<div class="wf-feedback bad">Expected: ${esc(g.expectedLabel)} · 0 / ${g.points} pts</div>`;
+              } else if (g.passed) {
+                const tolNote = g.exact
+                  ? 'Exact match'
+                  : `Accepted · Expected: ${formatWfNum(g.expected)}`;
+                fbHtml = `<div class="wf-feedback good">${esc(tolNote)} · +${g.points} pts</div>`;
+              } else if (g.parensError) {
+                fbHtml = `<div class="wf-feedback bad">Use a leading minus sign (e.g. -50), never parentheses, in BI WISEflow. Expected: ${formatWfNum(
+                  g.expected
+                )}</div>`;
+              } else if (g.commaError) {
+                fbHtml = `<div class="wf-feedback bad">Use a dot (e.g. 7.25), never a comma, for decimals in BI WISEflow! Expected: ${formatWfNum(
+                  g.expected
+                )}</div>`;
+              } else {
                 const enteredTxt = g.empty ? 'blank' : g.invalidFormat ? 'invalid' : formatWfNum(g.userValue);
                 fbHtml = `<div class="wf-feedback bad">Entered: ${esc(enteredTxt)} · Expected: ${formatWfNum(
                   g.expected
                 )}</div>`;
               }
+            } else if (live) {
+              fbHtml = renderWfLiveFeedbackHtml(f, live);
             }
 
-            return `<div class="${rowCls}">
+            return `<div class="${rowCls}" data-wf-row-id="${esc(f.id)}">
               <div class="wf-label-col">
                 <strong>${esc(f.label)}</strong>
                 <small class="muted">${esc(ptsLbl)}</small>
               </div>
-              <div class="wf-input-col">${controlHtml}</div>
+              <div class="wf-input-col">${controlHtml}${checkBtnHtml}</div>
               ${fbHtml}
             </div>`;
           })
@@ -3050,7 +3173,7 @@ window.StudyRunner = (() => {
       const autoSaveLabel = document.documentElement.dataset.studyMode === 'web'
         ? 'Auto-saved in browser'
         : 'Auto-saved to OneDrive';
-      const wfSheetHtml = renderWiseflowWorksheet(q, st);
+      const wfSheetHtml = renderWiseflowWorksheet(q, st, isBlindUnfinished);
       workspaceHtml = `
         ${wfSheetHtml}
         <details style="margin:10px 0">
@@ -4137,6 +4260,125 @@ window.StudyRunner = (() => {
       });
     });
 
+    const canWfLiveCheck = activeRun.mode === 'practice' && !isBlindUnfinished && !st.revealed && Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0;
+    const wfFieldsById = new Map((q.wiseflowFields || []).map((f) => [String(f.id), f]));
+
+    const updateWfRowInPlace = (fid) => {
+      if (!canWfLiveCheck) return;
+      const f = wfFieldsById.get(String(fid));
+      if (!f) return;
+      const row = [...document.querySelectorAll('.wf-row[data-wf-row-id]')].find((el) => el.dataset.wfRowId === String(fid));
+      if (!row) return;
+      const live = st.wfLiveChecks?.[fid] || null;
+      const hasVal = hasWfFieldValue(f, st.wiseflow?.[fid]);
+      row.classList.remove('wf-live-pass', 'wf-live-try', 'wf-live-peek');
+      if (live?.status === 'pass') row.classList.add(live.peeked ? 'wf-live-peek' : 'wf-live-pass');
+      else if (live?.status === 'peek') row.classList.add('wf-live-peek');
+      else if (live?.status === 'try') row.classList.add('wf-live-try');
+
+      const chkBtn = row.querySelector('[data-wf-check-id]');
+      if (chkBtn) {
+        chkBtn.disabled = !hasVal;
+        const isPass = live?.status === 'pass';
+        chkBtn.classList.toggle('is-pass', isPass);
+        chkBtn.textContent = isPass ? '✓' : 'Check';
+      }
+
+      const existingFb = row.querySelector('.wf-feedback');
+      const nextFbHtml = live?.status ? renderWfLiveFeedbackHtml(f, live) : '';
+      if (nextFbHtml) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = nextFbHtml;
+        const nextFbEl = tmp.firstElementChild;
+        if (existingFb) existingFb.replaceWith(nextFbEl);
+        else row.appendChild(nextFbEl);
+        nextFbEl?.querySelector('[data-wf-peek-id]')?.addEventListener('click', () => {
+          revealSingleWfFieldAnswer(fid);
+        });
+      } else if (existingFb) {
+        existingFb.remove();
+      }
+
+      const progEl = document.getElementById('wf-practice-progress');
+      if (progEl) {
+        const totalFields = (q.wiseflowFields || []).length;
+        const verifiedNow = (q.wiseflowFields || []).reduce(
+          (n, field) => n + (st.wfLiveChecks?.[field.id]?.status === 'pass' ? 1 : 0),
+          0
+        );
+        progEl.textContent = `${verifiedNow} / ${totalFields} checked`;
+      }
+    };
+
+    const revealSingleWfFieldAnswer = (fid) => {
+      if (!canWfLiveCheck) return;
+      const f = wfFieldsById.get(String(fid));
+      if (!f) return;
+      if (!st.wfLiveChecks || typeof st.wfLiveChecks !== 'object') st.wfLiveChecks = {};
+      st.wfLiveChecks[fid] = {
+        ...(st.wfLiveChecks[fid] || {}),
+        status: 'peek',
+        tried: true,
+        peeked: true,
+        expected: f.expected,
+        expectedLabel: f.type === 'choice' ? ((f.options || [])[Number(f.answerIndex)] ?? '') : '',
+      };
+      updateWfRowInPlace(fid);
+      persistActiveRun(true);
+    };
+
+    const runSingleWfFieldCheck = (fid, { advanceFocusOnPass = false } = {}) => {
+      if (!canWfLiveCheck) return false;
+      const f = wfFieldsById.get(String(fid));
+      if (!f) return false;
+      if (!st.wfLiveChecks || typeof st.wfLiveChecks !== 'object') st.wfLiveChecks = {};
+      const prev = st.wfLiveChecks[fid] || {};
+      const res = gradeSingleWiseflowField(f, st.wiseflow?.[fid]);
+      const hintKind = res.passed ? '' : diagnoseWfLiveMismatch(f, res);
+      st.wfLiveChecks[fid] = {
+        status: res.passed ? 'pass' : 'try',
+        tried: Boolean(prev.tried || !res.empty),
+        peeked: Boolean(prev.peeked),
+        exact: Boolean(res.exact),
+        expected: res.expected,
+        matchedTarget: res.matchedTarget,
+        expectedLabel: res.expectedLabel || '',
+        empty: Boolean(res.empty),
+        parensError: Boolean(res.parensError),
+        commaError: Boolean(res.commaError),
+        invalidFormat: Boolean(res.invalidFormat),
+        hintKind,
+      };
+      updateWfRowInPlace(fid);
+      persistActiveRun(true);
+      if (advanceFocusOnPass && res.passed) {
+        const inputs = [...document.querySelectorAll('[data-wf-num-id]')];
+        const curIdx = inputs.findIndex((el) => el.dataset.wfNumId === String(fid));
+        const nextInp =
+          inputs.slice(curIdx + 1).find((el) => st.wfLiveChecks?.[el.dataset.wfNumId]?.status !== 'pass')
+          || inputs.slice(0, Math.max(0, curIdx)).find((el) => st.wfLiveChecks?.[el.dataset.wfNumId]?.status !== 'pass');
+        if (nextInp) {
+          nextInp.focus();
+          nextInp.select?.();
+        }
+      }
+      return Boolean(res.passed);
+    };
+
+    // Bind initial per-box Check & Show Answer buttons (Practice Mode only)
+    if (canWfLiveCheck) {
+      document.querySelectorAll('[data-wf-check-id]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          runSingleWfFieldCheck(btn.dataset.wfCheckId);
+        });
+      });
+      document.querySelectorAll('[data-wf-peek-id]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          revealSingleWfFieldAnswer(btn.dataset.wfPeekId);
+        });
+      });
+    }
+
     // WISEflow choice pills (Right / Wrong or sub-choices) — update in-place to preserve PDF/task scroll!
     document.querySelectorAll('[data-wf-choice-id]').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -4144,6 +4386,12 @@ window.StudyRunner = (() => {
         const fid = btn.dataset.wfChoiceId;
         const pickedIdx = Number(btn.dataset.wfChoiceIdx);
         st.wiseflow[fid] = pickedIdx;
+        if (canWfLiveCheck) {
+          if (st.wfLiveChecks?.[fid] && st.wfLiveChecks[fid].status !== 'peek') {
+            st.wfLiveChecks[fid] = { ...st.wfLiveChecks[fid], status: '' };
+          }
+          updateWfRowInPlace(fid);
+        }
         const pillGroup = btn.closest('.wf-choice-pills');
         if (pillGroup) {
           pillGroup.querySelectorAll('[data-wf-choice-id]').forEach((sib) => {
@@ -4179,7 +4427,14 @@ window.StudyRunner = (() => {
     document.querySelectorAll('[data-wf-num-id]').forEach((inp) => {
       inp.addEventListener('input', () => {
         if (st.revealed) return;
-        st.wiseflow[inp.dataset.wfNumId] = inp.value;
+        const fid = inp.dataset.wfNumId;
+        st.wiseflow[fid] = inp.value;
+        if (canWfLiveCheck) {
+          if (st.wfLiveChecks?.[fid] && st.wfLiveChecks[fid].status !== 'peek') {
+            st.wfLiveChecks[fid] = { ...st.wfLiveChecks[fid], status: '' };
+          }
+          updateWfRowInPlace(fid);
+        }
         window.StudyApp.debouncedSaveDraft(q.id, {
           wiseflowAnswers: st.wiseflow,
           activeElapsedSec: itemActiveSec(st),
@@ -4190,6 +4445,15 @@ window.StudyRunner = (() => {
         if (ev.isComposing) return;
         if (ev.key === 'Enter' && !isBlindUnfinished && !st.revealed) {
           ev.preventDefault();
+          ev.stopPropagation();
+          const fid = inp.dataset.wfNumId;
+          const fields = q.wiseflowFields || [];
+          const allFilled = fields.every((f) => hasWfFieldValue(f, st.wiseflow?.[f.id]));
+          const allPassed = fields.every((f) => st.wfLiveChecks?.[f.id]?.status === 'pass');
+          if (canWfLiveCheck && !(ev.metaKey || ev.ctrlKey) && fields.length > 1 && !(allFilled && allPassed)) {
+            runSingleWfFieldCheck(fid, { advanceFocusOnPass: true });
+            return;
+          }
           document.getElementById('btn-check-wf')?.click();
         }
       });
@@ -4447,7 +4711,7 @@ window.StudyRunner = (() => {
     document.getElementById('btn-check-wf')?.addEventListener('click', async () => {
       pauseCurrentTimer();
       st.revealed = true;
-      st.wfGrade = evaluateWiseflowSheet(q, st);
+      st.wfGrade = evaluateWiseflowSheetWithPeeks(q, st);
       await submitVerifiedAttempt(q, st, st.wfGrade.accuracy);
       renderRunner();
       document.getElementById('solution-box')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -4482,7 +4746,7 @@ window.StudyRunner = (() => {
         await submitVerifiedAttempt(q, st, acc);
       } else if (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length) {
         st.solutionPeeked = true;
-        st.wfGrade = evaluateWiseflowSheet(q, st);
+        st.wfGrade = evaluateWiseflowSheetWithPeeks(q, st);
         await submitVerifiedAttempt(q, st, st.wfGrade.accuracy);
       } else if (q.numericCheck && st.numericInput.trim() !== '') {
         const chk = evaluateNumericCheck(st.numericInput, q.numericCheck.expected, Number(q.numericCheck.tolerance || 0.02));
