@@ -2224,7 +2224,8 @@
         ? Math.min(totalQ, Math.max(12, Math.round(Math.min(totalQ * 0.45, Math.max(totalQ * 0.30, topicsCount * 10)))))
         : 0;
       const targetDone = baseTargetDone > 0 ? Math.min(totalQ, Math.max(8, Math.round(baseTargetDone * targetMult))) : 0;
-      const targetHighDone = highTotal > 0 ? Math.min(highTotal, Math.max(4, Math.round(highTotal * 0.65 * targetMult))) : 0;
+      const rawTargetHigh = highTotal > 0 ? Math.min(highTotal, Math.max(4, Math.round(highTotal * 0.65 * targetMult))) : 0;
+      const targetHighDone = targetDone > 0 ? Math.min(rawTargetHigh, Math.max(4, Math.round(targetDone * 0.80))) : rawTargetHigh;
 
       const volumeRatio = targetDone > 0 ? Math.min(1, done / targetDone) : 0;
       const highRatio = targetHighDone > 0 ? Math.min(1, highDone / targetHighDone) : volumeRatio;
@@ -2236,7 +2237,7 @@
         const covPct = Math.max(0, Number(t.coveragePct || 0));
         const tDone = Math.max(0, Number(t.doneCount || 0));
         if (tDone >= 2 || covPct >= 20) coveredTopics += 1;
-        const covWeight = Math.min(1, covPct / 35);
+        const covWeight = Math.min(1, Math.max(covPct / 35, tDone / 6));
         const tAcc = t.avgAccuracy != null && Number.isFinite(Number(t.avgAccuracy))
           ? Math.max(0, Math.min(1, Number(t.avgAccuracy)))
           : (courseAcc != null ? courseAcc : 0.55);
@@ -2355,8 +2356,8 @@
       const remainingTargetQs = Math.max(0, targetDone - done);
       const remainingHighQs = Math.max(0, targetHighDone - highDone);
       const activeDays = daysLeft != null ? Math.max(1, daysLeft) : 14;
-      const qsPerDayNeeded = (daysLeft != null && daysLeft < 0) ? 0 : Math.ceil(remainingTargetQs / activeDays);
       const highPerDayNeeded = (daysLeft != null && daysLeft < 0) ? 0 : Math.ceil(remainingHighQs / activeDays);
+      const qsPerDayNeeded = (daysLeft != null && daysLeft < 0) ? 0 : Math.max(Math.ceil(remainingTargetQs / activeDays), highPerDayNeeded);
       const gapToTargetPct = projectedPct != null ? Math.max(0, targetThresholdPct - projectedPct) : targetThresholdPct;
 
       const weakestTopics = [...topics]

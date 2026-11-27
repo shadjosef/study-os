@@ -1917,6 +1917,13 @@ window.StudyUI = (() => {
     const elapsed = Math.max(0, Math.floor((now - workState.breakStartedAtMs) / 1000));
     const cap = Math.max(60, Number(workState.breakTotalSec) || 300);
     const capped = Math.min(elapsed, cap);
+    if (capped >= 30 && !workState.breakCounted) {
+      workState.totalBreaks = (Number(workState.totalBreaks) || 0) + 1;
+      workState.dayBreaks = (Number(workState.dayBreaks) || 0) + 1;
+      workState.lastBreakAtMs = now;
+      workState.breakCounted = true;
+      window.StudyCommunity?.queueStatsSync?.();
+    }
     const already = Math.max(0, Number(workState.breakBankedSec) || 0);
     const delta = Math.max(0, capped - already);
     if (delta > 0) {
@@ -1929,14 +1936,17 @@ window.StudyUI = (() => {
   function computeBreakStats(now = Date.now()) {
     now = workState.devPausedAtMs || now;
     let extraSec = 0;
+    let pendingCount = 0;
     if (workState.mode === 'break' && workState.breakStartedAtMs) {
       const elapsed = Math.max(0, Math.floor((now - workState.breakStartedAtMs) / 1000));
       const cap = Math.max(60, Number(workState.breakTotalSec) || 300);
-      extraSec = Math.max(0, Math.min(elapsed, cap) - (Number(workState.breakBankedSec) || 0));
+      const capped = Math.min(elapsed, cap);
+      extraSec = Math.max(0, capped - (Number(workState.breakBankedSec) || 0));
+      if (capped >= 30 && !workState.breakCounted) pendingCount = 1;
     }
-    const totalBreaks = Math.max(0, Number(workState.totalBreaks) || 0);
+    const totalBreaks = Math.max(0, (Number(workState.totalBreaks) || 0) + pendingCount);
     const totalBreakSec = Math.max(0, (Number(workState.totalBreakSec) || 0) + extraSec);
-    const dayBreaks = Math.max(0, Number(workState.dayBreaks) || 0);
+    const dayBreaks = Math.max(0, (Number(workState.dayBreaks) || 0) + pendingCount);
     const dayBreakSec = Math.max(0, (Number(workState.dayBreakSec) || 0) + extraSec);
     return {
       totalBreaks,
@@ -2091,11 +2101,9 @@ window.StudyUI = (() => {
       workState.wavePauseReason = '';
       workState.breakStartedAtMs = now;
       workState.breakBankedSec = 0;
+      workState.breakCounted = false;
       workState.breakTotalSec = breakMin * 60;
       workState.breakEndsAtMs = now + breakMin * 60 * 1000;
-      workState.totalBreaks = (Number(workState.totalBreaks) || 0) + 1;
-      workState.dayBreaks = (Number(workState.dayBreaks) || 0) + 1;
-      workState.lastBreakAtMs = now;
       saveWorkState();
       window.StudyRunner?.onBreakStateChange?.(true);
       window.StudyCommunity?.queueStatsSync?.();

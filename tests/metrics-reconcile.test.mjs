@@ -537,4 +537,9 @@ test('computeExamReadinessForecast flags behind/on-track/ahead accurately and ne
     catalog, courseProgress, topicMatrix, byCourse, fsrsCards, todayIso: '2026-11-27', targetGrade: 'C',
   });
   assert.ok(fC.courses[0].readinessPct > acct.readinessPct);
+
+  // Total Qs/day must ALWAYS be >= High-DLPFC Qs/day (never "4 Qs/day (5 High/day)")
+  for (const c of [...fA.courses, ...fC.courses]) {
+    assert.ok(c.qsPerDayNeeded >= c.highPerDayNeeded, `Expected qsPerDayNeeded (${c.qsPerDayNeeded}) >= highPerDayNeeded (${c.highPerDayNeeded}) for ${c.courseId}`);
+  }
 });

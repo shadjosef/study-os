@@ -1784,16 +1784,57 @@ window.StudyApp = (() => {
   }
 
   function communityStats() {
-    const state = loadWebState();
-    const attempts = state.attempts;
     const brk = window.StudyUI.workClock?.getBreakStats?.() || { totalBreakMinutes: 0, totalBreaks: 0, lastBreakAtMs: 0 };
+    const draftMinFor = (recordsMap) => {
+      let sec = 0;
+      for (const rec of Object.values(recordsMap || {})) {
+        if (!rec || typeof rec !== 'object') continue;
+        if (rec.status === 'done') continue;
+        const dSec = Math.min(14400, Math.max(0, Number(rec.draftActiveSec) || 0));
+        if (dSec >= 30) sec += dSec;
+      }
+      return sec / 60;
+    };
+
+    const ws = loadWebState();
+    const webAttempts = ws.attempts || [];
+    const webCompleted = Object.values(ws.records || {}).filter((record) => record && record.status === 'done').length;
+    const webAttemptMin = webAttempts.reduce((total, attempt) => total + (Number(attempt.activeSec) || 0), 0) / 60;
+    const webTotalMin = Math.round(webAttemptMin + draftMinFor(ws.records));
+    const webAcc = webAttempts.length
+      ? Math.round(100 * webAttempts.reduce((total, attempt) => total + (Number(attempt.qualityAccuracy) || 0), 0) / webAttempts.length)
+      : 0;
+
+    let minutes = webTotalMin;
+    let completed = webCompleted;
+    let attempts = webAttempts.length;
+    let accuracy = webAcc;
+
+    if (!isStaticWeb) {
+      const deskRecords = boot.progress?.records || {};
+      const deskAttempts = Math.max(0, Number(boot.analytics?.overall?.count || 0));
+      const deskCompleted = Object.values(deskRecords).filter((record) => record && record.status === 'done').length;
+      const deskAttemptMin = Object.values(boot.analytics?.subgroups?.byCourse || {}).reduce(
+        (sum, c) => sum + (Number(c?.totalActiveMinutes) || 0),
+        0
+      );
+      const deskTotalMin = Math.round(deskAttemptMin + draftMinFor(deskRecords));
+      const deskAcc = deskAttempts
+        ? Math.round(100 * Number(boot.analytics?.overall?.avgAccuracy || 0))
+        : 0;
+      if (deskAttempts >= webAttempts.length || deskTotalMin > webTotalMin) {
+        minutes = Math.max(deskTotalMin, webTotalMin);
+        completed = Math.max(deskCompleted, webCompleted);
+        attempts = Math.max(deskAttempts, webAttempts.length);
+        accuracy = deskAttempts >= webAttempts.length ? deskAcc : webAcc;
+      }
+    }
+
     return {
-      minutes: Math.round(attempts.reduce((total, attempt) => total + (Number(attempt.activeSec) || 0), 0) / 60),
-      completed: Object.values(state.records).filter((record) => record.status === 'done').length,
-      attempts: attempts.length,
-      accuracy: attempts.length
-        ? Math.round(100 * attempts.reduce((total, attempt) => total + (Number(attempt.qualityAccuracy) || 0), 0) / attempts.length)
-        : 0,
+      minutes: Math.max(0, minutes),
+      completed: Math.max(0, completed),
+      attempts: Math.max(0, attempts),
+      accuracy: Math.max(0, Math.min(100, accuracy)),
       breakMinutes: Math.max(0, Math.round(Number(brk.totalBreakMinutes) || 0)),
       breakCount: Math.max(0, Math.round(Number(brk.totalBreaks) || 0)),
       lastBreakAt: Math.max(0, Math.round(Number(brk.lastBreakAtMs) || 0)),
@@ -9726,19 +9767,24 @@ window.StudyApp = (() => {
     const ws = isStaticWeb ? loadWebState() : null;
     const records = ws ? ws.records : boot.progress.records;
     const rec = (records[questionId] = records[questionId] || {});
+    const prevDraftSec = Math.max(0, Number(rec.draftActiveSec) || 0);
+    const incomingActiveSec = Math.min(14400, Math.max(0, Math.round(Number(fields.activeElapsedSec) || 0)));
     Object.assign(rec, {
       ...(fields.draft !== undefined ? { savedDraft: fields.draft } : {}),
       ...(fields.choice !== undefined ? { savedChoice: fields.choice } : {}),
       ...(fields.wiseflowAnswers !== undefined ? { savedWiseflow: fields.wiseflowAnswers } : {}),
       ...(fields.checkedRubricIndices !== undefined ? { checkedRubricIndices: Array.isArray(fields.checkedRubricIndices) ? [...fields.checkedRubricIndices] : [] } : {}),
       ...(fields.draftImages !== undefined ? { savedDraftImages: Array.isArray(fields.draftImages) ? fields.draftImages.slice(0, 8) : [] } : {}),
+      ...(incomingActiveSec >= 30 && rec.status !== 'done' ? { draftActiveSec: Math.max(prevDraftSec, incomingActiveSec) } : {}),
     });
+    const draftMinCrossed = Math.floor((Number(rec.draftActiveSec) || 0) / 120) > Math.floor(prevDraftSec / 120);
     const hasWf = isRecord(rec.savedWiseflow) && Object.values(rec.savedWiseflow).some((v) => String(v ?? '').trim() !== '');
     const hasWork = Boolean(
       (typeof rec.savedDraft === 'string' && rec.savedDraft.trim())
       || (rec.savedChoice !== undefined && rec.savedChoice !== null)
       || hasWf
       || (Array.isArray(rec.savedDraftImages) && rec.savedDraftImages.length)
+      || (Number(rec.draftActiveSec) || 0) >= 60
     );
     if (hasWork) {
       delete rec.draftResetAt;
@@ -9749,8 +9795,10 @@ window.StudyApp = (() => {
     if (ws) {
       rec.updatedAt = new Date().toISOString();
       if (saveWebState(ws)) boot.progress.records = ws.records;
+      if (draftMinCrossed) window.StudyCommunity?.queueStatsSync?.();
       return;
     }
+    if (draftMinCrossed) window.StudyCommunity?.queueStatsSync?.();
     try {
       await apiPost('/api/progress/draft', { questionId, ...fields });
     } catch {}
@@ -9842,6 +9890,7 @@ window.StudyApp = (() => {
         rec.savedDraftImages = payload.draftImages.slice(0, 8);
       }
       rec.status = payload.explicitStatus || (qAcc >= 0.75 ? 'done' : 'revisit');
+      delete rec.draftActiveSec;
       if (payload.dlpfcTier) rec.dlpfcTier = Number(payload.dlpfcTier);
       rec.updatedAt = timestamp;
       rec.lastAttemptAt = timestamp;
@@ -9865,7 +9914,10 @@ window.StudyApp = (() => {
       return { ok: saved, attempt, record: rec, analytics: boot.analytics };
     }
     const res = await apiPost('/api/attempt', payload);
-    if (res.record) boot.progress.records[payload.questionId] = res.record;
+    if (res.record) {
+      delete res.record.draftActiveSec;
+      boot.progress.records[payload.questionId] = res.record;
+    }
     if (res.analytics) {
       boot.analytics = res.analytics;
       updateHeaderStats();

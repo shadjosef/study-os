@@ -989,6 +989,31 @@ window.StudyCommunity = (() => {
     return presenceSync;
   }
 
+  function tickPresencePills(root, now = Date.now()) {
+    if (!root) return;
+    root.querySelectorAll('.lb-status[data-presence-mode]').forEach((el) => {
+      const mode = el.dataset.presenceMode;
+      if (mode === 'break') {
+        const endsAt = Number(el.dataset.presenceBreakEnds || 0);
+        const leftSec = Math.max(0, Math.ceil((endsAt - now) / 1000));
+        if (leftSec <= 0) {
+          el.className = 'lb-status lb-status-idle';
+          el.dataset.presenceMode = 'idle';
+          el.innerHTML = '<i aria-hidden="true"></i>Offline';
+        } else {
+          const txt = el.querySelector('.lb-status-txt');
+          if (txt) txt.textContent = `On break · ${clockSec(leftSec)}`;
+        }
+      } else if (mode === 'working') {
+        const base = Number(el.dataset.presenceElapsed || 0);
+        const upd = Number(el.dataset.presenceUpdated || now);
+        const elapsed = Math.min(4500, base + Math.max(0, Math.floor((now - upd) / 1000)));
+        const txt = el.querySelector('.lb-status-txt');
+        if (txt) txt.textContent = `Studying · ${clockSec(elapsed)}`;
+      }
+    });
+  }
+
   function clockTick() {
     if (!api) return;
     if (token) {
@@ -1000,6 +1025,7 @@ window.StudyCommunity = (() => {
     }
     const root = document.getElementById('community-root');
     if (document.getElementById('view-community').hidden) return;
+    tickPresencePills(root, Date.now());
     if (!token) return;
     const available = canUse();
     if (!available && root.querySelector('#community-social')) {
@@ -2164,7 +2190,7 @@ window.StudyCommunity = (() => {
 
   function breakCellHtml(row) {
     const b = breakSummaryData(row);
-    if (!b.breakCount && !b.breakMin) return '<span class="muted">—</span>';
+    if (b.breakMin <= 0 || !b.breakCount) return '<span class="muted">—</span>';
     const subParts = [];
     if (b.avgMin) subParts.push(`${b.avgMin}m avg`);
     if (b.perHour !== null) subParts.push(`${b.perHour}/hr`);
@@ -3023,17 +3049,20 @@ window.StudyCommunity = (() => {
 
   function presencePillHtml(row, now) {
     if (row.mode === 'break') {
-      const left = clockSec(Math.max(0, Math.ceil(((row.break_ends_at || 0) - now) / 1000)));
-      return `<span class="lb-status lb-status-break"><i aria-hidden="true"></i>On break · ${esc(left)}</span>`;
+      const endsAt = Number(row.break_ends_at || 0);
+      const left = clockSec(Math.max(0, Math.ceil((endsAt - now) / 1000)));
+      return `<span class="lb-status lb-status-break" data-presence-mode="break" data-presence-break-ends="${endsAt}"><i aria-hidden="true"></i><span class="lb-status-txt">On break · ${esc(left)}</span></span>`;
     }
     if (row.mode === 'working') {
-      const elapsed = clockSec(Math.min(4500, (Number(row.elapsed_seconds) || 0) + Math.max(0, Math.floor((now - (row.updated_at || now)) / 1000))));
-      return `<span class="lb-status lb-status-live"><i aria-hidden="true"></i>Studying · ${esc(elapsed)}</span>`;
+      const baseElapsed = Number(row.elapsed_seconds) || 0;
+      const updatedAt = Number(row.updated_at || now);
+      const elapsed = clockSec(Math.min(4500, baseElapsed + Math.max(0, Math.floor((now - updatedAt) / 1000))));
+      return `<span class="lb-status lb-status-live" data-presence-mode="working" data-presence-elapsed="${baseElapsed}" data-presence-updated="${updatedAt}"><i aria-hidden="true"></i><span class="lb-status-txt">Studying · ${esc(elapsed)}</span></span>`;
     }
     if (row.mode === 'paused') {
-      return `<span class="lb-status lb-status-paused"><i aria-hidden="true"></i>Paused · ${esc(clockSec(Number(row.elapsed_seconds) || 0))}</span>`;
+      return `<span class="lb-status lb-status-paused" data-presence-mode="paused"><i aria-hidden="true"></i><span class="lb-status-txt">Paused · ${esc(clockSec(Number(row.elapsed_seconds) || 0))}</span></span>`;
     }
-    return '<span class="lb-status lb-status-idle"><i aria-hidden="true"></i>Offline</span>';
+    return '<span class="lb-status lb-status-idle" data-presence-mode="idle"><i aria-hidden="true"></i>Offline</span>';
   }
 
   function sortBoardRows(rows, tab) {

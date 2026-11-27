@@ -1712,27 +1712,52 @@ window.StudyMetrics = (() => {
           ? 'Exam Passed'
           : `${c.paceLabel}${c.done > 0 || c.attemptsCount > 0 ? ` (${deltaSign}${c.paceDeltaPts} pts)` : ''}`;
 
-        const estBlock = c.projectedPct != null
-          ? `<div class="mc-ef-grade-box">
-               <div class="mc-ef-grade-top">
-                 <span class="mc-ef-grade-pill ${esc(c.estGradeCls)}">Est. ${esc(c.estGrade)}</span>
-                 <strong class="mc-ef-score">${c.projectedPct}% <small>±${c.marginPct}%</small></strong>
-               </div>
-               <div class="mc-ef-grade-sub">
-                 ${c.lowGrade && c.highGrade && c.lowGrade !== c.highGrade ? `Range ${esc(c.lowGrade)}–${esc(c.highGrade)}` : `Band ${esc(c.estGrade)}`}
-                 · ${c.gapToTargetPct > 0 ? `+${c.gapToTargetPct} pts to ${esc(forecast.targetGrade)}` : `At ${esc(forecast.targetGrade)} target`}
-               </div>
-             </div>`
-          : `<div class="mc-ef-grade-box is-empty">
-               <div class="mc-ef-grade-top">
-                 <span class="mc-ef-grade-pill">No data</span>
-                 <strong class="mc-ef-score">—</strong>
-               </div>
-               <div class="mc-ef-grade-sub">Solve Qs to unlock estimate</div>
-             </div>`;
+        const trimDrillLabel = (raw) => {
+          const base = String(raw || '').split('·')[0].replace(/^\d+\.\s*/, '').trim();
+          if (base.length <= 22) return base;
+          const cut = base.slice(0, 21);
+          const sp = cut.lastIndexOf(' ');
+          const clean = (sp >= 10 ? cut.slice(0, sp) : cut).replace(/[,;&–—:/\-\s]+$/, '');
+          return `${clean || cut.trimEnd()}…`;
+        };
+
+        const estBlock = isPast
+          ? (c.done > 0 || c.mockSitsCount > 0) && c.projectedPct != null
+            ? `<div class="mc-ef-grade-box is-empty">
+                 <div class="mc-ef-grade-top">
+                   <span class="mc-ef-grade-pill">Passed</span>
+                   <strong class="mc-ef-score">${c.projectedPct}%</strong>
+                 </div>
+                 <div class="mc-ef-grade-sub">Exam finished · ${esc(fmtDateShort(c.examDate))}</div>
+               </div>`
+            : `<div class="mc-ef-grade-box is-empty">
+                 <div class="mc-ef-grade-top">
+                   <span class="mc-ef-grade-pill">Completed</span>
+                   <strong class="mc-ef-score">—</strong>
+                 </div>
+                 <div class="mc-ef-grade-sub">Exam passed · ${esc(fmtDateShort(c.examDate))}</div>
+               </div>`
+          : c.projectedPct != null
+            ? `<div class="mc-ef-grade-box">
+                 <div class="mc-ef-grade-top">
+                   <span class="mc-ef-grade-pill ${esc(c.estGradeCls)}">Est. ${esc(c.estGrade)}</span>
+                   <strong class="mc-ef-score">${c.projectedPct}% <small>±${c.marginPct}%</small></strong>
+                 </div>
+                 <div class="mc-ef-grade-sub">
+                   ${c.lowGrade && c.highGrade && c.lowGrade !== c.highGrade ? `Range ${esc(c.lowGrade)}–${esc(c.highGrade)}` : `Band ${esc(c.estGrade)}`}
+                   · ${c.gapToTargetPct > 0 ? `+${c.gapToTargetPct} pts to ${esc(forecast.targetGrade)}` : `At ${esc(forecast.targetGrade)} target`}
+                 </div>
+               </div>`
+            : `<div class="mc-ef-grade-box is-empty">
+                 <div class="mc-ef-grade-top">
+                   <span class="mc-ef-grade-pill">No data</span>
+                   <strong class="mc-ef-score">—</strong>
+                 </div>
+                 <div class="mc-ef-grade-sub">Solve Qs to unlock estimate</div>
+               </div>`;
 
         const catchUpBits = [];
-        if (!isPast && c.remainingTargetQs > 0) {
+        if (!isPast && (c.remainingTargetQs > 0 || c.remainingHighQs > 0)) {
           catchUpBits.push(`<strong>${c.qsPerDayNeeded} Qs/day</strong>${c.highPerDayNeeded > 0 ? ` (${c.highPerDayNeeded} High/day)` : ''} to hit ${esc(forecast.targetGrade)} target`);
         } else if (!isPast && c.done > 0) {
           catchUpBits.push(`Target volume hit — focus on timed mocks &amp; FSRS retention`);
@@ -1752,7 +1777,7 @@ window.StudyMetrics = (() => {
 
         const weakest = c.weakestTopics?.[0];
         const drillBtn = !isPast && weakest && typeof ctx.onPracticeTopic === 'function'
-          ? `<button type="button" class="ghost-btn mc-ef-drill-btn" data-ef-course="${esc(c.courseId)}" data-ef-topic="${esc(weakest.id)}" title="Lowest-coverage syllabus chapter: ${esc(weakest.title)} (${weakest.coveragePct}%)">Drill ${esc(weakest.title.split('·')[0].trim().slice(0, 18))} (${weakest.coveragePct}%) →</button>`
+          ? `<button type="button" class="ghost-btn mc-ef-drill-btn" data-ef-course="${esc(c.courseId)}" data-ef-topic="${esc(weakest.id)}" title="Lowest-coverage syllabus topic: ${esc(weakest.title)} (${weakest.coveragePct}%)">Drill ${esc(trimDrillLabel(weakest.title))} (${weakest.coveragePct}%) →</button>`
           : '';
 
         return `
@@ -1811,7 +1836,7 @@ window.StudyMetrics = (() => {
             <strong>Pace vs. Target:</strong> Compares your composite readiness (35% target Q volume + 30% High-DLPFC synthesis mastery + 25% chapter breadth + 10% FSRS-5 exam-day retention) against a linear 28-day pre-exam ramp (15% at 28d out → 100% on exam day). Mastered High-DLPFC questions are always counted in full here even after FSRS chunks them down in course filters.
           </p>
           <p>
-            <strong>Estimated Grade (BI / ECTS scale: A ≥ 85%, B ≥ 77%, C ≥ 65%, D ≥ 50%, E ≥ 40%):</strong> Combines chapter-by-chapter coverage × accuracy (55%, untouched chapters anchored at 28% baseline so unstudied chapters honestly pull your score down), High-DLPFC mastery (30%), and overall accuracy (15%), scaled by timed pace vs. AI par and FSRS-5 retention projected to exam day — then anchored up to 45% by any completed timed past exams.
+            <strong>Estimated Grade (BI / ECTS scale: A ≥ 85%, B ≥ 77%, C ≥ 65%, D ≥ 50%, E ≥ 40%):</strong> Combines chapter-by-chapter coverage (full confidence at 35% of chapter or 6+ completed exercises; untouched chapters anchored at 28% baseline) × accuracy (55%), High-DLPFC synthesis mastery (30%), and overall accuracy (15%), scaled by timed pace vs. AI par and FSRS-5 retention projected to exam day — then anchored up to 45% by any completed timed past exams.
           </p>
         </details>
       `;

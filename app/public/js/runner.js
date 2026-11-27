@@ -5700,6 +5700,14 @@ window.StudyRunner = (() => {
   }
 
   function exitRunnerKeepPaused() {
+    const curQ = currentQuestion();
+    const curSt = curQ ? activeRun?.items?.[curQ.id] : null;
+    if (curQ && curSt && !curSt.revealed && itemActiveSec(curSt) >= 60) {
+      window.StudyApp.saveDraft?.(curQ.id, {
+        activeElapsedSec: itemActiveSec(curSt),
+        profile: activeRun.profile,
+      });
+    }
     window.StudyApp.flushPendingDrafts?.();
     pauseCurrentTimer();
     persistActiveRun(false);
