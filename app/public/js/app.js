@@ -11266,6 +11266,7 @@ window.StudyApp = (() => {
     renderEdFeedInto,
     fetchCanvasPdfViaExtension,
     onDevModeChange,
+    getCurrentView: () => currentView,
     navigate,
     toggleSiteReferenceSidebar,
     renderHome,

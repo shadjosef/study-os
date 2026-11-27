@@ -71,7 +71,7 @@ function assertBaseSecurityHeaders(res) {
   assert.equal(res.headers.get('Access-Control-Allow-Credentials'), null);
 }
 
-async function makeAuthedEnv({ isAdmin = false, extraDb = {}, envOverrides = {} } = {}) {
+async function makeAuthedEnv({ isAdmin = false, extraDb = {}, envOverrides = {}, profileOverrides = {} } = {}) {
   const tokenHash = await sha256Hex(VALID_TOKEN);
   const profileRow = {
     id: VALID_PROFILE_ID,
@@ -97,7 +97,9 @@ async function makeAuthedEnv({ isAdmin = false, extraDb = {}, envOverrides = {} 
     accuracy: 83,
     break_ends_at: Date.now() + 600_000,
     expires_at: Date.now() + 600_000,
+    session_created_at: 1_700_000_000_000,
     session_last_used_at: Date.now(),
+    ...profileOverrides,
   };
   const db = makeMockDb({
     async first(sql, bound) {
@@ -527,9 +529,31 @@ test('GET /dashboard strips internal primary_token_hash and raw contact_email fr
   assert.equal(body.me.primary_token_hash, undefined);
   assert.equal(body.me.contact_email, undefined);
   assert.equal(body.me.session_last_used_at, undefined);
+  assert.equal(body.me.session_created_at, undefined);
   assert.equal(body.me.contactEmailHint, 'a***@example.edu');
   assert.equal(body.me.nickname, 'Ada');
   assert.equal(body.me.completed, 10);
+});
+
+test('GET /dashboard unlocks during the 10-min post-login welcome window even outside break/evening', async () => {
+  const nowMs = Date.now();
+  const env = await makeAuthedEnv({
+    profileOverrides: {
+      break_ends_at: 0,
+      expires_at: 0,
+      tos_accepted_at: nowMs - 60_000,
+    },
+  });
+  const res = await worker.fetch(new Request(`${WORKER_URL}/dashboard`, {
+    method: 'GET',
+    headers: {
+      Origin: ALLOWED_ORIGIN,
+      Authorization: `Bearer ${VALID_TOKEN}`,
+    },
+  }), env);
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.ok(body.me.welcomeCommunityUntil > nowMs, 'Expected active welcomeCommunityUntil timestamp');
 });
 
 test('equalProof validates exact 64-hex digests only', () => {

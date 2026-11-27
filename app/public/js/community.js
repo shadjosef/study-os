@@ -33,7 +33,8 @@ window.StudyCommunity = (() => {
   let chatLoading = false;
   let openingBreak = false;
   const demoMessages = [];
-  const canUse = () => workClock.canUseBreakTools() && !window.StudyRooms?.running();
+  const hasWelcomeAccess = () => Number(currentProfile?.welcomeCommunityUntil || 0) > Date.now();
+  const canUse = () => (workClock.canUseBreakTools() || hasWelcomeAccess()) && !window.StudyRooms?.running();
   try { token = localStorage.getItem(keyName) || ''; } catch {}
 
   function useProfile(key) {
@@ -1478,6 +1479,7 @@ window.StudyCommunity = (() => {
       if (unlocked) clearPendingAccessCode();
       toast(unlocked ? `Welcome, ${res.nickname}! Course PDFs unlocked.` : `Welcome, ${res.nickname}! Google Sign-In is now linked.`);
       await onSignedIn();
+      window.StudySpotlightTour?.maybeStartAfterSignup?.();
     }, status);
 
     const joinNewsletterCb = root.querySelector('#community-join input[name="newsletterOptIn"]');
@@ -1558,6 +1560,8 @@ window.StudyCommunity = (() => {
       if (form.get('withPasskey') === 'on') {
         await openSecuritySheet();
         window.requestAnimationFrame(() => document.getElementById('sec-add-passkey')?.focus());
+      } else {
+        window.StudySpotlightTour?.maybeStartAfterSignup?.();
       }
     }, status);
 
@@ -4100,7 +4104,17 @@ window.StudyCommunity = (() => {
       </li>`;
     }).join('');
     inspectIncomingShares(messages.filter((row) => row.recipient === me.id));
+    const welcomeRemMin = !workClock.canUseBreakTools() && Number(me.welcomeCommunityUntil || 0) > Date.now()
+      ? Math.max(1, Math.ceil((Number(me.welcomeCommunityUntil) - Date.now()) / 60_000))
+      : 0;
+    const welcomeBannerHtml = welcomeRemMin > 0
+      ? `<div class="community-welcome-banner" role="status">
+          <span class="badge good">Welcome preview · ${welcomeRemMin}m left</span>
+          <span>Explore the live leaderboard, study pods &amp; chat right after sign-in. Normally Community opens on breaks or 18:00–22:30 Oslo to protect study focus.</span>
+        </div>`
+      : '';
     root.innerHTML = `
+      ${welcomeBannerHtml}
       <section class="panel" id="community-social">
         <div class="row-between">
           <div class="community-identity">
@@ -4234,8 +4248,10 @@ window.StudyCommunity = (() => {
         if (generation !== token) return;
         currentProfile = profile;
         window.StudyApp?.syncSettingsRows?.();
-        if (!canUse()) renderLocked(root, profile);
-        return;
+        if (!canUse()) {
+          renderLocked(root, profile);
+          return;
+        }
       }
       await syncPresence(state);
       if (generation !== token) return;

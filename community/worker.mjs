@@ -93,9 +93,17 @@ const publicAuthPaths = new Set([
   '/auth/recovery',
 ]);
 const breakRequired = new Set(['/dashboard', '/message', '/chat', '/block', '/sets']);
+const WELCOME_COMMUNITY_WINDOW_MS = 10 * 60_000;
 const osloClock = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Oslo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
 });
+
+function welcomeCommunityUntil(me, now = Date.now()) {
+  const recentAuthMs = Math.max(Number(me?.tos_accepted_at || 0), Number(me?.session_created_at || 0));
+  if (!recentAuthMs) return 0;
+  const until = recentAuthMs + WELCOME_COMMUNITY_WINDOW_MS;
+  return until > now ? until : 0;
+}
 
 function isEveningOsloWindow(now = Date.now()) {
   const parts = osloClock.formatToParts(now);
@@ -148,6 +156,7 @@ function profileSummary(me, isAdmin, now) {
     canvasOrigin: me.canvas_origin || '',
     newsletterOptIn: Boolean(me.newsletter_opt_in),
     contactEmailHint: maskEmailHint(me.contact_email || ''),
+    welcomeCommunityUntil: welcomeCommunityUntil(me, now),
     isAdmin,
   };
 }
@@ -357,6 +366,7 @@ export default {
           secondary_language, school, major, canvas_origin, newsletter_opt_in, newsletter_opt_in_at, contact_email, tos_accepted_at,
           study_minutes, break_minutes, break_count, last_break_at,
           completed, attempts, accuracy, break_ends_at, expires_at,
+          profile_sessions.created_at AS session_created_at,
           profile_sessions.last_used_at AS session_last_used_at
         FROM profile_sessions
         JOIN profiles ON profiles.id = profile_sessions.profile_id
@@ -465,7 +475,9 @@ export default {
       return reply({ error: 'Invalid share action.' }, 405);
     }
     if (breakRequired.has(path) || path === '/rooms' || path.startsWith('/rooms/')) {
-      const breakAccess = isEveningOsloWindow(now) || (me.break_ends_at > now && me.expires_at > now);
+      const breakAccess = isEveningOsloWindow(now)
+        || welcomeCommunityUntil(me, now) > now
+        || (me.break_ends_at > now && me.expires_at > now);
       const canUseCommunity = breakAccess && !await runningStudyRoom(db, me.id, now);
       if (path === '/rooms' || path.startsWith('/rooms/')) {
         return handleRooms({ request, url, db, me, now, data, canUseCommunity, reply });
@@ -642,7 +654,7 @@ export default {
       const blocked = await db.prepare(`
         SELECT p.id, p.nickname FROM blocks b JOIN profiles p ON p.id = b.blocked WHERE b.owner = ?
       `).bind(me.id).all();
-      const { primary_token_hash: _pth, contact_email: _ce, session_last_used_at: _slu, ...safeMe } = me;
+      const { primary_token_hash: _pth, contact_email: _ce, session_last_used_at: _slu, session_created_at: _sca, ...safeMe } = me;
       const mePayload = { ...safeMe, ...profileSummary(me, isAdmin, now) };
       if (isAdmin) {
         const mk = await getAdminMemberKey(db, env);

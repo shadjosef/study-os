@@ -3540,6 +3540,10 @@ window.StudyUI = (() => {
       soundDrawerExpanded = !soundDrawerExpanded;
       setSoundDrawerExpanded(soundDrawerExpanded);
     });
+    document.getElementById('settings-tour-btn')?.addEventListener('click', () => {
+      closeSettings();
+      window.StudySpotlightTour?.start?.({ force: true });
+    });
     document.getElementById('settings-playbook-btn')?.addEventListener('click', () => {
       closeSettings();
       window.StudyPlaybook?.open?.();
