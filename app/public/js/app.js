@@ -2599,7 +2599,11 @@ window.StudyApp = (() => {
     else if (viewName === 'analytics') renderAnalytics();
     else if (viewName === 'community') await window.StudyCommunity.render();
     else if (viewName === 'room') await window.StudyRooms.render();
-    if (!hasScrollTarget) {
+    if (Number.isFinite(opts.scrollY) && opts.scrollY >= 0) {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: opts.scrollY, left: 0, behavior: 'instant' });
+      });
+    } else if (!hasScrollTarget) {
       window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
   }
@@ -6778,21 +6782,21 @@ window.StudyApp = (() => {
         <div class="row-between" style="margin-top:0">
           <div>
             <h3>Exercises</h3>
-            <small class="muted">Click any column header to sort (↑ → ↓ → default), or click Practice to launch.</small>
+            <small class="muted">Click any exercise row to open it immediately, or click a column header to sort.</small>
           </div>
         </div>
         <div class="task-table-wrap">
-          <table class="task-table">
+          <table class="task-table exp-task-table">
             <thead>
               <tr>
-                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="question">Question <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
-                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="topic">Topic <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
-                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="difficulty">Difficulty <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
-                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="format">Format <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
-                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="horizon">Horizon (Learn / Exam) <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
-                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="best">Your Best <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
-                <th aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="status">Status <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
-                <th>Action</th>
+                <th class="exp-col-q" aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="question">Question <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th class="exp-col-topic" aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="topic">${esc(unitCapitalized)} <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th class="exp-col-diff" aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="difficulty">Level <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th class="exp-col-fmt" aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="format">Type <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th class="exp-col-par" aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="horizon" title="AI Par time (Learn / Exam)">Par <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th class="exp-col-best" aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="best">Best <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th class="exp-col-status" aria-sort="none"><button type="button" class="th-sort-btn" data-sort-col="status">Status <span class="th-sort-ind" aria-hidden="true">⇅</span></button></th>
+                <th class="exp-col-act" aria-label="Open"></th>
               </tr>
             </thead>
             <tbody id="exp-table-body"></tbody>
@@ -7335,6 +7339,41 @@ window.StudyApp = (() => {
       } catch {}
     };
 
+    const captureCourseReturnState = () => ({
+      view: 'course',
+      courseId,
+      courseLabel: cMeta.shortTitle || cMeta.title || cMeta.code || 'Courses',
+      scrollY: Math.max(0, Math.round(window.scrollY || 0)),
+      filters: {
+        origin: document.getElementById('flt-origin')?.value || 'all',
+        real: realTasksOnly,
+        topic: document.getElementById('flt-topic')?.value || 'all',
+        coll: document.getElementById('flt-coll')?.value || 'all',
+        kind: document.getElementById('flt-kind')?.value || 'all',
+        diff: document.getElementById('flt-diff')?.value || 'all',
+        horizon: document.getElementById('flt-horizon')?.value || 'all',
+        status: document.getElementById('flt-status')?.value || 'unfinished',
+        sort: document.getElementById('flt-sort')?.value || defaultSort,
+        group: groupByChapter,
+        budget: document.getElementById('flt-budget')?.value || 'budget:50',
+        profile: document.getElementById('flt-profile')?.value || 'learning',
+        q: (document.getElementById('flt-search')?.value || '').trim(),
+      },
+    });
+
+    const launchSoloExercise = (qid) => {
+      if (!qid) return;
+      const prof = document.getElementById('flt-profile')?.value || 'learning';
+      window.StudyRunner.startRun({
+        courseMeta: cMeta,
+        bank,
+        questionIds: [qid],
+        mode: 'practice',
+        profile: prof,
+        returnTo: captureCourseReturnState(),
+      });
+    };
+
     const refreshTable = (opts) => {
       const syncUrl = !(opts && opts.syncUrl === false);
       const matches = getMatching();
@@ -7367,18 +7406,18 @@ window.StudyApp = (() => {
         const conceptSub = conceptSubtitleFor(q, tMeta);
         const topicShort = tMeta?.shortLabel || `T${q.topicId}`;
         const topicFull = tMeta?.fullTitle || `Topic ${q.topicId}`;
-        return `<tr>
-          <td>
-            <strong>${esc(q.title)}</strong>
+        return `<tr class="exp-task-row" data-launch-qid="${esc(q.id)}">
+          <td class="exp-col-q">
+            <button type="button" class="exp-row-title-btn" data-solo-qid="${esc(q.id)}">${esc(q.title)}</button>
             ${conceptSub ? `<div class="exp-row-concept">${esc(conceptSub)}</div>` : ''}
             <div class="exp-row-meta">${priorityPill}${provPill}<small class="muted">${esc(q.localId || q.id)}</small></div>
           </td>
-          <td><button type="button" class="badge exp-topic-pill" data-pick-topic="${esc(q.topicId)}" title="Filter to ${esc(topicFull)}">${esc(topicShort)}</button></td>
-          <td>${diffBadge}</td>
-          <td>${kindBadge}</td>
-          <td><small><b>${lp}</b> / ${ep}</small></td>
-          <td><small>${pb}</small></td>
-          <td>
+          <td class="exp-col-topic"><button type="button" class="badge exp-topic-pill" data-pick-topic="${esc(q.topicId)}" title="Filter to ${esc(topicFull)}">${esc(topicShort)}</button></td>
+          <td class="exp-col-diff">${diffBadge}</td>
+          <td class="exp-col-fmt">${kindBadge}</td>
+          <td class="exp-col-par"><small><b>${lp}</b> / ${ep}</small></td>
+          <td class="exp-col-best"><small>${pb}</small></td>
+          <td class="exp-col-status">
             <div class="status-group">
               <button type="button" class="st-btn ${st === 'not_started' ? 'active-not_started' : ''}" data-row-qid="${esc(q.id)}" data-row-st="not_started" title="Mark Uncomplete">○</button>
               <button type="button" class="st-btn ${st === 'in_progress' ? 'active-in_progress' : ''}" data-row-qid="${esc(q.id)}" data-row-st="in_progress" title="In Progress">◐</button>
@@ -7386,7 +7425,7 @@ window.StudyApp = (() => {
               <button type="button" class="st-btn ${st === 'revisit' ? 'active-revisit' : ''}" data-row-qid="${esc(q.id)}" data-row-st="revisit" title="Revisit">⚑</button>
             </div>
           </td>
-          <td><button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" data-solo-qid="${esc(q.id)}">Practice →</button></td>
+          <td class="exp-col-act"><button type="button" class="ghost-btn exp-open-btn" data-solo-qid="${esc(q.id)}" title="Open exercise">Open →</button></td>
         </tr>`;
       };
 
@@ -7424,7 +7463,8 @@ window.StudyApp = (() => {
       }
 
       tbody.querySelectorAll('[data-pick-topic]').forEach((btn) => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
           const tEl = document.getElementById('flt-topic');
           if (!tEl) return;
           const target = String(btn.dataset.pickTopic || '');
@@ -7435,22 +7475,25 @@ window.StudyApp = (() => {
       });
 
       tbody.querySelectorAll('[data-row-st]').forEach((btn) => {
-        btn.addEventListener('click', async () => {
+        btn.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
           await setQuestionStatus([btn.dataset.rowQid], btn.dataset.rowSt, false);
           refreshTable();
         });
       });
 
       tbody.querySelectorAll('[data-solo-qid]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const prof = document.getElementById('flt-profile').value;
-          window.StudyRunner.startRun({
-            courseMeta: cMeta,
-            bank,
-            questionIds: [btn.dataset.soloQid],
-            mode: 'practice',
-            profile: prof,
-          });
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          launchSoloExercise(btn.dataset.soloQid);
+        });
+      });
+
+      tbody.querySelectorAll('tr.exp-task-row[data-launch-qid]').forEach((row) => {
+        row.addEventListener('click', (ev) => {
+          if (ev.target?.closest?.('button, a, input, select, label')) return;
+          if (window.getSelection?.()?.toString?.()) return;
+          launchSoloExercise(row.dataset.launchQid);
         });
       });
     };
@@ -7731,6 +7774,7 @@ window.StudyApp = (() => {
         examStyle,
         durationMinutes: Math.max(15, Math.round(estMin)),
         profile: prof,
+        returnTo: captureCourseReturnState(),
       });
     };
 

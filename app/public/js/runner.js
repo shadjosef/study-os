@@ -1203,6 +1203,7 @@ window.StudyRunner = (() => {
       examBreakSec: Number(activeRun.examBreakSec) || 0,
       profile: activeRun.profile || 'learning',
       calendarBlock: activeRun.calendarBlock || null,
+      returnTo: activeRun.returnTo || null,
       consecutiveMisses: Number(activeRun.consecutiveMisses) || 0,
       sessionFocusSwitches: Number(activeRun.sessionFocusSwitches) || 0,
       sessionAwayMs: Number(activeRun.sessionAwayMs) || 0,
@@ -1328,6 +1329,7 @@ window.StudyRunner = (() => {
       examBreakStartedMs: null,
       profile: saved.profile || (saved.mode === 'exam' ? 'exam' : 'learning'),
       calendarBlock: saved.calendarBlock || null,
+      returnTo: saved.returnTo || null,
       consecutiveMisses: Number(saved.consecutiveMisses) || 0,
       sessionFocusSwitches: Number(saved.sessionFocusSwitches) || 0,
       sessionAwayMs: Number(saved.sessionAwayMs) || 0,
@@ -1384,6 +1386,7 @@ window.StudyRunner = (() => {
       window.StudyPdf?.warm?.();
       document.getElementById('global-header').hidden = true;
       document.getElementById('runner-header').hidden = false;
+      syncRunnerExitButtonLabel();
       syncRunnerStickyOffset();
       window.StudyApp.showRawView('runner');
       clearInterval(tickInterval);
@@ -1673,6 +1676,7 @@ window.StudyRunner = (() => {
       questionIds: validIds,
       index: Math.max(0, Math.min(validIds.length - 1, Number(config.startIndex) || 0)),
       mode: isExam ? 'exam' : 'practice',
+      returnTo: config.returnTo || (isExam ? { view: 'exams', focusCourseId: config.courseMeta?.courseId || '' } : null),
       examStyle,
       examCollectionId: config.examCollectionId || '',
       examTitle: config.examTitle || '',
@@ -1699,6 +1703,7 @@ window.StudyRunner = (() => {
 
     document.getElementById('global-header').hidden = true;
     document.getElementById('runner-header').hidden = false;
+    syncRunnerExitButtonLabel();
     syncRunnerStickyOffset();
     window.StudyApp.showRawView('runner');
 
@@ -5675,6 +5680,7 @@ window.StudyRunner = (() => {
 
     document.getElementById('checkin-modal').hidden = true;
     if (document.getElementById('checkin-note')) document.getElementById('checkin-note').value = '';
+    const returnTo = activeRun?.returnTo || null;
     clearInterval(tickInterval);
     closeFloatingParBar();
     activeRun = null;
@@ -5690,9 +5696,45 @@ window.StudyRunner = (() => {
       : 'Session saved.';
     toast(sandbox ? 'Dev run ended.' : includeCheckIn ? 'Check-in & session logged.' : summaryToast);
     await window.StudyApp.refreshBootstrap();
-    window.StudyApp.navigate(wasExam ? 'exams' : 'home');
+    navigateBackFromRunner(returnTo, wasExam);
   }
 
+  function syncRunnerExitButtonLabel() {
+    const exitBtn = document.getElementById('run-exit-btn');
+    if (!exitBtn) return;
+    const rt = activeRun?.returnTo;
+    let label = 'Hub';
+    let title = 'Return to Hub';
+    if (rt?.view === 'course') {
+      const cName = rt.courseLabel || activeRun?.courseMeta?.shortTitle || 'Course';
+      label = cName.length > 16 ? 'Course' : cName;
+      title = `Back to ${cName} exercises`;
+    } else if (rt?.view === 'exams') {
+      label = 'Exams';
+      title = 'Back to Mock Exams';
+    }
+    exitBtn.title = title;
+    exitBtn.setAttribute('aria-label', title);
+    const lblSpan = exitBtn.querySelector('.runner-exit-label');
+    if (lblSpan) lblSpan.textContent = ` ${label}`;
+  }
+
+  function navigateBackFromRunner(returnTo, wasExam = false) {
+    if (returnTo?.view === 'course' && returnTo.courseId) {
+      window.StudyApp.navigate('course', {
+        courseId: returnTo.courseId,
+        filters: returnTo.filters || null,
+        preserveScroll: true,
+        scrollY: Number.isFinite(returnTo.scrollY) ? returnTo.scrollY : 0,
+      });
+      return;
+    }
+    if (returnTo?.view === 'exams' || wasExam) {
+      window.StudyApp.navigate('exams', { focusCourseId: returnTo?.focusCourseId || '' });
+      return;
+    }
+    window.StudyApp.navigate('home');
+  }
   function pauseIfRunning() {
     if (!activeRun) return;
     pauseCurrentTimer();
@@ -5700,17 +5742,42 @@ window.StudyRunner = (() => {
   }
 
   function exitRunnerKeepPaused() {
+    const run = activeRun;
+    const returnTo = run?.returnTo || null;
+    const wasExam = run?.mode === 'exam';
     const curQ = currentQuestion();
-    const curSt = curQ ? activeRun?.items?.[curQ.id] : null;
+    const curSt = curQ ? run?.items?.[curQ.id] : null;
     if (curQ && curSt && !curSt.revealed && itemActiveSec(curSt) >= 60) {
       window.StudyApp.saveDraft?.(curQ.id, {
         activeElapsedSec: itemActiveSec(curSt),
-        profile: activeRun.profile,
+        profile: run.profile,
       });
     }
     window.StudyApp.flushPendingDrafts?.();
     pauseCurrentTimer();
-    persistActiveRun(false);
+
+    // If user just peeked at a single course exercise (<45s, zero input/attempts), close cleanly without leaving a noisy Resume bar
+    const isQuickUntouchedPeek = Boolean(
+      run
+      && returnTo?.view === 'course'
+      && run.mode === 'practice'
+      && run.questionIds.length === 1
+      && curQ
+      && curSt
+      && !curSt.revealed
+      && !hasAnyAnswerEntered(curQ, curSt)
+      && itemActiveSec(curSt) < 45
+      && Object.keys(run.completedAttempts || {}).length === 0
+    );
+    if (isQuickUntouchedPeek) {
+      clearInterval(tickInterval);
+      closeFloatingParBar();
+      activeRun = null;
+      clearPersistedRun();
+    } else {
+      persistActiveRun(false);
+    }
+
     window.StudyPdf.dispose();
     document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-split-ref', 'runner-foveal-compact');
     document.getElementById('runner-header').hidden = true;
@@ -5718,7 +5785,7 @@ window.StudyRunner = (() => {
     const obsLink = document.getElementById('run-obsidian-app-link');
     if (obsLink) obsLink.hidden = true;
     syncGlobalResumeUi();
-    window.StudyApp.navigate('home');
+    navigateBackFromRunner(returnTo, wasExam);
   }
 
   function resumePausedRun() {
@@ -5726,6 +5793,7 @@ window.StudyRunner = (() => {
     workClock?.ensureWorking?.();
     document.getElementById('global-header').hidden = true;
     document.getElementById('runner-header').hidden = false;
+    syncRunnerExitButtonLabel();
     syncRunnerStickyOffset();
     window.StudyApp.showRawView('runner');
     resumeCurrentTimer();

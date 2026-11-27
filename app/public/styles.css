@@ -15398,7 +15398,71 @@ html[data-theme="dark"] .study-tour-popover {
   font-size: 12.5px !important;
 }
 
-/* Course Explorer Concept Subtitles, Clickable Chapter Badges & Grouped Headers */
+/* Course Explorer Concept Subtitles, Clickable Chapter Badges, Full-Row Launch & Compact Fit */
+.exp-task-table {
+  width: 100%;
+  table-layout: auto;
+}
+.exp-task-table th,
+.exp-task-table td {
+  padding: 9px 7px;
+}
+.exp-task-table .exp-col-q {
+  width: 100%;
+  min-width: 210px;
+}
+.exp-task-table .exp-col-topic,
+.exp-task-table .exp-col-diff,
+.exp-task-table .exp-col-fmt,
+.exp-task-table .exp-col-par,
+.exp-task-table .exp-col-best,
+.exp-task-table .exp-col-status,
+.exp-task-table .exp-col-act {
+  width: 1%;
+  white-space: nowrap;
+}
+.exp-task-table .status-group {
+  gap: 3px;
+}
+.exp-task-table .st-btn {
+  padding: 3px 6px;
+}
+.exp-task-row {
+  cursor: pointer;
+}
+.exp-task-row:hover td {
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel-alt));
+}
+.exp-row-title-btn {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  display: inline;
+  line-height: 1.35;
+  transition: color 0.14s ease;
+}
+.exp-task-row:hover .exp-row-title-btn,
+.exp-row-title-btn:hover,
+.exp-row-title-btn:focus-visible {
+  color: var(--accent);
+}
+.exp-open-btn {
+  padding: 4px 9px !important;
+  font-size: 12px !important;
+  font-weight: 600;
+}
+.exp-task-row:hover .exp-open-btn {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel));
+}
 .exp-row-concept {
   margin: 2px 0 3px;
   font-size: 12.5px;
@@ -15409,7 +15473,7 @@ html[data-theme="dark"] .study-tour-popover {
   border: 1px solid var(--line);
   cursor: pointer;
   white-space: nowrap;
-  max-width: 176px;
+  max-width: 132px;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 11.5px;
@@ -15419,6 +15483,24 @@ html[data-theme="dark"] .study-tour-popover {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-soft);
+}
+@media (max-width: 1160px) {
+  .exp-task-table th,
+  .exp-task-table td {
+    padding: 8px 5px;
+  }
+  .exp-topic-pill {
+    max-width: 108px;
+  }
+  .exp-task-table .exp-col-best {
+    display: none;
+  }
+}
+@media (max-width: 940px) {
+  .exp-task-table .exp-col-fmt,
+  .exp-task-table .exp-col-par {
+    display: none;
+  }
 }
 .exp-chapter-group-row td {
   background: color-mix(in srgb, var(--accent) 7%, var(--panel-alt));
