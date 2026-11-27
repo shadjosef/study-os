@@ -1573,6 +1573,11 @@ window.StudyApp = (() => {
     'hard', 'medium', 'easy', 'high', 'med', 'low', 'dlpfc', 'synthesis', 'drills', 'drill',
     'recap', 'practice', 'block', 'study', 'timed', 'lecture', 'session', 'review', 'recall',
     'sprint', 'procedural', 'active', 'and', 'the', 'for', 'from', 'with', 'into', 'build', 'clean',
+    'mixed', 'scope', 'check', 'weakest', 'original', 'exercise', 'exercises', 'priority', 'repair',
+    'repairs', 'focused', 'catch', 'correction', 'walk', 'home', 'exam', 'exams', 'mock', 'mocks',
+    'paper', 'papers', 'select', 'method', 'before', 'extra', 'room', 'weekly', 'quiz', 'error',
+    'retry', 'flashcards', 'notebooklm', 'accounting', 'finance', 'economics', 'mathematics',
+    'programming', 'leadership', 'business', 'information', 'course',
   ]);
 
   function inferBlockDlpfc(block) {
@@ -1605,11 +1610,20 @@ window.StudyApp = (() => {
       const explicit = block.topicIds.map((id) => byId.get(String(id))).filter(Boolean);
       if (explicit.length) return explicit.slice(0, 2);
     }
-    const text = `${block.summary || ''} ${block.focusNote || ''}`.toLowerCase();
+    const cleanSum = cleanBlockSummary(block.summary, course);
+    if (/\bmixed\b/i.test(cleanSum)) return [];
+    const text = `${cleanSum} ${block.focusNote || ''}`.toLowerCase();
+    const courseWords = new Set(
+      `${course?.title || ''} ${course?.shortTitle || ''} ${course?.code || ''}`
+        .toLowerCase()
+        .replace(/[^a-z0-9æøå]+/gi, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length >= 4)
+    );
     const tokens = text
       .replace(/[^a-z0-9æøå]+/gi, ' ')
       .split(/\s+/)
-      .filter((w) => w.length >= 4 && !SCHED_STOP_WORDS.has(w));
+      .filter((w) => w.length >= 4 && !SCHED_STOP_WORDS.has(w) && !courseWords.has(w));
     if (!tokens.length) return [];
 
     let best = null;
@@ -1666,7 +1680,10 @@ window.StudyApp = (() => {
 
     let topicIds = matched.map((t) => String(t.id));
     let topicLabel = matched.length ? formatTopicShort(matched[0]) : '';
-    if (!topicLabel && hydrated?.topicLabel) {
+    if (hydrated?.swapped && hydrated.topicLabel) {
+      topicLabel = hydrated.topicLabel;
+      topicIds = hydrated.topicIds || topicIds;
+    } else if (!topicLabel && hydrated?.topicLabel) {
       topicLabel = hydrated.topicLabel;
       topicIds = hydrated.topicIds || topicIds;
     } else if (!topicLabel && block.topicTitle) {
@@ -1674,14 +1691,19 @@ window.StudyApp = (() => {
     }
 
     const isGenericTitle = /^(synthesis|procedural|recall|study block|practice)$/i.test(cleanTitle);
-    const displayTitle = isGenericTitle && topicLabel ? topicLabel : cleanTitle;
+    const displayTitle = hydrated?.swapped && hydrated.topicLabel
+      ? hydrated.topicLabel
+      : isGenericTitle && topicLabel
+      ? topicLabel
+      : cleanTitle;
     const showTopicPill = Boolean(topicLabel && topicLabel.toLowerCase() !== displayTitle.toLowerCase());
 
     const serverQCount = block.autoQueue?.questionIds?.length || 0;
     const qCount = hydrated ? hydrated.count : serverQCount;
     const mins = hydrated?.estMin || Number(block.focusMinutes || 50);
+    const altSuffix = hydrated?.swapped ? ` · Alt #${hydrated.swapCycle || 1}` : '';
     const queueLabel = qCount > 0
-      ? `${qCount} ${qCount === 1 ? 'task' : 'tasks'} · ~${Math.max(10, Math.round(mins))}m`
+      ? `${qCount} ${qCount === 1 ? 'task' : 'tasks'} · ~${Math.max(10, Math.round(mins))}m${altSuffix}`
       : `${Math.max(15, Number(block.focusMinutes || 50))}m block`;
 
     return {
@@ -1730,27 +1752,89 @@ window.StudyApp = (() => {
     return { debtBlocks, liveBlocks, upcomingBlocks, completedBlocks, queue, debtMinutes, earlyCount };
   }
 
+  const blockSwapHistory = new Map();
+
+  function summarizePlaylistTopicLabel(chosenQs, bank, fallbackTopicLabel = '') {
+    if (!chosenQs.length) return fallbackTopicLabel;
+    const topicCounts = new Map();
+    for (const q of chosenQs) {
+      const tid = String(q.topicId || '');
+      if (!tid) continue;
+      topicCounts.set(tid, (topicCounts.get(tid) || 0) + 1);
+    }
+    const rankedTopics = [...topicCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([tid]) => (bank?.topics || []).find((t) => String(t.id) === tid))
+      .filter(Boolean);
+    if (!rankedTopics.length) return fallbackTopicLabel;
+    if (rankedTopics.length === 1) return formatTopicShort(rankedTopics[0]);
+    const lead = formatTopicShort(rankedTopics[0]).replace(/^T\d+ · /, '');
+    const second = formatTopicShort(rankedTopics[1]).replace(/^T\d+ · /, '').split(/[,&]/)[0].trim();
+    if (rankedTopics.length === 2 && (lead.length + second.length) <= 40) {
+      return `${lead} & ${second}`;
+    }
+    return `${lead} · +${rankedTopics.length - 1} related`;
+  }
+
+  function applyBlockCardDomUpdate(block, info, course) {
+    const escId = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(block.eventId) : block.eventId.replace(/"/g, '\\"');
+    const altSuffix = info.swapped ? ` · Alt #${info.swapCycle || 1}` : '';
+    document.querySelectorAll(`[data-sched-count-for="${escId}"]`).forEach((el) => {
+      el.textContent = info.count > 0
+        ? `${info.count} ${info.count === 1 ? 'task' : 'tasks'} · ~${Math.max(10, info.estMin)}m${altSuffix}`
+        : `${Number(block.focusMinutes || 50)}m review`;
+    });
+    if (info.topicLabel) {
+      const title = homeBlockTitle(info.topicLabel, course);
+      document.querySelectorAll(`[data-sched-topic-for="${escId}"]`).forEach((el) => {
+        el.textContent = title;
+        el.closest('#hero-active-block')?.setAttribute('aria-label', `Launch ${title}`);
+      });
+    }
+  }
+
   async function hydrateVisibleScheduledBlocks(blocks) {
     const targets = (blocks || []).filter((b) => {
       const cid = describeScheduledBlock(b).course?.courseId || b.courseId;
-      return cid && !b.autoQueue?.questionIds?.length && !hydratedBlockCache.has(b.eventId);
+      return cid && !hydratedBlockCache.has(b.eventId);
     });
     if (!targets.length) return;
     const uniqueCourseIds = [...new Set(targets.map((b) => describeScheduledBlock(b).course?.courseId || b.courseId).filter(Boolean))];
     await Promise.all(uniqueCourseIds.map((cid) => ensureCourseBank(cid).catch(() => null)));
+
+    const seenByCourse = new Map();
+    for (const b of (blocks || [])) {
+      const prev = hydratedBlockCache.get(b.eventId);
+      const cid = describeScheduledBlock(b).course?.courseId || b.courseId;
+      if (prev?.questionIds?.length && cid) {
+        if (!seenByCourse.has(cid)) seenByCourse.set(cid, new Set());
+        prev.questionIds.forEach((id) => seenByCourse.get(cid).add(id));
+      }
+    }
 
     for (const b of targets) {
       const meta = describeScheduledBlock(b);
       const cid = meta.course?.courseId || b.courseId;
       const bank = bankCache[cid];
       if (!bank?.questions?.length) continue;
+      if (!seenByCourse.has(cid)) seenByCourse.set(cid, new Set());
+      const courseSeen = seenByCourse.get(cid);
       const prof = b.recommendedProfile || 'learning';
       const budget = Number(b.attemptBudgetMinutes || b.focusMinutes || homeBlockMinutes || 50);
       const effMode = sessionFocusMode !== 'auto' ? getResolvedFocusMode() : meta.dlpfc.mode;
-      const qids = buildEffortSortedQueue(bank.questions, budget, prof, meta.topicIds, effMode);
+      const serverIds = (b.autoQueue?.questionIds || []).filter((id) => getProgressRecord(id)?.status !== 'done');
+      const serverHasDup = serverIds.length > 0 && serverIds.every((id) => courseSeen.has(id));
+      let qids = (serverIds.length && !serverHasDup && sessionFocusMode === 'auto')
+        ? serverIds
+        : buildEffortSortedQueue(bank.questions, budget, prof, meta.topicIds, effMode, false, 0, bank, courseSeen);
+      if (!qids.length) {
+        qids = buildEffortSortedQueue(bank.questions, budget, prof, meta.topicIds, effMode, false, 0, bank);
+      }
+      qids.forEach((id) => courseSeen.add(id));
       const qById = new Map(bank.questions.map((q) => [q.id, q]));
       const chosenQs = qids.map((id) => qById.get(id)).filter(Boolean);
       const estMin = Math.round(chosenQs.reduce((s, q) => s + calibratedParSec(q, prof) / 60, 0));
+      const derivedLabel = summarizePlaylistTopicLabel(chosenQs, bank, meta.topicLabel);
       const firstQ = chosenQs[0] || null;
       const topTopic = firstQ ? (bank.topics || []).find((t) => String(t.id) === String(firstQ.topicId)) : null;
       const info = {
@@ -1758,25 +1842,81 @@ window.StudyApp = (() => {
         count: chosenQs.length,
         estMin: estMin || Number(b.focusMinutes || 50),
         topicIds: meta.topicIds.length ? meta.topicIds : (topTopic ? [String(topTopic.id)] : []),
-        topicLabel: meta.topicLabel || (topTopic ? formatTopicShort(topTopic) : ''),
+        topicLabel: meta.topicLabel || derivedLabel,
+        swapped: false,
+        swapCycle: 0,
       };
       hydratedBlockCache.set(b.eventId, info);
+      applyBlockCardDomUpdate(b, info, meta.course);
+    }
+  }
 
-      // Update live Home DOM cleanly without full re-render flicker
-      const escId = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(b.eventId) : b.eventId.replace(/"/g, '\\"');
-      document.querySelectorAll(`[data-sched-count-for="${escId}"]`).forEach((el) => {
-        el.textContent = info.count > 0
-          ? `${info.count} ${info.count === 1 ? 'task' : 'tasks'} · ~${Math.max(10, info.estMin)}m`
-          : `${Number(b.focusMinutes || 50)}m review`;
-      });
-      if (info.topicLabel) {
-        const title = homeBlockTitle(info.topicLabel, meta.course);
-        document.querySelectorAll(`[data-sched-topic-for="${escId}"]`).forEach((el) => {
-          el.textContent = title;
-          el.closest('#hero-active-block')?.setAttribute('aria-label', `Launch ${title}`);
-        });
+  async function swapScheduledBlockPlaylist(block) {
+    if (!block) return;
+    const meta = describeScheduledBlock(block);
+    const cid = meta.course?.courseId || block.courseId;
+    if (!cid) {
+      toast('No course linked to this block yet.');
+      return;
+    }
+    let bank;
+    try {
+      bank = await ensureCourseBank(cid);
+    } catch {
+      toast('Could not load course bank right now.');
+      return;
+    }
+    const prof = block.recommendedProfile || 'learning';
+    const budget = Number(block.attemptBudgetMinutes || block.focusMinutes || homeBlockMinutes || 50);
+    const effMode = sessionFocusMode !== 'auto' ? getResolvedFocusMode() : meta.dlpfc.mode;
+    const prevInfo = hydratedBlockCache.get(block.eventId);
+    const currentIds = prevInfo?.questionIds?.length
+      ? prevInfo.questionIds
+      : (block.autoQueue?.questionIds || []).filter((id) => getProgressRecord(id)?.status !== 'done');
+    const hist = blockSwapHistory.get(block.eventId) || { excluded: new Set(), cycle: 0 };
+    currentIds.forEach((id) => hist.excluded.add(id));
+
+    // Try fresh alternative within the same topic + same DLPFC first; if exhausted, pull related exam topics at the same DLPFC
+    let nextIds = meta.topicIds.length
+      ? buildEffortSortedQueue(bank.questions, budget, prof, meta.topicIds, effMode, false, 0, bank, hist.excluded)
+      : [];
+    let widened = false;
+    if (!nextIds.length) {
+      nextIds = buildEffortSortedQueue(bank.questions, budget, prof, [], effMode, false, 0, bank, hist.excluded);
+      widened = meta.topicIds.length > 0;
+    }
+    if (!nextIds.length) {
+      // Wrapped through all alternatives: reset cycle excluding only the immediate current set
+      hist.excluded = new Set(currentIds);
+      hist.cycle = 0;
+      nextIds = buildEffortSortedQueue(bank.questions, budget, prof, [], effMode, false, 0, bank, hist.excluded);
+      if (!nextIds.length) {
+        toast(`No other unfinished ${meta.dlpfc.label} sets left in ${meta.course?.shortTitle || 'this course'}.`);
+        return;
       }
     }
+    hist.cycle += 1;
+    nextIds.forEach((id) => hist.excluded.add(id));
+    blockSwapHistory.set(block.eventId, hist);
+
+    const qById = new Map(bank.questions.map((q) => [q.id, q]));
+    const chosenQs = nextIds.map((id) => qById.get(id)).filter(Boolean);
+    const estMin = Math.round(chosenQs.reduce((s, q) => s + calibratedParSec(q, prof) / 60, 0));
+    const newTopicLabel = summarizePlaylistTopicLabel(chosenQs, bank, meta.topicLabel);
+    const info = {
+      questionIds: nextIds,
+      count: chosenQs.length,
+      estMin: estMin || Number(block.focusMinutes || 50),
+      topicIds: [...new Set(chosenQs.map((q) => String(q.topicId)).filter(Boolean))],
+      topicLabel: newTopicLabel,
+      swapped: true,
+      swapCycle: hist.cycle,
+    };
+    hydratedBlockCache.set(block.eventId, info);
+    applyBlockCardDomUpdate(block, info, meta.course);
+    const niceTitle = homeBlockTitle(newTopicLabel, meta.course);
+    const tierShort = effMode === 'high_dlpfc' ? 'High' : effMode === 'med_dlpfc' ? 'Med' : 'Low';
+    toast(`Swapped (${tierShort} DLPFC${widened ? ' · related topics' : ''}): ${niceTitle} · ${chosenQs.length} ${chosenQs.length === 1 ? 'task' : 'tasks'}`);
   }
 
   function isStaticMode() {
@@ -3217,6 +3357,7 @@ window.StudyApp = (() => {
           <div class="hero-queue-side">
             <span class="hero-queue-go">${isDebt ? 'Clear debt →' : isLive ? 'Open live run →' : 'Open run →'}</span>
             <div class="hero-queue-tools">
+              <button type="button" class="ghost-btn sched-tool-btn" id="btn-hero-swap" title="Swap to an alternative related playlist at the same DLPFC">↻ Swap</button>
               <button type="button" class="ghost-btn sched-tool-btn" id="btn-hero-mark-done" title="${isDebt ? 'Mark overdue block completed' : 'Mark completed ahead of schedule'}">✓ ${isDebt ? 'Clear' : 'Done'}</button>
               ${cMeta ? `<button type="button" class="ghost-btn sched-tool-btn" id="btn-hero-ref">${esc(cMeta.shortTitle)} Ref</button>` : ''}
               <button type="button" class="ghost-btn sched-tool-btn" id="btn-hero-sched">Schedule</button>
@@ -3237,7 +3378,10 @@ window.StudyApp = (() => {
                           ${bc ? `<span class="sched-course-pill compact" style="--sched-accent:${esc(bc.color)}"><i aria-hidden="true"></i><b>${esc(bc.code)}</b> ${esc(bc.shortTitle || '')}</span>` : ''}
                           ${homeBlockDifficulty(m.dlpfc.tier)}
                         </div>
-                        <button type="button" class="sched-check-btn" data-mark-done-event="${esc(b.eventId)}" title="${m.st.isDebt ? 'Mark overdue debt cleared' : 'Mark completed early'}" aria-label="Mark block completed">✓</button>
+                        <div class="sched-mini-actions">
+                          <button type="button" class="sched-swap-btn" data-swap-event="${esc(b.eventId)}" title="Swap to an alternative playlist (same DLPFC)" aria-label="Swap to alternative playlist">↻</button>
+                          <button type="button" class="sched-check-btn" data-mark-done-event="${esc(b.eventId)}" title="${m.st.isDebt ? 'Mark overdue debt cleared' : 'Mark completed early'}" aria-label="Mark block completed">✓</button>
+                        </div>
                       </div>
                       <strong class="sched-mini-title" data-sched-topic-for="${esc(b.eventId)}">${esc(homeBlockTitle(m.topicLabel, bc))}</strong>
                       <div class="sched-mini-foot">
@@ -3263,6 +3407,10 @@ window.StudyApp = (() => {
           launchCalendarBlock(primary);
         }
       });
+      document.getElementById('btn-hero-swap')?.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        swapScheduledBlockPlaylist(primary);
+      });
       document.getElementById('btn-hero-mark-done')?.addEventListener('click', (ev) => {
         ev.stopPropagation();
         setScheduleBlockCompleted(primary.eventId, true, primary, 'manual');
@@ -3284,6 +3432,13 @@ window.StudyApp = (() => {
         openBiSyncHub();
       });
 
+      heroEl.querySelectorAll('[data-swap-event]').forEach((btn) => {
+        btn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const blk = (boot.calendar?.blocks || []).find((x) => x.eventId === btn.dataset.swapEvent);
+          if (blk) swapScheduledBlockPlaylist(blk);
+        });
+      });
       heroEl.querySelectorAll('[data-mark-done-event]').forEach((btn) => {
         btn.addEventListener('click', (ev) => {
           ev.stopPropagation();
@@ -6115,6 +6270,13 @@ window.StudyApp = (() => {
     return out;
   }
 
+  function isNonExamAccountingWritten(q, bank = null) {
+    const cid = String(q?.courseId || bank?.courseId || '');
+    if (cid !== 'acct-2527') return false;
+    const hasWf = Array.isArray(q?.wiseflowFields) && q.wiseflowFields.length > 0;
+    return q?.kind === 'written' && !hasWf && !q?.numericCheck;
+  }
+
   // Exam Relevance Judge (0-100) across all 5 BI courses + universal fallback for synced courses.
   // Prioritises real official exams, weekly tutoring sessions, lecture-slide exercises, and official assignments
   // ahead of reading warmups, AI mocks, synthetic drills, and textbook index exercises.
@@ -6129,16 +6291,22 @@ window.StudyApp = (() => {
 
     if (cid === 'acct-2527') {
       const coreAcctTopic = ['2', '3', '5', '7', '8', '10'].includes(tid);
+      // EXC 3430 WISEflow exam is 100% FLOWmulti (10 MCQs + 4 numerical worksheets) — zero written essays.
+      // Keep reading/textbook written tasks accessible in Explorer, but never Exam Priority or top-of-feed.
+      if (isNonExamAccountingWritten(q, bank)) {
+        if (col === 'reading' || cat === 'reading') return coreAcctTopic ? 45 : 42;
+        if (col === 'book-ch1') return 38;
+        return 43;
+      }
       if (col === 'E23F' || cat === 'past_exam') return hasWf || q.kind !== 'mcq' ? 99 : 96;
       if (col === 'tutoring' || cat === 'tutoring') return 94 + (hasWf ? 2 : coreAcctTopic ? 1 : 0);
       if (col === 'lecture' || cat === 'lecture') return 91 + (hasWf ? 2 : coreAcctTopic ? 1 : 0);
-      if (col === 'home') return 88 + (coreAcctTopic ? 2 : 0);
-      if (col === 'diagnostics') return 84 + (coreAcctTopic ? 1 : 0);
-      if (col === 'reading' || cat === 'reading') return 75 + (coreAcctTopic ? 1 : 0);
-      if (col === 'WF-MOCK-D') return 67;
-      if (col.startsWith('WF-MOCK-') || cat === 'ai_mock') return 65;
-      if (col === 'book-ch1') return 46;
-      if (col.startsWith('book-') || cat === 'book') return 54 + (Number(q.difficulty || 1) >= 2 ? 1 : 0);
+      if (col === 'home') return 88 + (hasWf ? 3 : coreAcctTopic ? 2 : 0);
+      if (col === 'WF-MOCK-D') return hasWf ? 87 : 84;
+      if (col.startsWith('WF-MOCK-') || cat === 'ai_mock') return hasWf ? 86 : 82;
+      if (col === 'diagnostics') return 79 + (coreAcctTopic ? 1 : 0);
+      if (col === 'book-ch1') return 52;
+      if (col.startsWith('book-') || cat === 'book') return (hasWf ? 78 : 64) + (Number(q.difficulty || 1) >= 2 ? 2 : 0);
     } else if (cid === 'prog-3021') {
       if (col === 'exam-2025h-2') return 100;
       if (col === 'exam-2024h-2') return 98;
@@ -6219,7 +6387,7 @@ window.StudyApp = (() => {
     return 3;                  // Supplementary Drills / Intro
   }
 
-  function buildEffortSortedQueue(questions, budgetMinutes = 75, profile = 'learning', filterTopics = [], effortMode = 'auto', quick = false, exactDifficulty = 0, bank = null) {
+  function buildEffortSortedQueue(questions, budgetMinutes = 75, profile = 'learning', filterTopics = [], effortMode = 'auto', quick = false, exactDifficulty = 0, bank = null, excludeIds = null) {
     const rawMode = effortMode === 'auto' ? getResolvedFocusMode() : effortMode;
     const mode =
       rawMode === 'deep'
@@ -6231,15 +6399,23 @@ window.StudyApp = (() => {
         : rawMode;
     const nowIso = new Date().toISOString();
     const topicSet = new Set((filterTopics || []).filter(Boolean).map(String));
+    const excludeSet = excludeIds ? new Set(excludeIds) : null;
     const qTier = (q) => effectiveDlpfc(q).tier;
 
     let pool = (questions || []).filter((q) => {
       if (q.available === false) return false;
       if (getProgressRecord(q.id)?.status === 'done') return false;
+      if (excludeSet && excludeSet.has(q.id)) return false;
       if (topicSet.size && !topicSet.has(String(q.topicId))) return false;
       if (exactDifficulty && qTier(q) !== exactDifficulty) return false;
       return true;
     });
+
+    // EXC 3430 exam is 100% MCQs + numerical worksheets — keep written essays off automatic feeds while exam-format tasks remain
+    const examFormatPool = pool.filter((q) => !isNonExamAccountingWritten(q, bank));
+    if (examFormatPool.length >= 1) {
+      pool = examFormatPool;
+    }
 
     const qMin = (q) => calibratedParSec(q, profile) / 60;
     if (quick) {
@@ -6350,12 +6526,15 @@ window.StudyApp = (() => {
     const prof = block.recommendedProfile || 'learning';
     const blockDlpfcMode = sessionFocusMode !== 'auto' ? getResolvedFocusMode() : meta.dlpfc.mode;
     const topicIds = meta.topicIds?.length ? meta.topicIds : (block.topicIds || []);
-    const hydratedQids = (hydratedBlockCache.get(block.eventId)?.questionIds || []).filter((id) => getProgressRecord(id)?.status !== 'done');
-    let qids = (block.autoQueue?.questionIds || []).filter((id) => getProgressRecord(id)?.status !== 'done');
+    const hydratedEntry = hydratedBlockCache.get(block.eventId) || null;
+    const hydratedQids = (hydratedEntry?.questionIds || []).filter((id) => getProgressRecord(id)?.status !== 'done');
+    let qids = hydratedEntry?.swapped && hydratedQids.length
+      ? hydratedQids
+      : (block.autoQueue?.questionIds || []).filter((id) => getProgressRecord(id)?.status !== 'done');
     if (!qids.length && sessionFocusMode === 'auto' && hydratedQids.length) {
       qids = hydratedQids;
     }
-    if (sessionFocusMode !== 'auto' || !qids.length) {
+    if (!hydratedEntry?.swapped && (sessionFocusMode !== 'auto' || !qids.length)) {
       qids = buildEffortSortedQueue(
         bank.questions || [],
         Number(block.attemptBudgetMinutes || block.focusMinutes || homeBlockMinutes || 50),
@@ -6369,8 +6548,8 @@ window.StudyApp = (() => {
     }
     if (!qids.length) {
       // Fallback: review completed questions from that topic/course rather than failing silently
-      const fallback = (bank.questions || []).filter((q) => q.available !== false);
-      qids = fallback.slice(0, 8).map((q) => q.id);
+      const fallback = (bank.questions || []).filter((q) => q.available !== false && !isNonExamAccountingWritten(q, bank));
+      qids = (fallback.length ? fallback : (bank.questions || []).filter((q) => q.available !== false)).slice(0, 8).map((q) => q.id);
     }
     if (!qids.length) {
       toast('No practice questions available in this course.');
@@ -6383,7 +6562,80 @@ window.StudyApp = (() => {
       mode: 'practice',
       profile: prof,
       calendarBlock: block,
+      effortMode: blockDlpfcMode,
+      swapExcludedIds: hydratedEntry?.swapped ? [...(blockSwapHistory.get(block.eventId)?.excluded || qids)] : [...qids],
+      swapCycle: hydratedEntry?.swapCycle || 0,
     });
+  }
+
+  async function swapActiveRunPlaylist(activeRun) {
+    if (!activeRun || activeRun.mode === 'exam') {
+      toast('Alternative playlist swap is available in Practice mode.');
+      return;
+    }
+    const courseId = activeRun.courseMeta?.courseId || activeRun.bank?.courseId;
+    if (!courseId) return;
+    const bank = activeRun.bank || await ensureCourseBank(courseId).catch(() => null);
+    if (!bank?.questions?.length) return;
+    const cMeta = activeRun.courseMeta || boot.catalog.find((c) => c.courseId === courseId);
+    const prof = activeRun.profile || 'learning';
+    const currentIds = Array.isArray(activeRun.questionIds) ? activeRun.questionIds : [];
+    const curQs = currentIds.map((id) => activeRun.questionsById?.[id]).filter(Boolean);
+
+    // Keep the exact same DLPFC tier as the current playlist
+    let effMode = activeRun.effortMode || '';
+    if (!effMode && curQs.length) {
+      const tiers = curQs.map((q) => effectiveDlpfc(q).tier).sort((a, b) => a - b);
+      const medTier = tiers[Math.floor(tiers.length / 2)] || 2;
+      effMode = medTier >= 3 ? 'high_dlpfc' : medTier === 2 ? 'med_dlpfc' : 'low_dlpfc';
+    }
+    if (!effMode) effMode = getResolvedFocusMode();
+
+    const estCurMin = Math.round(curQs.reduce((s, q) => s + calibratedParSec(q, prof) / 60, 0));
+    const budget = Math.max(25, Math.min(65, Number(activeRun.calendarBlock?.attemptBudgetMinutes || activeRun.calendarBlock?.focusMinutes || estCurMin || homeBlockMinutes || 45)));
+    const curTopics = [...new Set(curQs.map((q) => String(q.topicId)).filter(Boolean))];
+    const excludeSet = new Set([...(activeRun.swapExcludedIds || []), ...currentIds]);
+
+    // Prefer fresh alternative in the same topic(s) at the same DLPFC; if none left, pick related exam topics at the same DLPFC
+    let nextIds = curTopics.length === 1
+      ? buildEffortSortedQueue(bank.questions, budget, prof, curTopics, effMode, false, 0, bank, excludeSet)
+      : [];
+    let widened = false;
+    if (!nextIds.length) {
+      nextIds = buildEffortSortedQueue(bank.questions, budget, prof, [], effMode, false, 0, bank, excludeSet);
+      widened = curTopics.length === 1;
+    }
+    let nextCycle = Number(activeRun.swapCycle || 0) + 1;
+    let nextExcluded = new Set([...excludeSet, ...nextIds]);
+    if (!nextIds.length) {
+      // Cycled through all unseen sets: wrap cleanly excluding only the active run
+      const freshExclude = new Set(currentIds);
+      nextIds = buildEffortSortedQueue(bank.questions, budget, prof, [], effMode, false, 0, bank, freshExclude);
+      nextCycle = 1;
+      nextExcluded = new Set([...freshExclude, ...nextIds]);
+    }
+    if (!nextIds.length) {
+      toast('No other unfinished exercises left in this course right now.');
+      return;
+    }
+    const qById = new Map(bank.questions.map((q) => [q.id, q]));
+    const chosenQs = nextIds.map((id) => qById.get(id)).filter(Boolean);
+    const tierShort = effMode === 'high_dlpfc' ? 'High' : effMode === 'med_dlpfc' ? 'Med' : 'Low';
+    const label = homeBlockTitle(summarizePlaylistTopicLabel(chosenQs, bank, ''), cMeta);
+
+    window.StudyRunner.startRun({
+      courseMeta: cMeta,
+      bank,
+      questionIds: nextIds,
+      mode: 'practice',
+      profile: prof,
+      calendarBlock: activeRun.calendarBlock || null,
+      returnTo: activeRun.returnTo || null,
+      effortMode: effMode,
+      swapExcludedIds: [...nextExcluded],
+      swapCycle: nextCycle,
+    });
+    toast(`Swapped (${tierShort} DLPFC${widened ? ' · related' : ''}): ${label} · ${chosenQs.length} ${chosenQs.length === 1 ? 'task' : 'tasks'}`);
   }
 
   async function launchSmartCourseRun(courseId, budgetMinutes = 75, profile = 'learning', filterTopic = '', effortMode = 'auto', quick = false, exactDifficulty = 0) {
@@ -6418,6 +6670,7 @@ window.StudyApp = (() => {
       questionIds: chosen,
       mode: 'practice',
       profile,
+      effortMode: quick ? 'med_dlpfc' : (effortMode === 'auto' ? getResolvedFocusMode() : effortMode),
     });
   }
 
@@ -11599,6 +11852,7 @@ window.StudyApp = (() => {
     openSharedPlaylistPrompt,
     openShareRunDialog,
     launchCourseBlock: (courseId, mins = 50) => launchSmartCourseRun(courseId, mins, 'learning', '', getResolvedFocusMode()),
+    swapActiveRunPlaylist,
     communityStats,
     publicReferenceUrl,
     fetchReferenceSection,

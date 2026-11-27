@@ -559,6 +559,14 @@ def build_auto_queue_for_block(
     bank = courses_by_id[cid]
     progress_records = progress_records or {}
     questions = [q for q in bank.get("questions", []) if isinstance(q, dict) and q.get("id") and q.get("available", True)]
+    if cid == "acct-2527":
+        # EXC 3430 WISEflow exam is 100% MCQs + numerical worksheets — keep written essays off automatic feeds
+        exam_format_qs = [
+            q for q in questions
+            if not (q.get("kind") == "written" and not q.get("wiseflowFields") and not q.get("numericCheck"))
+        ]
+        if exam_format_qs:
+            questions = exam_format_qs
     target_topics = set(str(t) for t in (block.get("topicIds") or []))
     profile = block.get("recommendedProfile") or "learning"
     budget_min = max(5.0, float(block.get("attemptBudgetMinutes") or 35.0))

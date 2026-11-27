@@ -1729,6 +1729,9 @@ window.StudyRunner = (() => {
       examBreakStartedMs: null,
       profile: config.profile || (isExam ? 'exam' : 'learning'),
       calendarBlock: config.calendarBlock || null,
+      effortMode: config.effortMode || '',
+      swapExcludedIds: Array.isArray(config.swapExcludedIds) ? [...config.swapExcludedIds] : [...validIds],
+      swapCycle: Number(config.swapCycle || 0),
       consecutiveMisses: 0,
       sessionFocusSwitches: 0,
       sessionAwayMs: 0,
@@ -3034,11 +3037,13 @@ window.StudyRunner = (() => {
 
     const examCountdownEl = document.getElementById('run-exam-countdown');
     const submitExamBtn = document.getElementById('run-submit-exam-btn');
+    const swapRunBtn = document.getElementById('run-swap-btn');
     const breakBtn = document.getElementById('run-break-btn');
     const runObsLink = document.getElementById('run-obsidian-app-link');
 
     if (examCountdownEl) examCountdownEl.hidden = !activeRun.examBudgetSec || activeRun.paperSubmitted;
     if (submitExamBtn) submitExamBtn.hidden = !isBlindUnfinished;
+    if (swapRunBtn) swapRunBtn.hidden = activeRun.mode === 'exam';
     if (breakBtn) breakBtn.hidden = false;
     if (runObsLink) runObsLink.hidden = isBlindUnfinished || window.StudyApp?.isStaticMode();
 
@@ -3590,6 +3595,14 @@ window.StudyRunner = (() => {
            </button>`
         : '';
 
+    const swapPlaylistItemHtml =
+      !isBlindUnfinished && activeRun.mode === 'practice'
+        ? `<button type="button" class="runner-menu-item" id="btn-swap-playlist-item" title="Switch to another related exercise playlist at the same DLPFC">
+             <span>↻ Swap Playlist</span>
+             <small>Same DLPFC</small>
+           </button>`
+        : '';
+
     const toolsMenuHtml = isBlindUnfinished
       ? `<div class="runner-tools-menu">
            <button type="button" class="st-btn runner-more-btn" id="btn-runner-tools" popovertarget="runner-tools-popover" title="Question tools" aria-label="More question tools">•••</button>
@@ -3601,6 +3614,7 @@ window.StudyRunner = (() => {
       : `<div class="runner-tools-menu">
            <button type="button" class="st-btn runner-more-btn" id="btn-runner-tools" popovertarget="runner-tools-popover" title="Question tools" aria-label="More question tools">•••</button>
            <div class="runner-tools-popover" id="runner-tools-popover" popover="auto">
+             ${swapPlaylistItemHtml}
              <button type="button" class="runner-menu-item" id="btn-share-run-item"><span>Share / Study together</span></button>
              <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Adamlite</span></button>
              <button type="button" class="runner-menu-item" id="btn-open-tutor"><span>Desktop MCP Tutor</span></button>
@@ -4981,6 +4995,10 @@ window.StudyRunner = (() => {
         refreshAnswerTrayInPlace(q, st);
       }
     });
+    document.getElementById('btn-swap-playlist-item')?.addEventListener('click', (ev) => {
+      ev.currentTarget.closest('[popover]')?.hidePopover?.();
+      if (activeRun) window.StudyApp?.swapActiveRunPlaylist?.(activeRun);
+    });
     document.getElementById('btn-toggle-wf-auto-check')?.addEventListener('click', (ev) => {
       ev.currentTarget.closest('[popover]')?.hidePopover?.();
       setWfAutoCheckEnabled(!isWfAutoCheckEnabled());
@@ -6050,6 +6068,9 @@ window.StudyRunner = (() => {
     document.getElementById('run-exit-btn')?.addEventListener('click', exitRunnerKeepPaused);
     document.getElementById('hdr-resume-run-btn')?.addEventListener('click', resumePausedRun);
     document.getElementById('run-share-btn')?.addEventListener('click', openShareCurrentRun);
+    document.getElementById('run-swap-btn')?.addEventListener('click', () => {
+      if (activeRun) window.StudyApp?.swapActiveRunPlaylist?.(activeRun);
+    });
     document.getElementById('run-layout-btn')?.addEventListener('click', toggleSplitWorkspace);
     document.getElementById('run-ref-btn').addEventListener('click', toggleRunnerReference);
     document.getElementById('run-al-btn').addEventListener('click', () => window.StudyAiTutor?.toggle?.());
