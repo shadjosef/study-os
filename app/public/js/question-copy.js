@@ -155,6 +155,83 @@ window.StudyQuestionCopy = (() => {
       : context.reading.then((transcript) => compose({ ...model, state, transcript }));
   }
 
+  // Progressive Select All inside text boxes:
+  // 1st Cmd+A / Ctrl+A / Alt+A selects the text box; 2nd press while already selected expands to the whole page
+  // (blurring the field so Cmd+C / Ctrl+C immediately copies both the question and your written answer).
+  let lastEmptySelectEl = null;
+  let lastEmptySelectAt = 0;
+
+  function isExpandableTextControl(el) {
+    if (!el || el.disabled) return false;
+    if (el.tagName === 'TEXTAREA') return true;
+    if (el.tagName === 'INPUT') {
+      const t = String(el.type || 'text').toLowerCase();
+      return t === 'text' || t === 'search' || t === 'url' || t === 'tel' || t === 'email';
+    }
+    return false;
+  }
+
+  function isWholeControlSelected(el) {
+    const val = String(el.value || '');
+    if (!val.length) return false;
+    try {
+      return el.selectionStart === 0 && el.selectionEnd === val.length;
+    } catch {
+      return false;
+    }
+  }
+
+  function selectWholeScope(fromEl) {
+    const scope = fromEl?.closest?.('dialog[open]') || document.body;
+    try { fromEl?.blur?.(); } catch {}
+    const sel = window.getSelection();
+    if (!sel || !scope) return;
+    const range = document.createRange();
+    range.selectNodeContents(scope);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  document.addEventListener('keydown', (event) => {
+    if (event.repeat || event.isComposing || event.shiftKey) return;
+    const isKeyA = event.code === 'KeyA' || String(event.key || '').toLowerCase() === 'a';
+    if (!isKeyA) return;
+    const isPrimarySelectAll = (event.metaKey || event.ctrlKey) && !event.altKey;
+    const isAltSelectAll = event.altKey && !event.metaKey && !event.ctrlKey;
+    if (!isPrimarySelectAll && !isAltSelectAll) return;
+
+    const active = document.activeElement;
+    if (!isExpandableTextControl(active)) return;
+
+    const hasText = String(active.value || '').length > 0;
+    const now = Date.now();
+    const alreadySelected = hasText
+      ? isWholeControlSelected(active)
+      : (lastEmptySelectEl === active && now - lastEmptySelectAt <= 1500);
+
+    if (alreadySelected) {
+      event.preventDefault();
+      lastEmptySelectEl = null;
+      lastEmptySelectAt = 0;
+      selectWholeScope(active);
+      return;
+    }
+
+    if (!hasText) {
+      lastEmptySelectEl = active;
+      lastEmptySelectAt = now;
+    } else {
+      lastEmptySelectEl = null;
+      lastEmptySelectAt = 0;
+    }
+
+    if (isAltSelectAll) {
+      event.preventDefault();
+      try { active.select(); } catch {}
+    }
+    // For Cmd+A / Ctrl+A on first press, let the browser's native select-all highlight the text box cleanly.
+  }, true);
+
   document.addEventListener('copy', (event) => {
     const card = current?.card;
     const view = card?.closest('#view-runner');
