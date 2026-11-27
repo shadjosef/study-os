@@ -13,6 +13,7 @@ import { handleAi } from './ai.mjs';
 import { handleFeedback } from './feedback.mjs';
 import { handleMaterials } from './materials.mjs';
 import { handleTelemetry } from './telemetry.mjs';
+import { handleJournal } from './journal.mjs';
 
 const encoder = new TextEncoder();
 const hex = (bytes) => [...bytes].map((n) => n.toString(16).padStart(2, '0')).join('');
@@ -260,9 +261,13 @@ export default {
     if (request.method === 'POST') {
       const limit = path === '/t'
         ? 4_096
-        : (path === '/schedule/timeedit-push' || path === '/ai/tutor')
-          ? maxIcsBytes
-          : (path === '/sync' || path === '/courses/sync' || path === '/materials/chunk' || path === '/feedback') ? maxSyncBytes : maxInputBytes;
+        : path === '/journal/transcribe'
+          ? 4_800_000
+          : path === '/journal'
+            ? 96_000
+            : (path === '/schedule/timeedit-push' || path === '/ai/tutor')
+              ? maxIcsBytes
+              : (path === '/sync' || path === '/courses/sync' || path === '/materials/chunk' || path === '/feedback') ? maxSyncBytes : maxInputBytes;
       try { data = await readJson(request, limit); }
       catch (err) {
         if (err instanceof PayloadTooLargeError) return reply({ error: 'Request too large.' }, 413);
@@ -424,6 +429,9 @@ export default {
         ? { ...BASE_SECURITY_HEADERS, 'Access-Control-Allow-Origin': headers['Access-Control-Allow-Origin'], Vary: 'Origin' }
         : { ...BASE_SECURITY_HEADERS, Vary: 'Origin' };
       return handleMaterials({ request, url, path, db, me, now, data, reply, corsHeaders });
+    }
+    if (path === '/journal' || path === '/journal/transcribe') {
+      return handleJournal({ request, path, db, env, me, isAdmin, now, data, reply });
     }
     if (path.startsWith('/admin/')) {
       return handleAdmin({ request, url, db, env, me, isAdmin, now, data, reply, digest, nicknamePattern });

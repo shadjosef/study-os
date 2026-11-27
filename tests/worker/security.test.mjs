@@ -8,6 +8,7 @@ import worker, { equalProof, normalizeOrigin } from '../../community/worker.mjs'
 import { isAllowedTimetableUrl, isPrivateOrIpHost } from '../../community/timeedit.mjs';
 import { handleMaterials } from '../../community/materials.mjs';
 import { handleAi } from '../../community/ai.mjs';
+import { handleJournal } from '../../community/journal.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COMMUNITY_DIR = path.resolve(__dirname, '../../community');
@@ -788,4 +789,101 @@ test('AI endpoints never leak raw upstream error messages to clients', async () 
   const body = await res.json();
   assert.equal(body.error, 'Adamlite is temporarily busy. Please try again.');
   assert.equal(JSON.stringify(body).includes('INTERNAL_ACCOUNT_SECRET_ID'), false);
+});
+
+test('private journal routes reject non-admins with 403, enforce AES-256-GCM envelopes, and transcribe safely', async () => {
+  const reply = (data, status = 200) => Response.json(data, { status });
+  const stored = new Map();
+  const db = {
+    prepare(sql) {
+      return {
+        bind(...args) {
+          return {
+            async all() {
+              const pid = args[0];
+              const rows = [...stored.values()]
+                .filter((r) => r.profile_id === pid)
+                .map((r) => ({ date: r.entry_date, payloadEnc: r.payload_enc, updatedAt: r.updated_at }));
+              return { results: rows };
+            },
+            async run() {
+              if (/DELETE FROM encrypted_journals/i.test(sql)) {
+                stored.delete(`${args[0]}:${args[1]}`);
+              } else if (/INSERT INTO encrypted_journals/i.test(sql)) {
+                stored.set(`${args[0]}:${args[1]}`, {
+                  profile_id: args[0],
+                  entry_date: args[1],
+                  payload_enc: args[2],
+                  updated_at: args[3],
+                });
+              }
+              return { success: true };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  // Non-admin rejected with 403 across all journal endpoints
+  for (const [method, path] of [['GET', '/journal'], ['POST', '/journal'], ['POST', '/journal/transcribe']]) {
+    const res = await handleJournal({
+      request: new Request(`${WORKER_URL}${path}`, { method }),
+      path, db, env: {}, me: { id: VALID_PROFILE_ID }, isAdmin: false, now: Date.now(), data: {}, reply,
+    });
+    assert.equal(res.status, 403);
+  }
+
+  // Admin plaintext payload rejected with 400 (must be encrypted AES-256-GCM envelope)
+  const plainRes = await handleJournal({
+    request: new Request(`${WORKER_URL}/journal`, { method: 'POST' }),
+    path: '/journal', db, env: {}, me: { id: VALID_PROFILE_ID }, isAdmin: true, now: 1700000000000,
+    data: { date: '2026-11-27', payloadEnc: '{"text":"unencrypted plaintext"}' },
+    reply,
+  });
+  assert.equal(plainRes.status, 400);
+
+  // Admin valid AES-256-GCM ciphertext envelope saved & read back opaquely
+  const validEnv = JSON.stringify({
+    v: 1, alg: 'AES-256-GCM', kdf: 'PBKDF2-SHA256', iter: 250000,
+    salt: 'AAAAAAAAAAAAAAAAAAAAAA==', iv: 'BBBBBBBBBBBBBBBB', ct: 'Q0lQSEVSVEVYVF9EQVRBX1RFU1Q=',
+  });
+  const saveRes = await handleJournal({
+    request: new Request(`${WORKER_URL}/journal`, { method: 'POST' }),
+    path: '/journal', db, env: {}, me: { id: VALID_PROFILE_ID }, isAdmin: true, now: 1700000000000,
+    data: { date: '2026-11-27', payloadEnc: validEnv },
+    reply,
+  });
+  assert.equal(saveRes.status, 200);
+
+  const listRes = await handleJournal({
+    request: new Request(`${WORKER_URL}/journal`, { method: 'GET' }),
+    path: '/journal', db, env: {}, me: { id: VALID_PROFILE_ID }, isAdmin: true, now: 1700000000001,
+    data: {}, reply,
+  });
+  assert.equal(listRes.status, 200);
+  const listBody = await listRes.json();
+  assert.equal(listBody.entries.length, 1);
+  assert.equal(listBody.entries[0].date, '2026-11-27');
+
+  // Whisper transcription uses @cf/openai/whisper-large-v3-turbo cleanly
+  let calledModel = '';
+  const trRes = await handleJournal({
+    request: new Request(`${WORKER_URL}/journal/transcribe`, { method: 'POST' }),
+    path: '/journal/transcribe', db,
+    env: {
+      AI: {
+        async run(model) {
+          calledModel = model;
+          return { text: 'Today I finished accounting chapter 7.' };
+        },
+      },
+    },
+    me: { id: VALID_PROFILE_ID }, isAdmin: true, now: 1700000000002,
+    data: { audioBase64: 'A'.repeat(200), language: 'en' },
+    reply,
+  });
+  assert.equal(trRes.status, 200);
+  assert.equal(calledModel, '@cf/openai/whisper-large-v3-turbo');
+  assert.equal((await trRes.json()).text, 'Today I finished accounting chapter 7.');
 });

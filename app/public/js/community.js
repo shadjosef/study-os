@@ -4521,6 +4521,10 @@ window.StudyCommunity = (() => {
     return request('/ai' + path, data);
   }
 
+  async function journalRequest(path = '', data) {
+    return request('/journal' + path, data);
+  }
+
   async function aiStream(path = '', data, onDelta) {
     if (!api) throw new Error('Adamlite API is not configured.');
     const headers = { 'Content-Type': 'application/json' };
@@ -4599,6 +4603,7 @@ window.StudyCommunity = (() => {
     duelRequest,
     aiRequest,
     aiStream,
+    journalRequest,
     openSecuritySheet,
     createLinkCode: () => request('/auth/link-code', {}),
     signOut,

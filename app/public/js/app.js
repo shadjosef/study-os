@@ -3546,6 +3546,7 @@ window.StudyApp = (() => {
     const totalDone = Object.values(a.courseProgress || {}).reduce((s, c) => s + (c.done || 0), 0);
     const totalItems = Object.values(a.courseProgress || {}).reduce((s, c) => s + (c.total || 0), 0);
 
+    const showPrivateJournal = Boolean(window.StudyJournal?.isAvailable?.());
     document.getElementById('home-metrics-strip').innerHTML = `
       <div class="metric-tile" data-layout-budget>
         <small>High practice budget</small>
@@ -3558,11 +3559,15 @@ window.StudyApp = (() => {
         <small>${totalRevisit} revisit · ${totalDue} due FSRS</small>
       </div>
       <div class="metric-tile" data-layout-screen>
-        <small>Screen Time Today</small>
+        <div class="row-between" style="gap:6px;margin:0">
+          <small>Screen Time Today</small>
+          ${showPrivateJournal ? '<button type="button" class="mini-tool-btn" id="btn-home-evening-debrief" title="Private E2E-encrypted Evening Debrief &amp; voice journal">Evening Debrief</button>' : ''}
+        </div>
         <b id="home-screen-today-val">${esc(window.StudyUI.workClock?.getScreenStats?.()?.screenLabel || `${a.today?.totalActiveMinutes || 0}m`)}</b>
         <small>${a.today?.count || 0} Qs · <span id="home-offscreen-today-val">${esc(window.StudyUI.workClock?.getScreenStats?.()?.offScreenLabel || '0m')}</span> off-screen · ${focusSwitches} sw.</small>
       </div>
     `;
+    document.getElementById('btn-home-evening-debrief')?.addEventListener('click', () => window.StudyJournal?.open?.());
 
     // 3B. Canvas-Archive Cookie-Session Strip & Fresh-Clone Onboarding
     renderCanvasBridgeStrip();
@@ -11515,6 +11520,7 @@ window.StudyApp = (() => {
           { label: '⚔️ Challenge to Duel', meta: '1v1', active: false, hay: 'duel challenge invite battle 1v1 break', run: () => window.StudyDuels?.openChallengeModal?.() },
         ] : []),
         ...(window.StudyPdfCraft?.isAvailable?.() ? [{ label: 'PdfCraft PDF Editor', meta: 'WASM', active: false, hay: 'pdf pdfcraft edit highlight sign merge ocr', run: () => window.StudyPdfCraft.openBlank() }] : []),
+        ...(window.StudyJournal?.isAvailable?.() ? [{ label: 'Evening Debrief', meta: 'E2E', active: false, hay: 'journal evening debrief voice log notes reflection private', run: () => window.StudyJournal.open() }] : []),
         { label: 'Adamlite AI Chat', meta: 'T', active: Boolean(window.StudyAiTutor?.isOpen?.()), hay: 'adamlite ai chat tutor history', run: () => window.StudyAiTutor?.toggle?.() },
         { label: 'Settings', meta: ',', active: false, hay: 'settings theme sound school major', run: () => window.StudyUI.openSettings?.() },
       ].filter((it) => !q || `${it.label} ${it.hay}`.toLowerCase().includes(q));
@@ -12736,8 +12742,37 @@ window.StudyApp = (() => {
     syncSettingsRows();
   }
 
+  function getTodayJournalSnapshot() {
+    const a = boot.analytics || {};
+    const todayRec = a.today || {};
+    const screenStats = window.StudyUI?.workClock?.getScreenStats?.() || {};
+    const activeMin = Math.round(Number(todayRec.totalActiveMinutes || 0));
+    const screenMin = Math.round(Number(screenStats.screenSec || 0) / 60) || activeMin;
+    const efficiencyPct = screenMin > 0 ? Math.min(100, Math.round((activeMin / screenMin) * 100)) : null;
+    const breaksCount = Number(screenStats.breaks || 0);
+    let aiAssistedCount = 0;
+    try {
+      const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Oslo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      const atts = isStaticWeb ? (loadWebState().attempts || []) : [];
+      aiAssistedCount = atts.filter((x) => x?.aiAssisted && String(x.timestamp || '').startsWith(todayKey)).length;
+      if (!aiAssistedCount) {
+        const recs = isStaticWeb ? (loadWebState().records || {}) : (boot.progress?.records || {});
+        aiAssistedCount = Object.values(recs).filter((r) => r?.aiAssisted && String(r.lastAiAssistedAt || '').startsWith(todayKey)).length;
+      }
+    } catch {}
+    return {
+      activeMin,
+      screenMin,
+      efficiencyPct,
+      attemptsCount: Number(todayRec.count || 0),
+      aiAssistedCount,
+      breaksCount,
+    };
+  }
+
   return {
     isStaticMode,
+    getTodayJournalSnapshot,
     getCatalog: () => boot.catalog || [],
     ensureCourseBank,
     buildPlaylistShareUrl,
