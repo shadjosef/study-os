@@ -3956,8 +3956,23 @@ window.StudyUI = (() => {
     });
   }
 
+  const PUBLIC_SHARE_ORIGIN = 'https://studyos.no';
+  function publicShareOrigin() {
+    const host = String(window.location?.hostname || '').toLowerCase();
+    const isLocal = !host || host === '127.0.0.1' || host === 'localhost' || host === '[::1]' || window.location?.protocol === 'file:';
+    return isLocal ? PUBLIC_SHARE_ORIGIN : window.location.origin;
+  }
+  function publicShareBase() {
+    const origin = publicShareOrigin();
+    if (origin !== window.location.origin) return `${origin}/`;
+    const p = window.location.pathname || '/';
+    return `${origin}${p === '/index.html' ? '/' : p}`;
+  }
+
   return {
     esc,
+    publicShareOrigin,
+    publicShareBase,
     examLabel,
     clockSec,
     minLabel,

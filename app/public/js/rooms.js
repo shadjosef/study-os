@@ -129,7 +129,8 @@ window.StudyRooms = (() => {
   }
 
   function inviteUrlFor(roomCode) {
-    return `${window.location.origin}/?join_room=${encodeURIComponent(roomCode)}`;
+    const origin = window.StudyUI?.publicShareOrigin?.() || window.location.origin;
+    return `${origin}/?join_room=${encodeURIComponent(roomCode)}`;
   }
 
   function shareInviteUrl(roomCode = code) {

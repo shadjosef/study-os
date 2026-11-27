@@ -2633,7 +2633,8 @@ window.StudyCommunity = (() => {
         }
       });
       body.querySelector('#admin-copy-new-link')?.addEventListener('click', async () => {
-        const link = `${window.location.origin}/?code=${encodeURIComponent(lastCreatedCode)}`;
+        const origin = window.StudyUI?.publicShareOrigin?.() || window.location.origin;
+        const link = `${origin}/?code=${encodeURIComponent(lastCreatedCode)}`;
         try {
           await navigator.clipboard.writeText(link);
           toast('Expiring access link copied!');

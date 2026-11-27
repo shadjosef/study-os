@@ -5444,7 +5444,8 @@ window.StudyApp = (() => {
       }
       if (spec.title) params.set('title', String(spec.title).trim().slice(0, 80));
     }
-    return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    const base = window.StudyUI?.publicShareBase?.() || `${window.location.origin}${window.location.pathname}`;
+    return `${base}?${params.toString()}`;
   }
 
   function parseSharedPlaylistFromParams(params, resolveCourseIdParam) {
@@ -7228,7 +7229,8 @@ window.StudyApp = (() => {
     });
 
     document.getElementById('chip-share-filters')?.addEventListener('click', async () => {
-      const shareUrl = `${window.location.origin}${buildShareableCoursePath({ includeDefaultSort: true })}`;
+      const origin = window.StudyUI?.publicShareOrigin?.() || window.location.origin;
+      const shareUrl = `${origin}${buildShareableCoursePath({ includeDefaultSort: true })}`;
       try {
         await navigator.clipboard.writeText(shareUrl);
         toast('Filter link copied — ready to share!');

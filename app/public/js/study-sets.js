@@ -297,7 +297,8 @@ window.StudySets = (() => {
     const stream = new Blob([jsonBytes]).stream().pipeThrough(new CompressionStream('gzip'));
     const buf = await new Response(stream).arrayBuffer();
     const encoded = bytesToBase64Url(new Uint8Array(buf));
-    return `${location.origin}${location.pathname}#study-set=${encoded}`;
+    const base = window.StudyUI?.publicShareBase?.() || `${location.origin}${location.pathname}`;
+    return `${base}#study-set=${encoded}`;
   }
 
   async function decodeDraft(code) {
