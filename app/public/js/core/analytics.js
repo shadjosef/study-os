@@ -2120,6 +2120,326 @@
     return rows.join('\r\n');
   }
 
+  /**
+   * Parse YYYY-MM-DD string to UTC day number for clean calendar-day deltas.
+   * @param {unknown} isoDay
+   * @returns {number | null}
+   */
+  function parseDayNum(isoDay) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(isoDay || '').trim());
+    if (!m) return null;
+    const ms = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return Number.isFinite(ms) ? Math.floor(ms / 86_400_000) : null;
+  }
+
+  /**
+   * Compute per-course Exam Pace (vs. Target A/B/C ramp) and Estimated ECTS Grade (Beta).
+   * Combines syllabus chapter coverage, High-DLPFC mastery, accuracy, FSRS-5 exam-day retention,
+   * pace vs. AI par, and any saved timed past-exam sits.
+   * @param {{
+   *   catalog?: Array<Record<string, any>> | null,
+   *   courseProgress?: Record<string, any> | null,
+   *   topicMatrix?: Record<string, Array<Record<string, any>>> | null,
+   *   byCourse?: Record<string, Record<string, any>> | null,
+   *   fsrsCards?: Array<Record<string, any>> | null,
+   *   examResults?: Record<string, any> | null,
+   *   todayIso?: string | null,
+   *   targetGrade?: string | null,
+   * }} [input]
+   */
+  function computeExamReadinessForecast(input = {}) {
+    const catalog = Array.isArray(input.catalog) ? input.catalog : [];
+    const courseProgress = isPlainRecord(input.courseProgress) ? input.courseProgress : {};
+    const topicMatrix = isPlainRecord(input.topicMatrix) ? input.topicMatrix : {};
+    const byCourse = isPlainRecord(input.byCourse) ? input.byCourse : {};
+    const fsrsCards = Array.isArray(input.fsrsCards) ? input.fsrsCards : [];
+    const examResults = isPlainRecord(input.examResults) ? input.examResults : {};
+    const todayKey = typeof input.todayIso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.todayIso)
+      ? input.todayIso
+      : new Date().toISOString().slice(0, 10);
+    const todayNum = parseDayNum(todayKey);
+
+    const rawTarget = String(input.targetGrade || 'A').trim().toUpperCase();
+    const targetGrade = rawTarget === 'B' || rawTarget === 'C' ? rawTarget : 'A';
+    const targetThresholdPct = targetGrade === 'A' ? 85 : targetGrade === 'B' ? 77 : 65;
+    const targetMult = targetGrade === 'A' ? 1.0 : targetGrade === 'B' ? 0.80 : 0.60;
+
+    // Group FSRS cards by courseId
+    /** @type {Map<string, Array<Record<string, any>>>} */
+    const cardsByCourse = new Map();
+    for (const card of fsrsCards) {
+      if (!card || typeof card !== 'object') continue;
+      const cid = String(card.courseId || (typeof card.questionId === 'string' && card.questionId.includes(':') ? card.questionId.split(':')[0] : ''));
+      if (!cid) continue;
+      if (!cardsByCourse.has(cid)) cardsByCourse.set(cid, []);
+      /** @type {Array<Record<string, any>>} */ (cardsByCourse.get(cid)).push(card);
+    }
+
+    // Group timed exam sits by courseId
+    /** @type {Map<string, number[]>} */
+    const mockPctsByCourse = new Map();
+    for (const [key, entry] of Object.entries(examResults)) {
+      if (!isPlainRecord(entry)) continue;
+      const cid = String(entry.courseId || (key.includes(':') ? key.split(':')[0] : ''));
+      if (!cid) continue;
+      const bestClean = Number(entry.bestCleanPct);
+      const bestPct = Number(entry.bestPct ?? entry.lastPct);
+      const pct = Number.isFinite(bestClean) && bestClean >= 0 ? bestClean : (Number.isFinite(bestPct) && bestPct >= 0 ? bestPct : NaN);
+      if (!Number.isFinite(pct)) continue;
+      if (!mockPctsByCourse.has(cid)) mockPctsByCourse.set(cid, []);
+      /** @type {number[]} */ (mockPctsByCourse.get(cid)).push(Math.max(0, Math.min(100, pct)));
+    }
+
+    const courses = catalog.map((course) => {
+      const cid = String(course.courseId || '');
+      const code = String(course.code || cid);
+      const title = String(course.shortTitle || course.title || cid);
+      const examDate = String(course.examInfo?.date || course.examDate || '').trim();
+      const examDayNum = parseDayNum(examDate);
+      const daysLeft = (todayNum != null && examDayNum != null) ? (examDayNum - todayNum) : null;
+
+      const cp = isPlainRecord(courseProgress[cid]) ? courseProgress[cid] : {};
+      const byTier = isPlainRecord(cp.byTier) ? cp.byTier : {};
+      const tier3 = isPlainRecord(byTier['3']) ? byTier['3'] : {};
+      const totalQ = Math.max(0, Number(cp.total ?? course.questionCount ?? 0) || 0);
+      const done = Math.max(0, Number(cp.done || 0) || 0);
+      const revisit = Math.max(0, Number(cp.revisit || 0) || 0);
+      const dueFsrs = Math.max(0, Number(cp.dueFsrs || 0) || 0);
+      const highTotal = Math.max(0, Number(tier3.total || 0) || 0);
+      const highDone = Math.max(0, Number(tier3.done || 0) || 0);
+
+      const topics = Array.isArray(topicMatrix[cid]) ? topicMatrix[cid] : [];
+      const topicsCount = topics.length || (Array.isArray(course.topics) ? course.topics.length : 0);
+      const stats = isPlainRecord(byCourse[cid]) ? byCourse[cid] : {};
+      const attemptsCount = Math.max(0, Number(stats.count || 0) || 0);
+      const hasAcc = stats.avgAccuracy !== undefined && stats.avgAccuracy !== null && Number.isFinite(Number(stats.avgAccuracy)) && attemptsCount > 0;
+      const courseAcc = hasAcc ? Math.max(0, Math.min(1, Number(stats.avgAccuracy))) : null;
+      const avgPaceRatio = stats.avgPaceRatio !== undefined && stats.avgPaceRatio !== null && Number.isFinite(Number(stats.avgPaceRatio)) && attemptsCount > 0
+        ? Math.max(0, Number(stats.avgPaceRatio))
+        : null;
+      const workedMin = Math.max(0, Number(stats.totalActiveMinutes || 0) || 0);
+
+      // Realistic A/B/C target milestones (proportional to syllabus & bank size)
+      const baseTargetDone = totalQ > 0
+        ? Math.min(totalQ, Math.max(12, Math.round(Math.min(totalQ * 0.45, Math.max(totalQ * 0.30, topicsCount * 10)))))
+        : 0;
+      const targetDone = baseTargetDone > 0 ? Math.min(totalQ, Math.max(8, Math.round(baseTargetDone * targetMult))) : 0;
+      const targetHighDone = highTotal > 0 ? Math.min(highTotal, Math.max(4, Math.round(highTotal * 0.65 * targetMult))) : 0;
+
+      const volumeRatio = targetDone > 0 ? Math.min(1, done / targetDone) : 0;
+      const highRatio = targetHighDone > 0 ? Math.min(1, highDone / targetHighDone) : volumeRatio;
+
+      // Syllabus chapter breadth
+      let coveredTopics = 0;
+      let chapterScoreSum = 0;
+      for (const t of topics) {
+        const covPct = Math.max(0, Number(t.coveragePct || 0));
+        const tDone = Math.max(0, Number(t.doneCount || 0));
+        if (tDone >= 2 || covPct >= 20) coveredTopics += 1;
+        const covWeight = Math.min(1, covPct / 35);
+        const tAcc = t.avgAccuracy != null && Number.isFinite(Number(t.avgAccuracy))
+          ? Math.max(0, Math.min(1, Number(t.avgAccuracy)))
+          : (courseAcc != null ? courseAcc : 0.55);
+        chapterScoreSum += covWeight * (tAcc * 100) + (1 - covWeight) * 28;
+      }
+      const coveredTopicsRatio = topics.length > 0 ? coveredTopics / topics.length : volumeRatio;
+      const breadthTarget = Math.max(0.45, 0.85 * targetMult);
+      const breadthRatio = Math.min(1, coveredTopicsRatio / breadthTarget);
+
+      // FSRS-5 projected retention on Exam Day (R(t_exam, S) = (1 + 19/81 * t/S)^-0.5)
+      const courseCards = cardsByCourse.get(cid) || [];
+      const horizonDays = daysLeft != null ? Math.max(0, Math.min(60, daysLeft)) : 7;
+      let retentionSum = 0;
+      let retentionN = 0;
+      const nowMs = todayNum != null ? todayNum * 86_400_000 + 43_200_000 : Date.now();
+      for (const c of courseCards) {
+        const s = Number(c.stability);
+        if (!Number.isFinite(s) || s <= 0) continue;
+        const lastMs = parseTimestampMs(c.lastReview || c.updatedAt);
+        const elapsedDays = lastMs > 0 ? Math.max(0, (nowMs - lastMs) / 86_400_000) : 0;
+        const tExam = elapsedDays + horizonDays;
+        const rExam = Math.pow(1 + (19 / 81) * (tExam / s), -0.5);
+        retentionSum += Math.max(0, Math.min(1, rExam));
+        retentionN += 1;
+      }
+      const examDayRetention = retentionN > 0 ? retentionSum / retentionN : (done > 0 ? 0.65 : 0);
+
+      // Composite Readiness % toward the selected Target Grade
+      const readinessPct = Math.max(
+        0,
+        Math.min(100, Math.round((0.35 * volumeRatio + 0.30 * highRatio + 0.25 * breadthRatio + 0.10 * examDayRetention) * 100))
+      );
+
+      // Ideal 28-day pre-exam ramp curve (15% at 28+ days out -> 100% on exam day)
+      const expectedByTodayPct = daysLeft == null
+        ? 50
+        : daysLeft <= 0
+          ? 100
+          : daysLeft >= 28
+            ? 15
+            : Math.round(15 + 85 * ((28 - daysLeft) / 28));
+      const paceDeltaPts = readinessPct - expectedByTodayPct;
+
+      let paceStatus = 'on_track';
+      let paceLabel = 'On Track';
+      let paceTone = 'good';
+      if (daysLeft != null && daysLeft < 0) {
+        paceStatus = 'past';
+        paceLabel = 'Exam Passed';
+        paceTone = 'muted';
+      } else if (done === 0 && attemptsCount === 0) {
+        paceStatus = 'not_started';
+        paceLabel = daysLeft != null && daysLeft <= 14 ? 'Behind · Not Started' : 'Not Started';
+        paceTone = daysLeft != null && daysLeft <= 14 ? 'bad' : 'muted';
+      } else if (paceDeltaPts >= 6) {
+        paceStatus = 'ahead';
+        paceLabel = 'Ahead of Pace';
+        paceTone = 'good';
+      } else if (paceDeltaPts >= -8) {
+        paceStatus = 'on_track';
+        paceLabel = 'On Track';
+        paceTone = 'good';
+      } else if (paceDeltaPts >= -22) {
+        paceStatus = 'slightly_behind';
+        paceLabel = 'Slightly Behind';
+        paceTone = 'warn';
+      } else {
+        paceStatus = 'behind';
+        paceLabel = 'Behind Pace';
+        paceTone = 'bad';
+      }
+
+      // Estimated Exam Score (Beta) & ECTS Grade
+      const mockPcts = mockPctsByCourse.get(cid) || [];
+      const mockAvgPct = mockPcts.length
+        ? mockPcts.reduce((s, v) => s + v, 0) / mockPcts.length
+        : null;
+      const hasEvidence = done > 0 || attemptsCount > 0 || mockPcts.length > 0;
+
+      /** @type {number | null} */
+      let projectedPct = null;
+      /** @type {number | null} */
+      let marginPct = null;
+      /** @type {EctsGradeLike | null} */
+      let estGrade = null;
+      /** @type {EctsGradeLike | null} */
+      let lowGrade = null;
+      /** @type {EctsGradeLike | null} */
+      let highGrade = null;
+
+      if (hasEvidence) {
+        const effAcc = courseAcc != null ? courseAcc : 0.60;
+        const syllabusYieldPct = topics.length > 0
+          ? chapterScoreSum / topics.length
+          : (volumeRatio * (effAcc * 100) + (1 - volumeRatio) * 28);
+        const highPerfPct = highTotal > 0
+          ? Math.min(100, (0.30 + 0.70 * highRatio) * (effAcc * 100))
+          : syllabusYieldPct;
+        const paceFactor = avgPaceRatio != null
+          ? Math.max(0.78, Math.min(1.04, 0.78 + 0.26 * Math.min(1, avgPaceRatio)))
+          : 0.94;
+        const retentionFactor = Math.max(0.84, Math.min(1.03, 0.80 + 0.23 * examDayRetention));
+        let est = (0.55 * syllabusYieldPct + 0.30 * highPerfPct + 0.15 * (effAcc * 100)) * paceFactor * retentionFactor;
+        if (mockAvgPct != null) {
+          const mockWeight = Math.min(0.45, mockPcts.length * 0.22);
+          est = est * (1 - mockWeight) + mockAvgPct * mockWeight;
+        }
+        projectedPct = Math.max(0, Math.min(98, Math.round(est)));
+        const sampleStrength = Math.min(1, (attemptsCount + done) / 140) + Math.min(0.35, mockPcts.length * 0.18);
+        marginPct = Math.max(5, Math.min(14, Math.round(14 - sampleStrength * 7)));
+        estGrade = resolveGradeFromPct(projectedPct);
+        lowGrade = resolveGradeFromPct(Math.max(0, projectedPct - marginPct));
+        highGrade = resolveGradeFromPct(Math.min(100, projectedPct + marginPct));
+      }
+
+      const remainingTargetQs = Math.max(0, targetDone - done);
+      const remainingHighQs = Math.max(0, targetHighDone - highDone);
+      const activeDays = daysLeft != null ? Math.max(1, daysLeft) : 14;
+      const qsPerDayNeeded = (daysLeft != null && daysLeft < 0) ? 0 : Math.ceil(remainingTargetQs / activeDays);
+      const highPerDayNeeded = (daysLeft != null && daysLeft < 0) ? 0 : Math.ceil(remainingHighQs / activeDays);
+      const gapToTargetPct = projectedPct != null ? Math.max(0, targetThresholdPct - projectedPct) : targetThresholdPct;
+
+      const weakestTopics = [...topics]
+        .sort((a, b) => (Number(a.coveragePct || 0) - Number(b.coveragePct || 0)) || (Number(a.avgAccuracy ?? 1) - Number(b.avgAccuracy ?? 1)))
+        .slice(0, 2)
+        .map((t) => ({
+          id: String(t.id || ''),
+          title: String(t.title || ''),
+          coveragePct: Math.round(Number(t.coveragePct || 0)),
+          doneCount: Number(t.doneCount || 0),
+          totalCount: Number(t.totalCount || 0),
+        }));
+
+      return {
+        courseId: cid,
+        code,
+        title,
+        examDate: examDate || null,
+        daysLeft,
+        totalQ,
+        done,
+        revisit,
+        dueFsrs,
+        highTotal,
+        highDone,
+        targetDone,
+        targetHighDone,
+        coveredTopics,
+        topicsCount,
+        attemptsCount,
+        workedMin: Math.round(workedMin),
+        avgAccuracyPct: courseAcc != null ? Math.round(courseAcc * 100) : null,
+        avgPaceRatio: avgPaceRatio != null ? Math.round(avgPaceRatio * 100) / 100 : null,
+        examDayRetentionPct: Math.round(examDayRetention * 100),
+        mockSitsCount: mockPcts.length,
+        readinessPct,
+        expectedByTodayPct,
+        paceDeltaPts,
+        paceStatus,
+        paceLabel,
+        paceTone,
+        projectedPct,
+        marginPct,
+        estGrade: estGrade ? estGrade.letter : null,
+        estGradeCls: estGrade ? estGrade.cls : '',
+        lowGrade: lowGrade ? lowGrade.letter : null,
+        highGrade: highGrade ? highGrade.letter : null,
+        gapToTargetPct,
+        remainingTargetQs,
+        remainingHighQs,
+        qsPerDayNeeded,
+        highPerDayNeeded,
+        weakestTopics,
+      };
+    });
+
+    // Sort: upcoming exams soonest first, then undated courses, then passed exams
+    courses.sort((a, b) => {
+      const aPast = a.daysLeft != null && a.daysLeft < 0 ? 1 : 0;
+      const bPast = b.daysLeft != null && b.daysLeft < 0 ? 1 : 0;
+      if (aPast !== bPast) return aPast - bPast;
+      if (a.daysLeft != null && b.daysLeft != null) return a.daysLeft - b.daysLeft;
+      if (a.daysLeft != null) return -1;
+      if (b.daysLeft != null) return 1;
+      return b.done - a.done;
+    });
+
+    const activeUpcoming = courses.filter((c) => c.daysLeft == null || c.daysLeft >= 0);
+    const nextExam = activeUpcoming.find((c) => c.daysLeft != null) || courses[0] || null;
+    const avgReadinessPct = activeUpcoming.length
+      ? Math.round(activeUpcoming.reduce((s, c) => s + c.readinessPct, 0) / activeUpcoming.length)
+      : 0;
+
+    return {
+      targetGrade,
+      targetThresholdPct,
+      todayIso: todayKey,
+      nextExam,
+      avgReadinessPct,
+      courses,
+    };
+  }
+
   const api = {
     calibratedParSec,
     isAutoGradedAttempt,
@@ -2149,6 +2469,7 @@
     escapeCsvCell,
     buildAttemptsCsv,
     buildDailySeriesCsv,
+    computeExamReadinessForecast,
   };
 
   /** @type {{ StudyCore?: Record<string, unknown> }} */ (root).StudyCore = {

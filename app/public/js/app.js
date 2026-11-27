@@ -7583,6 +7583,7 @@ window.StudyApp = (() => {
         analytics: boot.analytics || {},
         catalog: boot.catalog || [],
         examAidStats,
+        examResults: loadExamResultsMap(),
         aiBriefText,
         attempts: attemptsForMetrics,
         fsrsCards,

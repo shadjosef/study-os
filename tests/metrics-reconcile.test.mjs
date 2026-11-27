@@ -460,3 +460,81 @@ test('phantom-hours guard: render.js never credits +75m on abandoned waves and a
     'render.js should include v2 self-heal schema guard for legacy polluted wave state'
   );
 });
+
+// =============================================================================
+// 6. computeExamReadinessForecast — Pace vs. Target A/B/C & Estimated Grade (Beta)
+// =============================================================================
+test('computeExamReadinessForecast flags behind/on-track/ahead accurately and never inflates grade on low coverage', () => {
+  const catalog = [
+    { courseId: 'acct-2527', code: 'EXC 3430', shortTitle: 'Accounting', questionCount: 350, examInfo: { date: '2026-12-01' }, topics: [{ id: '1' }, { id: '2' }, { id: '3' }, { id: '4' }] },
+    { courseId: 'econ-2522', code: 'EXC 3420', shortTitle: 'Economics', questionCount: 100, examInfo: { date: '2026-12-10' }, topics: [{ id: '1' }, { id: '2' }] },
+    { courseId: 'prog-3021', code: 'EBA 3400', shortTitle: 'Python', questionCount: 62, examInfo: { date: '2026-11-26' }, topics: [{ id: '1' }] },
+  ];
+  const courseProgress = {
+    'acct-2527': { total: 350, done: 50, revisit: 0, dueFsrs: 26, byTier: { 3: { total: 48, done: 17 } } },
+    'econ-2522': { total: 100, done: 48, revisit: 0, dueFsrs: 2, byTier: { 3: { total: 20, done: 14 } } },
+    'prog-3021': { total: 62, done: 0, revisit: 0, dueFsrs: 0, byTier: { 3: { total: 40, done: 0 } } },
+  };
+  const topicMatrix = {
+    'acct-2527': [
+      { id: '1', title: 'Ch 1', coveragePct: 60, doneCount: 18, totalCount: 30, avgAccuracy: 0.92 },
+      { id: '2', title: 'Ch 2', coveragePct: 25, doneCount: 14, totalCount: 56, avgAccuracy: 0.84 },
+      { id: '3', title: 'Ch 7', coveragePct: 8, doneCount: 4, totalCount: 50, avgAccuracy: 0.78 },
+      { id: '4', title: 'Ch 8', coveragePct: 0, doneCount: 0, totalCount: 40, avgAccuracy: null },
+    ],
+    'econ-2522': [
+      { id: '1', title: 'Markets', coveragePct: 55, doneCount: 25, totalCount: 45, avgAccuracy: 0.92 },
+      { id: '2', title: 'Macro', coveragePct: 45, doneCount: 23, totalCount: 55, avgAccuracy: 0.90 },
+    ],
+    'prog-3021': [
+      { id: '1', title: 'Intro', coveragePct: 0, doneCount: 0, totalCount: 62, avgAccuracy: null },
+    ],
+  };
+  const byCourse = {
+    'acct-2527': { count: 63, avgAccuracy: 0.84, avgPaceRatio: 0.87, totalActiveMinutes: 740 },
+    'econ-2522': { count: 60, avgAccuracy: 0.91, avgPaceRatio: 1.15, totalActiveMinutes: 300 },
+    'prog-3021': { count: 0, avgAccuracy: 0, avgPaceRatio: 0, totalActiveMinutes: 0 },
+  };
+  const fsrsCards = [
+    { courseId: 'acct-2527', stability: 8, lastReview: '2026-11-26T10:00:00Z' },
+    { courseId: 'econ-2522', stability: 22, lastReview: '2026-11-26T10:00:00Z' },
+  ];
+
+  const fA = analytics.computeExamReadinessForecast({
+    catalog,
+    courseProgress,
+    topicMatrix,
+    byCourse,
+    fsrsCards,
+    examResults: { 'econ-2522:mock1': { courseId: 'econ-2522', bestCleanPct: 89 } },
+    todayIso: '2026-11-27',
+    targetGrade: 'A',
+  });
+
+  assert.equal(fA.targetGrade, 'A');
+  assert.equal(fA.courses[0].courseId, 'acct-2527'); // Soonest upcoming exam first!
+  assert.equal(fA.courses[1].courseId, 'econ-2522');
+  assert.equal(fA.courses[2].courseId, 'prog-3021'); // Passed exam sorted last!
+  assert.equal(fA.courses[2].paceStatus, 'past');
+
+  // Accounting (4d left, 2 unstudied chapters): honestly flagged as behind A-ramp & < 85% (not falsely A!)
+  const acct = fA.courses[0];
+  assert.equal(acct.daysLeft, 4);
+  assert.equal(acct.expectedByTodayPct, 88);
+  assert.ok(acct.paceStatus === 'behind' || acct.paceStatus === 'slightly_behind');
+  assert.ok(acct.projectedPct != null && acct.projectedPct < 85);
+  assert.ok(acct.qsPerDayNeeded > 0);
+  assert.equal(acct.weakestTopics[0].id, '4'); // Ch 8 at 0% coverage
+
+  // Economics (13d left, high coverage + 91% acc + 89% mock sit): Ahead of A-ramp & Est. A/B
+  const econ = fA.courses[1];
+  assert.equal(econ.daysLeft, 13);
+  assert.equal(econ.paceStatus, 'ahead');
+  assert.ok(econ.projectedPct != null && econ.projectedPct >= 82);
+
+  // Switching target from A -> C increases readiness % cleanly
+  const fC = analytics.computeExamReadinessForecast({
+    catalog, courseProgress, topicMatrix, byCourse, fsrsCards, todayIso: '2026-11-27', targetGrade: 'C',
+  });
+  assert.ok(fC.courses[0].readinessPct > acct.readinessPct);
+});

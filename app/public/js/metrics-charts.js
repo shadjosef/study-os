@@ -13,6 +13,7 @@ window.StudyMetrics = (() => {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
 
+  const TARGET_GRADE_KEY = 'study-os-metrics-target-grade-v1';
   const uiState = {
     heroMetric: 'study_vs_efficiency', // 'study_vs_efficiency' | 'dlpfc_vs_pace' | 'hours_vs_upi'
     heroGranularity: 'daily', // 'daily' | 'weekly' | 'monthly'
@@ -22,6 +23,14 @@ window.StudyMetrics = (() => {
     stackGranularity: 'daily', // 'daily' | 'weekly'
     topicCourseId: '',
     topicSort: 'lacking', // 'lacking' | 'syllabus' | 'worked'
+    targetGrade: (() => {
+      try {
+        const saved = String(localStorage.getItem(TARGET_GRADE_KEY) || 'A').toUpperCase();
+        return saved === 'B' || saved === 'C' ? saved : 'A';
+      } catch {
+        return 'A';
+      }
+    })(),
   };
 
   let lastCtx = null;
@@ -1307,6 +1316,9 @@ window.StudyMetrics = (() => {
         </div>
       </div>
 
+      <!-- EXAM PACE VS TARGET & ESTIMATED GRADE (BETA) -->
+      <section class="panel mc-chart-card mc-exam-forecast-card" id="mc-exam-forecast-card"></section>
+
       <!-- HERO BLOCKWORKS-STYLE DUAL-AXIS INTERACTIVE CHART -->
       <section class="panel mc-chart-card">
         <div class="mc-card-head">
@@ -1663,6 +1675,163 @@ window.StudyMetrics = (() => {
       });
     };
 
+    const renderExamForecastCard = (slot) => {
+      if (!slot) return;
+      const fn = window.StudyCore?.computeExamReadinessForecast;
+      if (typeof fn !== 'function' || !catalog.length) {
+        slot.hidden = true;
+        return;
+      }
+      slot.hidden = false;
+      const forecast = fn({
+        catalog,
+        courseProgress: a.courseProgress || {},
+        topicMatrix: a.topicMatrix || {},
+        byCourse: a.subgroups?.byCourse || {},
+        fsrsCards: ctx.fsrsCards || [],
+        examResults: ctx.examResults || {},
+        todayIso: ctx.todayIso || tel?.todayKey || '',
+        targetGrade: uiState.targetGrade,
+      });
+
+      const rowsHtml = (forecast.courses || []).map((c) => {
+        const isPast = c.daysLeft != null && c.daysLeft < 0;
+        const countdownTxt = c.daysLeft == null
+          ? 'No exam date'
+          : isPast
+            ? `Passed (${fmtDateShort(c.examDate)})`
+            : c.daysLeft === 0
+              ? 'Exam TODAY'
+              : `${c.daysLeft}d left · ${fmtDateShort(c.examDate)}`;
+        const countdownTone = c.daysLeft != null && c.daysLeft >= 0 && c.daysLeft <= 5
+          ? 'is-urgent'
+          : isPast ? 'is-muted' : '';
+        const fillTone = c.paceTone === 'bad' ? 'is-bad' : c.paceTone === 'warn' ? 'is-warn' : c.paceTone === 'muted' ? 'is-muted' : 'is-good';
+        const deltaSign = c.paceDeltaPts >= 0 ? '+' : '';
+        const paceBadgeTxt = isPast
+          ? 'Exam Passed'
+          : `${c.paceLabel}${c.done > 0 || c.attemptsCount > 0 ? ` (${deltaSign}${c.paceDeltaPts} pts)` : ''}`;
+
+        const estBlock = c.projectedPct != null
+          ? `<div class="mc-ef-grade-box">
+               <div class="mc-ef-grade-top">
+                 <span class="mc-ef-grade-pill ${esc(c.estGradeCls)}">Est. ${esc(c.estGrade)}</span>
+                 <strong class="mc-ef-score">${c.projectedPct}% <small>±${c.marginPct}%</small></strong>
+               </div>
+               <div class="mc-ef-grade-sub">
+                 ${c.lowGrade && c.highGrade && c.lowGrade !== c.highGrade ? `Range ${esc(c.lowGrade)}–${esc(c.highGrade)}` : `Band ${esc(c.estGrade)}`}
+                 · ${c.gapToTargetPct > 0 ? `+${c.gapToTargetPct} pts to ${esc(forecast.targetGrade)}` : `At ${esc(forecast.targetGrade)} target`}
+               </div>
+             </div>`
+          : `<div class="mc-ef-grade-box is-empty">
+               <div class="mc-ef-grade-top">
+                 <span class="mc-ef-grade-pill">No data</span>
+                 <strong class="mc-ef-score">—</strong>
+               </div>
+               <div class="mc-ef-grade-sub">Solve Qs to unlock estimate</div>
+             </div>`;
+
+        const catchUpBits = [];
+        if (!isPast && c.remainingTargetQs > 0) {
+          catchUpBits.push(`<strong>${c.qsPerDayNeeded} Qs/day</strong>${c.highPerDayNeeded > 0 ? ` (${c.highPerDayNeeded} High/day)` : ''} to hit ${esc(forecast.targetGrade)} target`);
+        } else if (!isPast && c.done > 0) {
+          catchUpBits.push(`Target volume hit — focus on timed mocks &amp; FSRS retention`);
+        }
+        if (c.dueFsrs > 0 && !isPast) {
+          catchUpBits.push(`${c.dueFsrs} FSRS due`);
+        }
+        if (c.avgAccuracyPct != null) {
+          catchUpBits.push(`${c.avgAccuracyPct}% acc`);
+        }
+        if (c.avgPaceRatio != null) {
+          catchUpBits.push(`${c.avgPaceRatio.toFixed(2)}× pace`);
+        }
+        if (c.mockSitsCount > 0) {
+          catchUpBits.push(`${c.mockSitsCount} timed mock${c.mockSitsCount === 1 ? '' : 's'}`);
+        }
+
+        const weakest = c.weakestTopics?.[0];
+        const drillBtn = !isPast && weakest && typeof ctx.onPracticeTopic === 'function'
+          ? `<button type="button" class="ghost-btn mc-ef-drill-btn" data-ef-course="${esc(c.courseId)}" data-ef-topic="${esc(weakest.id)}" title="Lowest-coverage syllabus chapter: ${esc(weakest.title)} (${weakest.coveragePct}%)">Drill ${esc(weakest.title.split('·')[0].trim().slice(0, 18))} (${weakest.coveragePct}%) →</button>`
+          : '';
+
+        return `
+          <div class="mc-ef-row ${isPast ? 'is-past' : ''}">
+            <div class="mc-ef-main">
+              <div class="mc-ef-head">
+                <div class="mc-ef-title-group">
+                  <span class="mc-ef-code">${esc(c.code)}</span>
+                  <strong class="mc-ef-title">${esc(c.title)}</strong>
+                  <span class="mc-ef-countdown ${countdownTone}">${esc(countdownTxt)}</span>
+                </div>
+                <span class="mc-ef-pace-pill is-${esc(c.paceTone)}">${esc(paceBadgeTxt)}</span>
+              </div>
+
+              <div class="mc-ef-bar-wrap" title="Your readiness: ${c.readinessPct}% · Expected by today on 28-day ${esc(forecast.targetGrade)}-ramp: ${c.expectedByTodayPct}%">
+                <div class="mc-ef-bar-track">
+                  <div class="mc-ef-bar-fill ${fillTone}" style="width:${c.readinessPct}%"></div>
+                  ${!isPast ? `<div class="mc-ef-bar-marker" style="left:${Math.min(99, Math.max(1, c.expectedByTodayPct))}%" title="Expected today: ${c.expectedByTodayPct}%"></div>` : ''}
+                </div>
+                <div class="mc-ef-bar-labels">
+                  <span>Readiness <b>${c.readinessPct}%</b> ${!isPast ? `<small class="muted">(expected today: ${c.expectedByTodayPct}%)</small>` : ''}</span>
+                  <span class="mc-ef-counts">${c.done}/${c.targetDone} Qs · ${c.highDone}/${c.targetHighDone} High · ${c.coveredTopics}/${c.topicsCount} ch. · ${c.examDayRetentionPct}% exam-day R</span>
+                </div>
+              </div>
+
+              <div class="mc-ef-foot">
+                <div class="mc-ef-levers">${catchUpBits.join(' · ')}</div>
+                ${drillBtn}
+              </div>
+            </div>
+            ${estBlock}
+          </div>`;
+      }).join('');
+
+      slot.innerHTML = `
+        <div class="mc-card-head">
+          <div>
+            <div class="mc-ef-title-line">
+              <h3 class="mc-card-title">Exam Pace &amp; Estimated Grade</h3>
+              <span class="mc-beta-badge">BETA</span>
+            </div>
+            <p class="mc-card-sub">Your readiness vs. 28-day target ramp (vertical tick = where you should be today) · syllabus coverage, High-DLPFC mastery, accuracy, pace &amp; FSRS retention</p>
+          </div>
+          <div class="mc-controls">
+            <div class="mc-seg" role="group" aria-label="Target exam grade">
+              <button type="button" class="mc-seg-btn ${uiState.targetGrade === 'A' ? 'active' : ''}" data-ef-target="A">Target A (85%)</button>
+              <button type="button" class="mc-seg-btn ${uiState.targetGrade === 'B' ? 'active' : ''}" data-ef-target="B">B (77%)</button>
+              <button type="button" class="mc-seg-btn ${uiState.targetGrade === 'C' ? 'active' : ''}" data-ef-target="C">C (65%)</button>
+            </div>
+          </div>
+        </div>
+        <div class="mc-ef-list">${rowsHtml}</div>
+        <details class="mc-ef-method">
+          <summary>How this Beta estimate is calculated (transparent formula)</summary>
+          <p>
+            <strong>Pace vs. Target:</strong> Compares your composite readiness (35% target Q volume + 30% High-DLPFC synthesis mastery + 25% chapter breadth + 10% FSRS-5 exam-day retention) against a linear 28-day pre-exam ramp (15% at 28d out → 100% on exam day). Mastered High-DLPFC questions are always counted in full here even after FSRS chunks them down in course filters.
+          </p>
+          <p>
+            <strong>Estimated Grade (BI / ECTS scale: A ≥ 85%, B ≥ 77%, C ≥ 65%, D ≥ 50%, E ≥ 40%):</strong> Combines chapter-by-chapter coverage × accuracy (55%, untouched chapters anchored at 28% baseline so unstudied chapters honestly pull your score down), High-DLPFC mastery (30%), and overall accuracy (15%), scaled by timed pace vs. AI par and FSRS-5 retention projected to exam day — then anchored up to 45% by any completed timed past exams.
+          </p>
+        </details>
+      `;
+
+      slot.querySelectorAll('[data-ef-target]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const next = btn.dataset.efTarget || 'A';
+          uiState.targetGrade = next === 'B' || next === 'C' ? next : 'A';
+          try { localStorage.setItem(TARGET_GRADE_KEY, uiState.targetGrade); } catch {}
+          renderExamForecastCard(slot);
+        });
+      });
+      slot.querySelectorAll('[data-ef-course][data-ef-topic]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          ctx.onPracticeTopic?.(btn.dataset.efCourse, btn.dataset.efTopic);
+        });
+      });
+    };
+
+    renderExamForecastCard(root.querySelector('#mc-exam-forecast-card'));
     paintHero();
     paintScreen();
     paintStack();
