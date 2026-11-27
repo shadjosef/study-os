@@ -2202,12 +2202,25 @@ window.StudyApp = (() => {
 
   const isDevSandbox = () => Boolean(window.StudyUI?.devMode?.isActive?.());
 
+  async function buildCloudBackupPayload() {
+    const webPayload = buildWebBackupPayload();
+    if (isStaticWeb) return webPayload;
+    const localExp = await apiGet('/api/export-backup');
+    return {
+      ...webPayload,
+      exportedAt: localExp?.exportedAt || webPayload.exportedAt,
+      progress: localExp?.progress && isRecord(localExp.progress) ? localExp.progress : webPayload.progress,
+      attempts: Array.isArray(localExp?.attempts) ? localExp.attempts : webPayload.attempts,
+      sessions: Array.isArray(localExp?.sessions) ? localExp.sessions : webPayload.sessions,
+    };
+  }
+
   async function syncCloudProgress({ interactive = false, pushOnly = false } = {}) {
     if (isDevSandbox()) {
       if (interactive) toast('Dev Mode ON — cloud sync is paused.');
       return false;
     }
-    if (!isStaticWeb || !window.StudyCommunity?.isSignedIn?.()) return;
+    if (!window.StudyCommunity?.enabled || !window.StudyCommunity?.isSignedIn?.()) return;
     if (cloudSyncInFlight) return;
     cloudSyncInFlight = true;
     cloudSyncMeta.status = 'Syncing…';
@@ -2236,18 +2249,29 @@ window.StudyApp = (() => {
           cloudScreenTotal = screenHistoryTotalSec(remote.data.screenHistory);
           cloudExamResCount = isRecord(remote.data.examResults) ? Object.keys(remote.data.examResults).length : 0;
           const msg = restoreWebBackup(remote.data);
-          if (msg && msg.startsWith('Restored ')) {
+          let localMerged = false;
+          if (!isStaticWeb) {
+            const mRes = await apiPost('/api/sync-merge', remote.data).catch(() => null);
+            localMerged = Boolean(
+              mRes && (Number(mRes.mergedRecords || 0) > 0 || Number(mRes.addedAttempts || 0) > 0 || Number(mRes.addedSessions || 0) > 0)
+            );
+          }
+          if ((msg && msg.startsWith('Restored ')) || localMerged) {
             mergedFromCloud = true;
-            recomputeWebAnalytics();
-            updateHeaderStats();
-            if (currentView === 'home') renderHome();
-            else if (currentView === 'analytics') renderAnalytics();
-            else if (currentView === 'schedule') renderScheduleStudio();
-            else if (currentView === 'exams') renderExamsHub();
+            if (isStaticWeb) {
+              recomputeWebAnalytics();
+              updateHeaderStats();
+              if (currentView === 'home') renderHome();
+              else if (currentView === 'analytics') renderAnalytics();
+              else if (currentView === 'schedule') renderScheduleStudio();
+              else if (currentView === 'exams') renderExamsHub();
+            } else {
+              await refreshBootstrap(false);
+            }
           }
         }
       }
-      const payload = buildWebBackupPayload();
+      const payload = await buildCloudBackupPayload();
       const localRecCount = Object.keys(payload.progress.records || {}).length;
       const localAttemptCount = (payload.attempts || []).length;
       const localSessionCount = (payload.sessions || []).length;
@@ -2292,7 +2316,7 @@ window.StudyApp = (() => {
 
   function queueCloudSync() {
     if (isDevSandbox()) return;
-    if (!isStaticWeb || !window.StudyCommunity?.isSignedIn?.()) return;
+    if (!window.StudyCommunity?.enabled || !window.StudyCommunity?.isSignedIn?.()) return;
     clearTimeout(cloudSyncTimer);
     cloudSyncTimer = setTimeout(() => {
       syncCloudProgress({ pushOnly: true }).catch(() => {});
@@ -2310,7 +2334,7 @@ window.StudyApp = (() => {
       members.unlock(prof.memberKey, true).then(refreshArchiveViews).catch(() => {});
     }
     const hdrSignIn = document.getElementById('hdr-signin-btn');
-    if (hdrSignIn) hdrSignIn.hidden = !isStaticWeb || !communityOn || signedIn;
+    if (hdrSignIn) hdrSignIn.hidden = !communityOn || signedIn;
     const syncTip = document.getElementById('mobile-sync-tip');
     let tipDismissed = false;
     try { tipDismissed = sessionStorage.getItem('study-os-dismiss-mobile-sync') === '1'; } catch {}
@@ -2342,8 +2366,8 @@ window.StudyApp = (() => {
         profileName.innerHTML = `${esc(prof.nickname)}${prof.isAdmin ? ' <span class="badge admin-badge" style="font-size:10.5px;padding:1px 7px;vertical-align:middle">Admin</span>' : ''}`;
       }
       if (modeBadge) {
-        modeBadge.textContent = 'Profile';
-        modeBadge.classList.toggle('ios-val-live', false);
+        modeBadge.textContent = isStaticWeb ? 'Profile' : 'Desktop · Cloud';
+        modeBadge.classList.toggle('ios-val-live', !isStaticWeb);
       }
     } else {
       if (profileAvatar && profileAvatar.classList.contains('ios-profile-has-avatar')) {
@@ -2351,7 +2375,7 @@ window.StudyApp = (() => {
         profileAvatar.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>';
       }
       if (profileName) profileName.textContent = isStaticWeb && communityOn ? 'Study-OS · Demo' : 'Study-OS';
-      if (modeBadge) modeBadge.textContent = isStaticWeb ? (communityOn ? 'Sign in' : 'Web') : 'Desktop';
+      if (modeBadge) modeBadge.textContent = isStaticWeb ? (communityOn ? 'Sign in' : 'Web') : (communityOn ? 'Desktop · Sign in' : 'Desktop');
     }
 
     const profileChevron = document.getElementById('settings-profile-chevron');
@@ -2359,16 +2383,16 @@ window.StudyApp = (() => {
     const profileCard = document.getElementById('settings-profile-card');
     if (profileCard) profileCard.classList.toggle('ios-row-static', !communityOn);
 
-    // Account, Passkeys & Cloud Sync Section
+    // Account, Passkeys & Cloud Sync Section (available on both Web & Desktop Edition!)
     const acctSec = document.getElementById('settings-account-section');
-    if (acctSec) acctSec.hidden = !isStaticWeb || !communityOn;
+    if (acctSec) acctSec.hidden = !communityOn;
     const signinBtn = document.getElementById('settings-signin-btn');
-    if (signinBtn) signinBtn.hidden = !isStaticWeb || !communityOn || signedIn;
+    if (signinBtn) signinBtn.hidden = !communityOn || signedIn;
     const passkeysBtn = document.getElementById('settings-passkeys-btn');
-    if (passkeysBtn) passkeysBtn.hidden = !isStaticWeb || !communityOn || !signedIn;
+    if (passkeysBtn) passkeysBtn.hidden = !communityOn || !signedIn;
     const cloudSyncBtn = document.getElementById('settings-cloud-sync-btn');
     if (cloudSyncBtn) {
-      cloudSyncBtn.hidden = !isStaticWeb || !communityOn || !signedIn;
+      cloudSyncBtn.hidden = !communityOn || !signedIn;
       const valEl = document.getElementById('settings-sync-value');
       const subEl = document.getElementById('settings-sync-sub');
       if (valEl) {
@@ -2385,7 +2409,7 @@ window.StudyApp = (() => {
       }
     }
     const signoutBtn = document.getElementById('settings-signout-btn');
-    if (signoutBtn) signoutBtn.hidden = !isStaticWeb || !communityOn || !signedIn;
+    if (signoutBtn) signoutBtn.hidden = !communityOn || !signedIn;
 
     const refreshCal = document.getElementById('btn-refresh-cal');
     if (refreshCal) refreshCal.hidden = isStaticWeb;
@@ -9562,6 +9586,8 @@ window.StudyApp = (() => {
       boot.analytics = res.analytics;
       updateHeaderStats();
     }
+    window.StudyCommunity?.queueStatsSync?.();
+    queueCloudSync();
     return res;
   }
 
@@ -9590,6 +9616,7 @@ window.StudyApp = (() => {
       boot.analytics = res.analytics;
       updateHeaderStats();
     }
+    queueCloudSync();
     return res;
   }
 
@@ -9619,6 +9646,8 @@ window.StudyApp = (() => {
     }
     const res = await apiPost('/api/session', payload);
     if (earnedCompletion) setScheduleBlockCompleted(payload.calendarEventId, true, matchedBlk, 'session');
+    window.StudyCommunity?.queueStatsSync?.();
+    queueCloudSync();
     return res;
   }
 
@@ -10181,8 +10210,9 @@ window.StudyApp = (() => {
       if (ok) {
         await window.StudyRooms.restore();
         await members.restore();
+        await syncCloudProgress({ interactive: true }).catch(() => {});
         await refreshBootstrap();
-        if (!members.isUnlocked()) maybePromptFirstLoginBiSync();
+        if (isStaticWeb && !members.isUnlocked()) maybePromptFirstLoginBiSync();
       }
     };
     document.getElementById('settings-signin-btn')?.addEventListener('click', openHeaderSignIn);
@@ -10290,9 +10320,9 @@ window.StudyApp = (() => {
       await refreshBootstrap(false);
       syncSettingsRows();
       if (isStaticWeb) renderCourseDirectory();
-      if (signedIn && isStaticWeb) {
+      if (signedIn) {
         syncCloudProgress().catch(() => {});
-        if (!members.isUnlocked()) maybePromptFirstLoginBiSync();
+        if (isStaticWeb && !members.isUnlocked()) maybePromptFirstLoginBiSync();
       }
       await window.StudySets.activateDraft();
       bindMemberAccess();

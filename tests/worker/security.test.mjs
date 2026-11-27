@@ -226,6 +226,36 @@ test('CORS accepts configured web origins on GET and OPTIONS with strict securit
   }
 });
 
+test('CORS allows exact Desktop Edition loopback origins on cloud auth/sync while blocking web telemetry /t and non-8765 ports', async () => {
+  const env = makeEnv();
+
+  for (const deskOrigin of ['http://127.0.0.1:8765', 'http://localhost:8765']) {
+    const cfg = await worker.fetch(new Request(`${WORKER_URL}/auth/config`, {
+      method: 'GET',
+      headers: { Origin: deskOrigin },
+    }), env);
+    assert.equal(cfg.status, 200);
+    assert.equal(cfg.headers.get('Access-Control-Allow-Origin'), deskOrigin);
+    assertBaseSecurityHeaders(cfg);
+
+    const telem = await worker.fetch(new Request(`${WORKER_URL}/t`, {
+      method: 'POST',
+      headers: { Origin: deskOrigin, 'Content-Type': 'text/plain', 'User-Agent': 'Mozilla/5.0 Chrome/126' },
+      body: JSON.stringify({ events: [{ event: 'page_view', dim: '/' }] }),
+    }), env);
+    assert.equal(telem.status, 403, 'Desktop loopback must never pollute /t web telemetry');
+  }
+
+  for (const badPort of ['http://127.0.0.1:9999', 'http://localhost:3000', 'http://evil.example:8765']) {
+    const res = await worker.fetch(new Request(`${WORKER_URL}/auth/config`, {
+      method: 'GET',
+      headers: { Origin: badPort },
+    }), env);
+    assert.equal(res.status, 403);
+    assert.equal(res.headers.get('Access-Control-Allow-Origin'), null);
+  }
+});
+
 test('CORS extension rules enforce strict path scope, extension ID pinning, and no header spoofing', async () => {
   const validExtOrigin = 'chrome-extension://' + 'a'.repeat(32);
   const otherExtOrigin = 'chrome-extension://' + 'b'.repeat(32);

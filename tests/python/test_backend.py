@@ -1323,6 +1323,52 @@ class TestStudyOsMcp(unittest.TestCase):
                 self.assertEqual(study_os_mcp.get_current_exercise()["mode"], "blind")
                 with self.assertRaises(ValueError):
                     study_os_mcp.search_questions("econ-2522", query="MRS")
+
+                # Desktop HTML injects data-study-mode="local" & data-community-api when site-pack/community.json exists
+                (tmp_root / "site-pack").mkdir(parents=True, exist_ok=True)
+                (tmp_root / "site-pack" / "community.json").write_text(
+                    json.dumps({"api": "https://example.workers.dev"}), encoding="utf-8"
+                )
+                (tmp_pub / "index.html").write_text('<!doctype html><html lang="en"><body>ok</body></html>', encoding="utf-8")
+                with urllib.request.urlopen(f"http://127.0.0.1:{port}/") as resp:
+                    html = resp.read().decode("utf-8")
+                    self.assertIn('data-study-mode="local"', html)
+                    self.assertIn('data-community-api="https://example.workers.dev"', html)
+
+                # POST /api/sync-merge merges cloud backup non-destructively and deduplicates attempts/sessions
+                merge_payload = json.dumps({
+                    "format": "study-os-backup-v1",
+                    "progress": {
+                        "records": {
+                            "econ-2522:q1": {"status": "done", "attempts": 3, "updatedAt": "2026-11-27T10:00:00Z"},
+                        }
+                    },
+                    "attempts": [{"ts": "2026-11-27T10:00:00Z", "questionId": "econ-2522:q1", "sessionId": "s1", "qualityAccuracy": 1.0}],
+                    "sessions": [{"sessionId": "s1", "startedAt": "2026-11-27T09:50:00Z", "activeSec": 600}],
+                }).encode("utf-8")
+                req1 = urllib.request.Request(
+                    f"http://127.0.0.1:{port}/api/sync-merge",
+                    data=merge_payload,
+                    headers={"Content-Type": "application/json", "Origin": f"http://127.0.0.1:{port}"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req1) as r1:
+                    m1 = json.loads(r1.read().decode("utf-8"))
+                    self.assertEqual(m1["mergedRecords"], 1)
+                    self.assertEqual(m1["addedAttempts"], 1)
+                    self.assertEqual(m1["addedSessions"], 1)
+                # Second identical merge must add 0 duplicates
+                req2 = urllib.request.Request(
+                    f"http://127.0.0.1:{port}/api/sync-merge",
+                    data=merge_payload,
+                    headers={"Content-Type": "application/json", "Origin": f"http://127.0.0.1:{port}"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req2) as r2:
+                    m2 = json.loads(r2.read().decode("utf-8"))
+                    self.assertEqual(m2["mergedRecords"], 0)
+                    self.assertEqual(m2["addedAttempts"], 0)
+                    self.assertEqual(m2["addedSessions"], 0)
             finally:
                 study_os_mcp.BASE = prev_base
                 httpd.shutdown()

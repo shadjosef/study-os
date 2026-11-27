@@ -216,19 +216,23 @@ export default {
     const allowedWebOrigins = new Set(
       [normalizeOrigin(env?.WEB_ORIGIN), normalizeOrigin(env?.WEB_ADDITIONAL_ORIGIN)].filter(Boolean)
     );
+    const desktopLoopbackOrigins = new Set(['http://127.0.0.1:8765', 'http://localhost:8765']);
     const isAllowedWeb = Boolean(normalizedWebOrigin && rawOrigin === normalizedWebOrigin && allowedWebOrigins.has(normalizedWebOrigin));
+    const isAllowedDesktop = Boolean(
+      normalizedWebOrigin && rawOrigin === normalizedWebOrigin && desktopLoopbackOrigins.has(normalizedWebOrigin)
+    );
     const isAllowedExt = Boolean(
       extensionAllowedPaths.has(path) && (
         allowedExtensionOrigin(rawOrigin, env) ||
         (!rawOrigin && request.headers.get('X-Study-OS-Client') === 'extension')
       )
     );
-    if (isAllowedWeb) {
+    if (isAllowedWeb || isAllowedDesktop) {
       headers['Access-Control-Allow-Origin'] = normalizedWebOrigin;
     } else if (isAllowedExt && rawOrigin) {
       headers['Access-Control-Allow-Origin'] = rawOrigin;
     }
-    if (!isAllowedWeb && !isAllowedExt) return reply({ error: 'Origin not allowed.' }, 403);
+    if (!isAllowedWeb && !isAllowedDesktop && !isAllowedExt) return reply({ error: 'Origin not allowed.' }, 403);
     if (!ALLOWED_METHODS.has(request.method)) {
       return reply({ error: 'Method not allowed.' }, 405);
     }

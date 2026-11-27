@@ -1025,7 +1025,12 @@ window.StudyCommunity = (() => {
 
   function renderEntry(root, error = '', onSignedIn = render, onDemo, prefillCode = '') {
     window.StudyWebTelemetry?.track?.('auth_open', onDemo ? 'modal' : 'tab');
-    const passkeyReady = supportsPasskeys();
+    const isDesktopLoopback = (
+      window.location?.hostname === '127.0.0.1'
+      || window.location?.hostname === 'localhost'
+      || document.documentElement?.dataset?.studyMode === 'local'
+    );
+    const passkeyReady = supportsPasskeys() && !isDesktopLoopback;
     const localSchool = readLocalSchool();
     const localMajor = readLocalMajor();
     const cleanPrefill = String(prefillCode || '').trim().slice(0, 120);
@@ -1058,7 +1063,16 @@ window.StudyCommunity = (() => {
           </div>
 
           <div class="auth-primary-stack">
-            <div id="community-google-slot" class="auth-google-slot" hidden></div>
+            ${isDesktopLoopback ? `
+              <button type="button" class="primary-btn auth-passkey-btn" id="community-desktop-device-cta">
+                <span>Link Existing studyos.no Account (Device Code)</span>
+              </button>
+              <p class="muted" style="margin:2px 0 6px;font-size:12.5px;text-align:center">
+                On <strong>studyos.no</strong>, open <strong>Settings → Sign-in &amp; Devices → Link another device</strong> for a 6-char code, or use your Recovery Key.
+              </p>
+            ` : `
+              <div id="community-google-slot" class="auth-google-slot" hidden></div>
+            `}
             ${passkeyReady ? `
               <button type="button" class="primary-btn auth-passkey-btn" id="community-passkey-login">
                 <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1317,7 +1331,10 @@ window.StudyCommunity = (() => {
       return optionalHashes;
     }
 
-    mountGoogleButton(googleSlot, async (idToken) => {
+    if (isDesktopLoopback) {
+      root.querySelector('#community-desktop-device-cta')?.addEventListener('click', () => setStep('device'));
+    } else {
+      mountGoogleButton(googleSlot, async (idToken) => {
       status.textContent = 'Signing in with Google…';
       try {
         const res = await request('/auth/google', { idToken, label: detectDeviceLabel() }, '');
@@ -1346,6 +1363,7 @@ window.StudyCommunity = (() => {
     }).then((shown) => {
       if (shown && authOr) authOr.hidden = false;
     });
+    }
 
     root.querySelector('#community-start-signup')?.addEventListener('click', () => {
       // Sync whether Step 2a needs an access code input based on live topCodeInput value

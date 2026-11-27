@@ -1057,6 +1057,38 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
             self.send_json({"error": "Forbidden"}, status=403)
             return
 
+        if route in ("/", "/index.html"):
+            idx_path = self._public_dir() / "index.html"
+            if idx_path.is_file():
+                html_text = idx_path.read_text(encoding="utf-8")
+                attrs = ['data-study-mode="local"']
+                comm_cfg = store.root / "site-pack" / "community.json"
+                if comm_cfg.is_file():
+                    try:
+                        raw_api = str(json.loads(comm_cfg.read_text(encoding="utf-8")).get("api") or "").strip().rstrip("/")
+                        parsed_api = urllib.parse.urlsplit(raw_api)
+                        if (
+                            parsed_api.scheme == "https"
+                            and parsed_api.hostname
+                            and not parsed_api.username
+                            and not parsed_api.password
+                            and not parsed_api.query
+                            and not parsed_api.fragment
+                        ):
+                            safe_api = raw_api.replace("&", "&amp;").replace('"', "&quot;")
+                            attrs.append(f'data-community-api="{safe_api}"')
+                    except Exception:
+                        pass
+                if "<html " in html_text:
+                    html_text = html_text.replace("<html ", f"<html {' '.join(attrs)} ", 1)
+                body = html_text.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+
         # Serve SPA static files
         super().do_GET()
 
@@ -1760,6 +1792,82 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                     pass
 
             self.send_json({"ok": True, "session": session_row, "analytics": analytics})
+            return
+
+        if route == "/api/sync-merge":
+            # Non-destructive bi-directional merge from Study-OS Cloud backup into local data/.
+            merged_records = 0
+            added_attempts = 0
+            added_sessions = 0
+            with STATE_LOCK:
+                prog = store.load_progress()
+                recs = prog.setdefault("records", {})
+                src_prog = body.get("progress")
+                src_recs = src_prog.get("records") if isinstance(src_prog, dict) else None
+                if isinstance(src_recs, dict):
+                    for raw_qid, incoming in src_recs.items():
+                        if not isinstance(incoming, dict):
+                            continue
+                        qid = str(raw_qid)
+                        existing = recs.get(qid)
+                        if not isinstance(existing, dict):
+                            recs[qid] = incoming
+                            merged_records += 1
+                            continue
+                        inc_att = int(incoming.get("attempts") or 0)
+                        cur_att = int(existing.get("attempts") or 0)
+                        inc_ts = str(incoming.get("updatedAt") or incoming.get("lastAttemptAt") or "")
+                        cur_ts = str(existing.get("updatedAt") or existing.get("lastAttemptAt") or "")
+                        if inc_att > cur_att or (inc_att == cur_att and inc_ts > cur_ts):
+                            merged = {**existing, **incoming}
+                            if not merged.get("savedDraft") and existing.get("savedDraft"):
+                                merged["savedDraft"] = existing["savedDraft"]
+                            recs[qid] = merged
+                            merged_records += 1
+                    store.save_progress(prog)
+
+                src_attempts = body.get("attempts")
+                if isinstance(src_attempts, list) and src_attempts:
+                    existing_attempts = read_jsonl(store.attempts_path, max_lines=25000)
+                    seen_att = {
+                        (str(a.get("ts") or ""), str(a.get("questionId") or ""), str(a.get("sessionId") or ""))
+                        for a in existing_attempts
+                        if isinstance(a, dict)
+                    }
+                    for att in src_attempts:
+                        if not isinstance(att, dict) or not att.get("questionId"):
+                            continue
+                        key = (str(att.get("ts") or ""), str(att.get("questionId") or ""), str(att.get("sessionId") or ""))
+                        if key in seen_att:
+                            continue
+                        seen_att.add(key)
+                        append_jsonl(store.attempts_path, att)
+                        added_attempts += 1
+
+                src_sessions = body.get("sessions")
+                if isinstance(src_sessions, list) and src_sessions:
+                    existing_sessions = read_jsonl(store.sessions_path, max_lines=8000)
+                    seen_sess = {
+                        str(s.get("sessionId") or s.get("startedAt") or "")
+                        for s in existing_sessions
+                        if isinstance(s, dict)
+                    }
+                    for sess in src_sessions:
+                        if not isinstance(sess, dict):
+                            continue
+                        sk = str(sess.get("sessionId") or sess.get("startedAt") or "")
+                        if not sk or sk in seen_sess:
+                            continue
+                        seen_sess.add(sk)
+                        append_jsonl(store.sessions_path, sess)
+                        added_sessions += 1
+
+            self.send_json({
+                "ok": True,
+                "mergedRecords": merged_records,
+                "addedAttempts": added_attempts,
+                "addedSessions": added_sessions,
+            })
             return
 
         if route == "/api/import-legacy":
