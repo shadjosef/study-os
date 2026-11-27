@@ -210,7 +210,7 @@
           <button type="button" class="ghost-btn runner-pod-pill" id="runner-room-btn" popovertarget="runner-room-popover" hidden>Pod</button>
           <div id="runner-room-popover" class="runner-room-popover" popover="auto"></div>
         </div>
-        <button type="button" class="ghost-btn" id="run-swap-btn" hidden title="Swap to an alternative related playlist at the same DLPFC">↻ Swap</button>
+        <button type="button" class="ghost-btn" id="run-swap-btn" hidden title="Browse similar &amp; exam-priority exercises in this course (E)" aria-controls="site-explorer-drawer">Similar</button>
         <button type="button" class="ghost-btn" id="run-share-btn" title="Send playlist or study together">Share</button>
         <button type="button" class="ghost-btn" id="run-layout-btn" title="Switch between Split and Focus (V)">Split</button>
         <span class="runner-domain runner-domain-desktop" aria-label="StudyOS.no">
@@ -289,6 +289,7 @@
     </div>
     <div class="explorer-filter-bar">
       <input type="search" id="explorer-filter-input" class="explorer-filter-input" placeholder="Filter courses, notes, tools…" autocomplete="off" spellcheck="false" aria-label="Filter Explorer">
+      <div id="explorer-mode-tabs" class="explorer-mode-tabs" role="tablist" aria-label="Course exercise views" hidden></div>
     </div>
     <div id="site-explorer-tree" class="explorer-tree"></div>
   </aside>

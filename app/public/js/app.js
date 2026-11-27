@@ -8462,6 +8462,8 @@ window.StudyApp = (() => {
   }
 
   let closeSiteExplorerFn = () => {};
+  let openSiteExplorerFn = () => {};
+  let toggleSiteExplorerFn = () => {};
 
   function toggleSiteReferenceSidebar() {
     if (window.StudyUI.isReferenceDrawerOpen?.()) {
@@ -10821,16 +10823,31 @@ window.StudyApp = (() => {
 
     // VS Code-style Study Explorer Sidebar (#site-explorer-drawer)
     const expBtn = document.getElementById('rail-explorer-btn');
+    const expRunnerBtn = document.getElementById('run-swap-btn');
     const expDrawer = document.getElementById('site-explorer-drawer');
     const expBackdrop = document.getElementById('site-explorer-backdrop');
+    const expTitleEl = expDrawer?.querySelector('.explorer-title');
     const expTree = document.getElementById('site-explorer-tree');
     const expFilter = document.getElementById('explorer-filter-input');
+    const expTabsEl = document.getElementById('explorer-mode-tabs');
     let expOpen = false;
+    let expRunnerTab = 'relevant'; // 'relevant' | 'chapters' | 'exam' | 'retry'
     let expActions = [];
 
     const leaveRunnerForExplorer = () => {
       if (!document.getElementById('view-runner')?.hidden) {
         document.getElementById('run-exit-btn')?.click();
+      }
+    };
+
+    const syncExplorerTriggers = (open) => {
+      if (expBtn) {
+        expBtn.classList.toggle('active', open);
+        expBtn.setAttribute('aria-expanded', String(open));
+      }
+      if (expRunnerBtn) {
+        expRunnerBtn.classList.toggle('active', open);
+        expRunnerBtn.setAttribute('aria-expanded', String(open));
       }
     };
 
@@ -10840,12 +10857,40 @@ window.StudyApp = (() => {
       if (expDrawer) expDrawer.hidden = true;
       if (expBackdrop) expBackdrop.hidden = true;
       document.body.classList.remove('explorer-open');
-      if (expBtn) {
-        expBtn.classList.remove('active');
-        expBtn.setAttribute('aria-expanded', 'false');
-      }
+      syncExplorerTriggers(false);
     };
     closeSiteExplorerFn = closeExplorer;
+
+    const EXP_NOISE_TAG_RE = /^(?:mcq|calculation|written|coding|exam|tutoring|exercise|synthetic|short|case|vignette|reading|lecture|home|diagnostics|debugging|official|sample-exam|topic-\d+|lesson-\d+|tut-[\w-]+|exam-[\w-]+|paper-[\w-]+|multchoice-[\w-]+|mc-[\w-]+|wiseflow-mock-[\w-]+|nov19-mock-[\w-]+|mock-exam-[\w-]+|foundation-\d+|book-ch\d+|pandas-viz-[\w-]+|e\d{2}[fs]|t\d+[a-z]?|l\d+|deb)$/i;
+
+    const formatExpTaskKind = (q) => {
+      if (Array.isArray(q?.wiseflowFields) && q.wiseflowFields.length) return 'Worksheet';
+      if (q?.kind === 'mcq') return 'MCQ';
+      if (q?.kind === 'calculation') return 'Calc';
+      if (q?.kind === 'coding') return 'Code';
+      return 'Written';
+    };
+
+    const shortTopicLabelFor = (topicObj, fallbackId) => {
+      const idStr = String(topicObj?.id ?? fallbackId ?? '');
+      const full = String(topicObj?.title || `Topic ${idStr}`).trim();
+      const ch = full.match(/^(?:Chapter|Ch\.?)\s*(\d+)\s*[·:—-]\s*(.+)$/i);
+      if (ch) return `Ch ${ch[1]} · ${ch[2].trim()}`;
+      const les = full.match(/^Lesson\s*(\d+)\s*[:·—-]\s*(.+)$/i);
+      if (les) return `L${les[1]} · ${les[2].trim()}`;
+      return full;
+    };
+
+    const shortTopicBadgeFor = (topicObj, fallbackId) => {
+      const idStr = String(topicObj?.id ?? fallbackId ?? '');
+      const full = String(topicObj?.title || '').trim();
+      const ch = full.match(/^(?:Chapter|Ch\.?)\s*(\d+)/i);
+      if (ch) return `Ch ${ch[1]}`;
+      const les = full.match(/^Lesson\s*(\d+)/i);
+      if (les) return `L${les[1]}`;
+      if (/^DEB$/i.test(idStr)) return 'DEB';
+      return idStr ? `T${idStr}` : '';
+    };
 
     const renderExplorerTree = (rawQuery = '') => {
       if (!expTree) return;
@@ -10858,6 +10903,267 @@ window.StudyApp = (() => {
       };
       const fileIcon = '<svg class="exp-svg" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 1.5H4a1.5 1.5 0 0 0-1.5 1.5v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.5l-4-4Z"/><path d="M9.5 1.5v4h4"/></svg>';
       const folderIcon = '<svg class="exp-svg" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.2A1.2 1.2 0 0 1 3.2 3h3l1.3 1.4h5.3A1.2 1.2 0 0 1 14 5.6v6.2a1.2 1.2 0 0 1-1.2 1.2H3.2A1.2 1.2 0 0 1 2 11.8V4.2Z"/></svg>';
+
+      const runCtx = window.StudyRunner?.getActiveRunContext?.() || null;
+      const inSmartRunner = Boolean(runCtx && runCtx.bank?.questions?.length && !runCtx.isBlindExam && runCtx.mode !== 'exam');
+
+      if (expDrawer) expDrawer.classList.toggle('is-runner-mode', inSmartRunner);
+      if (expTitleEl) {
+        const code = runCtx?.courseMeta?.code || runCtx?.courseMeta?.shortTitle || '';
+        expTitleEl.textContent = inSmartRunner && code ? `${code.toUpperCase()} · EXERCISES` : 'EXPLORER';
+      }
+      if (expFilter) {
+        expFilter.placeholder = inSmartRunner ? 'Search exercises, chapters, topics…' : 'Filter courses, notes, tools…';
+      }
+
+      let runnerTasksHtml = '';
+      if (inSmartRunner) {
+        const bank = runCtx.bank;
+        const curQ = runCtx.currentQuestion;
+        const prof = runCtx.profile || 'learning';
+        const runIds = Array.isArray(runCtx.questionIds) ? runCtx.questionIds : [];
+        const runIdSet = new Set(runIds);
+        const curRec = curQ ? getProgressRecord(curQ.id) : null;
+        const curTier = curQ ? effectiveDlpfc(curQ, curRec).tier : 2;
+        const curConceptTags = new Set(
+          (Array.isArray(curQ?.tags) ? curQ.tags : [])
+            .map((t) => String(t || '').trim().toLowerCase())
+            .filter((t) => t && !EXP_NOISE_TAG_RE.test(t))
+        );
+        const curHasWf = Boolean(Array.isArray(curQ?.wiseflowFields) && curQ.wiseflowFields.length);
+        const topicsById = new Map();
+        (bank.topics || []).forEach((t, idx) => {
+          topicsById.set(String(t.id), { ...t, order: idx });
+        });
+
+        const scored = (bank.questions || [])
+          .filter((item) => item && item.available !== false)
+          .map((item) => {
+            const rec = getProgressRecord(item.id);
+            const st = rec?.status || 'not_started';
+            const g = Number(rec?.lastUserGrade || 0);
+            const isRetry = st === 'revisit' || Boolean(rec?.aiAssisted) || (g > 0 && g <= 2);
+            const isCurrent = Boolean(curQ && item.id === curQ.id);
+            const inRun = runIdSet.has(item.id);
+            const sameTopic = Boolean(curQ && String(item.topicId) === String(curQ.topicId));
+            const tier = effectiveDlpfc(item, rec).tier;
+            const sameTier = tier === curTier;
+            const relScore = examRelevanceScore(item, bank);
+            const isExamPrio = relScore >= 88;
+            const isMidWritten = isNonExamAccountingWritten(item, bank);
+            const sharedTags = (Array.isArray(item.tags) ? item.tags : []).reduce((acc, t) => {
+              const s = String(t || '').trim().toLowerCase();
+              return acc + (s && curConceptTags.has(s) ? 1 : 0);
+            }, 0);
+            const itemHasWf = Boolean(Array.isArray(item.wiseflowFields) && item.wiseflowFields.length);
+            const fmtMatch = curHasWf ? (itemHasWf ? 10 : 0) : (item.kind === curQ?.kind ? 5 : 0);
+
+            const simScore =
+              (sameTopic ? 45 : 0) +
+              Math.min(40, sharedTags * 18) +
+              (sameTier ? 16 : Math.abs(tier - curTier) === 1 ? 6 : 0) +
+              (isExamPrio ? 28 : relScore >= 75 ? 12 : 0) +
+              (isMidWritten ? -45 : 0) +
+              (isRetry ? 14 : st !== 'done' ? 8 : -10) +
+              fmtMatch;
+
+            const topicObj = topicsById.get(String(item.topicId));
+            const parMin = Math.max(1, Math.round(calibratedParSec(item, prof) / 60));
+            const hay = `${item.localId || ''} ${item.title || ''} ${topicObj?.title || ''} ${item.obsidianLink?.heading || ''} ${(item.tags || []).join(' ')} ${formatExpTaskKind(item)}`.toLowerCase();
+
+            return {
+              q: item,
+              rec,
+              st,
+              isRetry,
+              isCurrent,
+              inRun,
+              sameTopic,
+              tier,
+              sameTier,
+              relScore,
+              isExamPrio,
+              isMidWritten,
+              sharedTags,
+              simScore,
+              parMin,
+              topicObj,
+              hay,
+            };
+          });
+
+        const scoredById = new Map(scored.map((e) => [e.q.id, e]));
+        const relevantCandidates = scored
+          .filter((e) => !e.isCurrent && !e.isMidWritten && (e.sameTopic || e.sharedTags > 0 || (e.isExamPrio && e.sameTier)))
+          .sort((a, b) => b.simScore - a.simScore || b.relScore - a.relScore);
+        const examCount = scored.filter((e) => e.isExamPrio).length;
+        const retryCount = scored.filter((e) => e.isRetry).length;
+
+        if (expTabsEl) {
+          expTabsEl.hidden = false;
+          const tabDefs = [
+            { id: 'relevant', label: `Similar (${Math.min(relevantCandidates.length, 24)})` },
+            { id: 'chapters', label: 'Chapters' },
+            { id: 'exam', label: `Exam (${examCount})` },
+            { id: 'retry', label: retryCount ? `Retry (${retryCount})` : 'Retry' },
+          ];
+          expTabsEl.innerHTML = tabDefs.map((t) => `
+            <button type="button" class="exp-mode-tab ${expRunnerTab === t.id ? 'is-active' : ''}" data-exp-tab="${t.id}" role="tab" aria-selected="${expRunnerTab === t.id}">${esc(t.label)}</button>
+          `).join('');
+        }
+
+        const renderTaskRow = (entry, opts = {}) => {
+          const { showTopic = true, runIndex = -1 } = opts;
+          let rowCls = 'exp-task-item';
+          let pillHtml = '';
+          if (entry.isCurrent) {
+            rowCls += ' is-active';
+            pillHtml = '<span class="exp-rel-pill is-current">Current</span>';
+          } else if (entry.isExamPrio && (entry.sameTopic || entry.sharedTags > 0 || expRunnerTab === 'exam')) {
+            rowCls += ' is-related';
+            pillHtml = '<span class="exp-rel-pill is-exam">Exam</span>';
+          } else if (entry.sameTopic && !entry.isMidWritten && entry.simScore >= 50) {
+            rowCls += ' is-close';
+            pillHtml = '<span class="exp-rel-pill is-similar">Similar</span>';
+          } else if (entry.isRetry) {
+            rowCls += ' is-related';
+            pillHtml = `<span class="exp-rel-pill is-retry">${entry.rec?.aiAssisted ? 'AI Retry' : 'Retry'}</span>`;
+          } else if (entry.inRun && runIndex < 0) {
+            pillHtml = '<span class="exp-rel-pill is-run">In Run</span>';
+          } else if (entry.isExamPrio) {
+            pillHtml = '<span class="exp-rel-pill is-exam-soft">Exam</span>';
+          } else if (entry.isMidWritten) {
+            rowCls += ' is-muted';
+          }
+
+          const statusDot = entry.st === 'done'
+            ? '<span class="exp-st-mark is-done" title="Done">✓</span>'
+            : entry.isRetry
+            ? '<span class="exp-st-mark is-retry" title="Needs Solo Retry">⚑</span>'
+            : runIndex >= 0
+            ? `<span class="exp-st-idx">${runIndex + 1}</span>`
+            : '<span class="exp-st-mark">○</span>';
+
+          const metaParts = [
+            showTopic ? shortTopicBadgeFor(entry.topicObj, entry.q.topicId) : '',
+            formatExpTaskKind(entry.q),
+            `${entry.parMin}m`,
+          ].filter(Boolean);
+
+          const openId = reg(() => {
+            window.StudyRunner?.openExerciseInRun?.(entry.q.id, { mode: 'open' });
+          });
+          const queueBtn = !entry.inRun
+            ? `<button type="button" class="exp-task-queue-btn" data-exp-queue="${esc(entry.q.id)}" title="Queue next in this run" aria-label="Queue ${esc(entry.q.title)} next">+</button>`
+            : '';
+
+          return `<div class="${rowCls}">
+            <button type="button" class="exp-task-open-btn" data-exp-act="${openId}">
+              ${statusDot}
+              <span class="exp-task-copy">
+                <span class="exp-task-title">${esc(entry.q.title)}</span>
+                <span class="exp-task-sub">${esc(metaParts.join(' · '))}</span>
+              </span>
+              ${pillHtml}
+            </button>
+            ${queueBtn}
+          </div>`;
+        };
+
+        const renderChapterTree = (entries, { forceOpenAll = false } = {}) => {
+          const byTopic = new Map();
+          for (const e of entries) {
+            const tid = String(e.q.topicId ?? 'other');
+            if (!byTopic.has(tid)) byTopic.set(tid, []);
+            byTopic.get(tid).push(e);
+          }
+          const groups = [...byTopic.entries()].sort((a, b) => {
+            const oa = topicsById.get(a[0])?.order ?? 999;
+            const ob = topicsById.get(b[0])?.order ?? 999;
+            return oa - ob || a[0].localeCompare(b[0], undefined, { numeric: true });
+          });
+          if (!groups.length) {
+            return '<p class="muted" style="padding:10px 12px;font-size:12px">No matching exercises in this course.</p>';
+          }
+          return groups.map(([tid, list]) => {
+            list.sort((a, b) => {
+              if (a.isCurrent !== b.isCurrent) return a.isCurrent ? -1 : 1;
+              return b.simScore - a.simScore || b.relScore - a.relScore;
+            });
+            const tObj = topicsById.get(tid);
+            const hasCur = Boolean(curQ && String(curQ.topicId) === tid);
+            const hasRel = list.some((e) => !e.isCurrent && (e.isExamPrio || (e.sameTopic && !e.isMidWritten) || e.isRetry));
+            const openAttr = forceOpenAll || hasCur ? 'open' : '';
+            return `<details class="exp-chap-branch" ${openAttr}>
+              <summary class="exp-chap-row ${hasCur ? 'is-current-chap' : ''}">
+                <span class="exp-chev" aria-hidden="true"></span>
+                <span class="exp-chap-label">${esc(shortTopicLabelFor(tObj, tid))}</span>
+                ${hasRel ? '<span class="obs-outline-dot" title="Contains Exam Priority or similar exercises"></span>' : ''}
+                <span class="exp-meta">${list.length}</span>
+              </summary>
+              <div class="exp-chap-items">
+                ${list.map((e) => renderTaskRow(e, { showTopic: false })).join('')}
+              </div>
+            </details>`;
+          }).join('');
+        };
+
+        if (q) {
+          const matches = scored.filter((e) => e.hay.includes(q));
+          runnerTasksHtml = `
+            <div class="exp-runner-block">
+              <div class="exp-subhead"><span>MATCHING EXERCISES</span><span class="exp-meta">${matches.length}</span></div>
+              ${renderChapterTree(matches, { forceOpenAll: true })}
+            </div>`;
+        } else if (expRunnerTab === 'relevant') {
+          const runEntries = runIds.map((id, idx) => ({ entry: scoredById.get(id), idx })).filter((x) => x.entry);
+          const curTopicObj = curQ ? topicsById.get(String(curQ.topicId)) : null;
+          const sameTopicRel = relevantCandidates.filter((e) => e.sameTopic && !e.inRun).slice(0, 12);
+          const otherRel = relevantCandidates.filter((e) => !e.sameTopic && !e.inRun).slice(0, 10);
+          runnerTasksHtml = `
+            <div class="exp-runner-block">
+              <details class="exp-section" open>
+                <summary class="exp-section-head"><span class="exp-chev" aria-hidden="true"></span><span>IN THIS RUN</span><span class="exp-meta">${runEntries.length}</span></summary>
+                <div class="exp-section-body exp-task-list">
+                  ${runEntries.map(({ entry, idx }) => renderTaskRow(entry, { showTopic: true, runIndex: idx })).join('')}
+                </div>
+              </details>
+              <details class="exp-section" open>
+                <summary class="exp-section-head">
+                  <span class="exp-chev" aria-hidden="true"></span>
+                  <span>SIMILAR · ${esc(shortTopicBadgeFor(curTopicObj, curQ?.topicId) || 'TOPIC')}</span>
+                  ${sameTopicRel.length ? '<span class="obs-outline-dot"></span>' : ''}
+                  <span class="exp-meta">${sameTopicRel.length}</span>
+                </summary>
+                <div class="exp-section-body exp-task-list">
+                  ${sameTopicRel.length
+                    ? sameTopicRel.map((e) => renderTaskRow(e, { showTopic: false })).join('')
+                    : '<p class="muted" style="padding:8px 14px;font-size:12px">No other exercises in this chapter — check nearby topics below or browse Chapters.</p>'}
+                </div>
+              </details>
+              ${otherRel.length ? `
+                <details class="exp-section" open>
+                  <summary class="exp-section-head"><span class="exp-chev" aria-hidden="true"></span><span>NEARBY EXAM PRIORITY</span><span class="exp-meta">${otherRel.length}</span></summary>
+                  <div class="exp-section-body exp-task-list">
+                    ${otherRel.map((e) => renderTaskRow(e, { showTopic: true })).join('')}
+                  </div>
+                </details>` : ''}
+            </div>`;
+        } else if (expRunnerTab === 'exam') {
+          const examEntries = scored.filter((e) => e.isExamPrio);
+          runnerTasksHtml = `<div class="exp-runner-block">${renderChapterTree(examEntries, { forceOpenAll: false })}</div>`;
+        } else if (expRunnerTab === 'retry') {
+          const retryEntries = scored.filter((e) => e.isRetry);
+          runnerTasksHtml = retryEntries.length
+            ? `<div class="exp-runner-block">${renderChapterTree(retryEntries, { forceOpenAll: true })}</div>`
+            : '<div class="exp-runner-block"><p class="muted" style="padding:12px 14px;font-size:12.5px">No exercises flagged for Solo Retry in this course yet.</p></div>';
+        } else {
+          runnerTasksHtml = `<div class="exp-runner-block">${renderChapterTree(scored, { forceOpenAll: false })}</div>`;
+        }
+      } else if (expTabsEl) {
+        expTabsEl.hidden = true;
+        expTabsEl.innerHTML = '';
+      }
 
       const courseBranches = (boot.catalog || []).map((c) => {
         const mLocked = isCourseInMaintenanceForUser(c.courseId);
@@ -10887,8 +11193,8 @@ window.StudyApp = (() => {
           }] : []),
         ].filter((it) => !q || it.hay.toLowerCase().includes(q));
         if (!subItems.length) return '';
-        const isCurrentCourse = selectedCourseId === c.courseId;
-        const shouldOpen = Boolean(q || isCurrentCourse);
+        const isCurrentCourse = selectedCourseId === c.courseId || runCtx?.courseMeta?.courseId === c.courseId;
+        const shouldOpen = Boolean(q || (!inSmartRunner && isCurrentCourse));
         return `
           <details class="exp-sub" ${shouldOpen ? 'open' : ''}>
             <summary class="exp-row exp-folder-row">
@@ -10942,16 +11248,20 @@ window.StudyApp = (() => {
         </button>`).join('');
 
       const sections = [
-        courseBranches ? `<details class="exp-section" open><summary class="exp-section-head"><span class="exp-chev" aria-hidden="true"></span><span>COURSES</span></summary><div class="exp-section-body">${courseBranches}</div></details>` : '',
+        runnerTasksHtml,
+        courseBranches ? `<details class="exp-section" ${!inSmartRunner || q ? 'open' : ''}><summary class="exp-section-head"><span class="exp-chev" aria-hidden="true"></span><span>COURSES</span></summary><div class="exp-section-body">${courseBranches}</div></details>` : '',
         noteItems ? `<details class="exp-section" ${q ? 'open' : ''}><summary class="exp-section-head"><span class="exp-chev" aria-hidden="true"></span><span>NOTES &amp; SHEETS</span></summary><div class="exp-section-body">${noteItems}</div></details>` : '',
-        toolItems ? `<details class="exp-section" open><summary class="exp-section-head"><span class="exp-chev" aria-hidden="true"></span><span>WORKSPACE &amp; TOOLS</span></summary><div class="exp-section-body">${toolItems}</div></details>` : '',
+        toolItems ? `<details class="exp-section" ${!inSmartRunner || q ? 'open' : ''}><summary class="exp-section-head"><span class="exp-chev" aria-hidden="true"></span><span>WORKSPACE &amp; TOOLS</span></summary><div class="exp-section-body">${toolItems}</div></details>` : '',
       ].filter(Boolean).join('');
 
       expTree.innerHTML = sections || '<p class="muted" style="padding:14px 12px;font-size:12.5px">No matching items.</p>';
     };
 
-    const openExplorer = () => {
+    const openExplorer = (opts = null) => {
       if (!expDrawer) return;
+      if (opts?.tab && ['relevant', 'chapters', 'exam', 'retry'].includes(opts.tab)) {
+        expRunnerTab = opts.tab;
+      }
       if (window.StudyUI?.isReferenceDrawerOpen?.()) window.StudyUI.closeReferenceDrawer();
       if (window.StudyAiTutor?.isOpen?.() && (window.StudyAiTutor?.getDockSide?.() === 'left' || window.innerWidth < 760)) {
         window.StudyAiTutor.close();
@@ -10961,16 +11271,21 @@ window.StudyApp = (() => {
       expDrawer.hidden = false;
       if (expBackdrop) expBackdrop.hidden = false;
       document.body.classList.add('explorer-open');
-      if (expBtn) {
-        expBtn.classList.add('active');
-        expBtn.setAttribute('aria-expanded', 'true');
-      }
+      syncExplorerTriggers(true);
       setTimeout(() => expFilter?.focus?.(), 20);
     };
 
-    const toggleExplorer = () => (expOpen ? closeExplorer() : openExplorer());
+    const toggleExplorer = (opts = null) => (expOpen ? closeExplorer() : openExplorer(opts));
+    openSiteExplorerFn = openExplorer;
+    toggleSiteExplorerFn = toggleExplorer;
 
-    expBtn?.addEventListener('click', toggleExplorer);
+    expBtn?.addEventListener('click', () => toggleExplorer());
+    expTabsEl?.addEventListener('click', (ev) => {
+      const btn = ev.target?.closest?.('[data-exp-tab]');
+      if (!btn) return;
+      expRunnerTab = btn.dataset.expTab || 'relevant';
+      renderExplorerTree(expFilter?.value || '');
+    });
     document.getElementById('rail-brand-btn')?.addEventListener('click', () => {
       closeExplorer();
       if (!document.getElementById('view-runner')?.hidden) {
@@ -10987,6 +11302,16 @@ window.StudyApp = (() => {
     });
     expFilter?.addEventListener('input', () => renderExplorerTree(expFilter.value));
     expTree?.addEventListener('click', (ev) => {
+      const qBtn = ev.target?.closest?.('[data-exp-queue]');
+      if (qBtn) {
+        ev.stopPropagation();
+        const qid = qBtn.dataset.expQueue;
+        if (qid) {
+          window.StudyRunner?.openExerciseInRun?.(qid, { mode: 'queue' });
+          renderExplorerTree(expFilter?.value || '');
+        }
+        return;
+      }
       const btn = ev.target?.closest?.('[data-exp-act]');
       if (!btn) return;
       const fn = expActions[Number(btn.dataset.expAct)];
@@ -12122,6 +12447,8 @@ window.StudyApp = (() => {
     getSelectedCourseId: () => selectedCourseId || '',
     navigate,
     closeSiteExplorer: () => closeSiteExplorerFn(),
+    openSiteExplorer: (opts) => openSiteExplorerFn(opts),
+    toggleSiteExplorer: (opts) => toggleSiteExplorerFn(opts),
     toggleSiteReferenceSidebar,
     renderHome,
     showRawView,

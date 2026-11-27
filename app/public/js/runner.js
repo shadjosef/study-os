@@ -6151,7 +6151,9 @@ window.StudyRunner = (() => {
     document.getElementById('hdr-resume-run-btn')?.addEventListener('click', resumePausedRun);
     document.getElementById('run-share-btn')?.addEventListener('click', openShareCurrentRun);
     document.getElementById('run-swap-btn')?.addEventListener('click', () => {
-      if (activeRun) window.StudyApp?.swapActiveRunPlaylist?.(activeRun);
+      if (activeRun && activeRun.mode !== 'exam') {
+        window.StudyApp?.toggleSiteExplorer?.({ tab: 'relevant' });
+      }
     });
     document.getElementById('run-layout-btn')?.addEventListener('click', toggleSplitWorkspace);
     document.getElementById('run-ref-btn').addEventListener('click', toggleRunnerReference);
@@ -6315,6 +6317,12 @@ window.StudyRunner = (() => {
         document.getElementById('btn-reveal-sol')?.click();
       } else if (key === 'o') {
         toggleRunnerReference();
+      } else if (key === 'e') {
+        const isBlind = activeRun.mode === 'exam' && activeRun.examStyle === 'blind' && !activeRun.paperSubmitted;
+        if (!isBlind) {
+          e.preventDefault();
+          window.StudyApp?.toggleSiteExplorer?.();
+        }
       } else if (key === 'b') {
         workClock?.triggerBreak?.(false);
         e.preventDefault();
@@ -6361,6 +6369,74 @@ window.StudyRunner = (() => {
     });
   }
 
+  function openExerciseInRun(questionId, { mode = 'open' } = {}) {
+    if (!activeRun || activeRun.mode === 'exam') return false;
+    const qid = String(questionId || '').trim();
+    if (!qid) return false;
+    let qObj = activeRun.questionsById?.[qid];
+    if (!qObj && Array.isArray(activeRun.bank?.questions)) {
+      qObj = activeRun.bank.questions.find((x) => x && x.id === qid) || null;
+      if (qObj) activeRun.questionsById[qid] = qObj;
+    }
+    if (!qObj) return false;
+
+    const existingIdx = activeRun.questionIds.indexOf(qid);
+    if (mode === 'queue') {
+      if (existingIdx >= 0) {
+        toast('Already in this run.');
+        return false;
+      }
+      activeRun.questionIds.splice(activeRun.index + 1, 0, qid);
+      persistActiveRun(true);
+      renderRunner();
+      toast(`Queued next: ${qObj.title || qid}`);
+      return true;
+    }
+
+    if (existingIdx >= 0) {
+      enterQuestion(existingIdx);
+      return true;
+    }
+
+    const curQ = currentQuestion();
+    const curSt = curQ ? itemState(curQ.id) : null;
+    const curUntouched = Boolean(
+      curQ && curSt
+      && !curSt.revealed
+      && !curSt.loggedAttempt
+      && !hasAnyAnswerEntered(curQ, curSt)
+      && itemActiveSec(curSt) < 25
+    );
+    if (curUntouched) {
+      pauseCurrentTimer();
+      activeRun.questionIds[activeRun.index] = qid;
+      enterQuestion(activeRun.index);
+      toast(`Switched to ${qObj.title || qid}`);
+    } else {
+      activeRun.questionIds.splice(activeRun.index + 1, 0, qid);
+      enterQuestion(activeRun.index + 1);
+      toast(`Opened ${qObj.title || qid}`);
+    }
+    return true;
+  }
+
+  function getActiveRunContext() {
+    const view = document.getElementById('view-runner');
+    if (!activeRun || !view || view.hidden) return null;
+    const isBlindExam = Boolean(activeRun.mode === 'exam' && activeRun.examStyle === 'blind' && !activeRun.paperSubmitted);
+    return {
+      activeRun,
+      courseMeta: activeRun.courseMeta || null,
+      bank: activeRun.bank || null,
+      currentQuestion: currentQuestion(),
+      currentIndex: activeRun.index,
+      questionIds: activeRun.questionIds || [],
+      mode: activeRun.mode,
+      profile: activeRun.profile || 'learning',
+      isBlindExam,
+    };
+  }
+
   function markCurrentQuestionAiAssisted(source = 'manual') {
     if (!activeRun || activeRun.mode !== 'practice') return false;
     const view = document.getElementById('view-runner');
@@ -6388,6 +6464,8 @@ window.StudyRunner = (() => {
     isInExam: () => Boolean(activeRun && activeRun.mode === 'exam' && !document.getElementById('view-runner')?.hidden),
     isIdeCodingFocusExempt,
     markCurrentQuestionAiAssisted,
+    openExerciseInRun,
+    getActiveRunContext,
     startRun,
     pauseIfRunning,
     resumePausedRun,

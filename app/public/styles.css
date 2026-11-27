@@ -11936,8 +11936,262 @@ details[open] > summary > .exp-chev::before {
   padding: 1px 5px;
   border-radius: 4px;
 }
+.explorer-drawer.is-runner-mode {
+  width: 344px;
+}
+.explorer-mode-tabs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+  flex-wrap: wrap;
+}
+.explorer-mode-tabs[hidden] { display: none !important; }
+.exp-mode-tab {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.3;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.exp-mode-tab:hover {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.exp-mode-tab.is-active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel));
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  font-weight: 700;
+}
+.exp-runner-block {
+  padding-bottom: 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  margin-bottom: 4px;
+}
+.exp-subhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.exp-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 6px 4px;
+}
+.exp-chap-branch {
+  padding: 1px 6px;
+}
+.exp-chap-row {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 7px;
+  font-size: 12.2px;
+  font-weight: 620;
+  color: var(--ink);
+  cursor: pointer;
+}
+.exp-chap-row::-webkit-details-marker { display: none; }
+.exp-chap-row:hover {
+  background: var(--panel-alt);
+}
+.exp-chap-row.is-current-chap {
+  background: color-mix(in srgb, var(--panel-alt) 85%, transparent);
+}
+.exp-chap-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.exp-chap-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 4px 10px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+.exp-task-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 7px;
+  transition: background-color 120ms ease;
+}
+.exp-task-item:hover {
+  background: var(--panel-alt);
+}
+.exp-task-item.is-active {
+  background: color-mix(in srgb, var(--accent) 13%, var(--panel));
+}
+.exp-task-item.is-related {
+  background: color-mix(in srgb, #d97706 11%, var(--panel-alt));
+  box-shadow: inset 2px 0 0 #d97706;
+}
+html[data-theme="dark"] .exp-task-item.is-related {
+  background: rgba(245, 158, 11, 0.14);
+  box-shadow: inset 2px 0 0 #fbbf24;
+}
+.exp-task-item.is-close {
+  background: color-mix(in srgb, var(--accent) 6%, var(--panel-alt));
+}
+.exp-task-item.is-muted {
+  opacity: 0.68;
+}
+.exp-task-open-btn {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px;
+  text-align: left;
+  cursor: pointer;
+}
+.exp-task-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.exp-task-title {
+  font-size: 12.2px;
+  font-weight: 560;
+  line-height: 1.28;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.exp-task-item.is-active .exp-task-title {
+  color: var(--accent);
+  font-weight: 700;
+}
+.exp-task-item.is-related .exp-task-title {
+  font-weight: 630;
+}
+.exp-task-sub {
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.exp-st-mark,
+.exp-st-idx {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.exp-st-idx {
+  background: color-mix(in srgb, var(--border) 55%, transparent);
+  color: var(--ink);
+}
+.exp-task-item.is-active .exp-st-idx {
+  background: var(--accent);
+  color: #fff;
+}
+.exp-st-mark.is-done {
+  color: var(--good);
+}
+.exp-st-mark.is-retry {
+  color: var(--warn, #b45309);
+}
+.exp-rel-pill {
+  flex-shrink: 0;
+  font-size: 9.8px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.exp-rel-pill.is-current {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+.exp-rel-pill.is-exam {
+  background: color-mix(in srgb, #d97706 20%, transparent);
+  color: #92400e;
+}
+html[data-theme="dark"] .exp-rel-pill.is-exam {
+  color: #fbbf24;
+}
+.exp-rel-pill.is-exam-soft {
+  background: color-mix(in srgb, #d97706 12%, transparent);
+  color: #92400e;
+}
+html[data-theme="dark"] .exp-rel-pill.is-exam-soft {
+  color: #fbbf24;
+}
+.exp-rel-pill.is-similar {
+  background: color-mix(in srgb, var(--accent) 13%, transparent);
+  color: var(--accent);
+}
+.exp-rel-pill.is-retry {
+  background: color-mix(in srgb, var(--bad) 14%, transparent);
+  color: var(--bad);
+}
+.exp-rel-pill.is-run {
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+  color: var(--muted);
+}
+.exp-task-queue-btn {
+  width: 22px;
+  height: 22px;
+  margin-right: 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.55;
+  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+.exp-task-item:hover .exp-task-queue-btn,
+.exp-task-queue-btn:focus-visible {
+  opacity: 1;
+}
+.exp-task-queue-btn:hover {
+  background: color-mix(in srgb, var(--accent) 14%, var(--panel));
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
 @media (max-width: 759px) {
-  .explorer-drawer { left: 0; width: 290px; max-width: calc(100vw - 16px); }
+  .explorer-drawer,
+  .explorer-drawer.is-runner-mode { left: 0; width: 310px; max-width: calc(100vw - 16px); }
 }
 
 /* Zero-Penalty Final Answers Check Tray (Runner) */
