@@ -5591,7 +5591,7 @@ window.StudyApp = (() => {
       </button>`;
     }).join('');
 
-    const hasRoom = Boolean(resolved.roomCode && isStaticWeb && window.StudyCommunity?.enabled);
+    const hasRoom = Boolean(resolved.roomCode && window.StudyCommunity?.enabled);
     body.innerHTML = `
       <div class="playlist-sheet-head">
         <div>
@@ -5670,7 +5670,7 @@ window.StudyApp = (() => {
     const curQTitle = spec.currentTitle || '';
     const playlistUrl = buildPlaylistShareUrl(spec);
     const singleUrl = curQid ? buildPlaylistShareUrl({ courseId: spec.courseId, questionIds: [curQid], singleOnly: true }) : '';
-    const canCommunity = Boolean(isStaticWeb && window.StudyCommunity?.enabled);
+    const canCommunity = Boolean(window.StudyCommunity?.enabled);
     const inGroupPod = Boolean(window.StudyRooms?.isInGroupPod?.());
     const podState = inGroupPod ? window.StudyRooms.getState?.() : null;
     const podCode = podState?.code || '';
@@ -7556,7 +7556,7 @@ window.StudyApp = (() => {
     }
     const aiBriefText = buildAiCoachBrief();
     const examAidStats = computeExamAidStats();
-    const wsForMetrics = isStaticWeb ? loadWebState() : null;
+    const wsForMetrics = loadWebState();
     const recordsForMetrics = boot.progress?.records || wsForMetrics?.records || {};
     const attemptsForMetrics = isStaticWeb
       ? (Array.isArray(wsForMetrics?.attempts) ? wsForMetrics.attempts : [])
@@ -7564,7 +7564,7 @@ window.StudyApp = (() => {
           ? boot.analytics.attempts
           : Array.isArray(boot.attempts)
           ? boot.attempts
-          : []);
+          : (Array.isArray(wsForMetrics?.attempts) ? wsForMetrics.attempts : []));
     const fsrsCards = [];
     for (const [qid, rec] of Object.entries(recordsForMetrics)) {
       if (!rec?.fsrs) continue;
@@ -7602,7 +7602,13 @@ window.StudyApp = (() => {
   }
 
   function computeExamAidStats() {
-    const attempts = isStaticWeb ? (loadWebState().attempts || []) : [];
+    const attempts = isStaticWeb
+      ? (loadWebState().attempts || [])
+      : (Array.isArray(boot.analytics?.attempts)
+          ? boot.analytics.attempts
+          : Array.isArray(boot.attempts)
+          ? boot.attempts
+          : (loadWebState().attempts || []));
     const examResults = loadExamResultsMap();
     if (typeof coreComputeExamAidStats === 'function') {
       return coreComputeExamAidStats(attempts, examResults, boot.catalog || []);
@@ -8158,7 +8164,7 @@ window.StudyApp = (() => {
     });
 
     // Personal synced curriculum PDFs neatly inside a collapsible Obsidian folder
-    if (isStaticWeb && window.StudyCommunity?.isSignedIn?.() && window.StudyCommunity?.listMaterials) {
+    if (window.StudyCommunity?.isSignedIn?.() && window.StudyCommunity?.listMaterials) {
       const treeScroll = document.getElementById('ref-file-tree-scroll');
       if (treeScroll) {
         const box = document.createElement('details');
@@ -10172,9 +10178,13 @@ window.StudyApp = (() => {
     window.StudyCommunity.queueStatsSync();
     window.StudyDuels?.init?.();
     if (isStaticWeb) window.addEventListener('pagehide', flushPendingDrafts);
-    if (isStaticWeb) document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && Date.now() - cloudSyncMeta.updatedAt >= 60_000) {
-        syncCloudProgress().catch(() => {});
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      if (window.StudyCommunity?.isSignedIn?.()) {
+        if (Date.now() - cloudSyncMeta.updatedAt >= 60_000) {
+          syncCloudProgress().catch(() => {});
+        }
+        window.StudyCommunity.pollSharesNow?.().catch?.(() => {});
       }
     });
 
@@ -10357,7 +10367,7 @@ window.StudyApp = (() => {
       cleanParams.delete('invite');
       const nextUrl = cleanParams.toString() ? `${window.location.pathname}?${cleanParams.toString()}` : window.location.pathname;
       window.history.replaceState({}, '', nextUrl);
-      if (isStaticWeb && window.StudyCommunity?.isSignedIn?.() && !/^sos1_/i.test(qAccessCode)) {
+      if (window.StudyCommunity?.isSignedIn?.() && !/^sos1_/i.test(qAccessCode)) {
         window.StudyCommunity.redeemAccessCode(qAccessCode).then(async (res) => {
           if (res?.archiveUnlocked) {
             await refreshBootstrap(false);
@@ -10431,7 +10441,7 @@ window.StudyApp = (() => {
       return;
     }
 
-    if (/^[A-F0-9]{8}$/.test(joinRoomCode) && isStaticWeb && window.StudyCommunity?.enabled) {
+    if (/^[A-F0-9]{8}$/.test(joinRoomCode) && window.StudyCommunity?.enabled) {
       window.history.replaceState({}, '', window.location.pathname);
       if (await window.StudyCommunity.requireProfile({ allowDemo: false, forcePrompt: true })) {
         await window.StudyRooms.joinByCode(joinRoomCode);
@@ -11146,7 +11156,7 @@ window.StudyApp = (() => {
         toast('Sync completed in cloud (turn off Dev Sandbox to pull live updates into this tab).');
         return;
       }
-      if (isStaticWeb && window.StudyCommunity?.isSignedIn?.()) {
+      if (window.StudyCommunity?.isSignedIn?.()) {
         syncCloudProgress({ interactive: false }).then(() => {
           if (currentView === 'home') {
             renderHome();
