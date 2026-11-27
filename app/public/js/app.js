@@ -2672,6 +2672,7 @@ window.StudyApp = (() => {
     const isRunner = name === 'runner';
     document.body.classList.toggle('in-runner', isRunner);
     document.body.classList.toggle('in-references', name === 'references');
+    refreshSiteExplorerIfOpenFn();
     if (!isRunner) {
       if (wasRunner) window.StudyRunner?.pauseIfRunning?.();
       document.body.classList.remove('runner-split-wide', 'runner-split-pdf', 'runner-split-ref', 'runner-foveal-compact');
@@ -8464,6 +8465,7 @@ window.StudyApp = (() => {
   let closeSiteExplorerFn = () => {};
   let openSiteExplorerFn = () => {};
   let toggleSiteExplorerFn = () => {};
+  let refreshSiteExplorerIfOpenFn = () => {};
 
   function toggleSiteReferenceSidebar() {
     if (window.StudyUI.isReferenceDrawerOpen?.()) {
@@ -10830,9 +10832,44 @@ window.StudyApp = (() => {
     const expTree = document.getElementById('site-explorer-tree');
     const expFilter = document.getElementById('explorer-filter-input');
     const expTabsEl = document.getElementById('explorer-mode-tabs');
+    const expPdfUpload = document.getElementById('explorer-pdf-upload');
+    const expResizeHandle = document.getElementById('explorer-resize-handle');
+    const EXP_WIDTH_KEY = 'study-os-explorer-width-v1';
     let expOpen = false;
-    let expRunnerTab = 'relevant'; // 'relevant' | 'chapters' | 'exam' | 'retry'
+    let expRunnerTab = 'relevant'; // 'relevant' | 'chapters' | 'exam' | 'retry' | 'files'
     let expActions = [];
+    let expPdfUploadCourseId = '';
+    const expLocalFilesCache = new Map(); // canvasId -> array | 'loading'
+
+    const applySavedExplorerWidth = () => {
+      try {
+        const saved = Number(localStorage.getItem(EXP_WIDTH_KEY));
+        if (Number.isFinite(saved) && saved >= 240 && saved <= 480) {
+          document.documentElement.style.setProperty('--explorer-w', `${Math.round(saved)}px`);
+        }
+      } catch {}
+    };
+    applySavedExplorerWidth();
+
+    const ensureDesktopCourseFiles = (canvasId) => {
+      const cid = String(canvasId || '').trim();
+      if (isStaticWeb || !cid) return [];
+      const hasArchive = boot.canvasArchive?.courses?.some((item) => String(item.canvasId) === cid);
+      if (!hasArchive) return [];
+      const cached = expLocalFilesCache.get(cid);
+      if (Array.isArray(cached)) return cached;
+      if (cached === 'loading') return [];
+      expLocalFilesCache.set(cid, 'loading');
+      apiGet(`/api/canvas/documents?course=${encodeURIComponent(cid)}`)
+        .then((res) => {
+          expLocalFilesCache.set(cid, Array.isArray(res?.files) ? res.files : []);
+          if (expOpen) refreshExplorerIfOpen();
+        })
+        .catch(() => {
+          expLocalFilesCache.set(cid, []);
+        });
+      return [];
+    };
 
     const leaveRunnerForExplorer = () => {
       if (!document.getElementById('view-runner')?.hidden) {
@@ -10903,6 +10940,191 @@ window.StudyApp = (() => {
       };
       const fileIcon = '<svg class="exp-svg" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 1.5H4a1.5 1.5 0 0 0-1.5 1.5v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.5l-4-4Z"/><path d="M9.5 1.5v4h4"/></svg>';
       const folderIcon = '<svg class="exp-svg" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4.2A1.2 1.2 0 0 1 3.2 3h3l1.3 1.4h5.3A1.2 1.2 0 0 1 14 5.6v6.2a1.2 1.2 0 0 1-1.2 1.2H3.2A1.2 1.2 0 0 1 2 11.8V4.2Z"/></svg>';
+      const canEditPdf = Boolean(window.StudyPdfCraft?.isAvailable?.());
+
+      const buildCourseFilesGroupsHtml = (courseId, cMeta, bankObj, queryStr = '', { inRunner = false } = {}) => {
+        const ql = String(queryStr || '').trim().toLowerCase();
+        const parts = [];
+        let totalCount = 0;
+
+        // 1. Course Notes & Markdown sheets
+        const courseNotes = (boot.references || []).filter((r) =>
+          r.courseId === courseId || (cMeta?.obsidian?.mainReference && r.file === cMeta.obsidian.mainReference)
+        );
+        const matchedNotes = courseNotes.filter((r) => !ql || `${r.title} ${r.code || ''} notes reference sheet`.toLowerCase().includes(ql));
+        if (matchedNotes.length) {
+          totalCount += matchedNotes.length;
+          parts.push(`
+            <details class="exp-chap-branch" open>
+              <summary class="exp-chap-row"><span class="exp-chev" aria-hidden="true"></span><span class="exp-chap-label">Course Notes &amp; Sheets</span><span class="exp-meta">${matchedNotes.length}</span></summary>
+              <div class="exp-chap-items">
+                ${matchedNotes.map((r) => {
+                  const actId = reg(() => {
+                    if (inRunner && cMeta) {
+                      openReferenceDrawer(cMeta, r.file, '', { bank: bankObj || null });
+                    } else {
+                      leaveRunnerForExplorer();
+                      navigate('references', { refFile: r.file });
+                    }
+                  });
+                  return `<div class="exp-task-item">
+                    <button type="button" class="exp-task-open-btn" data-exp-act="${actId}" data-exp-stay="1">
+                      ${fileIcon}
+                      <span class="exp-task-copy"><span class="exp-task-title">${esc(r.title)}</span><span class="exp-task-sub">Markdown Reference</span></span>
+                      <span class="exp-meta">MD</span>
+                    </button>
+                  </div>`;
+                }).join('')}
+              </div>
+            </details>`);
+        }
+
+        // 2. Mock Exams & Collections (when bank loaded)
+        const cols = Array.isArray(bankObj?.collections) ? bankObj.collections : [];
+        const matchedCols = cols.filter((col) => {
+          const title = examLabel(col.title || col.id || '');
+          return !ql || `${title} ${col.id || ''} exam mock paper`.toLowerCase().includes(ql);
+        });
+        if (matchedCols.length && inRunner) {
+          totalCount += matchedCols.length;
+          parts.push(`
+            <details class="exp-chap-branch" ${ql ? 'open' : ''}>
+              <summary class="exp-chap-row"><span class="exp-chev" aria-hidden="true"></span><span class="exp-chap-label">Papers &amp; Problem Sets</span><span class="exp-meta">${matchedCols.length}</span></summary>
+              <div class="exp-chap-items">
+                ${matchedCols.map((col) => {
+                  const colQs = (bankObj.questions || []).filter((item) => item.available !== false && String(item.collectionId) === String(col.id));
+                  const title = examLabel(col.title || col.id || '');
+                  const actId = reg(() => {
+                    if (!colQs.length) return;
+                    window.StudyRunner?.startRun?.({
+                      courseMeta: cMeta,
+                      bank: bankObj,
+                      questionIds: colQs.map((x) => x.id),
+                      mode: 'practice',
+                      profile: 'learning',
+                    });
+                    toast(`Opened ${title} (${colQs.length} tasks)`);
+                  });
+                  return `<div class="exp-task-item">
+                    <button type="button" class="exp-task-open-btn" data-exp-act="${actId}" data-exp-stay="1">
+                      ${folderIcon}
+                      <span class="exp-task-copy"><span class="exp-task-title">${esc(title)}</span><span class="exp-task-sub">${colQs.length} task${colQs.length === 1 ? '' : 's'}</span></span>
+                    </button>
+                  </div>`;
+                }).join('')}
+              </div>
+            </details>`);
+        }
+
+        // 3. Local Browser PDFs (Web) or Local Canvas Archive Files (Desktop)
+        if (isStaticWeb) {
+          const browserFiles = window.StudyLocalSources?.list?.(courseId) || [];
+          const matchedBrowser = browserFiles.filter((f) => !ql || `${f.title || ''} ${f.filename || ''} pdf textbook`.toLowerCase().includes(ql));
+          totalCount += matchedBrowser.length;
+          if (matchedBrowser.length || !ql) {
+            const addId = reg(() => {
+              expPdfUploadCourseId = courseId;
+              expPdfUpload?.click?.();
+            });
+            parts.push(`
+              <details class="exp-chap-branch" ${matchedBrowser.length ? 'open' : ''}>
+                <summary class="exp-chap-row"><span class="exp-chev" aria-hidden="true"></span><span class="exp-chap-label">Your Local PDFs &amp; Books</span><span class="exp-meta">${matchedBrowser.length}</span></summary>
+                <div class="exp-chap-items">
+                  ${matchedBrowser.map((f) => {
+                    const openId = reg(() => openLocalPdf(f.title || f.filename || 'Local PDF', '', f.key));
+                    const editId = canEditPdf ? reg(() => window.StudyPdfCraft?.openSource?.({ localSourceKey: f.key, courseId, title: f.title || f.filename || 'Local PDF' })) : -1;
+                    return `<div class="exp-task-item">
+                      <button type="button" class="exp-task-open-btn" data-exp-act="${openId}" data-exp-stay="1">
+                        ${fileIcon}
+                        <span class="exp-task-copy"><span class="exp-task-title">${esc(f.filename || f.title)}</span><span class="exp-task-sub">${esc(window.StudyLocalSources.formatBytes(f.size))}</span></span>
+                        <span class="exp-meta">PDF</span>
+                      </button>
+                      ${editId >= 0 ? `<button type="button" class="exp-file-edit-btn" data-exp-act="${editId}" data-exp-stay="1" title="Open in PdfCraft">Edit</button>` : ''}
+                    </div>`;
+                  }).join('')}
+                  ${!ql ? `<button type="button" class="exp-row exp-add-file-btn" data-exp-act="${addId}" data-exp-stay="1">+ Add PDF / Textbook to Browser</button>` : ''}
+                </div>
+              </details>`);
+          }
+        } else {
+          const canvasId = String(cMeta?.canvasId || bankObj?.canvasId || '');
+          const devFiles = ensureDesktopCourseFiles(canvasId);
+          const isLoading = expLocalFilesCache.get(canvasId) === 'loading';
+          const matchedDev = devFiles.filter((f) => !ql || `${f.name || ''} ${f.path || ''} ${f.kind || ''}`.toLowerCase().includes(ql));
+          totalCount += matchedDev.length;
+          if (matchedDev.length || isLoading) {
+            parts.push(`
+              <details class="exp-chap-branch" open>
+                <summary class="exp-chap-row"><span class="exp-chev" aria-hidden="true"></span><span class="exp-chap-label">Course Files on Device</span><span class="exp-meta">${isLoading ? '…' : matchedDev.length}</span></summary>
+                <div class="exp-chap-items">
+                  ${isLoading ? '<p class="muted" style="padding:6px 8px;font-size:11.5px">Loading device files…</p>' : matchedDev.slice(0, 60).map((f) => {
+                    const fileUrl = `/api/canvas-file?path=${encodeURIComponent(f.path)}`;
+                    const ext = String(f.name || '').split('.').pop()?.toUpperCase().slice(0, 5) || 'FILE';
+                    const openId = reg(() => {
+                      if (f.kind === 'pdf') {
+                        openLocalPdf(f.name, fileUrl);
+                      } else {
+                        const a = document.createElement('a');
+                        a.href = fileUrl;
+                        a.download = f.name || '';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                      }
+                    });
+                    return `<div class="exp-task-item">
+                      <button type="button" class="exp-task-open-btn" data-exp-act="${openId}" data-exp-stay="1">
+                        ${fileIcon}
+                        <span class="exp-task-copy"><span class="exp-task-title">${esc(f.name)}</span></span>
+                        <span class="exp-meta">${esc(ext)}</span>
+                      </button>
+                    </div>`;
+                  }).join('')}
+                </div>
+              </details>`);
+          }
+        }
+
+        // 4. Original Course Files (member archive PDFs / slides / exams)
+        const memberDocs = members.course(courseId)?.documents || [];
+        const matchedDocs = memberDocs.filter((doc) => !ql || `${doc.title || ''} ${doc.section || ''}`.toLowerCase().includes(ql));
+        if (matchedDocs.length) {
+          totalCount += matchedDocs.length;
+          const bySec = new Map();
+          for (const doc of matchedDocs) {
+            const sec = doc.section || 'Course Files';
+            if (!bySec.has(sec)) bySec.set(sec, []);
+            bySec.get(sec).push(doc);
+          }
+          for (const [sec, files] of bySec.entries()) {
+            parts.push(`
+              <details class="exp-chap-branch" ${ql ? 'open' : ''}>
+                <summary class="exp-chap-row"><span class="exp-chev" aria-hidden="true"></span><span class="exp-chap-label">${esc(sec)}</span><span class="exp-meta">${files.length}</span></summary>
+                <div class="exp-chap-items">
+                  ${files.map((doc) => {
+                    const isPdf = doc.mime === 'application/pdf';
+                    const editId = canEditPdf && isPdf ? reg(() => window.StudyPdfCraft?.openSource?.({
+                      memberAsset: { id: doc.id, mime: 'application/pdf', title: doc.title },
+                      courseId,
+                      title: doc.title,
+                      pathStr: doc.title,
+                    })) : -1;
+                    return `<div class="exp-task-item">
+                      <button type="button" class="exp-task-open-btn member-file" data-member-download="${esc(doc.id)}" data-member-mime="${esc(doc.mime)}" data-filename="${esc(doc.title)}">
+                        ${fileIcon}
+                        <span class="exp-task-copy"><span class="exp-task-title">${esc(doc.title)}</span></span>
+                        ${isPdf ? '<span class="exp-meta">PDF</span>' : ''}
+                      </button>
+                      ${editId >= 0 ? `<button type="button" class="exp-file-edit-btn" data-exp-act="${editId}" data-exp-stay="1" title="Edit in PdfCraft">Edit</button>` : ''}
+                    </div>`;
+                  }).join('')}
+                </div>
+              </details>`);
+          }
+        }
+
+        return { html: parts.join(''), count: totalCount };
+      };
 
       const runCtx = window.StudyRunner?.getActiveRunContext?.() || null;
       const inSmartRunner = Boolean(runCtx && runCtx.bank?.questions?.length && !runCtx.isBlindExam && runCtx.mode !== 'exam');
@@ -10998,6 +11220,13 @@ window.StudyApp = (() => {
           .sort((a, b) => b.simScore - a.simScore || b.relScore - a.relScore);
         const examCount = scored.filter((e) => e.isExamPrio).length;
         const retryCount = scored.filter((e) => e.isRetry).length;
+        const courseFilesBundle = buildCourseFilesGroupsHtml(
+          runCtx.courseMeta?.courseId || bank.courseId,
+          runCtx.courseMeta,
+          bank,
+          q,
+          { inRunner: true }
+        );
 
         if (expTabsEl) {
           expTabsEl.hidden = false;
@@ -11006,6 +11235,7 @@ window.StudyApp = (() => {
             { id: 'chapters', label: 'Chapters' },
             { id: 'exam', label: `Exam (${examCount})` },
             { id: 'retry', label: retryCount ? `Retry (${retryCount})` : 'Retry' },
+            { id: 'files', label: courseFilesBundle.count ? `Files (${courseFilesBundle.count})` : 'Files' },
           ];
           expTabsEl.innerHTML = tabDefs.map((t) => `
             <button type="button" class="exp-mode-tab ${expRunnerTab === t.id ? 'is-active' : ''}" data-exp-tab="${t.id}" role="tab" aria-selected="${expRunnerTab === t.id}">${esc(t.label)}</button>
@@ -11058,7 +11288,7 @@ window.StudyApp = (() => {
             : '';
 
           return `<div class="${rowCls}">
-            <button type="button" class="exp-task-open-btn" data-exp-act="${openId}">
+            <button type="button" class="exp-task-open-btn" data-exp-act="${openId}" data-exp-stay="1">
               ${statusDot}
               <span class="exp-task-copy">
                 <span class="exp-task-title">${esc(entry.q.title)}</span>
@@ -11114,7 +11344,12 @@ window.StudyApp = (() => {
             <div class="exp-runner-block">
               <div class="exp-subhead"><span>MATCHING EXERCISES</span><span class="exp-meta">${matches.length}</span></div>
               ${renderChapterTree(matches, { forceOpenAll: true })}
+              ${courseFilesBundle.count ? `<div class="exp-subhead" style="margin-top:4px"><span>MATCHING COURSE FILES</span><span class="exp-meta">${courseFilesBundle.count}</span></div>${courseFilesBundle.html}` : ''}
             </div>`;
+        } else if (expRunnerTab === 'files') {
+          runnerTasksHtml = courseFilesBundle.html
+            ? `<div class="exp-runner-block">${courseFilesBundle.html}</div>`
+            : '<div class="exp-runner-block"><p class="muted" style="padding:12px 14px;font-size:12.5px">No course files attached yet.</p></div>';
         } else if (expRunnerTab === 'relevant') {
           const runEntries = runIds.map((id, idx) => ({ entry: scoredById.get(id), idx })).filter((x) => x.entry);
           const curTopicObj = curQ ? topicsById.get(String(curQ.topicId)) : null;
@@ -11168,7 +11403,7 @@ window.StudyApp = (() => {
       const courseBranches = (boot.catalog || []).map((c) => {
         const mLocked = isCourseInMaintenanceForUser(c.courseId);
         const mInfo = getCourseMaintenance(c.courseId);
-        const noteRef = (boot.references || []).find((r) => r.courseId === c.courseId || r.file === c.obsidian?.mainReference);
+        const courseNotes = (boot.references || []).filter((r) => r.courseId === c.courseId || r.file === c.obsidian?.mainReference);
         const subItems = [
           {
             label: 'Practice Questions',
@@ -11184,17 +11419,60 @@ window.StudyApp = (() => {
             hay: `${c.code} ${c.title} ${c.shortTitle} exams mock papers`,
             run: () => { leaveRunnerForExplorer(); navigate('exams', { focusCourseId: c.courseId }); },
           },
-          ...(noteRef ? [{
-            label: 'Course Notes',
+          ...courseNotes.map((noteRef) => ({
+            label: courseNotes.length === 1 ? 'Course Notes' : noteRef.title,
             badge: 'MD',
             active: currentView === 'references' && selectedRefFile === noteRef.file,
             hay: `${c.code} ${c.title} ${noteRef.title} notes reference formula`,
             run: () => { leaveRunnerForExplorer(); navigate('references', { refFile: noteRef.file }); },
-          }] : []),
+          })),
         ].filter((it) => !q || it.hay.toLowerCase().includes(q));
-        if (!subItems.length) return '';
+        const memberDocs = (members.course(c.courseId)?.documents || []).filter((d) => !q || `${c.code} ${c.shortTitle} ${d.title || ''} ${d.section || ''} pdf file`.toLowerCase().includes(q));
+        const browserPdfs = isStaticWeb
+          ? (window.StudyLocalSources?.list?.(c.courseId) || []).filter((f) => !q || `${c.code} ${c.shortTitle} ${f.filename || ''} ${f.title || ''} pdf book`.toLowerCase().includes(q))
+          : [];
+        const deviceFiles = !isStaticWeb
+          ? ensureDesktopCourseFiles(c.canvasId).filter((f) => !q || `${c.code} ${c.shortTitle} ${f.name || ''} pdf file`.toLowerCase().includes(q))
+          : [];
+        const totalCourseFiles = memberDocs.length + browserPdfs.length + deviceFiles.length;
+        if (!subItems.length && !totalCourseFiles) return '';
         const isCurrentCourse = selectedCourseId === c.courseId || runCtx?.courseMeta?.courseId === c.courseId;
         const shouldOpen = Boolean(q || (!inSmartRunner && isCurrentCourse));
+        const filesSubfolder = totalCourseFiles ? `
+          <details class="exp-sub exp-files-sub" ${q ? 'open' : ''}>
+            <summary class="exp-row exp-file-row exp-sub-folder-row">
+              <span class="exp-chev" aria-hidden="true"></span>
+              ${folderIcon}
+              <span class="exp-name">Files &amp; PDFs</span>
+              <span class="exp-meta">${totalCourseFiles}</span>
+            </summary>
+            <div class="exp-sub-files-list">
+              ${browserPdfs.map((f) => {
+                const openId = reg(() => openLocalPdf(f.title || f.filename || 'Local PDF', '', f.key));
+                return `<button type="button" class="exp-row exp-nested-file-row" data-exp-act="${openId}" data-exp-stay="1">${fileIcon}<span class="exp-name">${esc(f.filename || f.title)}</span><span class="exp-meta">PDF</span></button>`;
+              }).join('')}
+              ${deviceFiles.slice(0, 40).map((f) => {
+                const fileUrl = `/api/canvas-file?path=${encodeURIComponent(f.path)}`;
+                const ext = String(f.name || '').split('.').pop()?.toUpperCase().slice(0, 5) || 'FILE';
+                const openId = reg(() => {
+                  if (f.kind === 'pdf') openLocalPdf(f.name, fileUrl);
+                  else {
+                    const a = document.createElement('a');
+                    a.href = fileUrl;
+                    a.download = f.name || '';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                  }
+                });
+                return `<button type="button" class="exp-row exp-nested-file-row" data-exp-act="${openId}" data-exp-stay="1">${fileIcon}<span class="exp-name">${esc(f.name)}</span><span class="exp-meta">${esc(ext)}</span></button>`;
+              }).join('')}
+              ${memberDocs.slice(0, 40).map((doc) => `
+                <button type="button" class="exp-row exp-nested-file-row member-file" data-member-download="${esc(doc.id)}" data-member-mime="${esc(doc.mime)}" data-filename="${esc(doc.title)}">
+                  ${fileIcon}<span class="exp-name">${esc(doc.title)}</span>${doc.mime === 'application/pdf' ? '<span class="exp-meta">PDF</span>' : ''}
+                </button>`).join('')}
+            </div>
+          </details>` : '';
         return `
           <details class="exp-sub" ${shouldOpen ? 'open' : ''}>
             <summary class="exp-row exp-folder-row">
@@ -11205,11 +11483,12 @@ window.StudyApp = (() => {
             </summary>
             <div class="exp-children">
               ${subItems.map((it) => `
-                <button type="button" class="exp-row exp-file-row ${it.active ? 'is-active' : ''}" data-exp-act="${reg(it.run)}">
+                <button type="button" class="exp-row exp-file-row ${it.active ? 'is-active' : ''}" data-exp-act="${reg(it.run)}" data-exp-stay="1">
                   ${fileIcon}
                   <span class="exp-name">${esc(it.label)}</span>
                   ${it.badge ? `<span class="exp-meta">${esc(it.badge)}</span>` : ''}
                 </button>`).join('')}
+              ${filesSubfolder}
             </div>
           </details>`;
       }).filter(Boolean).join('');
@@ -11255,11 +11534,12 @@ window.StudyApp = (() => {
       ].filter(Boolean).join('');
 
       expTree.innerHTML = sections || '<p class="muted" style="padding:14px 12px;font-size:12.5px">No matching items.</p>';
+      members.bindDownloads(expTree);
     };
 
     const openExplorer = (opts = null) => {
       if (!expDrawer) return;
-      if (opts?.tab && ['relevant', 'chapters', 'exam', 'retry'].includes(opts.tab)) {
+      if (opts?.tab && ['relevant', 'chapters', 'exam', 'retry', 'files'].includes(opts.tab)) {
         expRunnerTab = opts.tab;
       }
       if (window.StudyUI?.isReferenceDrawerOpen?.()) window.StudyUI.closeReferenceDrawer();
@@ -11276,8 +11556,15 @@ window.StudyApp = (() => {
     };
 
     const toggleExplorer = (opts = null) => (expOpen ? closeExplorer() : openExplorer(opts));
+    const refreshExplorerIfOpen = () => {
+      if (!expOpen || !expTree) return;
+      const prevTop = expTree.scrollTop;
+      renderExplorerTree(expFilter?.value || '');
+      expTree.scrollTop = prevTop;
+    };
     openSiteExplorerFn = openExplorer;
     toggleSiteExplorerFn = toggleExplorer;
+    refreshSiteExplorerIfOpenFn = refreshExplorerIfOpen;
 
     expBtn?.addEventListener('click', () => toggleExplorer());
     expTabsEl?.addEventListener('click', (ev) => {
@@ -11300,6 +11587,45 @@ window.StudyApp = (() => {
       closeExplorer();
       openPalette();
     });
+    expPdfUpload?.addEventListener('change', async (ev) => {
+      const files = ev.target.files;
+      const targetCid = expPdfUploadCourseId || window.StudyRunner?.getActiveCourseId?.() || selectedCourseId;
+      if (!files?.length || !targetCid || !window.StudyLocalSources) return;
+      const bank = await ensureCourseBank(targetCid).catch(() => null);
+      const res = await window.StudyLocalSources.saveBatch(targetCid, files, bank?.sources || {});
+      ev.target.value = '';
+      if (res.saved.length) {
+        toast(`Saved ${res.saved.length} PDF${res.saved.length === 1 ? '' : 's'} privately in this browser.`);
+        refreshExplorerIfOpen();
+      }
+      if (res.errors.length) toast(res.errors[0]);
+    });
+
+    // VS Code-style drag-to-resize right edge on Explorer sidebar
+    expResizeHandle?.addEventListener('pointerdown', (ev) => {
+      if (window.innerWidth < 1024 || !expDrawer) return;
+      ev.preventDefault();
+      const railW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--runner-rail-width')) || 42;
+      expResizeHandle.classList.add('is-dragging');
+      document.body.style.userSelect = 'none';
+      const onMove = (mEv) => {
+        const nextW = Math.max(240, Math.min(480, Math.round(mEv.clientX - railW)));
+        document.documentElement.style.setProperty('--explorer-w', `${nextW}px`);
+      };
+      const onUp = () => {
+        expResizeHandle.classList.remove('is-dragging');
+        document.body.style.userSelect = '';
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        const curW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--explorer-w'));
+        if (Number.isFinite(curW)) {
+          try { localStorage.setItem(EXP_WIDTH_KEY, String(Math.round(curW))); } catch {}
+        }
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    });
+
     expFilter?.addEventListener('input', () => renderExplorerTree(expFilter.value));
     expTree?.addEventListener('click', (ev) => {
       const qBtn = ev.target?.closest?.('[data-exp-queue]');
@@ -11307,16 +11633,20 @@ window.StudyApp = (() => {
         ev.stopPropagation();
         const qid = qBtn.dataset.expQueue;
         if (qid) {
+          const prevTop = expTree.scrollTop;
           window.StudyRunner?.openExerciseInRun?.(qid, { mode: 'queue' });
           renderExplorerTree(expFilter?.value || '');
+          expTree.scrollTop = prevTop;
         }
         return;
       }
       const btn = ev.target?.closest?.('[data-exp-act]');
       if (!btn) return;
       const fn = expActions[Number(btn.dataset.expAct)];
-      closeExplorer();
+      const keepDockedOpen = btn.dataset.expStay === '1' && window.innerWidth >= 1024;
+      if (!keepDockedOpen) closeExplorer();
       if (typeof fn === 'function') fn();
+      if (keepDockedOpen) refreshExplorerIfOpen();
     });
 
     document.addEventListener('keydown', (ev) => {
@@ -12449,6 +12779,7 @@ window.StudyApp = (() => {
     closeSiteExplorer: () => closeSiteExplorerFn(),
     openSiteExplorer: (opts) => openSiteExplorerFn(opts),
     toggleSiteExplorer: (opts) => toggleSiteExplorerFn(opts),
+    refreshSiteExplorerIfOpen: () => refreshSiteExplorerIfOpenFn(),
     toggleSiteReferenceSidebar,
     renderHome,
     showRawView,

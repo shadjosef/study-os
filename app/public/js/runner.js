@@ -1776,6 +1776,7 @@ window.StudyRunner = (() => {
       window.StudyRooms?.reportCurrentQuestion?.(curQ, activeRun);
     }
     window.scrollTo({ top: 0, behavior: 'instant' });
+    window.StudyApp?.refreshSiteExplorerIfOpen?.();
     if (window.StudyUI.isReferenceDrawerOpen?.()) {
       const q = currentQuestion();
       if (q) {
