@@ -1130,6 +1130,8 @@ window.StudyRunner = (() => {
         flagged: false,
         revealed: false,
         solutionPeeked: false,
+        aiAssisted: false,
+        aiAssistedSource: '',
         earlyPeekConfirmed: false,
         answerTrayOpen: false,
         peekedAnswers: new Set(),
@@ -1203,6 +1205,8 @@ window.StudyRunner = (() => {
         flagged: Boolean(st.flagged),
         revealed: Boolean(st.revealed),
         solutionPeeked: Boolean(st.solutionPeeked),
+        aiAssisted: Boolean(st.aiAssisted),
+        aiAssistedSource: typeof st.aiAssistedSource === 'string' ? st.aiAssistedSource : '',
         earlyPeekConfirmed: Boolean(st.earlyPeekConfirmed),
         answerTrayOpen: Boolean(st.answerTrayOpen),
         peekedAnswers: st.peekedAnswers ? [...st.peekedAnswers] : [],
@@ -1404,6 +1408,8 @@ window.StudyRunner = (() => {
       st.flagged = Boolean(rawSt.flagged);
       st.revealed = Boolean(rawSt.revealed);
       st.solutionPeeked = Boolean(rawSt.solutionPeeked);
+      st.aiAssisted = Boolean(rawSt.aiAssisted);
+      st.aiAssistedSource = typeof rawSt.aiAssistedSource === 'string' ? rawSt.aiAssistedSource : '';
       st.earlyPeekConfirmed = Boolean(rawSt.earlyPeekConfirmed);
       st.answerTrayOpen = Boolean(rawSt.answerTrayOpen);
       st.peekedAnswers = new Set(Array.isArray(rawSt.peekedAnswers) ? rawSt.peekedAnswers : []);
@@ -3498,12 +3504,13 @@ window.StudyRunner = (() => {
 
       let difficultyRateHtml = '';
       if (st.loggedAttempt) {
+        const isAiAssisted = Boolean(st.loggedAttempt.aiAssisted ?? st.aiAssisted);
         const curGrade = Number(
           rec.lastUserGrade || rec.fsrs?.lastGrade || st.loggedAttempt.fsrsGrade || st.loggedAttempt.suggestedFsrsGrade || 3
         );
         const schedDays = rec.fsrs?.scheduledDays;
         const similarCand =
-          activeRun.mode === 'practice' && curGrade <= 2
+          activeRun.mode === 'practice' && (curGrade <= 2 || isAiAssisted)
             ? (activeRun.bank.questions || []).find(
                 (cand) =>
                   cand.available !== false &&
@@ -3522,17 +3529,19 @@ window.StudyRunner = (() => {
                   (window.StudyApp.getProgressRecord(cand.id)?.status || 'not_started') !== 'done'
               )
             : null;
+        const rateStatusCopy = isAiAssisted
+          ? `AI-Assisted · Solo retry queued in ${schedDays || 1}d`
+          : `${rec.lastUserGrade ? 'Difficulty override' : 'Auto-rated from pace & accuracy'}${schedDays ? ` · Next review in ${schedDays}d` : ''}`;
 
         difficultyRateHtml = `
           <div class="difficulty-rate-bar">
-            <small class="muted">
-              ${rec.lastUserGrade ? 'Difficulty override' : 'Auto-rated from pace & accuracy'}${schedDays ? ` · Next review in ${schedDays}d` : ''}
-            </small>
-            <div class="row-actions" style="gap:5px">
-              <button type="button" class="st-btn ${curGrade === 1 ? 'active-revisit' : ''}" data-rate-grade="1" title="Mark Revisit & schedule 1d">Again</button>
-              <button type="button" class="st-btn ${curGrade === 2 ? 'active-in_progress' : ''}" data-rate-grade="2" title="Bump personal difficulty to Hard & shorten interval">Hard</button>
+            <small class="muted">${rateStatusCopy}</small>
+            <div class="row-actions" style="gap:5px;flex-wrap:wrap">
+              <button type="button" class="st-btn ${curGrade === 1 ? 'active-revisit' : ''}" data-rate-grade="1" title="Mark Revisit &amp; schedule 1d">Again</button>
+              <button type="button" class="st-btn ${curGrade === 2 ? 'active-in_progress' : ''}" data-rate-grade="2" title="Bump personal difficulty to Hard &amp; shorten interval">Hard</button>
               <button type="button" class="st-btn ${curGrade === 3 ? 'active-done' : ''}" data-rate-grade="3" title="Standard mastery interval">Good</button>
-              <button type="button" class="st-btn ${curGrade === 4 ? 'active-done' : ''}" data-rate-grade="4" title="Lower personal difficulty & extend interval">Easy</button>
+              <button type="button" class="st-btn ${curGrade === 4 ? 'active-done' : ''}" data-rate-grade="4" title="Lower personal difficulty &amp; extend interval">Easy</button>
+              <button type="button" class="st-btn ${isAiAssisted ? 'active-ai-assisted' : ''}" data-toggle-ai-assisted aria-pressed="${isAiAssisted ? 'true' : 'false'}" title="${isAiAssisted ? 'Marked AI-assisted · Solo retry queued in 1d (click to mark solo)' : 'Used ChatGPT / AI on this task? Marks Revisit and queues a 1d solo retry'}">${isAiAssisted ? 'Used AI ✓' : 'Used AI'}</button>
               ${
                 similarCand
                   ? `<button type="button" class="mini-tool-btn" data-queue-similar="${esc(similarCand.id)}" title="Queue ${esc(
@@ -3789,6 +3798,14 @@ window.StudyRunner = (() => {
       </div>
     `;
 
+    const showAiAssistedBanner = Boolean(st.aiAssisted && !st.revealed && !isBlindUnfinished && activeRun.mode === 'practice');
+    const aiAssistedBannerHtml = `
+      <div id="ai-assisted-banner" class="ai-assisted-banner" ${showAiAssistedBanner ? '' : 'hidden'}>
+        <span><strong>AI-Assisted</strong> · Solo retry will be queued in 1d (study time still counts)</span>
+        <button type="button" class="mini-tool-btn" id="btn-undo-ai-assisted" title="Undo if you copied only for notes">Undo</button>
+      </div>
+    `;
+
     const card = document.getElementById('runner-question-card');
     card.classList.toggle('split-card', isSplit);
     card.classList.toggle('foveal-card', !isSplit);
@@ -3820,6 +3837,7 @@ window.StudyRunner = (() => {
           <div class="runner-pane-right">
             ${statusBarHtml}
             <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
+            ${aiAssistedBannerHtml}
             ${workspaceHtml}
             ${fovealActionBarHtml}
             ${answerTrayHtml}
@@ -3847,6 +3865,7 @@ window.StudyRunner = (() => {
           <div class="runner-pane-right">
             ${statusBarHtml}
             <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
+            ${aiAssistedBannerHtml}
             ${workspaceHtml}
             ${fovealActionBarHtml}
             ${answerTrayHtml}
@@ -3865,6 +3884,7 @@ window.StudyRunner = (() => {
           ${readerBodyHtml}
         </div>
         <div id="stall-nudge-banner" class="hint-box stall-banner" data-study-help hidden></div>
+        ${aiAssistedBannerHtml}
         ${workspaceHtml}
         ${fovealActionBarHtml}
         ${answerTrayHtml}
@@ -4358,13 +4378,46 @@ window.StudyRunner = (() => {
       });
     });
 
-    // Optional 1-tap perceived difficulty override & + Queue Similar
+    // Undo auto-detected AI-Assisted flag before submitting
+    document.getElementById('btn-undo-ai-assisted')?.addEventListener('click', () => {
+      st.aiAssisted = false;
+      st.aiAssistedSource = '';
+      const banner = document.getElementById('ai-assisted-banner');
+      if (banner) banner.hidden = true;
+      persistActiveRun();
+      toast('AI-Assisted cleared — counts as solo.');
+    });
+
+    // Optional 1-tap perceived difficulty override, Used AI toggle & + Queue Similar
     document.querySelectorAll('[data-rate-grade]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const grade = Number(btn.dataset.rateGrade);
         await window.StudyApp.setQuestionDifficulty(q.id, grade);
         const names = { 1: 'Again (Revisit · 1d)', 2: 'Hard', 3: 'Good', 4: 'Easy' };
         toast(`Rated ${names[grade] || grade}`);
+        renderRunner();
+      });
+    });
+
+    document.querySelectorAll('[data-toggle-ai-assisted]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const nextVal = !Boolean(st.loggedAttempt?.aiAssisted ?? st.aiAssisted);
+        st.aiAssisted = nextVal;
+        if (nextVal && !st.aiAssistedSource) st.aiAssistedSource = 'manual';
+        if (!nextVal) st.aiAssistedSource = '';
+        const res = await window.StudyApp.setQuestionAiAssisted?.(q.id, nextVal, st.loggedAttempt?.timestamp || '');
+        if (st.loggedAttempt) {
+          st.loggedAttempt.aiAssisted = nextVal;
+          st.loggedAttempt.assisted = Boolean(nextVal || st.solutionPeeked);
+          if (res?.attempt && typeof res.attempt.beatAi === 'boolean') {
+            st.loggedAttempt.beatAi = res.attempt.beatAi;
+          } else if (nextVal) {
+            st.loggedAttempt.beatAi = false;
+          }
+          activeRun.completedAttempts[q.id] = st.loggedAttempt;
+        }
+        persistActiveRun();
+        toast(nextVal ? 'Marked Used AI — queued for 1d solo retry.' : 'Cleared Used AI — marked solo.');
         renderRunner();
       });
     });
@@ -5535,7 +5588,9 @@ window.StudyRunner = (() => {
       refSec: Math.round(Number(st.refSec || 0)),
       refOpenCount: Number(st.refOpenCount || 0),
       openBookExam: isOpenBookExamCourse(run.courseMeta),
-      assisted: Boolean(st.solutionPeeked),
+      assisted: Boolean(st.solutionPeeked || st.aiAssisted),
+      aiAssisted: Boolean(st.aiAssisted),
+      aiAssistedSource: st.aiAssistedSource || '',
       hintHandicapSec: st.handicapPerHintSec,
       qualityAccuracy,
       focusSwitchCount: st.focusSwitches.length,
@@ -6306,6 +6361,22 @@ window.StudyRunner = (() => {
     });
   }
 
+  function markCurrentQuestionAiAssisted(source = 'manual') {
+    if (!activeRun || activeRun.mode !== 'practice') return false;
+    const view = document.getElementById('view-runner');
+    if (!view || view.hidden) return false;
+    const q = currentQuestion();
+    if (!q) return false;
+    const st = itemState(q.id);
+    if (!st || st.revealed) return false;
+    st.aiAssisted = true;
+    st.aiAssistedSource = String(source || 'manual').slice(0, 32);
+    const banner = document.getElementById('ai-assisted-banner');
+    if (banner) banner.hidden = false;
+    persistActiveRun();
+    return true;
+  }
+
   return {
     getRun,
     getShareSpec: currentRunShareSpec,
@@ -6316,6 +6387,7 @@ window.StudyRunner = (() => {
     getActiveCourseId: () => activeRun?.courseMeta?.courseId || '',
     isInExam: () => Boolean(activeRun && activeRun.mode === 'exam' && !document.getElementById('view-runner')?.hidden),
     isIdeCodingFocusExempt,
+    markCurrentQuestionAiAssisted,
     startRun,
     pauseIfRunning,
     resumePausedRun,

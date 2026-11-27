@@ -136,6 +136,9 @@ window.StudyQuestionCopy = (() => {
     if (copyBtn) copyBtn.onclick = () => {
       const payload = buildCopyPayload(context);
       window.StudyWebTelemetry?.track?.('copy_question', payload.withHiddenSolution ? 'btn_hidden_sol' : 'btn');
+      if (!context.model?.revealed && !context.model?.blind) {
+        window.StudyRunner?.markCurrentQuestionAiAssisted?.('copy');
+      }
       copyAsync(payload.text, payload.withHiddenSolution);
     };
     window.StudyTutor.changed();
@@ -368,6 +371,9 @@ window.StudyQuestionCopy = (() => {
     if (!selectionCoversQuestion(selection, card)) return;
     const { text, withHiddenSolution } = buildCopyPayload(current, { preferSync: true });
     window.StudyWebTelemetry?.track?.('copy_question', withHiddenSolution ? 'page_hidden_sol' : 'page');
+    if (!current.model?.revealed && !current.model?.blind) {
+      window.StudyRunner?.markCurrentQuestionAiAssisted?.('copy');
+    }
     event.preventDefault();
     if (typeof text === 'string' && event.clipboardData) {
       event.clipboardData.setData('text/plain', text);

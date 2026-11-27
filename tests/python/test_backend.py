@@ -1215,6 +1215,88 @@ class TestLocalHttpServer(unittest.TestCase):
                 study_server.main()
             self.assertNotEqual(cm.exception.code, 0)
 
+    def test_ai_assisted_attempt_and_solo_retry_toggle(self) -> None:
+        origin_hdr = {"Content-Type": "application/json", "Origin": f"http://127.0.0.1:{self.port}"}
+
+        # 1. Submitting a 100% attempt with aiAssisted=True keeps status="revisit", beatAi=False, and flags aiAssisted
+        st1, _, raw1 = self._request(
+            "POST", "/api/attempt",
+            body=json.dumps({
+                "courseId": "econ-2522",
+                "questionId": "econ-2522:q2",
+                "topicId": "3",
+                "kind": "calculation",
+                "activeSec": 60,
+                "aiParSec": 120,
+                "qualityAccuracy": 1.0,
+                "aiAssisted": True,
+                "aiAssistedSource": "copy",
+            }).encode(),
+            headers=origin_hdr,
+        )
+        self.assertEqual(st1, 200)
+        d1 = json.loads(raw1)
+        self.assertEqual(d1["record"]["status"], "revisit")
+        self.assertTrue(d1["record"]["aiAssisted"])
+        self.assertEqual(d1["record"]["aiAssistedCount"], 1)
+        self.assertFalse(d1["attempt"]["beatAi"])
+        self.assertTrue(d1["attempt"]["assisted"])
+        self.assertTrue(d1["attempt"]["aiAssisted"])
+        self.assertEqual(d1["attempt"]["fsrsGrade"], 1)
+
+        # 2. Rating Hard (grade=2) while aiAssisted is True MUST keep status="revisit" (not flip to done)
+        st_hard, _, raw_hard = self._request(
+            "POST", "/api/progress/difficulty",
+            body=json.dumps({"questionId": "econ-2522:q2", "fsrsGrade": 2}).encode(),
+            headers=origin_hdr,
+        )
+        self.assertEqual(st_hard, 200)
+        self.assertEqual(json.loads(raw_hard)["record"]["status"], "revisit")
+
+        # 3. Toggling Used AI OFF restores done & clears aiAssisted
+        st_off, _, raw_off = self._request(
+            "POST", "/api/progress/ai-assisted",
+            body=json.dumps({"questionId": "econ-2522:q2", "aiAssisted": False}).encode(),
+            headers=origin_hdr,
+        )
+        self.assertEqual(st_off, 200)
+        d_off = json.loads(raw_off)
+        self.assertFalse(d_off["record"]["aiAssisted"])
+        self.assertEqual(d_off["record"]["status"], "done")
+
+        # 4. Toggling Used AI ON flips back to revisit & aiAssisted=True
+        st_on, _, raw_on = self._request(
+            "POST", "/api/progress/ai-assisted",
+            body=json.dumps({"questionId": "econ-2522:q2", "aiAssisted": True}).encode(),
+            headers=origin_hdr,
+        )
+        self.assertEqual(st_on, 200)
+        d_on = json.loads(raw_on)
+        self.assertTrue(d_on["record"]["aiAssisted"])
+        self.assertEqual(d_on["record"]["status"], "revisit")
+
+        # 5. Clean solo retry later clears aiAssisted and marks done
+        st_solo, _, raw_solo = self._request(
+            "POST", "/api/attempt",
+            body=json.dumps({
+                "courseId": "econ-2522",
+                "questionId": "econ-2522:q2",
+                "topicId": "3",
+                "kind": "calculation",
+                "activeSec": 80,
+                "aiParSec": 120,
+                "qualityAccuracy": 1.0,
+                "aiAssisted": False,
+                "assisted": False,
+            }).encode(),
+            headers=origin_hdr,
+        )
+        self.assertEqual(st_solo, 200)
+        d_solo = json.loads(raw_solo)
+        self.assertFalse(d_solo["record"]["aiAssisted"])
+        self.assertEqual(d_solo["record"]["status"], "done")
+        self.assertTrue(d_solo["attempt"]["beatAi"])
+
 
 # =============================================================================
 # 7. MCP Server (`tools/study_os_mcp.py`) Pure Helpers & Local Bridge Tests

@@ -1371,6 +1371,9 @@ window.StudyAiTutor = (() => {
 
     const attachmentsToSend = [...pendingAttachments];
     window.StudyWebTelemetry?.track?.('feature_use', 'adamlite_ask');
+    if (snap.mode === 'practice') {
+      window.StudyRunner?.markCurrentQuestionAiAssisted?.('adamlite');
+    }
     pendingAttachments = [];
     popoverMode = '';
 

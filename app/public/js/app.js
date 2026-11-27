@@ -6922,6 +6922,7 @@ window.StudyApp = (() => {
             <button type="button" class="preset-chip" data-chip-horizon="10plus" aria-pressed="false">10m+ Horizon</button>
             ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-chip-kind="wiseflow" aria-pressed="false">Worksheets</button>' : ''}
             <button type="button" class="preset-chip exp-priority-chip" id="chip-exam-priority" aria-pressed="true" title="Toggle Exam Priority sorting ON (exams &amp; tutoring first) or OFF (syllabus order)">★ Exam Priority</button>
+            <button type="button" class="preset-chip exp-solo-retry-chip" id="chip-solo-retry" aria-pressed="false" title="Tasks where you used AI, flagged Revisit, or rated Hard/Again — drill these closed-book">Solo Retry</button>
             <button type="button" class="preset-chip" id="chip-group-chapter" aria-pressed="false" title="Group exercises under ${esc(unitCapitalized)} headings (works with Exam Priority ON or OFF)">Group by ${esc(unitCapitalized)}</button>
             <button type="button" class="preset-chip" id="chip-reset-filters">Reset</button>
             <button type="button" class="preset-chip exp-share-chip" id="chip-share-filters" title="Copy a direct link with all active filters applied">Share Link</button>
@@ -6947,6 +6948,7 @@ window.StudyApp = (() => {
             <option value="not_started">Uncomplete (Not started)</option>
             <option value="in_progress">In Progress</option>
             <option value="revisit">Revisit / Mistakes</option>
+            <option value="solo_retry">Needs Solo Retry (AI / Revisit / Hard)</option>
             <option value="due_fsrs">Due FSRS Review</option>
             <option value="done">Done</option>
           </select>
@@ -7203,11 +7205,19 @@ window.StudyApp = (() => {
       status: 'asc',
     };
 
+    const needsSoloRetry = (rec) => {
+      if (!rec) return false;
+      const st = rec.status || 'not_started';
+      const g = Number(rec.lastUserGrade || 0);
+      return st === 'revisit' || Boolean(rec.aiAssisted) || (g > 0 && g <= 2);
+    };
+
     const syncFilterChipUi = () => {
       const oVal = document.getElementById('flt-origin')?.value || 'all';
       const dVal = document.getElementById('flt-diff')?.value || 'all';
       const hVal = document.getElementById('flt-horizon')?.value || 'all';
       const kVal = document.getElementById('flt-kind')?.value || 'all';
+      const sVal = document.getElementById('flt-status')?.value || 'unfinished';
       const sortVal = document.getElementById('flt-sort')?.value || defaultSort;
 
       const realChip = document.getElementById('chip-real-only');
@@ -7221,6 +7231,15 @@ window.StudyApp = (() => {
         const isPrio = sortVal === 'exam_relevance' && !colSort.col;
         prioChip.classList.toggle('active', isPrio);
         prioChip.setAttribute('aria-pressed', String(isPrio));
+      }
+      const soloChip = document.getElementById('chip-solo-retry');
+      if (soloChip) {
+        const soloCount = (bank.questions || []).filter((q) => q.available !== false && needsSoloRetry(getProgressRecord(q.id))).length;
+        const isSoloOn = sVal === 'solo_retry';
+        soloChip.textContent = soloCount ? `Solo Retry (${soloCount})` : 'Solo Retry';
+        soloChip.classList.toggle('active', isSoloOn);
+        soloChip.classList.toggle('has-items', soloCount > 0);
+        soloChip.setAttribute('aria-pressed', String(isSoloOn));
       }
       const grpChip = document.getElementById('chip-group-chapter');
       if (grpChip) {
@@ -7299,6 +7318,9 @@ window.StudyApp = (() => {
       } else if (presetName === 'wiseflow_only') {
         kEl.value = 'wiseflow';
         sortEl.value = 'horizon_desc';
+      } else if (presetName === 'solo_retry') {
+        sEl.value = 'solo_retry';
+        sortEl.value = 'smart_priority';
       } else {
         realTasksOnly = false;
         groupByChapter = false;
@@ -7377,6 +7399,8 @@ window.StudyApp = (() => {
         const st = rec?.status || 'not_started';
         if (sVal === 'unfinished') {
           if (st === 'done') return false;
+        } else if (sVal === 'solo_retry') {
+          if (!needsSoloRetry(rec)) return false;
         } else if (sVal === 'due_fsrs') {
           if (!(rec?.fsrs?.due && rec.fsrs.due <= nowIso)) return false;
         } else if (sVal !== 'all' && st !== sVal) {
@@ -7658,6 +7682,9 @@ window.StudyApp = (() => {
         const priorityPill = relScore >= 88
           ? `<span class="exam-priority-pill" title="High exam relevance: official BI exam, tutoring, lecture slide, or assignment task">★ Exam Priority</span>`
           : '';
+        const aiPill = rec?.aiAssisted
+          ? `<span class="ai-assisted-pill" title="Solved with AI help — retry closed-book to clear">AI-Assisted</span>`
+          : '';
         const tMeta = topicMetaById.get(String(q.topicId));
         const conceptSub = conceptSubtitleFor(q, tMeta);
         const topicShort = tMeta?.shortLabel || `T${q.topicId}`;
@@ -7666,7 +7693,7 @@ window.StudyApp = (() => {
           <td class="exp-col-q">
             <button type="button" class="exp-row-title-btn" data-solo-qid="${esc(q.id)}">${esc(q.title)}</button>
             ${conceptSub ? `<div class="exp-row-concept">${esc(conceptSub)}</div>` : ''}
-            <div class="exp-row-meta">${priorityPill}${provPill}<small class="muted">${esc(q.localId || q.id)}</small></div>
+            <div class="exp-row-meta">${priorityPill}${aiPill}${provPill}<small class="muted">${esc(q.localId || q.id)}</small></div>
           </td>
           <td class="exp-col-topic"><button type="button" class="badge exp-topic-pill" data-pick-topic="${esc(q.topicId)}" title="Filter to ${esc(topicFull)}">${esc(topicShort)}</button></td>
           <td class="exp-col-diff">${diffBadge}</td>
@@ -7734,6 +7761,7 @@ window.StudyApp = (() => {
         btn.addEventListener('click', async (ev) => {
           ev.stopPropagation();
           await setQuestionStatus([btn.dataset.rowQid], btn.dataset.rowSt, false);
+          syncFilterChipUi();
           refreshTable();
         });
       });
@@ -7833,6 +7861,14 @@ window.StudyApp = (() => {
       const currentlyOn = sortEl.value === 'exam_relevance' && !colSort.col;
       colSort = { col: null, dir: null };
       sortEl.value = currentlyOn ? 'chapter_order' : 'exam_relevance';
+      syncFilterChipUi();
+      refreshTable();
+    });
+
+    document.getElementById('chip-solo-retry')?.addEventListener('click', () => {
+      const sEl = document.getElementById('flt-status');
+      if (!sEl) return;
+      sEl.value = sEl.value === 'solo_retry' ? 'unfinished' : 'solo_retry';
       syncFilterChipUi();
       refreshTable();
     });
@@ -10174,6 +10210,7 @@ window.StudyApp = (() => {
     for (const qid of questionIds) {
       const rec = (records[qid] = records[qid] || {});
       rec.status = status;
+      if (status === 'done') rec.aiAssisted = false;
       if (isStaticWeb) rec.updatedAt = updatedAt;
       if (resetWork) {
         const pending = pendingDrafts.get(qid);
@@ -10263,18 +10300,20 @@ window.StudyApp = (() => {
   }
 
   async function logAttempt(payload) {
+    const aiAssisted = Boolean(payload.aiAssisted);
+    const assisted = Boolean(payload.assisted || aiAssisted);
     if (isDevSandbox()) {
       const qAcc = Number(payload.qualityAccuracy || 0);
       const effSec = Number(payload.activeSec || 1) + Number(payload.hintsUsed || 0) * Number(payload.hintHandicapSec || 30);
       const aiSec = Number(payload.aiParSec || 120);
       const closedBookRefUsed = payload.profile === 'exam' && Boolean(payload.refUsed) && !payload.openBookExam;
-      const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !closedBookRefUsed && !payload.assisted && effSec <= aiSec;
+      const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !closedBookRefUsed && !assisted && effSec <= aiSec;
       const autoGraded = isAutoGradedAttempt(payload);
       const maxPr = autoGraded ? 1.5 : 1.0;
       const paceRatio = qAcc < 0.6 ? 0.35 : Math.min(maxPr, aiSec / Math.max(1, effSec));
       const timestamp = new Date().toISOString();
-      const attempt = { ...payload, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio, devMode: true };
-      const record = { status: payload.explicitStatus || (qAcc >= 0.75 ? 'done' : 'revisit'), devMode: true };
+      const attempt = { ...payload, assisted, aiAssisted, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio, devMode: true };
+      const record = { status: payload.explicitStatus || (aiAssisted ? 'revisit' : (qAcc >= 0.75 ? 'done' : 'revisit')), aiAssisted, devMode: true };
       return { ok: true, devMode: true, attempt, record, analytics: boot.analytics };
     }
     if (isStaticWeb) {
@@ -10288,7 +10327,7 @@ window.StudyApp = (() => {
       const effSec = Number(payload.activeSec || 1) + Number(payload.hintsUsed || 0) * Number(payload.hintHandicapSec || 30);
       const aiSec = Number(payload.aiParSec || 120);
       const closedBookRefUsed = payload.profile === 'exam' && Boolean(payload.refUsed) && !payload.openBookExam;
-      const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !closedBookRefUsed && !payload.assisted && effSec <= aiSec;
+      const beatAi = qAcc >= 0.85 && Number(payload.hintsUsed || 0) === 0 && !closedBookRefUsed && !assisted && effSec <= aiSec;
       const autoGraded = isAutoGradedAttempt(payload);
       const maxPr = autoGraded ? 1.5 : 1.0;
       const paceRatio = qAcc < 0.6 ? 0.35 : Math.min(maxPr, aiSec / Math.max(1, effSec));
@@ -10327,17 +10366,25 @@ window.StudyApp = (() => {
       if (Array.isArray(payload.draftImages) && payload.draftImages.length) {
         rec.savedDraftImages = payload.draftImages.slice(0, 8);
       }
-      rec.status = payload.explicitStatus || (qAcc >= 0.75 ? 'done' : 'revisit');
+      if (aiAssisted) {
+        rec.status = payload.explicitStatus || 'revisit';
+        rec.aiAssisted = true;
+        rec.lastAiAssistedAt = timestamp;
+        rec.aiAssistedCount = (rec.aiAssistedCount || 0) + 1;
+      } else {
+        rec.status = payload.explicitStatus || (qAcc >= 0.75 ? 'done' : 'revisit');
+        if (!assisted && qAcc >= 0.75) rec.aiAssisted = false;
+      }
       delete rec.draftActiveSec;
       if (payload.dlpfcTier) rec.dlpfcTier = Number(payload.dlpfcTier);
       rec.updatedAt = timestamp;
       rec.lastAttemptAt = timestamp;
       rec.attemptCount = (rec.attemptCount || 0) + 1;
       if (beatAi) rec.beatAiCount = (rec.beatAiCount || 0) + 1;
-      if (qAcc >= 0.85 && (!rec.pbEffectiveSec || effSec < rec.pbEffectiveSec)) rec.pbEffectiveSec = effSec;
+      if (!aiAssisted && qAcc >= 0.85 && (!rec.pbEffectiveSec || effSec < rec.pbEffectiveSec)) rec.pbEffectiveSec = effSec;
       delete rec.lastUserGrade;
-      rec.fsrs = scheduleAttemptFsrs(rec.fsrs, qAcc, Date.now());
-      const attempt = { ...payload, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio, verificationTier };
+      rec.fsrs = scheduleAttemptFsrs(rec.fsrs, aiAssisted ? Math.min(qAcc, 0.5) : qAcc, Date.now());
+      const attempt = { ...payload, assisted, aiAssisted, timestamp, qualityAccuracy: qAcc, effectiveSec: effSec, beatAi, paceRatio, verificationTier };
       ws.attempts.push(attempt);
       const saved = saveWebState(ws);
       if (saved) {
@@ -10351,7 +10398,7 @@ window.StudyApp = (() => {
       updateHeaderStats();
       return { ok: saved, attempt, record: rec, analytics: boot.analytics };
     }
-    const res = await apiPost('/api/attempt', payload);
+    const res = await apiPost('/api/attempt', { ...payload, assisted, aiAssisted });
     if (res.record) {
       delete res.record.draftActiveSec;
       boot.progress.records[payload.questionId] = res.record;
@@ -10375,7 +10422,7 @@ window.StudyApp = (() => {
       const override = applyDifficultyOverrideFsrs(rec.fsrs, fsrsGrade, rec.status, Date.now());
       rec.lastUserGrade = override.grade;
       rec.personalDifficulty = override.personalDifficulty;
-      rec.status = override.status;
+      rec.status = (rec.aiAssisted && override.grade <= 2) ? 'revisit' : override.status;
       rec.fsrs = override.fsrs;
       rec.updatedAt = new Date().toISOString();
       saveWebState(ws);
@@ -10390,6 +10437,73 @@ window.StudyApp = (() => {
       boot.analytics = res.analytics;
       updateHeaderStats();
     }
+    queueCloudSync();
+    return res;
+  }
+
+  async function setQuestionAiAssisted(questionId, aiAssisted, attemptTimestamp = '') {
+    const flag = Boolean(aiAssisted);
+    if (isDevSandbox()) {
+      return { ok: true, devMode: true, record: { status: flag ? 'revisit' : 'done', aiAssisted: flag }, analytics: boot.analytics };
+    }
+    if (isStaticWeb) {
+      const ws = loadWebState();
+      const rec = (ws.records[questionId] = ws.records[questionId] || {});
+      const wasAi = Boolean(rec.aiAssisted);
+      let att = null;
+      for (let i = ws.attempts.length - 1; i >= 0; i--) {
+        const a = ws.attempts[i];
+        if (!a || a.questionId !== questionId) continue;
+        if (!attemptTimestamp || a.timestamp === attemptTimestamp) {
+          att = a;
+          break;
+        }
+      }
+      const nowIso = new Date().toISOString();
+      rec.aiAssisted = flag;
+      if (att) {
+        att.aiAssisted = flag;
+        att.assisted = Boolean(flag || att.solutionPeeked);
+        if (flag) {
+          att.beatAi = false;
+        } else {
+          const qAcc = Number(att.qualityAccuracy || 0);
+          const effSec = Number(att.effectiveSec || att.activeSec || 1);
+          const aiSec = Number(att.aiParSec || 120);
+          const closedBookRef = att.profile === 'exam' && Boolean(att.refUsed) && !att.openBookExam;
+          att.beatAi = qAcc >= 0.85 && Number(att.hintsUsed || 0) === 0 && !closedBookRef && !att.assisted && effSec <= aiSec;
+        }
+      }
+      if (flag) {
+        rec.status = 'revisit';
+        rec.lastAiAssistedAt = att?.timestamp || nowIso;
+        if (!wasAi) rec.aiAssistedCount = (rec.aiAssistedCount || 0) + 1;
+        rec.fsrs = scheduleAttemptFsrs(rec.fsrs, 0.5, Date.now());
+      } else {
+        if (wasAi && Number(rec.aiAssistedCount || 0) > 0) {
+          rec.aiAssistedCount = Math.max(0, Number(rec.aiAssistedCount) - 1);
+        }
+        const qAcc = Number(att?.qualityAccuracy ?? 1);
+        if (rec.status === 'revisit' && qAcc >= 0.75 && Number(rec.lastUserGrade || 3) >= 2) {
+          rec.status = 'done';
+        }
+        rec.fsrs = scheduleAttemptFsrs(rec.fsrs, qAcc, Date.now());
+      }
+      rec.updatedAt = nowIso;
+      saveWebState(ws);
+      window.StudyCommunity.queueStatsSync();
+      queueCloudSync();
+      recomputeWebAnalytics();
+      updateHeaderStats();
+      return { ok: true, record: rec, attempt: att, analytics: boot.analytics };
+    }
+    const res = await apiPost('/api/progress/ai-assisted', { questionId, aiAssisted: flag, attemptTimestamp });
+    if (res.record) boot.progress.records[questionId] = res.record;
+    if (res.analytics) {
+      boot.analytics = res.analytics;
+      updateHeaderStats();
+    }
+    window.StudyCommunity?.queueStatsSync?.();
     queueCloudSync();
     return res;
   }
@@ -12013,6 +12127,7 @@ window.StudyApp = (() => {
     showRawView,
     setQuestionStatus,
     setQuestionDifficulty,
+    setQuestionAiAssisted,
     saveDraft,
     debouncedSaveDraft,
     flushPendingDrafts,

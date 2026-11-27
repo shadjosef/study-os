@@ -1527,6 +1527,8 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 for qid in qids:
                     rec = recs.setdefault(str(qid), {})
                     rec["status"] = new_status
+                    if new_status == "done":
+                        rec["aiAssisted"] = False
                     rec["updatedAt"] = now_iso
                     if reset_work or new_status == "not_started":
                         if reset_work:
@@ -1583,7 +1585,9 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 self.send_json({"error": "Missing questionId or courseId"}, status=400)
                 return
 
-            assisted = bool(body.get("assisted", False))
+            ai_assisted = bool(body.get("aiAssisted", False))
+            ai_assisted_source = str(body.get("aiAssistedSource") or "")[:32]
+            assisted = bool(body.get("assisted", False) or ai_assisted)
             active_sec = _parse_finite_float(body.get("activeSec"), 1.0, "activeSec")
             ai_par_sec = _parse_finite_float(body.get("aiParSec"), 120.0, "aiParSec")
             hints_used = _parse_finite_int(body.get("hintsUsed"), 0, "hintsUsed")
@@ -1601,7 +1605,8 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 quality_accuracy=quality_accuracy,
                 assisted=assisted,
             )
-            fsrs_grade = _parse_finite_int(body.get("fsrsGrade"), metrics["suggestedFsrsGrade"], "fsrsGrade")
+            default_grade = 1 if ai_assisted else metrics["suggestedFsrsGrade"]
+            fsrs_grade = _parse_finite_int(body.get("fsrsGrade"), default_grade, "fsrsGrade")
             now = datetime.now(OSLO_TZ)
 
             with STATE_LOCK:
@@ -1635,12 +1640,21 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                 explicit_status = body.get("explicitStatus")
                 if explicit_status in ("not_started", "in_progress", "done", "revisit"):
                     rec["status"] = explicit_status
+                elif ai_assisted:
+                    rec["status"] = "revisit"
                 else:
                     rec["status"] = "done" if metrics["qualityAccuracy"] >= 0.75 else "revisit"
 
+                if ai_assisted:
+                    rec["aiAssisted"] = True
+                    rec["lastAiAssistedAt"] = now.isoformat()
+                    rec["aiAssistedCount"] = int(rec.get("aiAssistedCount") or 0) + 1
+                elif not assisted and metrics["qualityAccuracy"] >= 0.75:
+                    rec["aiAssisted"] = False
+
                 if metrics["beatAi"]:
                     rec["beatAiCount"] = int(rec.get("beatAiCount") or 0) + 1
-                if metrics["qualityAccuracy"] >= 0.85:
+                if not ai_assisted and metrics["qualityAccuracy"] >= 0.85:
                     prev_pb = rec.get("pbEffectiveSec")
                     if prev_pb is None or metrics["effectiveSec"] < float(prev_pb):
                         rec["pbEffectiveSec"] = metrics["effectiveSec"]
@@ -1676,6 +1690,8 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                     "profile": str(body.get("profile") or "learning"),
                     "hintsUsed": hints_used,
                     "assisted": assisted,
+                    "aiAssisted": ai_assisted,
+                    "aiAssistedSource": ai_assisted_source,
                     "fsrsGrade": fsrs_grade,
                     "focusSwitchCount": focus_switch_count,
                     "awayElapsedSec": away_elapsed_sec,
@@ -1721,7 +1737,7 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                     rec["lastUserGrade"] = parsed_grade
                     # Map FSRS grade (1=Again, 2=Hard, 3=Good, 4=Easy) -> personalDifficulty (3=Hard, 2=Standard, 1=Easy)
                     rec["personalDifficulty"] = 3 if parsed_grade in (1, 2) else (1 if parsed_grade == 4 else 2)
-                    if parsed_grade == 1:
+                    if parsed_grade == 1 or (rec.get("aiAssisted") and parsed_grade == 2):
                         rec["status"] = "revisit"
                     elif parsed_grade in (3, 4) and rec.get("status") == "revisit":
                         rec["status"] = "done"
@@ -1730,6 +1746,43 @@ class StudyOSHandler(SimpleHTTPRequestHandler):
                         rec.pop("personalDifficulty", None)
                     else:
                         rec["personalDifficulty"] = parsed_pdiff
+                rec["updatedAt"] = now.isoformat()
+                store.save_progress(prog)
+                _, courses_by_id = store.discover_courses()
+                analytics = build_full_analytics(store.root, courses_by_id, prog, data_dir=store.data_dir)
+            self.send_json({"ok": True, "record": rec, "analytics": analytics})
+            return
+
+        if route == "/api/progress/ai-assisted":
+            qid = str(body.get("questionId") or "")
+            if not qid:
+                self.send_json({"error": "Missing questionId"}, status=400)
+                return
+            flag = bool(body.get("aiAssisted", False))
+            now = datetime.now(OSLO_TZ)
+            with STATE_LOCK:
+                prog = store.load_progress()
+                rec = prog.setdefault("records", {}).setdefault(qid, {})
+                was_ai = bool(rec.get("aiAssisted"))
+                rec["aiAssisted"] = flag
+                base_fsrs = rec.get("prevFsrsSnapshot") if "prevFsrsSnapshot" in rec else rec.get("fsrs")
+                last_att = rec.get("lastAttempt") if isinstance(rec.get("lastAttempt"), dict) else {}
+                try:
+                    last_q_acc = float(last_att.get("qualityAccuracy", 1.0))
+                except (TypeError, ValueError):
+                    last_q_acc = 1.0
+                if flag:
+                    rec["status"] = "revisit"
+                    rec["lastAiAssistedAt"] = str(body.get("attemptTimestamp") or now.isoformat())
+                    if not was_ai:
+                        rec["aiAssistedCount"] = int(rec.get("aiAssistedCount") or 0) + 1
+                    rec["fsrs"] = update_fsrs_card(base_fsrs, 1, now)
+                else:
+                    if was_ai and int(rec.get("aiAssistedCount") or 0) > 0:
+                        rec["aiAssistedCount"] = max(0, int(rec.get("aiAssistedCount") or 0) - 1)
+                    if rec.get("status") == "revisit" and last_q_acc >= 0.75 and int(rec.get("lastUserGrade") or 3) >= 2:
+                        rec["status"] = "done"
+                    rec["fsrs"] = update_fsrs_card(base_fsrs, 3 if last_q_acc >= 0.85 else 2, now)
                 rec["updatedAt"] = now.isoformat()
                 store.save_progress(prog)
                 _, courses_by_id = store.discover_courses()
