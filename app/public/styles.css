@@ -1171,6 +1171,12 @@ html[data-theme="dark"] .tag-chip.selected { color: #081310; }
   border-color: color-mix(in srgb, var(--gold) 72%, var(--line));
   background: color-mix(in srgb, var(--gold-soft) 32%, var(--panel));
 }
+.num-check-card {
+  margin-bottom: 10px;
+}
+.num-check-card .wf-num-wrap input {
+  width: 136px;
+}
 .wf-practice-bar {
   padding: 8px 14px;
   background: var(--panel);

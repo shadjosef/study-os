@@ -6543,6 +6543,13 @@ window.StudyApp = (() => {
       : '';
 
     const hasBookItems = (bank.questions || []).some((q) => (q.provenance?.category || q.origin) === 'book' || q.origin === 'textbook');
+    const topicTitlesAll = (bank.topics || []).map((t) => String(t.title || ''));
+    const unitSingular = topicTitlesAll.some((s) => /^(?:Chapter|Ch\.?)\s*\d+/i.test(s))
+      ? 'chapter'
+      : topicTitlesAll.some((s) => /^Lesson\s*\d+/i.test(s))
+        ? 'lesson'
+        : 'topic';
+    const unitCapitalized = unitSingular.charAt(0).toUpperCase() + unitSingular.slice(1);
 
     root.innerHTML = `
       <div class="panel">
@@ -6613,8 +6620,8 @@ window.StudyApp = (() => {
             <button type="button" class="preset-chip" data-chip-diff="1" data-layout-tier="1" aria-pressed="false">${window.StudyLayout.label(1)}</button>
             <button type="button" class="preset-chip" data-chip-horizon="10plus" aria-pressed="false">10m+ Horizon</button>
             ${cMeta.flowmultiCount ? '<button type="button" class="preset-chip" data-chip-kind="wiseflow" aria-pressed="false">Worksheets</button>' : ''}
-            <button type="button" class="preset-chip exp-priority-chip" id="chip-exam-priority" aria-pressed="true" title="Toggle Exam Priority sorting ON (exams &amp; tutoring first) or OFF (chapter syllabus order)">★ Exam Priority</button>
-            <button type="button" class="preset-chip" id="chip-group-chapter" aria-pressed="false" title="Group exercises under Chapter / Topic headings (works with Exam Priority ON or OFF)">Group by Chapter</button>
+            <button type="button" class="preset-chip exp-priority-chip" id="chip-exam-priority" aria-pressed="true" title="Toggle Exam Priority sorting ON (exams &amp; tutoring first) or OFF (syllabus order)">★ Exam Priority</button>
+            <button type="button" class="preset-chip" id="chip-group-chapter" aria-pressed="false" title="Group exercises under ${esc(unitCapitalized)} headings (works with Exam Priority ON or OFF)">Group by ${esc(unitCapitalized)}</button>
             <button type="button" class="preset-chip" id="chip-reset-filters">Reset</button>
             <button type="button" class="preset-chip exp-share-chip" id="chip-share-filters" title="Copy a direct link with all active filters applied">Share Link</button>
           </div>
@@ -6629,7 +6636,7 @@ window.StudyApp = (() => {
             <option value="exercise_tutoring">BI Exercises &amp; Tutoring</option>
             <option value="tutoring">Tutoring Sessions Only</option>
             <option value="lecture_reading">Lectures &amp; Readings</option>
-            <option value="book">Book Exercises (BYOB)</option>
+            ${hasBookItems ? '<option value="book">Book Exercises (BYOB)</option>' : ''}
             <option value="ai_only">Al Mocks &amp; Synthetics</option>
           </select>
           <select id="flt-topic" aria-label="Topic or chapter" style="min-width:160px;flex:1">${topicOptions}</select>
@@ -6688,7 +6695,7 @@ window.StudyApp = (() => {
             <label class="field-label">Sort Tasks By
               <select id="flt-sort">
                 <option value="exam_relevance" ${defaultSort === 'exam_relevance' ? 'selected' : ''}>Exam Priority (BI Exam · Tutoring · Slides)</option>
-                <option value="chapter_order">Chapter / Syllabus Order (Ch 1 → End)</option>
+                <option value="chapter_order">${esc(unitCapitalized)} / Syllabus Order (1 → End)</option>
                 <option value="deep_first" ${defaultSort === 'deep_first' ? 'selected' : ''}>Hard First (Interleaved)</option>
                 <option value="horizon_desc">Longest Horizon First (Al Par ↓)</option>
                 <option value="diff_desc">Difficulty: hard first</option>
@@ -6758,6 +6765,16 @@ window.StudyApp = (() => {
     let colSort = { col: null, dir: null };
     let groupByChapter = false;
 
+    const trimLabelWords = (str, maxLen = 24) => {
+      const s = String(str || '').replace(/\s+/g, ' ').trim();
+      if (s.length <= maxLen) return s;
+      const cut = s.slice(0, maxLen - 1);
+      const lastSpace = cut.lastIndexOf(' ');
+      const base = (lastSpace >= Math.floor(maxLen * 0.55) ? cut.slice(0, lastSpace) : cut)
+        .replace(/[,;&–—:/\-\s]+$/, '');
+      return `${base || cut.trimEnd()}…`;
+    };
+
     const topicMetaById = new Map();
     (bank.topics || []).forEach((t, idx) => {
       const idStr = String(t.id);
@@ -6770,35 +6787,108 @@ window.StudyApp = (() => {
         conceptOnly = chMatch[2].trim();
         const paren = conceptOnly.match(/\(([^)]{3,26})\)/);
         const core = paren ? paren[1].trim() : conceptOnly.replace(/^Measuring\s*&\s*Reporting\s+/i, '').trim();
-        shortLabel = `Ch ${chMatch[1]} · ${core.length > 22 ? core.slice(0, 21).trimEnd() + '…' : core}`;
+        shortLabel = `Ch ${chMatch[1]} · ${trimLabelWords(core, 24)}`;
       } else if (lesMatch) {
         conceptOnly = lesMatch[2].trim();
-        shortLabel = `L${lesMatch[1]} · ${conceptOnly.length > 22 ? conceptOnly.slice(0, 21).trimEnd() + '…' : conceptOnly}`;
+        shortLabel = `L${lesMatch[1]} · ${trimLabelWords(conceptOnly, 24)}`;
       } else if (/^DEB$/i.test(idStr)) {
         conceptOnly = fullTitle;
         shortLabel = 'DEB · Bookkeeping';
       } else {
         const clean = fullTitle.replace(/^\d+\.\s*/, '').trim();
         conceptOnly = clean;
-        shortLabel = `T${idStr} · ${clean.length > 20 ? clean.slice(0, 19).trimEnd() + '…' : clean}`;
+        shortLabel = `T${idStr} · ${trimLabelWords(clean, 24)}`;
       }
       topicMetaById.set(idStr, { id: idStr, fullTitle, shortLabel, conceptOnly, order: idx });
     });
 
-    const conceptSubtitleFor = (q, topicMeta) => {
-      const rawHeading = String(q.obsidianLink?.heading || '').trim();
-      const cleaned = rawHeading
-        .replace(/\$([^$]+)\$/g, '$1')
+    const NOISE_TAG_RE = /^(?:mcq|calculation|written|coding|exam|tutoring|exercise|synthetic|short|case|vignette|reading|lecture|home|diagnostics|debugging|official|sample-exam|topic-\d+|lesson-\d+|tut-[\w-]+|exam-[\w-]+|paper-[\w-]+|multchoice-[\w-]+|mc-[\w-]+|wiseflow-mock-[\w-]+|nov19-mock-[\w-]+|mock-exam-[\w-]+|foundation-\d+|book-ch\d+|pandas-viz-[\w-]+|e\d{2}[fs]|t\d+[a-z]?|l\d+|deb)$/i;
+    const formatConceptTag = (tag) => {
+      const clean = String(tag || '').trim().replace(/[-_]+/g, ' ');
+      if (!clean) return '';
+      if (/^(npv|irr|cvp|abc|mrs|mrt|cpi|gdp|ws|ps|sfp|roi|arr|ebit|wacc|capm|ols|api|sql|csv)$/i.test(clean)) {
+        return clean.toUpperCase();
+      }
+      return clean.charAt(0).toUpperCase() + clean.slice(1);
+    };
+
+    const extractPromptSnippet = (q) => {
+      const raw = String(q.promptMarkdown || '').trim();
+      if (!raw) return '';
+      const firstLine = raw
+        .replace(/```[\s\S]*?```/g, ' ')
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+        .split('\n')
+        .map((l) => l.replace(/^#+\s*/, '').replace(/^[-*•]\s*/, '').trim())
+        .find((l) => l.length >= 16 && !/^(?:question\s*\d+|part\s*\d+|problem\s*\d+|task\s*\d+|statement\s*\d+)\s*[:.]?$/i.test(l));
+      if (!firstLine) return '';
+      const cleaned = firstLine
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
         .replace(/`([^`]+)`/g, '$1')
-        .replace(/^\d+\.\s*Lesson\s+\d+\s*[:·—-]\s*/i, '')
+        .replace(/\$\$?([^$]+)\$\$?/g, '$1')
+        .replace(/\\[,;!]/g, ' ')
+        .replace(/\\[a-zA-Z]+/g, '')
+        .replace(/[{}]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
-      const isGeneric = !cleaned || /^worked example from the tutoring material$/i.test(cleaned);
-      const candidate = isGeneric ? (topicMeta?.conceptOnly || '') : cleaned;
+      if (cleaned.length < 14) return '';
+      return trimLabelWords(cleaned, 92);
+    };
+
+    const conceptSubtitleFor = (q, topicMeta) => {
+      const norm = (s) => String(s || '')
+        .replace(/^\d+(?:\.\d+)?\.?\s*/, '')
+        .replace(/^(?:lesson|topic|chapter|ch\.?)\s+\d+\s*[:·—-]\s*/i, '')
+        .toLowerCase()
+        .replace(/&/g, ' ')
+        .replace(/\band\b/g, ' ')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+      const rawHeading = String(q.obsidianLink?.heading || '').trim();
+      const cleanedHeading = rawHeading
+        .replace(/\$([^$]+)\$/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/^\d+\.\s*(?:Lesson|Topic)\s+\d+\s*[:·—-]\s*/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const strippedHeading = cleanedHeading.replace(/^\d+(?:\.\d+)?\.?\s*/, '').trim();
+      const isGenericHeading = !strippedHeading || /^worked example from the tutoring material$/i.test(strippedHeading);
+      const headingMatchesTopic = Boolean(
+        !isGenericHeading
+        && topicMeta?.conceptOnly
+        && norm(cleanedHeading) === norm(topicMeta.conceptOnly)
+      );
+
+      // Prefer specific concept tags when the heading merely repeats the chapter/topic pill
+      const conceptTags = (Array.isArray(q.tags) ? q.tags : [])
+        .filter((t) => t && !NOISE_TAG_RE.test(String(t)) && String(t) !== String(q.collectionId || ''))
+        .map(formatConceptTag)
+        .filter(Boolean);
+
+      const normTitle = norm(q.title || '');
+      if (headingMatchesTopic || isGenericHeading) {
+        const distinctTags = conceptTags.filter((t) => {
+          const nt = norm(t);
+          return nt.length >= 2 && !normTitle.includes(nt);
+        });
+        if (distinctTags.length) {
+          return distinctTags.slice(0, 3).join(' · ');
+        }
+        const isCrypticTitle = /^(?:Sample Exam|Lesson\s*\d+|Wiseflow Mock|Autumn\s*20\d\d|Spring\s*20\d\d|Lecture\s*\d|Tutoring\s*\d|Midterm|Exam\s*20\d\d|[A-Z]\d+(?:\.\d+)?\b)/i.test(String(q.title || '').trim())
+          && String(q.title || '').trim().length <= 44;
+        if (isCrypticTitle) {
+          const snip = extractPromptSnippet(q);
+          if (snip && !normTitle.includes(norm(snip).slice(0, 20))) return snip;
+        }
+      }
+
+      const candidate = isGenericHeading ? (topicMeta?.conceptOnly || '') : cleanedHeading;
       if (!candidate) return '';
-      const normTitle = String(q.title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ');
-      const normCand = candidate.replace(/^\d+(?:\.\d+)?\s+/, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      const normCand = norm(candidate);
       if (normCand.length >= 6 && normTitle.includes(normCand)) return '';
+      // Avoid repeating exact topic pill text when we have no richer subtitle
+      if (headingMatchesTopic && topicMeta?.shortLabel) return '';
       return candidate;
     };
 
@@ -7187,6 +7277,7 @@ window.StudyApp = (() => {
       if (sVal !== 'unfinished') sp.set('status', sVal);
       const sortVal = document.getElementById('flt-sort')?.value || defaultSort;
       if (includeDefaultSort || sortVal !== defaultSort) sp.set('sort', sortVal);
+      if (groupByChapter) sp.set('group', '1');
       const bVal = document.getElementById('flt-budget')?.value || 'budget:50';
       if (bVal !== 'budget:50') sp.set('budget', bVal);
       const pVal = document.getElementById('flt-profile')?.value || 'learning';
@@ -7281,7 +7372,7 @@ window.StudyApp = (() => {
                 <strong>${esc(headTitle)}</strong>
                 <span class="exp-chapter-group-right">
                   <span class="muted">${qs.length} exercise${qs.length === 1 ? '' : 's'}${doneCnt ? ` · ${doneCnt} done` : ''}</span>
-                  <button type="button" class="mini-tool-btn" data-pick-topic="${esc(tid)}">Focus chapter →</button>
+                  <button type="button" class="mini-tool-btn" data-pick-topic="${esc(tid)}">Focus ${esc(unitSingular)} →</button>
                 </span>
               </div>
             </td>
@@ -7578,6 +7669,7 @@ window.StudyApp = (() => {
       setSelectIfValid('flt-horizon', initialFilters.horizon);
       setSelectIfValid('flt-status', initialFilters.status);
       setSelectIfValid('flt-sort', initialFilters.sort);
+      if (initialFilters.group) groupByChapter = true;
       setSelectIfValid('flt-budget', initialFilters.budget);
       setSelectIfValid('flt-profile', initialFilters.profile);
       if (initialFilters.q) {
@@ -10759,6 +10851,7 @@ window.StudyApp = (() => {
             horizon: (params.get('horizon') || '').trim(),
             status: (params.get('status') || '').trim(),
             sort: (params.get('sort') || '').trim(),
+            group: params.get('group') === '1' || params.get('group') === 'true',
             budget: (params.get('budget') || '').trim(),
             profile: (params.get('profile') || '').trim(),
             q: (params.get('q') || params.get('search') || '').trim(),

@@ -553,7 +553,7 @@ window.StudyRunner = (() => {
         refreshAnswerTrayInPlace(q, st);
       }
     }
-    toast(enabled ? 'Math par auto-reveal ON (final answers only, zero penalty)' : 'Math par auto-reveal OFF');
+    toast(enabled ? 'Par auto-reveal ON (final answers only, zero penalty)' : 'Par auto-reveal OFF');
   }
 
   // ---------------------------------------------------------------------------
@@ -585,9 +585,13 @@ window.StudyRunner = (() => {
     return s;
   }
 
-  function extractResultFromSegment(segment) {
-    const raw = String(segment || '').trim();
+  function extractResultFromSegment(segment, { writtenMode = false } = {}) {
+    let raw = String(segment || '').replace(/```[\s\S]*?```/g, '').trim();
     if (!raw) return '';
+    if (writtenMode) {
+      // Unwrap hard PDF line-wraps inside paragraphs so sentences/markers never clip mid-phrase
+      raw = raw.replace(/([^\n.!?:])\n(?!\n|[-*•#]|\(?[a-h]\)|[1-9][.)]|\*\*)/gi, '$1 ');
+    }
 
     // Special case: polynomial division equation followed by "with remainder **$R$**"
     const remMatch = raw.match(/(?:\$\$|\$)[^$\n]*?=\s*([^$\n]+?)(?:\$\$|\$)[\s,]*with\s+remainder\s+(?:\*\*)?\$?([^$\n*]+?)\$?(?:\*\*)?/i);
@@ -597,15 +601,31 @@ window.StudyRunner = (() => {
       if (rhs) return `$${rhs}$ (rem $${rem || '0'}$)`;
     }
 
-    // Check explicit "Answer:" / "Final answer:" / "Conclusion:" / "⇒" / "∴" markers
+    // Check explicit labeled markers (require explicit colon/dash after answer/result/solution so prose isn't clipped mid-sentence)
     const lines = raw.split('\n').map((l) => l.trim()).filter(Boolean);
     for (let i = lines.length - 1; i >= 0; i--) {
       const ln = lines[i];
-      const explicit = ln.match(/(?:^|\b)(?:final\s+answer|answer|result|solution|therefore|thus|hence|conclude)\s*[:\-–—]?\s*(.+)$/i);
-      if (explicit && explicit[1].trim().length >= 1 && explicit[1].trim().length <= 180) {
+      const explicit = ln.match(/^(?:[-*•]\s*)?(?:\*\*)?(?:final\s+answer|suggested\s+answer|correct\s+answer|key\s+point|answer|result|solution|conclusion)(?:\*\*)?\s*[:–—-]\s*(.+)$/i)
+        || ln.match(/(?:^|\b)(?:therefore|thus|hence)\s*[,:]\s*(.+)$/i);
+      if (explicit && explicit[1].trim().length >= 1 && explicit[1].trim().length <= 210) {
         const val = cleanConciseAnswer(explicit[1]);
         if (val) return val;
       }
+    }
+
+    if (writtenMode) {
+      // For written essays/explanations, keep complete concise sentences rather than tearing out a 3-word bold phrase
+      const prose = raw.replace(/\s+/g, ' ').trim();
+      const sentences = prose.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+      const boldSentence = [...sentences].reverse().find((s) => /\*\*[^*]+\*\*/.test(s) && s.length <= 220);
+      if (boldSentence) {
+        const cleaned = cleanConciseAnswer(boldSentence);
+        if (cleaned) return cleaned;
+      }
+      const bestLine = lines.find((l) => l.length >= 16 && !/^#+\s/.test(l)) || sentences[0] || prose;
+      const compactW = cleanConciseAnswer(bestLine);
+      if (!compactW) return '';
+      return compactW.length <= 210 ? compactW : `${compactW.slice(0, 207).replace(/\s+\S*$/, '')}…`;
     }
 
     // Look for bolded final values (**$...$** or **...**) preferring the last one
@@ -664,10 +684,26 @@ window.StudyRunner = (() => {
     if (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0) return [];
     if (q._cachedFinalAnswers) return q._cachedFinalAnswers;
 
-    const sol = String(q.solutionMarkdown || '').trim();
-    const parts = [];
+    // Coding tasks: expose concise rubric checkpoints (never raw closing ``` code fences)
+    if (q.kind === 'coding') {
+      const checks = Array.isArray(q.rubricChecks) ? q.rubricChecks.filter((c) => String(c || '').trim()) : [];
+      const parts = checks.map((txt, idx) => {
+        const s = String(txt).trim();
+        const pref = s.match(/^\(([a-z0-9.–-]+)\)\s+([\s\S]+)$/i);
+        return pref
+          ? { label: `(${pref[1]})`, md: pref[2].trim() }
+          : { label: `Check ${idx + 1}`, md: s };
+      });
+      q._cachedFinalAnswers = parts;
+      return parts;
+    }
 
-    if (sol) {
+    const sol = String(q.solutionMarkdown || '').trim();
+    const isPlaceholderSol = /^Compare every step of your working/i.test(sol);
+    const parts = [];
+    const writtenMode = q.kind === 'written';
+
+    if (sol && !isPlaceholderSol) {
       // Mask $$...$$ blocks so line splitting never splits inside multi-line LaTeX
       const displayBlocks = [];
       const masked = sol.replace(/\$\$[\s\S]*?\$\$/g, (m) => {
@@ -677,9 +713,9 @@ window.StudyRunner = (() => {
       });
       const unmask = (txt) => txt.replace(/@@DISP_(\d+)@@/g, (_, idx) => displayBlocks[Number(idx)] || '');
 
-      // Detect subparts like: "**a)** ...", "- **a)** ...", "a) ...", "(a) ...", "**i)** ...", "### a) ...", "1) ..."
+      // Detect subparts like: "**a)** ...", "- **a)** ...", "a) ...", "(a) ...", "**i)** ...", "### a) ...", "1) ...", "1. ..."
       const lines = masked.split('\n');
-      const partStartRe = /^(?:[-*•]\s*|#{1,4}\s*)?(?:\*\*)?(\(?[a-h]\)|\(?(?:i|ii|iii|iv|v|vi)\)|Part\s+[a-z0-9]+|[1-9]\))(?:\*\*)?[:.\s]+(.*)$/i;
+      const partStartRe = /^(?:[-*•]\s*|#{1,4}\s*)?(?:\*\*)?(\(?[a-h]\)|\(?(?:i|ii|iii|iv|v|vi)\)|Part\s+[a-z0-9]+|[1-9][.)])(?:\*\*)?[:.\s]+(.*)$/i;
       const grouped = [];
       let cur = null;
 
@@ -688,7 +724,7 @@ window.StudyRunner = (() => {
         const m = trimmed.match(partStartRe);
         if (m) {
           if (cur) grouped.push(cur);
-          const rawLbl = m[1].replace(/^\(/, '').replace(/\)$/, '');
+          const rawLbl = m[1].replace(/^\(/, '').replace(/[.)]$/, '');
           const lbl = /^part\s/i.test(rawLbl) ? rawLbl : `${rawLbl})`;
           cur = { label: lbl, lines: [m[2] || ''] };
         } else if (cur) {
@@ -699,13 +735,13 @@ window.StudyRunner = (() => {
 
       if (grouped.length >= 2) {
         for (const g of grouped) {
-          const val = extractResultFromSegment(unmask(g.lines.join('\n')));
+          const val = extractResultFromSegment(unmask(g.lines.join('\n')), { writtenMode });
           if (val) parts.push({ label: g.label, md: val });
         }
       }
 
       if (!parts.length) {
-        const single = extractResultFromSegment(sol);
+        const single = extractResultFromSegment(sol, { writtenMode });
         if (single) parts.push({ label: 'Answer', md: single });
       }
     }
@@ -721,14 +757,15 @@ window.StudyRunner = (() => {
 
   function isMathParAutoActiveFor(q, isBlindUnfinished) {
     if (!activeRun || !q || isBlindUnfinished) return false;
-    return activeRun.courseMeta?.courseId === 'math-2588'
-      && activeRun.mode === 'practice'
-      && isMathParAutoRevealEnabled();
+    if (q.kind === 'coding' || q.kind === 'mcq') return false;
+    if (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length > 0) return false;
+    return activeRun.mode === 'practice' && isMathParAutoRevealEnabled();
   }
 
   function renderAnswerTrayInnerHtml(q, st, isBlindUnfinished) {
     const answers = extractFinalAnswers(q);
     if (!answers.length || isBlindUnfinished || st.revealed) return '';
+    const isCoding = q.kind === 'coding';
     const autoOn = isMathParAutoActiveFor(q, isBlindUnfinished);
     const total = answers.length;
     const isShown = (idx) =>
@@ -756,8 +793,8 @@ window.StudyRunner = (() => {
     return `
       <div class="ans-tray-head">
         <div class="ans-tray-title">
-          <strong>Final answers</strong>
-          <small>No steps · zero penalty</small>
+          <strong>${isCoding ? 'Key checkpoints' : 'Final answers'}</strong>
+          <small>${isCoding ? 'No full code · zero penalty' : 'No steps · zero penalty'}</small>
           ${paceNote}
         </div>
         <div class="ans-tray-actions">
@@ -770,11 +807,11 @@ window.StudyRunner = (() => {
         ${answers.map((part, idx) => {
           const visible = isShown(idx);
           const isAuto = Boolean(autoOn && st.autoRevealedAnswers?.has(idx) && !st.peekedAnswers?.has(idx));
-          return `<button type="button" class="ans-chip ${visible ? 'is-revealed' : 'is-hidden'} ${isAuto ? 'is-auto' : ''}" data-ans-idx="${idx}" aria-pressed="${visible ? 'true' : 'false'}" title="${visible ? 'Click to hide' : 'Reveal final answer only (zero penalty)'}">
+          return `<button type="button" class="ans-chip ${visible ? 'is-revealed' : 'is-hidden'} ${isAuto ? 'is-auto' : ''}" data-ans-idx="${idx}" aria-pressed="${visible ? 'true' : 'false'}" title="${visible ? 'Click to hide' : (isCoding ? 'Reveal checkpoint (no full code, zero penalty)' : 'Reveal final answer only (zero penalty)')}">
             <span class="ans-chip-lbl">${esc(part.label)}</span>
             ${visible
               ? `<span class="ans-chip-val">${renderMarkdownWithMath(part.md)}</span>`
-              : `<span class="ans-chip-mask">Reveal answer</span>`}
+              : `<span class="ans-chip-mask">${isCoding ? 'Reveal checkpoint' : 'Reveal answer'}</span>`}
           </button>`;
         }).join('')}
       </div>
@@ -796,6 +833,8 @@ window.StudyRunner = (() => {
       return;
     }
 
+    const isCoding = q.kind === 'coding';
+    const trayLbl = isCoding ? 'Checkpoints' : 'Answers';
     const autoOn = isMathParAutoActiveFor(q, isBlindUnfinished);
     const shownCount = answers.reduce((n, _, idx) => {
       const vis = (st.peekedAnswers?.has(idx) || (autoOn && st.autoRevealedAnswers?.has(idx))) && !st.hiddenAnswers?.has(idx);
@@ -806,7 +845,7 @@ window.StudyRunner = (() => {
       toggleBtn.hidden = false;
       toggleBtn.classList.toggle('active', Boolean(st.answerTrayOpen));
       toggleBtn.setAttribute('aria-expanded', st.answerTrayOpen ? 'true' : 'false');
-      toggleBtn.textContent = shownCount > 0 ? `Answers (${shownCount}/${answers.length})` : 'Answers';
+      toggleBtn.textContent = shownCount > 0 ? `${trayLbl} (${shownCount}/${answers.length})` : trayLbl;
     }
 
     tray.hidden = !st.answerTrayOpen;
@@ -1046,6 +1085,7 @@ window.StudyRunner = (() => {
         wfGrade: null,
         wfLiveChecks: {},
         numericInput: '',
+        numLiveCheck: null,
         checkedRubrics: resumeStructured ? [...restoredRubrics] : [],
         flagged: false,
         revealed: false,
@@ -1118,6 +1158,7 @@ window.StudyRunner = (() => {
         wfGrade: st.wfGrade || null,
         wfLiveChecks: st.wfLiveChecks && typeof st.wfLiveChecks === 'object' ? st.wfLiveChecks : {},
         numericInput: typeof st.numericInput === 'string' ? st.numericInput : '',
+        numLiveCheck: st.numLiveCheck || null,
         checkedRubrics: Array.isArray(st.checkedRubrics) ? st.checkedRubrics : [],
         flagged: Boolean(st.flagged),
         revealed: Boolean(st.revealed),
@@ -1316,6 +1357,7 @@ window.StudyRunner = (() => {
         st.wfLiveChecks = { ...rawSt.wfLiveChecks };
       }
       if (typeof rawSt.numericInput === 'string' && rawSt.numericInput) st.numericInput = rawSt.numericInput;
+      if (rawSt.numLiveCheck && typeof rawSt.numLiveCheck === 'object') st.numLiveCheck = { ...rawSt.numLiveCheck };
       if (Array.isArray(rawSt.checkedRubrics) && rawSt.checkedRubrics.length) st.checkedRubrics = rawSt.checkedRubrics;
       st.flagged = Boolean(rawSt.flagged);
       st.revealed = Boolean(rawSt.revealed);
@@ -2336,7 +2378,7 @@ window.StudyRunner = (() => {
       ) {
         return 'scale1000';
       }
-      if (String(f.unit || '').trim() === '%' && Math.abs(userVal * 100 - t) <= band + 1e-9) {
+      if (String(f.unit || '').trim().startsWith('%') && Math.abs(userVal * 100 - t) <= band + 1e-9) {
         return 'percent';
       }
     }
@@ -3251,11 +3293,44 @@ window.StudyRunner = (() => {
         q.kind === 'calculation'
           ? 'Write your setup equation, intermediate steps, and final numerical result here (or solve on paper and record key numbers)...'
           : 'Write your structured response here before revealing the official guidance...';
+      const canLiveNumCheck = Boolean(q.numericCheck && activeRun.mode === 'practice' && !isBlindUnfinished && !st.revealed);
+      const numFieldSpec = q.numericCheck
+        ? {
+            id: '_numeric_check',
+            type: 'number',
+            expected: Number(q.numericCheck.expected),
+            absTol: Number(q.numericCheck.tolerance || 0.02),
+            relTol: Number(q.numericCheck.tolerance || 0.02),
+            unit: q.numericCheck.unit || '',
+          }
+        : null;
+      const numLive = canLiveNumCheck ? st.numLiveCheck : null;
+      const numRowCls = [
+        'wf-row',
+        'num-check-card',
+        numLive?.status === 'pass'
+          ? (numLive.peeked ? 'wf-live-peek' : 'wf-live-pass')
+          : numLive?.status === 'peek'
+            ? 'wf-live-peek'
+            : numLive?.status === 'try'
+              ? 'wf-live-try'
+              : '',
+      ].filter(Boolean).join(' ');
+      const numLiveFbHtml = numLive && numFieldSpec ? renderWfLiveFeedbackHtml(numFieldSpec, numLive) : '';
+      const numHasVal = String(st.numericInput || '').trim() !== '';
       const numCheckHtml = q.numericCheck
-        ? `<div class="row-actions" style="margin-bottom:10px">
-            <label style="font-size:13px;font-weight:600">Numeric Answer (${esc(q.numericCheck.unit || 'value')}):
-              <input type="text" id="inp-numeric-ans" value="${esc(st.numericInput)}" placeholder="Enter number" style="width:140px;margin-left:6px">
-            </label>
+        ? `<div class="${numRowCls}" id="num-check-card">
+            <div class="wf-label-col">
+              <strong>Numeric Check${q.numericCheck.unit ? ` <span class="muted">(${esc(q.numericCheck.unit)})</span>` : ''}</strong>
+              ${canLiveNumCheck ? '<small class="muted">Verify your number without revealing the solution</small>' : ''}
+            </div>
+            <div class="wf-input-col">
+              <div class="wf-num-wrap">
+                <input type="text" inputmode="decimal" autocomplete="off" id="inp-numeric-ans" value="${esc(st.numericInput)}" placeholder="Enter number" ${st.revealed ? 'readonly' : ''}>
+              </div>
+              ${canLiveNumCheck ? `<button type="button" class="wf-check-btn ${numLive?.status === 'pass' ? 'is-pass' : ''}" id="btn-check-numeric" title="Verify your numeric answer without revealing the solution (Enter)" ${numHasVal ? '' : 'disabled'}>${numLive?.status === 'pass' ? '✓' : 'Check'}</button>` : ''}
+            </div>
+            ${numLiveFbHtml}
           </div>`
         : '';
       workspaceHtml = `
@@ -3448,9 +3523,10 @@ window.StudyRunner = (() => {
              <small>${instantMcq ? 'ON' : 'Off'}</small>
            </button>`
         : '';
+    const finalAnswers = !isBlindUnfinished && !st.revealed ? extractFinalAnswers(q) : [];
     const mathParAutoOn = isMathParAutoRevealEnabled(uiPrefs);
     const mathParToggleHtml =
-      !isBlindUnfinished && activeRun.mode === 'practice' && activeRun.courseMeta?.courseId === 'math-2588'
+      !isBlindUnfinished && activeRun.mode === 'practice' && q.kind !== 'coding' && finalAnswers.length > 0
         ? `<button type="button" class="runner-menu-item ${mathParAutoOn ? 'active' : ''}" id="btn-toggle-math-par-answers" title="Gradually reveal final answers (no steps) as par elapses">
              <span>Par Auto-Reveal Answers</span>
              <small>${mathParAutoOn ? 'ON' : 'Off'}</small>
@@ -3572,14 +3648,15 @@ window.StudyRunner = (() => {
         ? `<button type="button" class="ghost-btn" id="btn-next-q" title="Advance to next question (Shortcut: N or Enter)">${nextShortLbl}</button>`
         : '';
 
-    const finalAnswers = !isBlindUnfinished && !st.revealed ? extractFinalAnswers(q) : [];
+    const isCodingTray = q.kind === 'coding';
+    const trayBtnLabel = isCodingTray ? 'Checkpoints' : 'Answers';
     const autoOnNow = isMathParAutoActiveFor(q, isBlindUnfinished);
     const shownAnswerCount = finalAnswers.reduce((n, _, idx) => {
       const vis = (st.peekedAnswers?.has(idx) || (autoOnNow && st.autoRevealedAnswers?.has(idx))) && !st.hiddenAnswers?.has(idx);
       return n + (vis ? 1 : 0);
     }, 0);
     const answerTrayHtml = finalAnswers.length
-      ? `<section id="runner-answer-tray" class="ans-check-tray" aria-label="Final answers check" ${st.answerTrayOpen ? '' : 'hidden'}>${
+      ? `<section id="runner-answer-tray" class="ans-check-tray" aria-label="${isCodingTray ? 'Key checkpoints' : 'Final answers check'}" ${st.answerTrayOpen ? '' : 'hidden'}>${
           st.answerTrayOpen ? renderAnswerTrayInnerHtml(q, st, isBlindUnfinished) : ''
         }</section>`
       : `<section id="runner-answer-tray" class="ans-check-tray" hidden></section>`;
@@ -3592,7 +3669,7 @@ window.StudyRunner = (() => {
           ${canHint ? `<button type="button" class="ghost-btn${activeRun.mode === 'exam' ? ' is-exam-hint-btn' : ''}" id="btn-hint" title="${activeRun.mode === 'exam' ? 'Show hint (H) · Tracked on exam grade (-15% credit on this Q per hint, max -45%) & logged on best attempt' : 'Show hint (H)'}">Hint ${st.hintsUsed + 1}/${hintsArr.length}</button>` : ''}
           ${
             finalAnswers.length
-              ? `<button type="button" class="ghost-btn ans-check-toggle-btn ${st.answerTrayOpen ? 'active' : ''}" id="btn-toggle-answers" aria-expanded="${st.answerTrayOpen ? 'true' : 'false'}" aria-controls="runner-answer-tray" title="Check final answers one by one (no steps, zero penalty)">Answers${shownAnswerCount ? ` (${shownAnswerCount}/${finalAnswers.length})` : ''}</button>`
+              ? `<button type="button" class="ghost-btn ans-check-toggle-btn ${st.answerTrayOpen ? 'active' : ''}" id="btn-toggle-answers" aria-expanded="${st.answerTrayOpen ? 'true' : 'false'}" aria-controls="runner-answer-tray" title="${isCodingTray ? 'Reveal key rubric checkpoints one by one (no full code, zero penalty)' : 'Check final answers one by one (no steps, zero penalty)'}">${trayBtnLabel}${shownAnswerCount ? ` (${shownAnswerCount}/${finalAnswers.length})` : ''}</button>`
               : ''
           }
           ${
@@ -4640,9 +4717,100 @@ window.StudyRunner = (() => {
 
     const numEl = document.getElementById('inp-numeric-ans');
     if (numEl) {
+      const canLiveNum = Boolean(q.numericCheck && activeRun.mode === 'practice' && !isBlindUnfinished && !st.revealed);
+      const numSpec = q.numericCheck
+        ? {
+            id: '_numeric_check',
+            type: 'number',
+            expected: Number(q.numericCheck.expected),
+            absTol: Number(q.numericCheck.tolerance || 0.02),
+            relTol: Number(q.numericCheck.tolerance || 0.02),
+            unit: q.numericCheck.unit || '',
+          }
+        : null;
+      const updateNumCardInPlace = () => {
+        if (!canLiveNum || !numSpec) return;
+        const card = document.getElementById('num-check-card');
+        if (!card) return;
+        const live = st.numLiveCheck || null;
+        const hasVal = String(st.numericInput || '').trim() !== '';
+        card.classList.remove('wf-live-pass', 'wf-live-try', 'wf-live-peek');
+        if (live?.status === 'pass') card.classList.add(live.peeked ? 'wf-live-peek' : 'wf-live-pass');
+        else if (live?.status === 'peek') card.classList.add('wf-live-peek');
+        else if (live?.status === 'try') card.classList.add('wf-live-try');
+
+        const chkBtn = document.getElementById('btn-check-numeric');
+        if (chkBtn) {
+          chkBtn.disabled = !hasVal;
+          const isPass = live?.status === 'pass';
+          chkBtn.classList.toggle('is-pass', isPass);
+          chkBtn.textContent = isPass ? '✓' : 'Check';
+        }
+        const existingFb = card.querySelector('.wf-feedback');
+        const nextFbHtml = live?.status ? renderWfLiveFeedbackHtml(numSpec, live) : '';
+        if (nextFbHtml) {
+          const tmp = document.createElement('div');
+          tmp.innerHTML = nextFbHtml;
+          const nextFbEl = tmp.firstElementChild;
+          if (existingFb) existingFb.replaceWith(nextFbEl);
+          else card.appendChild(nextFbEl);
+          nextFbEl?.querySelector('[data-wf-peek-id]')?.addEventListener('click', revealNumCheckAnswer);
+        } else if (existingFb) {
+          existingFb.remove();
+        }
+      };
+      const revealNumCheckAnswer = () => {
+        if (!canLiveNum || !numSpec) return;
+        st.numLiveCheck = {
+          ...(st.numLiveCheck || {}),
+          status: 'peek',
+          tried: true,
+          peeked: true,
+          expected: numSpec.expected,
+        };
+        updateNumCardInPlace();
+        persistActiveRun(true);
+      };
+      const runLiveNumCheck = () => {
+        if (!canLiveNum || !numSpec) return;
+        const prev = st.numLiveCheck || {};
+        const res = gradeSingleWiseflowField(numSpec, st.numericInput);
+        const hintKind = res.passed ? '' : diagnoseWfLiveMismatch(numSpec, res);
+        st.numLiveCheck = {
+          status: res.passed ? 'pass' : 'try',
+          tried: Boolean(prev.tried || !res.empty),
+          peeked: Boolean(prev.peeked),
+          exact: Boolean(res.exact),
+          expected: res.expected,
+          matchedTarget: res.matchedTarget,
+          empty: Boolean(res.empty),
+          parensError: Boolean(res.parensError),
+          commaError: Boolean(res.commaError),
+          invalidFormat: Boolean(res.invalidFormat),
+          hintKind,
+        };
+        updateNumCardInPlace();
+        persistActiveRun(true);
+      };
       numEl.addEventListener('input', () => {
         st.numericInput = numEl.value;
+        if (canLiveNum) {
+          if (st.numLiveCheck && st.numLiveCheck.status !== 'peek') {
+            st.numLiveCheck = { ...st.numLiveCheck, status: '' };
+          }
+          updateNumCardInPlace();
+        }
       });
+      numEl.addEventListener('keydown', (ev) => {
+        if (ev.isComposing) return;
+        if (ev.key === 'Enter' && canLiveNum && !(ev.metaKey || ev.ctrlKey)) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          runLiveNumCheck();
+        }
+      });
+      document.getElementById('btn-check-numeric')?.addEventListener('click', runLiveNumCheck);
+      document.querySelector('#num-check-card [data-wf-peek-id]')?.addEventListener('click', revealNumCheckAnswer);
     }
 
     // Hints
@@ -4750,7 +4918,7 @@ window.StudyRunner = (() => {
         await submitVerifiedAttempt(q, st, st.wfGrade.accuracy);
       } else if (q.numericCheck && st.numericInput.trim() !== '') {
         const chk = evaluateNumericCheck(st.numericInput, q.numericCheck.expected, Number(q.numericCheck.tolerance || 0.02));
-        if (chk.passed) {
+        if (chk.passed && !st.numLiveCheck?.peeked) {
           const totalChecks = (q.rubricChecks || []).length || 3;
           st.checkedRubrics = Array.from({ length: totalChecks }, (_, i) => i);
           toast('Numeric answer accepted. Verify your steps below.');
