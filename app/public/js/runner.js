@@ -536,8 +536,47 @@ window.StudyRunner = (() => {
     } catch {}
     return next;
   }
+  const WF_AUTO_CHECK_DELAY_MS = 2200;
+  const wfAutoCheckTimers = new Map();
+
+  function clearWfAutoCheckTimers() {
+    for (const t of wfAutoCheckTimers.values()) clearTimeout(t);
+    wfAutoCheckTimers.clear();
+  }
+
+  function isCompleteNumericDraft(raw) {
+    const s = String(raw ?? '').trim();
+    if (!s) return false;
+    if (/^[+\-.]$/.test(s) || /[.,]$/.test(s)) return false;
+    return /\d/.test(s);
+  }
+
   function isInstantMcqEnabled(prefs = getRunnerUiPrefs()) {
     return prefs.instantMcq !== false;
+  }
+  function isWfAutoCheckEnabled(prefs = getRunnerUiPrefs()) {
+    return prefs.wfAutoCheck !== false;
+  }
+  function setWfAutoCheckEnabled(enabled) {
+    saveRunnerUiPrefs({ wfAutoCheck: Boolean(enabled) });
+    const chk = document.getElementById('settings-wf-auto-check');
+    if (chk) chk.checked = Boolean(enabled);
+    if (!enabled) clearWfAutoCheckTimers();
+    const menuBtn = document.getElementById('btn-toggle-wf-auto-check');
+    if (menuBtn) {
+      menuBtn.classList.toggle('active', Boolean(enabled));
+      const sm = menuBtn.querySelector('small');
+      if (sm) sm.textContent = enabled ? 'ON' : 'Off';
+    }
+    const hintEl = document.querySelector('.wf-practice-hint');
+    if (hintEl) {
+      hintEl.innerHTML = enabled
+        ? 'Auto-check ON · verifies each box ~2s after typing or on <kbd>Tab</kbd> (no spoilers · toggle in •••)'
+        : 'Step-by-step check · click <strong>Check</strong> (or press <kbd>Enter</kbd>) on any box to verify before continuing';
+    }
+    toast(enabled
+      ? 'Auto-check ON (~2s after typing or Tab · no spoilers)'
+      : 'Auto-check OFF — click Check or press Enter manually');
   }
   function isMathParAutoRevealEnabled(prefs = getRunnerUiPrefs()) {
     return Boolean(prefs.mathParAutoReveal);
@@ -1716,6 +1755,7 @@ window.StudyRunner = (() => {
   function enterQuestion(newIndex) {
     if (!activeRun) return;
     window.StudyApp.flushPendingDrafts?.();
+    clearWfAutoCheckTimers();
     pauseCurrentTimer();
     activeRun.index = Math.max(0, Math.min(activeRun.questionIds.length - 1, newIndex));
     resumeCurrentTimer();
@@ -2483,7 +2523,11 @@ window.StudyRunner = (() => {
          </div>`
       : canLiveCheck
         ? `<div class="wf-practice-bar">
-             <span class="wf-practice-hint">Step-by-step check · click <strong>Check</strong> (or press <kbd>Enter</kbd>) on any box to verify before continuing</span>
+             <span class="wf-practice-hint">${
+               isWfAutoCheckEnabled()
+                 ? 'Auto-check ON · verifies each box ~2s after typing or on <kbd>Tab</kbd> (no spoilers · toggle in •••)'
+                 : 'Step-by-step check · click <strong>Check</strong> (or press <kbd>Enter</kbd>) on any box to verify before continuing'
+             }</span>
              <span class="wf-practice-progress" id="wf-practice-progress">${verifiedCount} / ${fields.length} checked</span>
            </div>`
         : '';
@@ -3529,6 +3573,14 @@ window.StudyRunner = (() => {
            </button>`
         : '';
     const finalAnswers = !isBlindUnfinished && !st.revealed ? extractFinalAnswers(q) : [];
+    const wfAutoCheckOn = isWfAutoCheckEnabled(uiPrefs);
+    const wfAutoCheckToggleHtml =
+      !isBlindUnfinished && activeRun.mode === 'practice' && (hasWf || Boolean(q.numericCheck))
+        ? `<button type="button" class="runner-menu-item ${wfAutoCheckOn ? 'active' : ''}" id="btn-toggle-wf-auto-check" title="Automatically verify numeric boxes ~2s after typing or on Tab (no answer spoilers)">
+             <span>Auto-Check Boxes</span>
+             <small>${wfAutoCheckOn ? 'ON' : 'Off'}</small>
+           </button>`
+        : '';
     const mathParAutoOn = isMathParAutoRevealEnabled(uiPrefs);
     const mathParToggleHtml =
       !isBlindUnfinished && activeRun.mode === 'practice' && q.kind !== 'coding' && finalAnswers.length > 0
@@ -3553,6 +3605,7 @@ window.StudyRunner = (() => {
              <button type="button" class="runner-menu-item" id="btn-copy-for-ai"><span>Copy for Adamlite</span></button>
              <button type="button" class="runner-menu-item" id="btn-open-tutor"><span>Desktop MCP Tutor</span></button>
              ${instantMcqToggleHtml}
+             ${wfAutoCheckToggleHtml}
              ${mathParToggleHtml}
              <div class="runner-menu-divider"></div>
              <label class="runner-menu-select-row">
@@ -4506,16 +4559,32 @@ window.StudyRunner = (() => {
     });
 
     // WISEflow numeric inputs
+    clearWfAutoCheckTimers();
     document.querySelectorAll('[data-wf-num-id]').forEach((inp) => {
+      const fid = inp.dataset.wfNumId;
+      const scheduleWfAuto = (val) => {
+        const prevT = wfAutoCheckTimers.get(fid);
+        if (prevT) clearTimeout(prevT);
+        wfAutoCheckTimers.delete(fid);
+        if (!canWfLiveCheck || !isWfAutoCheckEnabled() || !isCompleteNumericDraft(val)) return;
+        const timer = setTimeout(() => {
+          wfAutoCheckTimers.delete(fid);
+          if (!activeRun || st.revealed || !isWfAutoCheckEnabled()) return;
+          if (String(st.wiseflow?.[fid] ?? '') !== String(val)) return;
+          if (st.wfLiveChecks?.[fid]?.status) return;
+          runSingleWfFieldCheck(fid, { advanceFocusOnPass: false });
+        }, WF_AUTO_CHECK_DELAY_MS);
+        wfAutoCheckTimers.set(fid, timer);
+      };
       inp.addEventListener('input', () => {
         if (st.revealed) return;
-        const fid = inp.dataset.wfNumId;
         st.wiseflow[fid] = inp.value;
         if (canWfLiveCheck) {
           if (st.wfLiveChecks?.[fid] && st.wfLiveChecks[fid].status !== 'peek') {
             st.wfLiveChecks[fid] = { ...st.wfLiveChecks[fid], status: '' };
           }
           updateWfRowInPlace(fid);
+          scheduleWfAuto(inp.value);
         }
         window.StudyApp.debouncedSaveDraft(q.id, {
           wiseflowAnswers: st.wiseflow,
@@ -4523,12 +4592,28 @@ window.StudyRunner = (() => {
           profile: activeRun.profile,
         });
       });
+      inp.addEventListener('blur', () => {
+        const prevT = wfAutoCheckTimers.get(fid);
+        if (prevT) {
+          clearTimeout(prevT);
+          wfAutoCheckTimers.delete(fid);
+        }
+        if (!canWfLiveCheck || st.revealed || !isWfAutoCheckEnabled()) return;
+        const curVal = st.wiseflow?.[fid] ?? '';
+        if (!isCompleteNumericDraft(curVal)) return;
+        if (st.wfLiveChecks?.[fid]?.status) return;
+        runSingleWfFieldCheck(fid, { advanceFocusOnPass: false });
+      });
       inp.addEventListener('keydown', (ev) => {
         if (ev.isComposing) return;
         if (ev.key === 'Enter' && !isBlindUnfinished && !st.revealed) {
           ev.preventDefault();
           ev.stopPropagation();
-          const fid = inp.dataset.wfNumId;
+          const prevT = wfAutoCheckTimers.get(fid);
+          if (prevT) {
+            clearTimeout(prevT);
+            wfAutoCheckTimers.delete(fid);
+          }
           const fields = q.wiseflowFields || [];
           const allFilled = fields.every((f) => hasWfFieldValue(f, st.wiseflow?.[f.id]));
           const allPassed = fields.every((f) => st.wfLiveChecks?.[f.id]?.status === 'pass');
@@ -4797,6 +4882,20 @@ window.StudyRunner = (() => {
         updateNumCardInPlace();
         persistActiveRun(true);
       };
+      const scheduleNumAuto = (val) => {
+        const prevT = wfAutoCheckTimers.get('_numeric_check');
+        if (prevT) clearTimeout(prevT);
+        wfAutoCheckTimers.delete('_numeric_check');
+        if (!canLiveNum || !isWfAutoCheckEnabled() || !isCompleteNumericDraft(val)) return;
+        const timer = setTimeout(() => {
+          wfAutoCheckTimers.delete('_numeric_check');
+          if (!activeRun || st.revealed || !isWfAutoCheckEnabled()) return;
+          if (String(st.numericInput ?? '') !== String(val)) return;
+          if (st.numLiveCheck?.status) return;
+          runLiveNumCheck();
+        }, WF_AUTO_CHECK_DELAY_MS);
+        wfAutoCheckTimers.set('_numeric_check', timer);
+      };
       numEl.addEventListener('input', () => {
         st.numericInput = numEl.value;
         if (canLiveNum) {
@@ -4804,13 +4903,30 @@ window.StudyRunner = (() => {
             st.numLiveCheck = { ...st.numLiveCheck, status: '' };
           }
           updateNumCardInPlace();
+          scheduleNumAuto(numEl.value);
         }
+      });
+      numEl.addEventListener('blur', () => {
+        const prevT = wfAutoCheckTimers.get('_numeric_check');
+        if (prevT) {
+          clearTimeout(prevT);
+          wfAutoCheckTimers.delete('_numeric_check');
+        }
+        if (!canLiveNum || st.revealed || !isWfAutoCheckEnabled()) return;
+        if (!isCompleteNumericDraft(st.numericInput)) return;
+        if (st.numLiveCheck?.status) return;
+        runLiveNumCheck();
       });
       numEl.addEventListener('keydown', (ev) => {
         if (ev.isComposing) return;
         if (ev.key === 'Enter' && canLiveNum && !(ev.metaKey || ev.ctrlKey)) {
           ev.preventDefault();
           ev.stopPropagation();
+          const prevT = wfAutoCheckTimers.get('_numeric_check');
+          if (prevT) {
+            clearTimeout(prevT);
+            wfAutoCheckTimers.delete('_numeric_check');
+          }
           runLiveNumCheck();
         }
       });
@@ -4865,6 +4981,10 @@ window.StudyRunner = (() => {
         refreshAnswerTrayInPlace(q, st);
       }
     });
+    document.getElementById('btn-toggle-wf-auto-check')?.addEventListener('click', (ev) => {
+      ev.currentTarget.closest('[popover]')?.hidePopover?.();
+      setWfAutoCheckEnabled(!isWfAutoCheckEnabled());
+    });
     document.getElementById('btn-toggle-math-par-answers')?.addEventListener('click', (ev) => {
       ev.currentTarget.closest('[popover]')?.hidePopover?.();
       setMathParAutoRevealEnabled(!isMathParAutoRevealEnabled());
@@ -4882,6 +5002,7 @@ window.StudyRunner = (() => {
 
     // Check WISEflow Multi-Box Sheet (Guided / Practice mode)
     document.getElementById('btn-check-wf')?.addEventListener('click', async () => {
+      clearWfAutoCheckTimers();
       pauseCurrentTimer();
       st.revealed = true;
       st.wfGrade = evaluateWiseflowSheetWithPeeks(q, st);
@@ -4910,6 +5031,7 @@ window.StudyRunner = (() => {
         return;
       }
       closePauseRecord(st, 1.5);
+      clearWfAutoCheckTimers();
       workClock?.setPaused?.(false);
       pauseCurrentTimer();
       st.revealed = true;
@@ -5681,6 +5803,7 @@ window.StudyRunner = (() => {
     document.getElementById('checkin-modal').hidden = true;
     if (document.getElementById('checkin-note')) document.getElementById('checkin-note').value = '';
     const returnTo = activeRun?.returnTo || null;
+    clearWfAutoCheckTimers();
     clearInterval(tickInterval);
     closeFloatingParBar();
     activeRun = null;
@@ -5754,6 +5877,7 @@ window.StudyRunner = (() => {
       });
     }
     window.StudyApp.flushPendingDrafts?.();
+    clearWfAutoCheckTimers();
     pauseCurrentTimer();
 
     // If user just peeked at a single course exercise (<45s, zero input/attempts), close cleanly without leaving a noisy Resume bar
@@ -6155,6 +6279,8 @@ window.StudyRunner = (() => {
     getAutoPauseMode: () => autoPauseMode,
     isMathParAutoRevealEnabled,
     setMathParAutoRevealEnabled,
+    isWfAutoCheckEnabled,
+    setWfAutoCheckEnabled,
     toggleFullscreen,
     refreshCurrent: () => { if (activeRun) renderRunner(); },
   };

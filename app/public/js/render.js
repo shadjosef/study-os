@@ -3312,6 +3312,10 @@ window.StudyUI = (() => {
     applyTheme();
     soundMasker.renderUi();
     updateSettingsIndicators();
+    const wfAutoCheckEl = document.getElementById('settings-wf-auto-check');
+    if (wfAutoCheckEl && window.StudyRunner?.isWfAutoCheckEnabled) {
+      wfAutoCheckEl.checked = Boolean(window.StudyRunner.isWfAutoCheckEnabled());
+    }
     const mathAutoEl = document.getElementById('settings-math-par-answers');
     if (mathAutoEl && window.StudyRunner?.isMathParAutoRevealEnabled) {
       mathAutoEl.checked = Boolean(window.StudyRunner.isMathParAutoRevealEnabled());
@@ -3570,6 +3574,9 @@ window.StudyUI = (() => {
     });
     document.getElementById('settings-fullscreen-toggle')?.addEventListener('change', () => {
       window.StudyRunner?.toggleFullscreen?.();
+    });
+    document.getElementById('settings-wf-auto-check')?.addEventListener('change', (ev) => {
+      window.StudyRunner?.setWfAutoCheckEnabled?.(ev.target.checked);
     });
     document.getElementById('settings-math-par-answers')?.addEventListener('change', (ev) => {
       window.StudyRunner?.setMathParAutoRevealEnabled?.(ev.target.checked);
