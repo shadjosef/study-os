@@ -4,7 +4,19 @@ window.StudyCommunity = (() => {
   const api = document.documentElement.dataset.communityApi;
   const keyName = 'study-os-community-profile';
   const demoKey = 'study-os-demo';
+  const pendingCodeKey = 'study-os-pending-access-code';
   const { esc, toast, clockSec, workClock } = window.StudyUI;
+  function setPendingAccessCode(code) {
+    const clean = String(code || '').trim().slice(0, 120);
+    if (!clean || /^sos1_/i.test(clean)) return;
+    try { sessionStorage.setItem(pendingCodeKey, clean); } catch {}
+  }
+  function getPendingAccessCode() {
+    try { return String(sessionStorage.getItem(pendingCodeKey) || '').trim().slice(0, 120); } catch { return ''; }
+  }
+  function clearPendingAccessCode() {
+    try { sessionStorage.removeItem(pendingCodeKey); } catch {}
+  }
   let token = '';
   let currentProfile = null;
   let authConfigPromise = null;
@@ -1030,10 +1042,12 @@ window.StudyCommunity = (() => {
       || window.location?.hostname === 'localhost'
       || document.documentElement?.dataset?.studyMode === 'local'
     );
-    const passkeyReady = supportsPasskeys() && !isDesktopLoopback;
+    const isInAppBrowser = /MicroMessenger|Instagram|FBAN|FBAV|Line\/|Snapchat|Musical_ly|TikTok|BytedanceWebview|Weibo/i.test(navigator.userAgent || '');
+    const passkeyReady = supportsPasskeys() && !isDesktopLoopback && !isInAppBrowser;
     const localSchool = readLocalSchool();
     const localMajor = readLocalMajor();
-    const cleanPrefill = String(prefillCode || '').trim().slice(0, 120);
+    const cleanPrefill = String(prefillCode || getPendingAccessCode() || '').trim().slice(0, 120);
+    if (cleanPrefill) setPendingAccessCode(cleanPrefill);
     const bookMarkSvg = `
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
@@ -1053,7 +1067,7 @@ window.StudyCommunity = (() => {
             <p class="muted auth-sub">Free student workspace — sync progress, AI tutor &amp; BI past exams.</p>
           </div>
 
-          ${cleanPrefill ? `<div class="auth-pass-ready-pill" role="status">✓ Class code <strong>${esc(cleanPrefill)}</strong> applied — sign in to unlock PDFs</div>` : ''}
+          ${cleanPrefill ? `<div class="auth-pass-ready-pill" role="status"><span>✓ Class code <strong>${esc(cleanPrefill)}</strong> applied — sign in to unlock PDFs</span> <button type="button" class="auth-link-btn" id="community-edit-code" style="margin-left:6px;text-decoration:underline;font-size:11.5px">Change</button></div>` : ''}
 
           <div id="community-top-code-wrap" class="auth-access-code-box" hidden>
             <label class="field-label" style="margin:0">
@@ -1069,6 +1083,10 @@ window.StudyCommunity = (() => {
               </button>
               <p class="muted" style="margin:2px 0 6px;font-size:12.5px;text-align:center">
                 On <strong>studyos.no</strong>, open <strong>Settings → Sign-in &amp; Devices → Link another device</strong> for a 6-char code, or use your Recovery Key.
+              </p>
+            ` : isInAppBrowser ? `
+              <p class="muted" style="margin:0 0 6px;font-size:12px;text-align:center">
+                In-app browser detected — tap <strong>Create free account</strong> below (10 sec), or open in Safari/Chrome for Google Sign-In.
               </p>
             ` : `
               <div id="community-google-slot" class="auth-google-slot" hidden></div>
@@ -1088,7 +1106,7 @@ window.StudyCommunity = (() => {
 
           <div class="auth-or" id="community-auth-or" ${passkeyReady ? '' : 'hidden'}><span>or</span></div>
 
-          <button type="button" class="ghost-btn auth-create-cta" id="community-start-signup">Create free account</button>
+          <button type="button" class="${isInAppBrowser ? 'primary-btn auth-passkey-btn' : 'ghost-btn'} auth-create-cta" id="community-start-signup">Create free account</button>
 
           <div class="auth-entry-links">
             <button type="button" class="auth-link-btn" id="community-toggle-code" ${cleanPrefill ? 'hidden' : ''}>Class code</button>
@@ -1140,7 +1158,7 @@ window.StudyCommunity = (() => {
               <summary>More options (language, passkey &amp; updates)</summary>
               <div class="auth-more-opts-body">
                 ${secondaryLanguageFieldHtml('')}
-                ${passkeyReady ? '<label class="check-row" style="font-size:13px"><input name="withPasskey" type="checkbox" checked> Set up a Passkey right after signup</label>' : ''}
+                ${passkeyReady ? '<label class="check-row" style="font-size:13px"><input name="withPasskey" type="checkbox"> Set up a Passkey right after signup</label>' : ''}
                 <label class="check-row" style="font-size:13px">
                   <input name="newsletterOptIn" type="checkbox">
                   <span><strong>Monthly updates</strong> <small class="muted">— new past exams &amp; recaps</small></span>
@@ -1280,16 +1298,18 @@ window.StudyCommunity = (() => {
       });
     });
 
-    toggleCodeBtn?.addEventListener('click', () => {
+    const toggleTopCode = () => {
       if (!topCodeWrap) return;
       topCodeWrap.hidden = !topCodeWrap.hidden;
       if (!topCodeWrap.hidden) topCodeInput?.focus();
-    });
+    };
+    toggleCodeBtn?.addEventListener('click', toggleTopCode);
+    root.querySelector('#community-edit-code')?.addEventListener('click', toggleTopCode);
 
     getAuthConfig().then((cfg) => {
       authCfg = cfg || authCfg;
       const { openSignup, googleOpenSignup, requireCodeOnLogin, archivePassEnabled } = authCfg;
-      const mustShowTopCode = Boolean(requireCodeOnLogin);
+      const mustShowTopCode = Boolean(requireCodeOnLogin) && !cleanPrefill;
       if (topCodeWrap) topCodeWrap.hidden = !mustShowTopCode;
       if (mustShowTopCode) {
         if (toggleCodeBtn) toggleCodeBtn.hidden = true;
@@ -1331,9 +1351,21 @@ window.StudyCommunity = (() => {
       return optionalHashes;
     }
 
+    async function finalizeCodeAndArchive() {
+      const typedCode = String(topCodeInput?.value || getPendingAccessCode() || '').trim();
+      if (typedCode && !/^sos1_/i.test(typedCode)) {
+        const res = await redeemAccessCode(typedCode).catch(() => null);
+        if (res?.archiveUnlocked) clearPendingAccessCode();
+      }
+      currentProfile = await request('/profile').catch(() => null);
+      const unlocked = await syncTransientArchiveFromProfile(currentProfile);
+      if (unlocked) clearPendingAccessCode();
+      return unlocked;
+    }
+
     if (isDesktopLoopback) {
       root.querySelector('#community-desktop-device-cta')?.addEventListener('click', () => setStep('device'));
-    } else {
+    } else if (!isInAppBrowser) {
       mountGoogleButton(googleSlot, async (idToken) => {
       status.textContent = 'Signing in with Google…';
       try {
@@ -1349,19 +1381,22 @@ window.StudyCommunity = (() => {
           return;
         }
         useProfile(res.token);
-        const typedCode = (topCodeInput?.value || '').trim();
-        if (typedCode && !/^sos1_/i.test(typedCode)) {
-          await redeemAccessCode(typedCode).catch(() => {});
-        }
-        currentProfile = await request('/profile').catch(() => null);
-        await syncTransientArchiveFromProfile(currentProfile);
-        toast(`Welcome back, ${res.nickname}!`);
+        const unlocked = await finalizeCodeAndArchive();
+        toast(unlocked ? `Welcome back, ${res.nickname}! Course PDFs unlocked.` : `Welcome back, ${res.nickname}!`);
         await onSignedIn();
       } catch (err) {
         status.textContent = err.message || 'Google sign-in failed.';
       }
     }).then((shown) => {
-      if (shown && authOr) authOr.hidden = false;
+      if (shown && authOr) {
+        authOr.hidden = false;
+      } else if (!shown && !passkeyReady) {
+        const createBtn = root.querySelector('#community-start-signup');
+        if (createBtn) {
+          createBtn.classList.remove('ghost-btn');
+          createBtn.classList.add('primary-btn', 'auth-passkey-btn');
+        }
+      }
     });
     }
 
@@ -1440,6 +1475,7 @@ window.StudyCommunity = (() => {
       useProfile(res.token);
       currentProfile = await request('/profile').catch(() => null);
       const unlocked = await syncTransientArchiveFromProfile(currentProfile);
+      if (unlocked) clearPendingAccessCode();
       toast(unlocked ? `Welcome, ${res.nickname}! Course PDFs unlocked.` : `Welcome, ${res.nickname}! Google Sign-In is now linked.`);
       await onSignedIn();
     }, status);
@@ -1480,7 +1516,8 @@ window.StudyCommunity = (() => {
         status.textContent = 'Waiting for Face ID / Touch ID…';
         try {
           const res = await signInWithPasskey();
-          toast(`Welcome back, ${res.nickname}!`);
+          const unlocked = await finalizeCodeAndArchive();
+          toast(unlocked ? `Welcome back, ${res.nickname}! Course PDFs unlocked.` : `Welcome back, ${res.nickname}!`);
           await onSignedIn();
         } catch (err) {
           status.textContent = err?.name === 'NotAllowedError'
@@ -1515,6 +1552,7 @@ window.StudyCommunity = (() => {
       useProfile(result.token);
       currentProfile = await request('/profile').catch(() => null);
       const unlocked = await syncTransientArchiveFromProfile(currentProfile);
+      if (unlocked) clearPendingAccessCode();
       toast(unlocked ? 'Profile created & course PDFs unlocked!' : 'Profile created. Save a recovery key in Settings → Sign-in & Devices.');
       await onSignedIn();
       if (form.get('withPasskey') === 'on') {
@@ -1530,8 +1568,8 @@ window.StudyCommunity = (() => {
         humanToken: await humanToken(element, 'link', status),
       }, '');
       useProfile(res.token);
-      currentProfile = await request('/profile').catch(() => null);
-      toast(`Linked as ${res.nickname}!`);
+      const unlocked = await finalizeCodeAndArchive();
+      toast(unlocked ? `Linked as ${res.nickname}! Course PDFs unlocked.` : `Linked as ${res.nickname}!`);
       await onSignedIn();
     }, status);
 
@@ -1545,8 +1583,8 @@ window.StudyCommunity = (() => {
           key, label: detectDeviceLabel(), humanToken: await humanToken(element, 'recovery', status),
         }, '');
         useProfile(res.token);
-        currentProfile = await request('/profile').catch(() => null);
       }
+      await finalizeCodeAndArchive();
       element.reset();
       await onSignedIn();
     }, status);
@@ -1554,6 +1592,8 @@ window.StudyCommunity = (() => {
 
   async function requireProfile({ allowDemo = false, forcePrompt = false, silent = false, prefillCode = '' } = {}) {
     if (!api) return true;
+    const effectivePrefill = String(prefillCode || getPendingAccessCode() || '').trim().slice(0, 120);
+    if (prefillCode) setPendingAccessCode(prefillCode);
     if (token) {
       try {
         currentProfile = await request('/profile');
@@ -1595,7 +1635,7 @@ window.StudyCommunity = (() => {
         window.StudyApp?.syncSettingsRows?.();
         window.StudyApp?.syncCloudProgress?.().catch(() => {});
         resolve(true);
-      }, allowDemo ? tryDemo : undefined, prefillCode);
+      }, allowDemo ? tryDemo : undefined, effectivePrefill);
       // Never accidentally dismiss on stray backdrop click or accidental Escape
       gate.oncancel = (event) => {
         event.preventDefault();
@@ -4426,5 +4466,8 @@ window.StudyCommunity = (() => {
     pollSharesNow,
     saveAdminMemberKey: (memberKey) => request('/admin/settings', { memberKey: String(memberKey || '').trim() }),
     redeemAccessCode,
+    setPendingAccessCode,
+    getPendingAccessCode,
+    clearPendingAccessCode,
   };
 })();

@@ -424,19 +424,19 @@
     <div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
     <dialog id="member-dialog" class="member-dialog" aria-labelledby="member-title">
       <form id="member-form" novalidate>
-        <h2 id="member-title">Unlock private PDF archive</h2>
-        <p class="muted">Enter a short class access code (e.g. <code>BI2026</code>, while signed in) or a 48-character <code>sos1_…</code> key to unlock the PDF archive.</p>
-        <p class="muted">Practice questions and past exams are open in demo mode. Use <strong>Sync BI Canvas</strong> or attach your own PDF to read your course materials in an exercise.</p>
-        <label class="field-label">Access code or archive key
+        <h2 id="member-title">Unlock course PDFs</h2>
+        <p class="muted">Enter your short class access code (e.g. <code>BI2026</code>) — or a 48-character <code>sos1_…</code> archive key.</p>
+        <p class="muted">Practice questions and past exams are open without a code. You can also use <strong>Sync BI Canvas</strong> or attach your own PDF inside any exercise.</p>
+        <label class="field-label">Class access code or archive key
           <div class="member-key-row">
-            <input id="member-key" type="password" placeholder="e.g. BI2026 or sos1_…" autocomplete="off" spellcheck="false" required autofocus>
-            <button type="button" class="ghost-btn member-key-toggle" id="member-key-toggle" aria-label="Show access string">Show</button>
+            <input id="member-key" type="text" placeholder="e.g. BI2026" autocomplete="off" spellcheck="false" autocapitalize="characters" required autofocus>
+            <button type="button" class="ghost-btn member-key-toggle" id="member-key-toggle" aria-label="Hide access string">Hide</button>
           </div>
         </label>
         <label class="check-row"><input id="member-remember" type="checkbox" checked> Remember on this browser</label>
         <p id="member-feedback" class="member-feedback" role="alert" aria-live="polite" hidden></p>
         <div class="row-actions">
-          <button type="submit" class="primary-btn" id="member-submit-btn">Unlock Archive</button>
+          <button type="submit" class="primary-btn" id="member-submit-btn">Unlock PDFs</button>
           <button type="button" class="ghost-btn" id="member-dismiss">Close</button>
         </div>
       </form>

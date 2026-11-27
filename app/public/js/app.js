@@ -4317,15 +4317,32 @@ window.StudyApp = (() => {
     const dismiss = () => {
       try { sessionStorage.setItem('study-os-member-dismissed', '1'); } catch {}
       key.value = '';
-      key.type = 'password';
-      if (toggleBtn) toggleBtn.textContent = 'Show';
+      key.type = 'text';
+      if (toggleBtn) toggleBtn.textContent = 'Hide';
       setFeedback('');
       dialog.close();
     };
     const show = () => {
       window.StudyUI.closeSettings?.();
-      key.type = 'password';
-      if (toggleBtn) toggleBtn.textContent = 'Show';
+      const pendingCode = window.StudyCommunity?.getPendingAccessCode?.() || '';
+      if (!window.StudyCommunity?.isSignedIn?.() && window.StudyCommunity?.enabled && pendingCode) {
+        window.StudyCommunity.requireProfile({
+          allowDemo: true,
+          forcePrompt: true,
+          prefillCode: pendingCode,
+        }).then(async (ok) => {
+          if (!ok) return;
+          await window.StudyRooms.restore().catch(() => {});
+          await members.restore().catch(() => {});
+          await syncCloudProgress().catch(() => {});
+          await refreshBootstrap(false);
+          syncSettingsRows();
+        }).catch(() => {});
+        return;
+      }
+      key.type = 'text';
+      if (pendingCode && !key.value) key.value = pendingCode;
+      if (toggleBtn) toggleBtn.textContent = 'Hide';
       setFeedback('');
       dialog.showModal();
       setTimeout(() => key.focus(), 20);
@@ -4375,18 +4392,42 @@ window.StudyApp = (() => {
       setFeedback('Decrypting private PDF archive…', 'loading');
       try {
         const rawInput = String(key.value || '').trim().replace(/^["'`]+|["'`]+$/g, '');
-        if (/^[A-Za-z0-9_-]{4,24}$/.test(rawInput) && !/^sos1_/i.test(rawInput) && window.StudyCommunity?.isSignedIn?.()) {
+        const isShortClassCode = /^[A-Za-z0-9_-]{4,24}$/.test(rawInput)
+          && !/^sos1_/i.test(rawInput)
+          && !/^[A-Z0-9]{3}-[A-Z0-9]{3}$/i.test(rawInput);
+        if (isShortClassCode && window.StudyCommunity?.enabled) {
+          if (!window.StudyCommunity.isSignedIn?.()) {
+            window.StudyCommunity.setPendingAccessCode?.(rawInput);
+            key.value = '';
+            setFeedback('');
+            dialog.close();
+            toast(`Sign in (1 click) to activate class code ${rawInput.toUpperCase()} & unlock PDFs.`);
+            const ok = await window.StudyCommunity.requireProfile({
+              allowDemo: true,
+              forcePrompt: true,
+              prefillCode: rawInput,
+            });
+            if (ok) {
+              await window.StudyRooms.restore().catch(() => {});
+              await members.restore().catch(() => {});
+              await syncCloudProgress().catch(() => {});
+              await refreshBootstrap(false);
+              syncSettingsRows();
+            }
+            return;
+          }
           const res = await window.StudyCommunity.redeemAccessCode(rawInput);
           if (!res?.archiveUnlocked) {
             throw new Error('Access code saved, but temporary PDF archive access is currently disabled by the admin. Use Sync BI Canvas instead.');
           }
+          window.StudyCommunity.clearPendingAccessCode?.();
           key.value = '';
-          key.type = 'password';
-          if (toggleBtn) toggleBtn.textContent = 'Show';
+          key.type = 'text';
+          if (toggleBtn) toggleBtn.textContent = 'Hide';
           const totalQ = (boot.catalog || []).reduce((s, c) => s + Number(c.questionCount || 0), 0);
           setFeedback(`Temporary PDF pass activated (${totalQ} questions + original PDFs).`, 'success');
           dialog.close();
-          toast(`Access code accepted — course PDFs unlocked!`);
+          toast('Access code accepted — course PDFs unlocked!');
           return;
         }
         const rawKey = rawInput.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -4397,8 +4438,8 @@ window.StudyApp = (() => {
           window.StudyCommunity.saveAdminMemberKey?.(canonKey).catch(() => {});
         }
         key.value = '';
-        key.type = 'password';
-        if (toggleBtn) toggleBtn.textContent = 'Show';
+        key.type = 'text';
+        if (toggleBtn) toggleBtn.textContent = 'Hide';
         await refreshArchiveViews();
         const totalQ = (boot.catalog || []).reduce((s, c) => s + Number(c.questionCount || 0), 0);
         setFeedback(`Archive unlocked (${totalQ} questions + original PDFs).`, 'success');
@@ -10360,6 +10401,10 @@ window.StudyApp = (() => {
     const autoStart = params.get('autostart') === '1';
 
     if (qAccessCode) {
+      // Remember the class code across the session even if user clicks "Preview first" before signing in
+      if (!/^sos1_/i.test(qAccessCode)) {
+        window.StudyCommunity?.setPendingAccessCode?.(qAccessCode);
+      }
       // Strip the code param from the visible address bar immediately while preserving target course/filters
       const cleanParams = new URLSearchParams(window.location.search);
       cleanParams.delete('code');
@@ -10370,6 +10415,7 @@ window.StudyApp = (() => {
       if (window.StudyCommunity?.isSignedIn?.() && !/^sos1_/i.test(qAccessCode)) {
         window.StudyCommunity.redeemAccessCode(qAccessCode).then(async (res) => {
           if (res?.archiveUnlocked) {
+            window.StudyCommunity?.clearPendingAccessCode?.();
             await refreshBootstrap(false);
             toast('Access pass activated — BI course PDFs unlocked!');
           }

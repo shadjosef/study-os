@@ -47,8 +47,11 @@ window.StudyMembers = (() => {
     if (/^soci1_/i.test(raw)) {
       throw new Error('Enter this Community invite when creating a Community profile. Use a key beginning with sos1_ to open the PDF archive.');
     }
-    if (/^[A-Z0-9]{3}-?[A-Z0-9]{3}$/i.test(raw)) {
+    if (/^[A-Z0-9]{3}-[A-Z0-9]{3}$/i.test(raw)) {
       throw new Error('That looks like a 6-character BI Canvas pairing code — enter it in the Study-OS Sync extension instead.');
+    }
+    if (/^[A-Za-z0-9_-]{4,24}$/.test(raw) && !/^sos1_/i.test(raw)) {
+      throw new Error(`Sign in first to activate class access code "${raw}" and unlock course PDFs.`);
     }
     if (!crypto.subtle) {
       throw new Error('This browser context does not support Web Crypto decryption. Open https://studyos.no over HTTPS.');

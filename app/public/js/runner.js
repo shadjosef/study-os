@@ -1952,7 +1952,7 @@ window.StudyRunner = (() => {
               <input type="file" accept=".pdf,application/pdf" hidden data-local-pdf-input data-course-id="${esc(q.courseId)}" data-source-id="${esc(b.sourceId)}" data-source-kind="book" data-source-title="${esc(b.title)}" data-source-page="${esc(b.page || 1)}">
             </label>
             ${window.StudyMembers?.enabled && !window.StudyMembers.isUnlocked()
-              ? '<button type="button" class="ghost-btn source-gate-upload-btn" data-open-member-unlock>Use archive key</button>'
+              ? '<button type="button" class="ghost-btn source-gate-upload-btn" data-open-member-unlock>Enter class code</button>'
               : ''}
           </div>
         </div>`;
@@ -2061,7 +2061,7 @@ window.StudyRunner = (() => {
     })() : '';
 
     const ownerFoot = !compact && window.StudyMembers?.enabled && !window.StudyMembers.isUnlocked()
-      ? `<p class="muted" style="font-size:12px;margin:10px 0 0">Owner of the private encrypted PDF archive? <button type="button" class="inline-link-btn" data-open-member-unlock>Enter archive key</button></p>`
+      ? `<p class="muted" style="font-size:12px;margin:10px 0 0">Have a class access code (e.g. BI2026)? <button type="button" class="inline-link-btn" data-open-member-unlock>Unlock with code</button></p>`
       : '';
 
     return `${bookCard}${canvasCard}${ownerFoot}`;
