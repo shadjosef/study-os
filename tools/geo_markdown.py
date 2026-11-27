@@ -667,10 +667,10 @@ Practice answers, timers, theme preferences, study schedules, personal PDF files
 - When you message the **Adamlite AI Tutor**, your prompt, the active question, your working, and the matching Markdown reference section are sent to the configured LLM provider (Cloudflare Workers AI or Google Gemini) solely to produce your tutoring answer.
 
 ## 4. Cookies & Tracking
-Zero advertising networks, zero third-party trackers, zero cross-site tracking cookies.
+Zero advertising networks, zero third-party trackers, zero cross-site tracking cookies. On the public web app (`studyos.no`), lightweight first-party, cookie-free daily usage counts are recorded on our EU Cloudflare Worker using a daily-rotating cryptographic hash discarded at midnight Oslo time — zero IP addresses or persistent user IDs are ever stored (and disabled in the local Desktop Edition).
 
 ## 5. GDPR Rights & Deletion
-Under GDPR (Norway / EEA), you can export your data, clear local storage, disconnect Google Sign-In, or request full account deletion at [github.com/shadjosef/study-os/issues](https://github.com/shadjosef/study-os/issues).
+Under GDPR (Norway / EEA), you can export your data (one-click JSON backup in Settings), clear local storage, disconnect Google Sign-In, delete your synced Community profile directly in the app (**Community → Delete profile**), or send a private deletion/privacy request to [shad.josef@outlook.com](mailto:shad.josef@outlook.com) (or open a non-personal issue at [github.com/shadjosef/study-os/issues](https://github.com/shadjosef/study-os/issues)).
 """
     _write_md("privacy.md", privacy_md, include_in_full=False)
 
@@ -683,18 +683,22 @@ Under GDPR (Norway / EEA), you can export your data, clear local storage, discon
 ## 1. Independent Student Project
 Study-OS is an independent, non-commercial student workspace and is not officially affiliated with, endorsed by, or operated by any university or LMS vendor.
 
-## 2. Copyright & Student-Synced Materials
-- Public practice drills, reference sheets, and simulators included in Study-OS are original study aids.
-- Students using the local browser extension or local PDF viewer are responsible for only importing materials they are authorized to access and never uploading copyrighted textbooks, slides, or exam PDFs to public community sets.
+## 2. Copyright, Bring-Your-Own-PDF & Student-Synced Materials
+- Public practice drills, synthetic exam questions, reference sheets, and simulators included in Study-OS are original study aids.
+- **No public hosting of copyrighted textbooks:** Study-OS never publicly hosts or distributes copyrighted publisher textbooks. Local PDFs attached by a student stay strictly inside their own browser (IndexedDB) and are never uploaded.
+- Students using the local Desktop Edition, browser extension, or local PDF viewer are responsible for only accessing materials they are authorized to use as enrolled students and never uploading copyrighted textbooks, slides, or exam PDFs to public community sets or messages.
 
-## 3. Fair Use & Community
+## 3. Academic Integrity & Active Assessments
+Study-OS is strictly for self-study and exam preparation. Never share, request, or use Study-OS Community, Study Rooms, or the AI Tutor with live/active graded exams, home exams, or restricted assessment materials.
+
+## 4. Fair Use & Community
 Do not abuse the hosted AI Tutor, spam community courses, attempt to bypass authentication or rate limits, or impersonate other students.
 
-## 4. As-Is Disclaimer
-Study-OS, AI Tutor hints, GPA calculations, and study schedules are provided "as is" for personal study support. Always verify official deadlines, grades, and exam rules on your university's official portal.
+## 5. As-Is Disclaimer
+Study-OS, AI Tutor hints, estimated exam readiness indicators, GPA calculations, and study schedules are provided "as is" for personal study support. Always verify official deadlines, grades, and exam rules on your university's official portal.
 
-## 5. Contact
-Questions, takedown notices, or feedback: [github.com/shadjosef/study-os/issues](https://github.com/shadjosef/study-os/issues).
+## 6. Copyright / Takedown Notices & Contact
+We respect intellectual property rights under Norwegian copyright law (*Åndsverkloven*) and international law (including DMCA notice-and-takedown). Rights holders, lecturers, universities, or publishers can send takedown requests to [shad.josef@outlook.com](mailto:shad.josef@outlook.com) (subject: `[Study-OS Takedown]`) with the URL/item description and contact details; valid notices are reviewed and removed promptly (typically within 24–48 hours). General feedback can also be submitted at [github.com/shadjosef/study-os/issues](https://github.com/shadjosef/study-os/issues).
 """
     _write_md("terms.md", terms_md, include_in_full=False)
 
