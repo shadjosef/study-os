@@ -596,9 +596,28 @@ textarea {
 .runner-title-wrap small { display: block; font-size: 12px; }
 .runner-domain {
   color: var(--ink);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.runner-domain-desktop {
+  padding: 3px 9px 3px 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel-alt));
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+}
+.runner-domain-tld {
+  color: var(--accent);
+}
+.runner-brand-logo {
+  display: block;
+  border-radius: 5px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 .runner-domain-mobile { display: none; }
 
@@ -6835,7 +6854,10 @@ body.ai-pane-left .ai-pane-resize-handle {
   }
   .runner-domain-desktop { display: none; }
   .runner-domain-mobile {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 12.5px;
@@ -9308,6 +9330,39 @@ body.runner-split-wide.runner-split-ref .container {
   flex-direction: column;
   gap: 2px;
   margin-top: auto;
+}
+
+.rail-brand-btn {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.rail-brand-btn img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(52, 211, 153, 0.24);
+}
+.rail-brand-btn:hover,
+.rail-brand-btn:focus-visible {
+  background: var(--panel-alt);
+  transform: scale(1.04);
+}
+.rail-brand-sep {
+  width: 20px;
+  height: 1px;
+  margin: 3px 0 4px;
+  background: var(--line);
+  flex-shrink: 0;
 }
 
 .runner-icon-btn {

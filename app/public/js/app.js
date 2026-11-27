@@ -10857,6 +10857,14 @@ window.StudyApp = (() => {
     const toggleExplorer = () => (expOpen ? closeExplorer() : openExplorer());
 
     expBtn?.addEventListener('click', toggleExplorer);
+    document.getElementById('rail-brand-btn')?.addEventListener('click', () => {
+      closeExplorer();
+      if (!document.getElementById('view-runner')?.hidden) {
+        document.getElementById('run-exit-btn')?.click();
+      } else {
+        navigate('home');
+      }
+    });
     expBackdrop?.addEventListener('click', closeExplorer);
     document.getElementById('explorer-close-btn')?.addEventListener('click', closeExplorer);
     document.getElementById('explorer-cmd-btn')?.addEventListener('click', () => {
