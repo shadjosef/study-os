@@ -2403,7 +2403,7 @@ window.StudyCommunity = (() => {
     function renderAdminTelemetryHtml(t) {
       if (!t || typeof t !== 'object') {
         return `<div class="admin-section">
-          <h3>Anonymous &amp; web traffic (30d)</h3>
+          <h3>Internal Product Analytics (30d)</h3>
           <p class="muted">First-party, cookie-free web telemetry is ready — run the D1 migration (<code>community/migrate_web_telemetry.sql</code>) to populate daily visitor &amp; funnel metrics.</p>
         </div>`;
       }
@@ -2412,6 +2412,13 @@ window.StudyCommunity = (() => {
       const w30 = t.last30d || {};
       const ev30 = t.events30d || {};
       const pct = (num, den) => den > 0 ? `${Math.round((num / den) * 100)}%` : '0%';
+      const fmtActive = (sec) => {
+        const s = Math.max(0, Math.round(Number(sec || 0)));
+        if (s < 60) return `${s}s`;
+        const m = Math.round(s / 60);
+        if (m < 60) return `${m}m`;
+        return `${(m / 60).toFixed(1)}h`;
+      };
       const maxBar = Math.max(1, ...(t.daily14 || []).map((d) => Number(d.total || 0)));
       const barsHtml = (t.daily14 || []).map((d) => {
         const tot = Number(d.total || 0);
@@ -2421,7 +2428,7 @@ window.StudyCommunity = (() => {
         const hAuth = tot > 0 ? Math.round((authed / tot) * hTot) : 0;
         const hAnon = Math.max(0, hTot - hAuth);
         const label = String(d.day || '').slice(5);
-        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0" title="${esc(d.day)}: ${tot} visitors (${anon} anon, ${authed} signed in) · ${d.startedRun || 0} runs · ${d.attempted || 0} Qs">
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0" title="${esc(d.day)}: ${tot} visitors (${anon} anon, ${authed} signed in) · ${fmtActive(d.activeSec)} active · ${d.startedRun || 0} runs · ${d.readNotes || 0} notes · ${d.attempted || 0} Qs">
           <div style="width:100%;max-width:22px;height:70px;display:flex;flex-direction:column;justify-content:flex-end;gap:1px">
             ${hAnon > 0 ? `<div style="height:${hAnon}px;border-radius:3px 3px 0 0;background:var(--accent-soft,rgba(15,110,87,.34));border:1px solid var(--accent,#0f6e57)"></div>` : ''}
             ${hAuth > 0 ? `<div style="height:${hAuth}px;border-radius:${hAnon ? '0 0 3px 3px' : '3px'};background:var(--accent,#0f6e57)"></div>` : ''}
@@ -2432,8 +2439,9 @@ window.StudyCommunity = (() => {
       }).join('');
 
       const funnelSteps = [
-        { label: 'Visitors (30d)', val: Number(w30.total || 0), sub: `${Number(w30.anon || 0)} anon · ${Number(w30.authed || 0)} signed in` },
-        { label: 'Started a run', val: Number(w30.startedRun || 0), sub: pct(w30.startedRun, w30.total) },
+        { label: 'Visitors (30d)', val: Number(w30.total || 0), sub: `${Number(w30.anon || 0)} anon · ${Number(w30.authed || 0)} signed in · ${fmtActive(w30.activeSec)} active` },
+        { label: 'Read Course Notes', val: Number(w30.readNotes || 0), sub: pct(w30.readNotes, w30.total) },
+        { label: 'Started a run', val: Number(w30.startedRun || 0), sub: `${pct(w30.startedRun, w30.total)} · ${Number(ev30.runsStarted?.total || 0)} runs` },
         { label: 'Attempted Qs', val: Number(w30.attempted || 0), sub: `${pct(w30.attempted, w30.total)} · ${Number(ev30.questionsAttempted?.total || 0)} Qs (${Number(ev30.questionsAttempted?.anon || 0)} anon)` },
         { label: 'Opened Sign-In', val: Number(w30.openedAuth || 0), sub: pct(w30.openedAuth, w30.total) },
         { label: 'Signed In', val: Number(w30.signedUp || 0), sub: pct(w30.signedUp, w30.total) },
@@ -2452,6 +2460,52 @@ window.StudyCommunity = (() => {
         </div>`;
       }).join('');
 
+      const surfaceLabels = {
+        runner: 'Exercise Runner',
+        notes: 'Course Notes',
+        course: 'Course Explorer',
+        exams: 'Mock Exams',
+        home: 'Home Feed',
+        community: 'Community',
+        schedule: 'Schedule',
+        metrics: 'Metrics',
+        pdf: 'PdfCraft PDF',
+      };
+      const surfList = Array.isArray(t.activeBySurface) ? t.activeBySurface : [];
+      const surfMax = Math.max(1, ...surfList.map((s) => Number(s.total || 0)));
+      const surfTotal = surfList.reduce((sum, s) => sum + Number(s.total || 0), 0);
+      const surfaceHtml = surfList.length
+        ? surfList.map((s) => {
+            const wPct = Math.max(3, Math.round((Number(s.total || 0) / surfMax) * 100));
+            const share = surfTotal > 0 ? `${Math.round((Number(s.total || 0) / surfTotal) * 100)}%` : '';
+            return `<div style="margin:5px 0">
+              <div class="row-between" style="font-size:12px;margin-bottom:2px">
+                <span><strong>${esc(surfaceLabels[s.surface] || s.surface)}</strong> <small class="muted">${share}${s.anon ? ` · ${fmtActive(s.anon)} anon` : ''}</small></span>
+                <strong style="font-variant-numeric:tabular-nums">${esc(fmtActive(s.total))}</strong>
+              </div>
+              <div style="height:6px;border-radius:999px;background:var(--surface-2,rgba(128,128,128,.14));overflow:hidden">
+                <div style="height:100%;width:${wPct}%;background:var(--accent,#0f6e57);border-radius:999px"></div>
+              </div>
+            </div>`;
+          }).join('')
+        : '<div class="muted" style="font-size:12px">Active time heartbeat starts collecting on the next visit.</div>';
+
+      const devFunnel = Array.isArray(t.deviceFunnel) ? t.deviceFunnel : [];
+      const devFunnelHtml = devFunnel.length
+        ? `<div class="community-table" style="margin-top:6px"><table style="font-size:12px">
+            <thead><tr><th>Device</th><th>Visitors</th><th>Active</th><th>Notes</th><th>Runs</th><th>Attempts</th><th>Signed In</th></tr></thead>
+            <tbody>${devFunnel.map((d) => `<tr>
+              <td style="text-transform:capitalize"><strong>${esc(d.device)}</strong></td>
+              <td>${d.visitors}</td>
+              <td>${esc(fmtActive(d.activeSec))}</td>
+              <td>${d.readNotes} (${pct(d.readNotes, d.visitors)})</td>
+              <td>${d.startedRun} (${pct(d.startedRun, d.visitors)})</td>
+              <td>${d.attempted} (${pct(d.attempted, d.visitors)})</td>
+              <td>${d.signedUp} (${pct(d.signedUp, d.visitors)})</td>
+            </tr>`).join('')}</tbody>
+          </table></div>`
+        : '';
+
       const renderMiniList = (title, rows, fmt) => `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0">
         <div style="font-size:12px;font-weight:700;margin-bottom:6px">${esc(title)}</div>
         ${rows.length
@@ -2465,32 +2519,36 @@ window.StudyCommunity = (() => {
       const dev = t.devices || {};
       const devTotal = Math.max(1, Number(dev.desktop || 0) + Number(dev.mobile || 0) + Number(dev.tablet || 0));
       const devLine = `Desktop ${Math.round((Number(dev.desktop || 0) / devTotal) * 100)}% · Mobile ${Math.round((Number(dev.mobile || 0) / devTotal) * 100)}%${Number(dev.tablet || 0) ? ` · Tablet ${Math.round((Number(dev.tablet || 0) / devTotal) * 100)}%` : ''}`;
+      const errCount = Number(ev30.clientErrors?.total || 0);
 
       return `<div class="admin-section">
         <div class="row-between" style="gap:8px;flex-wrap:wrap">
-          <h3 style="margin:0">Anonymous &amp; logged-in traffic</h3>
-          <span class="badge">Cookie-free · Daily hash · Zero IPs · EU D1</span>
+          <h3 style="margin:0">Internal Product Analytics (30d)</h3>
+          <div class="row-actions" style="gap:6px;flex-wrap:wrap">
+            <span class="badge ${errCount > 0 ? 'bad' : 'good'}">${errCount === 0 ? '0 JS errors' : `${errCount} JS errors`}</span>
+            <span class="badge">Cookie-free · Daily hash · EU D1</span>
+          </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:8px;margin:10px 0">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0">
           <div style="border:1px solid var(--line);border-radius:10px;padding:9px 11px">
             <div class="muted" style="font-size:11.5px">Today (${esc(t.todayDay || '')})</div>
             <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums">${Number(td.total || 0)}</div>
-            <small class="muted">${Number(td.anon || 0)} anon · ${Number(td.authed || 0)} signed in</small>
+            <small class="muted">${Number(td.anon || 0)} anon · ${Number(td.authed || 0)} signed in · ${esc(fmtActive(td.activeSec))}</small>
           </div>
           <div style="border:1px solid var(--line);border-radius:10px;padding:9px 11px">
             <div class="muted" style="font-size:11.5px">Last 7 days</div>
             <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums">${Number(w7.total || 0)}</div>
-            <small class="muted">${Number(w7.anon || 0)} anon · ${Number(w7.authed || 0)} signed in</small>
+            <small class="muted">${esc(fmtActive(w7.activeSec))} active · ${Number(w7.readNotes || 0)} notes</small>
           </div>
           <div style="border:1px solid var(--line);border-radius:10px;padding:9px 11px">
-            <div class="muted" style="font-size:11.5px">Last 30 days</div>
-            <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums">${Number(w30.total || 0)}</div>
-            <small class="muted">${Number(w30.anon || 0)} anon · ${Number(w30.authed || 0)} signed in</small>
+            <div class="muted" style="font-size:11.5px">Active time (30d)</div>
+            <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums">${esc(fmtActive(w30.activeSec))}</div>
+            <small class="muted">${Number(w30.total || 0)} visitors · avg ${w30.total ? esc(fmtActive(Math.round((w30.activeSec || 0) / w30.total))) : '0s'}</small>
           </div>
           <div style="border:1px solid var(--line);border-radius:10px;padding:9px 11px">
-            <div class="muted" style="font-size:11.5px">Qs attempted (30d)</div>
+            <div class="muted" style="font-size:11.5px">Qs &amp; Box Checks (30d)</div>
             <div style="font-size:20px;font-weight:800;font-variant-numeric:tabular-nums">${Number(ev30.questionsAttempted?.total || 0)}</div>
-            <small class="muted">${Number(ev30.questionsAttempted?.anon || 0)} logged-out · ${Number(ev30.desktopDownloads?.total || 0)} Desktop DLs</small>
+            <small class="muted">${Number(ev30.boxChecks?.total || 0)} box checks · ${Number(ev30.desktopDownloads?.total || 0)} Desktop DLs</small>
           </div>
         </div>
         <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px">
@@ -2500,18 +2558,36 @@ window.StudyCommunity = (() => {
           </div>
           <div style="display:flex;align-items:flex-end;gap:4px">${barsHtml}</div>
         </div>
-        <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px">
-          <div class="row-between" style="font-size:12px;margin-bottom:4px">
-            <strong>Anonymous → Active → Sign-in funnel (30d)</strong>
-            <span class="muted">${esc(devLine)}</span>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-bottom:10px">
+          <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+            <div class="row-between" style="font-size:12px;margin-bottom:4px">
+              <strong>Conversion funnel (30d)</strong>
+              <span class="muted">${esc(devLine)}</span>
+            </div>
+            ${funnelHtml}
           </div>
-          ${funnelHtml}
+          <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+            <div class="row-between" style="font-size:12px;margin-bottom:4px">
+              <strong>Where active time is spent (30d)</strong>
+              <span class="muted">Engaged visible mins</span>
+            </div>
+            ${surfaceHtml}
+          </div>
         </div>
+        ${devFunnelHtml ? `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+          <div style="font-size:12px;font-weight:700;margin-bottom:4px">Mobile vs Desktop conversion (30d)</div>
+          ${devFunnelHtml}
+        </div>` : ''}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px">
-          ${renderMiniList('Top landing pages (30d)', (t.topPages || []).slice(0, 6), (r) => [r.dim, `${r.total} (${r.anon} anon)`])}
-          ${renderMiniList('Top referrers (30d)', (t.topReferrers || []).slice(0, 6), (r) => [r.host, String(r.visitors)])}
-          ${renderMiniList('Top courses & tabs (30d)', [...(t.topCourses || []).slice(0, 4), ...(t.topTabs || []).slice(0, 4)].slice(0, 6), (r) => [r.dim, `${r.total} (${r.anon} anon)`])}
-          ${renderMiniList('Countries (30d)', (t.countries || []).slice(0, 6), (r) => [r.country, String(r.visitors)])}
+          ${renderMiniList('Time by course / surface (30d)', (t.topActiveTargets || []).slice(0, 8), (r) => [r.dim, fmtActive(r.total)])}
+          ${renderMiniList('Run drop-off & exits (30d)', (t.runExits || []).slice(0, 8), (r) => [r.dim, String(r.total)])}
+          ${renderMiniList('Attempts by format (30d)', (t.attemptOutcomes || []).slice(0, 8), (r) => [r.dim, `${r.total} (${r.anon} anon)`])}
+          ${renderMiniList('Solution reveals (cold vs tried)', (t.solutionReveals || []).slice(0, 8), (r) => [r.dim, String(r.total)])}
+          ${renderMiniList('Feature adoption (30d)', (t.features || []).slice(0, 10), (r) => [r.dim, String(r.total)])}
+          ${renderMiniList('Box check & auto-check (30d)', (t.boxCheckBreakdown || []).slice(0, 8), (r) => [r.dim, String(r.total)])}
+          ${renderMiniList('Shared links / WhatsApp (30d)', (t.linkLands || []).slice(0, 8), (r) => [r.dim, String(r.total)])}
+          ${renderMiniList('Referrers & Countries (30d)', [...(t.topReferrers || []).slice(0, 4).map((r) => ({ k: r.host, v: r.visitors })), ...(t.countries || []).slice(0, 4).map((r) => ({ k: `Country: ${r.country}`, v: r.visitors }))], (r) => [r.k, String(r.v)])}
+          ${errCount > 0 ? renderMiniList('Client JS errors (30d)', (t.clientErrors || []).slice(0, 8), (r) => [r.dim, String(r.total)]) : ''}
         </div>
       </div>`;
     }
@@ -2543,16 +2619,36 @@ window.StudyCommunity = (() => {
         </tr>`;
       }).join('');
 
+      const fmtAgo = (ms) => {
+        if (!ms || ms <= 0) return '—';
+        const diff = Math.max(0, now - ms);
+        const mins = Math.round(diff / 60_000);
+        if (mins < 2) return 'Just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.round(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        return `${Math.round(hrs / 24)}d ago`;
+      };
       const memberRows = (members || []).map((m) => {
         const isSelf = m.id === me.id;
         const locked = !isSelf && m.nicknameChangedAt > 0 && m.nicknameChangedAt + 30 * 86_400_000 > now;
+        const lastSeenMs = Math.max(Number(m.presenceUpdatedAt || 0), Number(m.backupUpdatedAt || 0));
+        const liveMin = Math.round(Number(m.liveElapsedSec || 0) / 60);
+        const liveNote = liveMin > 0 && m.liveMode && m.liveMode !== 'idle'
+          ? `${liveMin}m ${m.liveMode}`
+          : '';
+        const extraBits = [
+          m.backupBytes ? `${Math.max(1, Math.round(m.backupBytes / 1024))}KB sync` : '',
+          Number(m.aiPrompts || 0) > 0 ? `${m.aiPrompts} AI` : '',
+        ].filter(Boolean).join(' · ');
         const prefTags = [
           m.secondaryLanguage ? `<span class="badge">${esc(m.secondaryLanguage.toUpperCase())}</span>` : '',
           Number(m.newsletterOptIn) === 1 ? '<span class="badge good">Digest</span>' : '',
         ].filter(Boolean).join(' ');
         return `<tr>
           <td><span class="community-member-inline">${avatarHtml(m.nickname, m.avatar, 26)}<strong>${esc(m.nickname)}</strong>${isSelf ? ' <span class="badge admin-badge">You</span>' : ''}${prefTags ? ' ' + prefTags : ''}</span></td>
-          <td>${(m.studyMinutes / 60).toFixed(1)}h · ${m.completed} Qs</td>
+          <td>${(m.studyMinutes / 60).toFixed(1)}h · ${m.completed} Qs${m.attempts ? `<br><small class="muted">${m.attempts} att${m.accuracy != null ? ` · ${m.accuracy}%` : ''}</small>` : ''}</td>
+          <td>${esc(fmtAgo(lastSeenMs))}${liveNote ? `<br><small class="muted">${esc(liveNote)}</small>` : ''}${extraBits ? `<br><small class="muted">${esc(extraBits)}</small>` : ''}</td>
           <td>${m.breakCount ? `${formatBreakDuration(m.breakMinutes)} · ${m.breakCount}×` : '—'}</td>
           <td>${locked ? `<span class="badge warn">Locked until ${esc(formatOsloDate(m.nicknameChangedAt + 30 * 86_400_000))}</span>` : '<span class="badge good">Unlocked</span>'}</td>
           <td>
@@ -2641,7 +2737,7 @@ window.StudyCommunity = (() => {
             <span class="badge${newsletterCount ? ' good' : ''}">Newsletter opt-ins: ${Number(newsletterCount) || 0}</span>
           </div>
           ${memberRows ? `<div class="community-table"><table>
-            <thead><tr><th>Member</th><th>Study</th><th>Breaks</th><th>Nickname lock</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Member</th><th>Study</th><th>Last active / Live</th><th>Breaks</th><th>Nickname lock</th><th>Actions</th></tr></thead>
             <tbody>${memberRows}</tbody></table></div>` : ''}
         </div>
       `;

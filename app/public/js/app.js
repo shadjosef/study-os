@@ -1916,6 +1916,7 @@ window.StudyApp = (() => {
     applyBlockCardDomUpdate(block, info, meta.course);
     const niceTitle = homeBlockTitle(newTopicLabel, meta.course);
     const tierShort = effMode === 'high_dlpfc' ? 'High' : effMode === 'med_dlpfc' ? 'Med' : 'Low';
+    window.StudyWebTelemetry?.track?.('feature_use', 'swap_home');
     toast(`Swapped (${tierShort} DLPFC${widened ? ' · related topics' : ''}): ${niceTitle} · ${chosenQs.length} ${chosenQs.length === 1 ? 'task' : 'tasks'}`);
   }
 
@@ -6635,6 +6636,7 @@ window.StudyApp = (() => {
       swapExcludedIds: [...nextExcluded],
       swapCycle: nextCycle,
     });
+    window.StudyWebTelemetry?.track?.('feature_use', 'swap_runner');
     toast(`Swapped (${tierShort} DLPFC${widened ? ' · related' : ''}): ${label} · ${chosenQs.length} ${chosenQs.length === 1 ? 'task' : 'tasks'}`);
   }
 
@@ -11880,6 +11882,7 @@ window.StudyApp = (() => {
     fetchCanvasPdfViaExtension,
     onDevModeChange,
     getCurrentView: () => currentView,
+    getSelectedCourseId: () => selectedCourseId || '',
     navigate,
     closeSiteExplorer: () => closeSiteExplorerFn(),
     toggleSiteReferenceSidebar,

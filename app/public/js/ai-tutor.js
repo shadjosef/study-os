@@ -1370,6 +1370,7 @@ window.StudyAiTutor = (() => {
     }
 
     const attachmentsToSend = [...pendingAttachments];
+    window.StudyWebTelemetry?.track?.('feature_use', 'adamlite_ask');
     pendingAttachments = [];
     popoverMode = '';
 
@@ -1518,6 +1519,7 @@ window.StudyAiTutor = (() => {
     const backdrop = document.getElementById('ai-tutor-backdrop');
     closeConflictingDrawers(getDockSide());
     isOpen = true;
+    window.StudyWebTelemetry?.track?.('feature_use', 'adamlite_open');
     pane.hidden = false;
     if (backdrop) backdrop.hidden = false;
     syncBodyClasses();

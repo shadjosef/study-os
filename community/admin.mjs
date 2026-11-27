@@ -154,13 +154,29 @@ export async function handleAdmin({ request, url, db, env, me, isAdmin, now, dat
       ORDER BY created_at DESC LIMIT 100
     `).all();
     const { results: members } = await db.prepare(`
+      SELECT p.id, p.nickname, p.avatar, p.bio, p.nickname_changed_at AS nicknameChangedAt,
+        p.secondary_language AS secondaryLanguage, p.newsletter_opt_in AS newsletterOptIn,
+        p.study_minutes AS studyMinutes, p.break_minutes AS breakMinutes,
+        p.break_count AS breakCount, p.completed, p.attempts, p.accuracy,
+        pr.mode AS liveMode, pr.elapsed_seconds AS liveElapsedSec, pr.updated_at AS presenceUpdatedAt,
+        sb.updated_at AS backupUpdatedAt, sb.record_count AS backupRecords,
+        sb.session_count AS backupSessions, LENGTH(sb.payload) AS backupBytes,
+        COALESCE(au.aiPrompts, 0) AS aiPrompts
+      FROM profiles p
+      LEFT JOIN presence pr ON pr.profile = p.id
+      LEFT JOIN study_backups sb ON sb.profile_id = p.id
+      LEFT JOIN (
+        SELECT profile_id, SUM(used_count) AS aiPrompts FROM ai_usage GROUP BY profile_id
+      ) au ON au.profile_id = p.id
+      ORDER BY p.completed DESC, p.study_minutes DESC, p.nickname LIMIT 250
+    `).all().catch(async () => db.prepare(`
       SELECT id, nickname, avatar, bio, nickname_changed_at AS nicknameChangedAt,
         secondary_language AS secondaryLanguage, newsletter_opt_in AS newsletterOptIn,
         study_minutes AS studyMinutes, break_minutes AS breakMinutes,
         break_count AS breakCount, completed, attempts, accuracy
       FROM profiles
       ORDER BY completed DESC, study_minutes DESC, nickname LIMIT 250
-    `).all();
+    `).all());
     const newsletterCount = (members || []).filter((m) => Number(m.newsletterOptIn) === 1).length;
     const telemetry = await getAdminTelemetrySummary(db, now);
     return reply({ settings, invites, members, newsletterCount, telemetry, now });

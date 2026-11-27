@@ -1180,6 +1180,8 @@ window.StudyUI = (() => {
 
     titleEl.textContent = `${courseMeta?.shortTitle || 'Course'} · Notes`;
     bodyEl.innerHTML = '<p class="muted">Loading course note…</p>';
+    window.StudyWebTelemetry?.track?.('feature_use', 'ref_drawer');
+    if (courseMeta?.courseId) window.StudyWebTelemetry?.track?.('notes_open', String(courseMeta.courseId));
 
     await loadDrawerSection(currentNoteFile, targetHeading);
 
@@ -1450,6 +1452,7 @@ window.StudyUI = (() => {
     }
     applyLightboxTransform(true);
     box.hidden = false;
+    window.StudyWebTelemetry?.track?.('feature_use', opts?.isPdf ? 'lightbox_pdf' : 'lightbox_img');
     if (opts?.upgradePromise && typeof opts.upgradePromise.then === 'function') {
       opts.upgradePromise.then((hiResSrc) => {
         if (hiResSrc && lightboxState.token === tok && !box.hidden) {

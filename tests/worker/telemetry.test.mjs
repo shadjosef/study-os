@@ -52,6 +52,7 @@ function makeTelemetryMockDb() {
               const cur = byDay.get(row.day_oslo) || {
                 day: row.day_oslo, anon: 0, authed: 0, total: 0,
                 startedRun: 0, attempted: 0, openedAuth: 0, signedUp: 0, totalEvents: 0,
+                activeSec: 0, readNotes: 0,
               };
               if (row.auth_state === 'authed') cur.authed += 1;
               else cur.anon += 1;
@@ -61,6 +62,8 @@ function makeTelemetryMockDb() {
               cur.openedAuth += row.has_auth_open;
               cur.signedUp += row.has_signup;
               cur.totalEvents += row.events;
+              cur.activeSec += row.active_sec || 0;
+              cur.readNotes += row.has_notes || 0;
               byDay.set(row.day_oslo, cur);
             }
             return { results: [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day)) };
@@ -102,9 +105,18 @@ function makeTelemetryMockDb() {
             const map = new Map();
             for (const row of visitors.values()) {
               if (row.day_oslo < minDay) continue;
-              map.set(row.device, (map.get(row.device) || 0) + 1);
+              const cur = map.get(row.device) || {
+                device: row.device, visitors: 0, startedRun: 0, attempted: 0, readNotes: 0, signedUp: 0, activeSec: 0,
+              };
+              cur.visitors += 1;
+              cur.startedRun += row.has_run || 0;
+              cur.attempted += row.has_attempt || 0;
+              cur.readNotes += row.has_notes || 0;
+              cur.signedUp += row.has_signup || 0;
+              cur.activeSec += row.active_sec || 0;
+              map.set(row.device, cur);
             }
-            return { results: [...map.entries()].map(([device, visitors]) => ({ device, visitors })) };
+            return { results: [...map.values()] };
           }
           return { results: [] };
         },
@@ -117,13 +129,14 @@ function makeTelemetryMockDb() {
               if (k.startsWith('telemetry_salt_') && k < bound[0]) settings.delete(k);
             }
           } else if (sql.includes('INSERT INTO web_daily_visitors')) {
-            const [day_oslo, visitor_hash, country, device, auth_state, first_path, referrer_host, first_seen_at, last_seen_at, evCnt, has_run, has_attempt, has_auth_open, has_signup] = bound;
+            const [day_oslo, visitor_hash, country, device, auth_state, first_path, referrer_host, first_seen_at, last_seen_at, evCnt, has_run, has_attempt, has_auth_open, has_signup, active_sec = 0, has_notes = 0] = bound;
             const k = `${day_oslo}|${visitor_hash}`;
             const prev = visitors.get(k);
             if (!prev) {
               visitors.set(k, {
                 day_oslo, visitor_hash, country, device, auth_state, first_path, referrer_host,
                 first_seen_at, last_seen_at, events: evCnt, has_run, has_attempt, has_auth_open, has_signup,
+                active_sec, has_notes,
               });
             } else {
               prev.auth_state = prev.auth_state === 'authed' || auth_state === 'authed' ? 'authed' : 'anon';
@@ -133,6 +146,8 @@ function makeTelemetryMockDb() {
               prev.has_attempt = Math.max(prev.has_attempt, has_attempt);
               prev.has_auth_open = Math.max(prev.has_auth_open, has_auth_open);
               prev.has_signup = Math.max(prev.has_signup, has_signup);
+              prev.active_sec = (prev.active_sec || 0) + (active_sec || 0);
+              prev.has_notes = Math.max(prev.has_notes || 0, has_notes || 0);
             }
           } else if (sql.includes('INSERT INTO web_daily_events')) {
             const [day_oslo, event, dim, auth_state, delta, last_seen_at] = bound;
@@ -232,8 +247,14 @@ test('POST /t rejects untrusted origins and oversized bodies, filters bots, and 
         { event: 'page_view', dim: '/bi-oslo.html' },
         { event: 'course_open', dim: 'acct-2527' },
         { event: 'run_start', dim: 'practice:acct-2527' },
-        { event: 'question_attempt', dim: 'written' },
-        { event: 'question_attempt', dim: 'written' },
+        { event: 'question_attempt', dim: 'worksheet:pass' },
+        { event: 'question_attempt', dim: 'worksheet:miss' },
+        { event: 'active_sec', dim: 'notes:acct-2527', val: 45 },
+        { event: 'active_sec', dim: 'runner:acct-2527', val: 90 },
+        { event: 'run_exit', dim: 'acct-2527:partial' },
+        { event: 'feature_use', dim: 'swap_home' },
+        { event: 'link_land', dim: 'course:acct-2527:ch' },
+        { event: 'box_check', dim: 'auto_ok' },
         { event: 'not_allowed_event', dim: 'drop_me' },
       ],
     }),
@@ -260,7 +281,17 @@ test('POST /t rejects untrusted origins and oversized bodies, filters bots, and 
   assert.equal(summary.today.authed, 0);
   assert.equal(summary.today.startedRun, 1);
   assert.equal(summary.today.attempted, 1);
+  assert.equal(summary.today.activeSec, 135);
+  assert.equal(summary.today.readNotes, 1);
   assert.equal(summary.events30d.questionsAttempted.anon, 2);
+  assert.equal(summary.activeBySurface[0].surface, 'runner');
+  assert.equal(summary.activeBySurface[0].total, 90);
+  assert.equal(summary.runExits[0].dim, 'acct-2527:partial');
+  assert.equal(summary.features[0].dim, 'swap_home');
+  assert.equal(summary.linkLands[0].dim, 'course:acct-2527:ch');
+  assert.equal(summary.boxCheckBreakdown[0].dim, 'auto_ok');
+  assert.equal(summary.deviceFunnel[0].device, 'desktop');
+  assert.equal(summary.deviceFunnel[0].activeSec, 135);
   assert.equal(summary.topPages[0].dim, '/bi-oslo.html');
   assert.equal(summary.topReferrers[0].host, 'google.com');
   assert.equal(summary.countries[0].country, 'NO');

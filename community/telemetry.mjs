@@ -14,9 +14,18 @@ const ALLOWED_EVENTS = new Set([
   'page_view',
   'tab_view',
   'course_open',
+  'notes_open',
   'run_start',
+  'run_exit',
   'question_attempt',
   'run_complete',
+  'solution_reveal',
+  'box_check',
+  'hint_open',
+  'feature_use',
+  'link_land',
+  'active_sec',
+  'client_error',
   'auth_open',
   'signup',
   'desktop_download',
@@ -178,7 +187,11 @@ export async function handleTelemetry({ request, db, env, now, data, headers }) 
     const ev = typeof item.event === 'string' ? item.event.trim().toLowerCase() : '';
     if (!ALLOWED_EVENTS.has(ev)) continue;
     const dim = ev === 'page_view' ? normalizePathDim(item.dim || data?.path) : normalizeDim(item.dim || '');
-    cleaned.push({ event: ev, dim });
+    const rawVal = Number(item.val);
+    const val = ev === 'active_sec'
+      ? (Number.isFinite(rawVal) ? Math.max(1, Math.min(600, Math.round(rawVal))) : 15)
+      : 1;
+    cleaned.push({ event: ev, dim, val });
   }
   if (!cleaned.length) return noContent();
 
@@ -198,15 +211,26 @@ export async function handleTelemetry({ request, db, env, now, data, headers }) 
   const hasAttempt = cleaned.some((c) => c.event === 'question_attempt') ? 1 : 0;
   const hasAuthOpen = cleaned.some((c) => c.event === 'auth_open') ? 1 : 0;
   const hasSignup = cleaned.some((c) => c.event === 'signup') ? 1 : 0;
+  const activeSecDelta = cleaned
+    .filter((c) => c.event === 'active_sec')
+    .reduce((sum, c) => sum + c.val, 0);
+  const hasNotes = cleaned.some((c) =>
+    c.event === 'notes_open'
+    || (c.event === 'tab_view' && c.dim === 'references')
+    || (c.event === 'active_sec' && c.dim.startsWith('notes'))
+    || (c.event === 'feature_use' && c.dim === 'ref_drawer')
+  ) ? 1 : 0;
+  const nonActiveEvents = cleaned.filter((c) => c.event !== 'active_sec').length;
 
   try {
     const visitorHash = await computeDailyVisitorHash(db, dayOslo, ip, ua);
     await db.prepare(`
       INSERT INTO web_daily_visitors(
         day_oslo, visitor_hash, country, device, auth_state, first_path, referrer_host,
-        first_seen_at, last_seen_at, events, has_run, has_attempt, has_auth_open, has_signup
+        first_seen_at, last_seen_at, events, has_run, has_attempt, has_auth_open, has_signup,
+        active_sec, has_notes
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(day_oslo, visitor_hash) DO UPDATE SET
         auth_state = CASE WHEN web_daily_visitors.auth_state = 'authed' OR excluded.auth_state = 'authed' THEN 'authed' ELSE 'anon' END,
         last_seen_at = excluded.last_seen_at,
@@ -214,17 +238,20 @@ export async function handleTelemetry({ request, db, env, now, data, headers }) 
         has_run = MAX(web_daily_visitors.has_run, excluded.has_run),
         has_attempt = MAX(web_daily_visitors.has_attempt, excluded.has_attempt),
         has_auth_open = MAX(web_daily_visitors.has_auth_open, excluded.has_auth_open),
-        has_signup = MAX(web_daily_visitors.has_signup, excluded.has_signup)
+        has_signup = MAX(web_daily_visitors.has_signup, excluded.has_signup),
+        active_sec = web_daily_visitors.active_sec + excluded.active_sec,
+        has_notes = MAX(web_daily_visitors.has_notes, excluded.has_notes)
     `).bind(
       dayOslo, visitorHash, country, device, authState, firstPath, referrerHost,
-      now, now, cleaned.length, hasRun, hasAttempt, hasAuthOpen, hasSignup
+      now, now, Math.max(nonActiveEvents, activeSecDelta > 0 ? 1 : 0),
+      hasRun, hasAttempt, hasAuthOpen, hasSignup, activeSecDelta, hasNotes
     ).run();
 
     // Coalesce identical (event, dim) pairs inside the batch before upserting.
     const counts = new Map();
     for (const c of cleaned) {
       const k = `${c.event}\0${c.dim}`;
-      counts.set(k, (counts.get(k) || 0) + 1);
+      counts.set(k, (counts.get(k) || 0) + c.val);
     }
     const writes = [];
     for (const [k, delta] of counts.entries()) {
@@ -262,7 +289,9 @@ export async function getAdminTelemetrySummary(db, now = Date.now()) {
           SUM(has_attempt) AS attempted,
           SUM(has_auth_open) AS openedAuth,
           SUM(has_signup) AS signedUp,
-          SUM(events) AS totalEvents
+          SUM(events) AS totalEvents,
+          SUM(COALESCE(active_sec, 0)) AS activeSec,
+          SUM(COALESCE(has_notes, 0)) AS readNotes
         FROM web_daily_visitors
         WHERE day_oslo >= ?
         GROUP BY day_oslo
@@ -277,7 +306,7 @@ export async function getAdminTelemetrySummary(db, now = Date.now()) {
         WHERE day_oslo >= ?
         GROUP BY event, dim
         ORDER BY total DESC
-        LIMIT 120
+        LIMIT 260
       `).bind(start30d).all(),
       db.prepare(`
         SELECT referrer_host AS host, COUNT(*) AS visitors
@@ -296,7 +325,13 @@ export async function getAdminTelemetrySummary(db, now = Date.now()) {
         LIMIT 8
       `).bind(start30d).all(),
       db.prepare(`
-        SELECT device, COUNT(*) AS visitors
+        SELECT device,
+          COUNT(*) AS visitors,
+          SUM(has_run) AS startedRun,
+          SUM(has_attempt) AS attempted,
+          SUM(COALESCE(has_notes, 0)) AS readNotes,
+          SUM(has_signup) AS signedUp,
+          SUM(COALESCE(active_sec, 0)) AS activeSec
         FROM web_daily_visitors
         WHERE day_oslo >= ?
         GROUP BY device
@@ -313,10 +348,12 @@ export async function getAdminTelemetrySummary(db, now = Date.now()) {
       openedAuth: Number(r.openedAuth || 0),
       signedUp: Number(r.signedUp || 0),
       totalEvents: Number(r.totalEvents || 0),
+      activeSec: Number(r.activeSec || 0),
+      readNotes: Number(r.readNotes || 0),
     }]));
 
     const sumWindow = (minDay) => {
-      const out = { anon: 0, authed: 0, total: 0, startedRun: 0, attempted: 0, openedAuth: 0, signedUp: 0, totalEvents: 0 };
+      const out = { anon: 0, authed: 0, total: 0, startedRun: 0, attempted: 0, openedAuth: 0, signedUp: 0, totalEvents: 0, activeSec: 0, readNotes: 0 };
       for (const [d, row] of byDay.entries()) {
         if (d >= minDay) {
           out.anon += row.anon;
@@ -327,6 +364,8 @@ export async function getAdminTelemetrySummary(db, now = Date.now()) {
           out.openedAuth += row.openedAuth;
           out.signedUp += row.signedUp;
           out.totalEvents += row.totalEvents;
+          out.activeSec += row.activeSec;
+          out.readNotes += row.readNotes;
         }
       }
       return out;
@@ -336,7 +375,7 @@ export async function getAdminTelemetrySummary(db, now = Date.now()) {
     for (let i = 13; i >= 0; i--) {
       const d = osloDayOffset(i, now);
       const hit = byDay.get(d);
-      daily14.push(hit || { day: d, anon: 0, authed: 0, total: 0, startedRun: 0, attempted: 0, openedAuth: 0, signedUp: 0, totalEvents: 0 });
+      daily14.push(hit || { day: d, anon: 0, authed: 0, total: 0, startedRun: 0, attempted: 0, openedAuth: 0, signedUp: 0, totalEvents: 0, activeSec: 0, readNotes: 0 });
     }
 
     const evs = eventRows.results || [];
@@ -355,14 +394,38 @@ export async function getAdminTelemetrySummary(db, now = Date.now()) {
       }), { anon: 0, authed: 0, total: 0 });
 
     const devices = { desktop: 0, mobile: 0, tablet: 0 };
+    const deviceFunnel = [];
     for (const r of (deviceRows.results || [])) {
       const k = r.device === 'mobile' || r.device === 'tablet' ? r.device : 'desktop';
       devices[k] += Number(r.visitors || 0);
+      deviceFunnel.push({
+        device: k,
+        visitors: Number(r.visitors || 0),
+        startedRun: Number(r.startedRun || 0),
+        attempted: Number(r.attempted || 0),
+        readNotes: Number(r.readNotes || 0),
+        signedUp: Number(r.signedUp || 0),
+        activeSec: Number(r.activeSec || 0),
+      });
     }
+    deviceFunnel.sort((a, b) => b.visitors - a.visitors);
+
+    // Aggregate active seconds by top-level surface category (runner, notes, course, exams, home, community, schedule, metrics, pdf)
+    const surfaceTotals = new Map();
+    for (const r of evs) {
+      if (r.event !== 'active_sec' || !r.dim) continue;
+      const cat = String(r.dim).split(':')[0] || 'other';
+      const cur = surfaceTotals.get(cat) || { surface: cat, anon: 0, authed: 0, total: 0 };
+      cur.anon += Number(r.anon || 0);
+      cur.authed += Number(r.authed || 0);
+      cur.total += Number(r.total || 0);
+      surfaceTotals.set(cat, cur);
+    }
+    const activeBySurface = [...surfaceTotals.values()].sort((a, b) => b.total - a.total);
 
     return {
       todayDay,
-      today: byDay.get(todayDay) || { day: todayDay, anon: 0, authed: 0, total: 0, startedRun: 0, attempted: 0, openedAuth: 0, signedUp: 0, totalEvents: 0 },
+      today: byDay.get(todayDay) || { day: todayDay, anon: 0, authed: 0, total: 0, startedRun: 0, attempted: 0, openedAuth: 0, signedUp: 0, totalEvents: 0, activeSec: 0, readNotes: 0 },
       last7d: sumWindow(start7d),
       last30d: sumWindow(start30d),
       daily14,
@@ -373,13 +436,28 @@ export async function getAdminTelemetrySummary(db, now = Date.now()) {
         questionsAttempted: sumEvent('question_attempt'),
         runsCompleted: sumEvent('run_complete'),
         desktopDownloads: sumEvent('desktop_download'),
+        activeSec: sumEvent('active_sec'),
+        clientErrors: sumEvent('client_error'),
+        boxChecks: sumEvent('box_check'),
+        hintsOpened: sumEvent('hint_open'),
+        copies: sumEvent('copy_question'),
       },
+      activeBySurface,
+      topActiveTargets: pickTop('active_sec', 10),
+      runExits: pickTop('run_exit', 10),
+      solutionReveals: pickTop('solution_reveal', 10),
+      attemptOutcomes: pickTop('question_attempt', 12),
+      boxCheckBreakdown: pickTop('box_check', 8),
+      features: pickTop('feature_use', 16),
+      linkLands: pickTop('link_land', 10),
+      clientErrors: pickTop('client_error', 10),
       topPages: pickTop('page_view', 8),
       topTabs: pickTop('tab_view', 8),
       topCourses: pickTop('course_open', 8),
       topReferrers: (refRows.results || []).map((r) => ({ host: r.host || 'direct', visitors: Number(r.visitors || 0) })),
       countries: (countryRows.results || []).map((r) => ({ country: r.country || 'XX', visitors: Number(r.visitors || 0) })),
       devices,
+      deviceFunnel,
     };
   } catch {
     return null;

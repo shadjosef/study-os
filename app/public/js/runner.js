@@ -577,6 +577,7 @@ window.StudyRunner = (() => {
     toast(enabled
       ? 'Auto-check ON (~2s after typing or Tab · no spoilers)'
       : 'Auto-check OFF — click Check or press Enter manually');
+    window.StudyWebTelemetry?.track?.('feature_use', enabled ? 'wf_autocheck_on' : 'wf_autocheck_off');
   }
   function isMathParAutoRevealEnabled(prefs = getRunnerUiPrefs()) {
     return Boolean(prefs.mathParAutoReveal);
@@ -4474,9 +4475,10 @@ window.StudyRunner = (() => {
       };
       updateWfRowInPlace(fid);
       persistActiveRun(true);
+      window.StudyWebTelemetry?.track?.('box_check', 'peek');
     };
 
-    const runSingleWfFieldCheck = (fid, { advanceFocusOnPass = false } = {}) => {
+    const runSingleWfFieldCheck = (fid, { advanceFocusOnPass = false, source = 'manual' } = {}) => {
       if (!canWfLiveCheck) return false;
       const f = wfFieldsById.get(String(fid));
       if (!f) return false;
@@ -4500,6 +4502,10 @@ window.StudyRunner = (() => {
       };
       updateWfRowInPlace(fid);
       persistActiveRun(true);
+      if (!res.empty) {
+        const prefix = source === 'auto' ? 'auto_' : '';
+        window.StudyWebTelemetry?.track?.('box_check', `${prefix}${res.passed ? 'ok' : 'wrong'}`);
+      }
       if (advanceFocusOnPass && res.passed) {
         const inputs = [...document.querySelectorAll('[data-wf-num-id]')];
         const curIdx = inputs.findIndex((el) => el.dataset.wfNumId === String(fid));
@@ -4586,7 +4592,7 @@ window.StudyRunner = (() => {
           if (!activeRun || st.revealed || !isWfAutoCheckEnabled()) return;
           if (String(st.wiseflow?.[fid] ?? '') !== String(val)) return;
           if (st.wfLiveChecks?.[fid]?.status) return;
-          runSingleWfFieldCheck(fid, { advanceFocusOnPass: false });
+          runSingleWfFieldCheck(fid, { advanceFocusOnPass: false, source: 'auto' });
         }, WF_AUTO_CHECK_DELAY_MS);
         wfAutoCheckTimers.set(fid, timer);
       };
@@ -4616,7 +4622,7 @@ window.StudyRunner = (() => {
         const curVal = st.wiseflow?.[fid] ?? '';
         if (!isCompleteNumericDraft(curVal)) return;
         if (st.wfLiveChecks?.[fid]?.status) return;
-        runSingleWfFieldCheck(fid, { advanceFocusOnPass: false });
+        runSingleWfFieldCheck(fid, { advanceFocusOnPass: false, source: 'auto' });
       });
       inp.addEventListener('keydown', (ev) => {
         if (ev.isComposing) return;
@@ -4951,6 +4957,8 @@ window.StudyRunner = (() => {
     // Hints
     document.getElementById('btn-hint')?.addEventListener('click', () => {
       st.hintsUsed = Math.min((q.hints || []).length, st.hintsUsed + 1);
+      const qFmt = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length ? 'worksheet' : String(q.kind || 'written');
+      window.StudyWebTelemetry?.track?.('hint_open', `${q.courseId || 'course'}:${qFmt}`);
       if (activeRun.mode === 'exam') {
         if (activeRun.paperSubmitted || activeRun.examStyle === 'guided') {
           activeRun.paperScoreSummary = recomputeExamRunGrade({ includeUnverifiedAsZero: Boolean(activeRun.paperSubmitted) });
@@ -4963,6 +4971,7 @@ window.StudyRunner = (() => {
     // Zero-Penalty Final Answers Check (one-by-one reveal, no worked steps)
     document.getElementById('btn-toggle-answers')?.addEventListener('click', () => {
       st.answerTrayOpen = !st.answerTrayOpen;
+      if (st.answerTrayOpen) window.StudyWebTelemetry?.track?.('feature_use', 'answer_tray');
       refreshAnswerTrayInPlace(q, st);
     });
     document.getElementById('runner-answer-tray')?.addEventListener('click', (ev) => {
@@ -5053,6 +5062,9 @@ window.StudyRunner = (() => {
       workClock?.setPaused?.(false);
       pauseCurrentTimer();
       st.revealed = true;
+      const revFmt = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length ? 'worksheet' : String(q.kind || 'written');
+      const revMode = hasAnyAnswerEntered(q, st) ? 'tried' : 'cold';
+      window.StudyWebTelemetry?.track?.('solution_reveal', `${q.courseId || 'course'}:${revFmt}:${revMode}`);
       if (q.kind === 'mcq') {
         st.solutionPeeked = true;
         const acc = st.choice !== null && st.choice === q.answerIndex ? 1.0 : 0.0;
@@ -5503,7 +5515,9 @@ window.StudyRunner = (() => {
     const dlpfcTier = window.StudyApp.effectiveDlpfc?.(q)?.tier || Number(q.dlpfcBase || 2);
     const autoGraded = Boolean(q.kind === 'mcq' || (Array.isArray(q.wiseflowFields) && q.wiseflowFields.length) || q.numericCheck);
     pendingSaves += 1;
-    window.StudyWebTelemetry?.track?.('question_attempt', String(q.kind || 'written'));
+    const attFmt = Array.isArray(q.wiseflowFields) && q.wiseflowFields.length ? 'worksheet' : String(q.kind || 'written');
+    const attOutcome = Number(qualityAccuracy) >= 0.65 ? 'pass' : 'miss';
+    window.StudyWebTelemetry?.track?.('question_attempt', `${attFmt}:${attOutcome}`);
     const res = await window.StudyApp.logAttempt({
       sessionId: run.sessionId,
       courseId: q.courseId,
@@ -5898,6 +5912,19 @@ window.StudyRunner = (() => {
     clearWfAutoCheckTimers();
     pauseCurrentTimer();
 
+    const attemptsDone = Object.keys(run?.completedAttempts || {}).length;
+    if (run) {
+      const totalElapsed = Object.values(run.items || {}).reduce((s, it) => s + itemActiveSec(it), 0);
+      const exitReason = attemptsDone >= run.questionIds.length
+        ? 'completed'
+        : attemptsDone > 0
+        ? 'partial'
+        : totalElapsed < 30
+        ? 'quick_peek'
+        : 'early_quit';
+      window.StudyWebTelemetry?.track?.('run_exit', `${run.courseMeta?.courseId || 'course'}:${exitReason}`);
+    }
+
     // If user just peeked at a single course exercise (<45s, zero input/attempts), close cleanly without leaving a noisy Resume bar
     const isQuickUntouchedPeek = Boolean(
       run
@@ -5909,7 +5936,7 @@ window.StudyRunner = (() => {
       && !curSt.revealed
       && !hasAnyAnswerEntered(curQ, curSt)
       && itemActiveSec(curSt) < 45
-      && Object.keys(run.completedAttempts || {}).length === 0
+      && attemptsDone === 0
     );
     if (isQuickUntouchedPeek) {
       clearInterval(tickInterval);

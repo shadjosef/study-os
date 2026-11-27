@@ -327,6 +327,8 @@ CREATE TABLE IF NOT EXISTS web_daily_visitors (
   has_attempt INTEGER NOT NULL DEFAULT 0,
   has_auth_open INTEGER NOT NULL DEFAULT 0,
   has_signup INTEGER NOT NULL DEFAULT 0,
+  active_sec INTEGER NOT NULL DEFAULT 0,
+  has_notes INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (day_oslo, visitor_hash)
 );
 CREATE INDEX IF NOT EXISTS web_daily_visitors_day ON web_daily_visitors(day_oslo, auth_state);
