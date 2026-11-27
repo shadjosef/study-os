@@ -8170,11 +8170,14 @@ window.StudyApp = (() => {
     try { localStorage.setItem(key, val ? '1' : '0'); } catch {}
   }
 
+  let closeSiteExplorerFn = () => {};
+
   function toggleSiteReferenceSidebar() {
     if (window.StudyUI.isReferenceDrawerOpen?.()) {
       window.StudyUI.closeReferenceDrawer();
       return;
     }
+    closeSiteExplorerFn();
     const cat = boot.catalog || [];
     let targetCourse = null;
     if (currentView === 'course' && selectedCourseId) {
@@ -10358,6 +10361,7 @@ window.StudyApp = (() => {
         expBtn.setAttribute('aria-expanded', 'false');
       }
     };
+    closeSiteExplorerFn = closeExplorer;
 
     const renderExplorerTree = (rawQuery = '') => {
       if (!expTree) return;
@@ -10465,6 +10469,9 @@ window.StudyApp = (() => {
     const openExplorer = () => {
       if (!expDrawer) return;
       if (window.StudyUI?.isReferenceDrawerOpen?.()) window.StudyUI.closeReferenceDrawer();
+      if (window.StudyAiTutor?.isOpen?.() && (window.StudyAiTutor?.getDockSide?.() === 'left' || window.innerWidth < 760)) {
+        window.StudyAiTutor.close();
+      }
       expOpen = true;
       renderExplorerTree(expFilter?.value || '');
       expDrawer.hidden = false;
@@ -11620,6 +11627,7 @@ window.StudyApp = (() => {
     onDevModeChange,
     getCurrentView: () => currentView,
     navigate,
+    closeSiteExplorer: () => closeSiteExplorerFn(),
     toggleSiteReferenceSidebar,
     renderHome,
     showRawView,

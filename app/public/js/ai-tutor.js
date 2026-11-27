@@ -202,12 +202,19 @@ window.StudyAiTutor = (() => {
     const clean = THINKING_MODES.some((t) => t.id === val) ? val : 'minimal';
     try { localStorage.setItem(THINKING_KEY, clean); } catch {}
   }
+  function closeConflictingDrawers(side = getDockSide()) {
+    if (side === 'left' || window.innerWidth < AI_DOCK_MIN_VP) {
+      window.StudyApp?.closeSiteExplorer?.();
+      if (window.StudyUI?.isReferenceDrawerOpen?.()) window.StudyUI.closeReferenceDrawer();
+    }
+  }
   function getDockSide() {
     try { return localStorage.getItem(SIDE_KEY) === 'left' ? 'left' : 'right'; } catch { return 'right'; }
   }
   function setDockSide(side) {
     const clean = side === 'left' ? 'left' : 'right';
     try { localStorage.setItem(SIDE_KEY, clean); } catch {}
+    if (isOpen) closeConflictingDrawers(clean);
     syncBodyClasses();
   }
   function getSavedWidth() {
@@ -735,7 +742,7 @@ window.StudyAiTutor = (() => {
       document.body.classList.add('ai-pane-resizing');
       pane.classList.add('is-resizing');
       const side = getDockSide();
-      const railW = window.innerWidth >= 900 ? 48 : 0;
+      const railW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--runner-rail-width')) || 0;
       const onMove = (ev) => {
         const rawW = side === 'left' ? ev.clientX - railW : window.innerWidth - ev.clientX;
         const maxW = Math.min(AI_PANE_MAX_W, Math.round(window.innerWidth * 0.65));
@@ -1509,6 +1516,7 @@ window.StudyAiTutor = (() => {
     }
     const pane = ensurePane();
     const backdrop = document.getElementById('ai-tutor-backdrop');
+    closeConflictingDrawers(getDockSide());
     isOpen = true;
     pane.hidden = false;
     if (backdrop) backdrop.hidden = false;
@@ -1553,6 +1561,7 @@ window.StudyAiTutor = (() => {
     close,
     toggle,
     isOpen: () => isOpen,
+    getDockSide,
     syncContext,
     setCourseContext,
   };

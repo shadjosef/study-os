@@ -1124,6 +1124,12 @@ window.StudyUI = (() => {
       return;
     }
 
+    // Keep left-edge drawers mutually exclusive so Notes never stacks under Explorer or left-docked Adamlite
+    window.StudyApp?.closeSiteExplorer?.();
+    if (window.StudyAiTutor?.isOpen?.() && (window.StudyAiTutor?.getDockSide?.() === 'left' || window.innerWidth < 760)) {
+      window.StudyAiTutor.close();
+    }
+
     // Course switcher: shown whenever opened outside an active exercise
     if (courseSel) {
       const coursesWithNotes = catalog.filter((c) => c?.obsidian?.mainReference);
@@ -3382,8 +3388,9 @@ window.StudyUI = (() => {
         refResizer.setPointerCapture(ev.pointerId);
         drawer.classList.add('is-resizing');
         const onMove = (mEv) => {
-          const maxW = Math.min(580, Math.round(window.innerWidth * 0.88));
-          const clamped = Math.max(260, Math.min(maxW, Math.round(mEv.clientX)));
+          const leftEdge = Math.round(drawer.getBoundingClientRect().left || 0);
+          const maxW = Math.min(580, Math.round((window.innerWidth - leftEdge) * 0.88));
+          const clamped = Math.max(260, Math.min(maxW, Math.round(mEv.clientX - leftEdge)));
           drawer.style.setProperty('--ref-drawer-w', `${clamped}px`);
         };
         const onUp = () => {
