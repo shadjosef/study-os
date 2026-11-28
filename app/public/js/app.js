@@ -1788,7 +1788,6 @@ window.StudyApp = (() => {
       const title = homeBlockTitle(info.topicLabel, course);
       document.querySelectorAll(`[data-sched-topic-for="${escId}"]`).forEach((el) => {
         el.textContent = title;
-        el.closest('#hero-active-block')?.setAttribute('aria-label', `Launch ${title}`);
       });
     }
   }
@@ -3343,7 +3342,7 @@ window.StudyApp = (() => {
       heroEl.innerHTML = `
         ${focusBarHtml}
         ${debtBannerHtml}
-        <div class="hero-queue-card ${isDebt ? 'is-debt' : isLive ? 'is-live' : ''}" id="hero-active-block" role="button" tabindex="0" style="--sched-accent:${esc(cMeta?.color || 'var(--accent)')}" aria-label="Launch ${esc(title)}">
+        <div class="hero-queue-card ${isDebt ? 'is-debt' : isLive ? 'is-live' : ''}" id="hero-active-block" role="button" tabindex="0" style="--sched-accent:${esc(cMeta?.color || 'var(--accent)')}">
           <div class="hero-queue-main">
             <div class="hero-queue-pills">
               ${whenBadge}
@@ -3672,7 +3671,7 @@ window.StudyApp = (() => {
                 <span class="course-code-pill" style="--pill-color:${esc(c.color)}">${esc(c.code)}${semesters.length > 1 && c.semester ? ` · ${esc(c.semester)}` : ''}</span>
                 <div class="row-actions">${maintBadgeHtml}${examBadge}</div>
               </div>
-              <h3 class="course-card-title" data-open-course="${esc(c.courseId)}" role="button" tabindex="0">${esc(c.title)}</h3>
+              <h3 class="course-card-title"><button type="button" class="course-card-title-btn" data-open-course="${esc(c.courseId)}">${esc(c.title)}</button></h3>
               <p class="muted course-maintenance-note">${esc(maint.shortNote)}</p>
             </div>
             <div class="course-actions">
@@ -3688,7 +3687,7 @@ window.StudyApp = (() => {
               <span class="course-code-pill" style="--pill-color:${esc(c.color)}">${esc(c.code)}${semesters.length > 1 && c.semester ? ` · ${esc(c.semester)}` : ''}</span>
               <div class="row-actions">${maintBadgeHtml}${examBadge}</div>
             </div>
-            <h3 class="course-card-title" data-open-course="${esc(c.courseId)}" role="button" tabindex="0">${esc(c.title)}</h3>
+            <h3 class="course-card-title"><button type="button" class="course-card-title-btn" data-open-course="${esc(c.courseId)}">${esc(c.title)}</button></h3>
             <div class="course-progress-wrap">
               <div class="course-bar"><div class="course-bar-fill" style="width:${pct}%;background:${esc(c.color)}"></div></div>
               <span class="course-pct">${pct}%</span>
@@ -9570,7 +9569,7 @@ window.StudyApp = (() => {
           </div>
         </div>
         <div class="task-table-wrap">
-          <table class="task-table">
+          <table class="task-table sched-task-table">
             <thead><tr><th>When</th><th>Course</th><th>Topic &amp; Focus</th><th>DLPFC</th><th>Status</th><th></th></tr></thead>
             <tbody>
               ${
