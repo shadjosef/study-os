@@ -9,6 +9,7 @@ import { isAllowedTimetableUrl, isPrivateOrIpHost } from '../../community/timeed
 import { handleMaterials } from '../../community/materials.mjs';
 import { handleAi } from '../../community/ai.mjs';
 import { handleJournal } from '../../community/journal.mjs';
+import { verifyMicrosoftIdToken } from '../../community/auth.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const COMMUNITY_DIR = path.resolve(__dirname, '../../community');
@@ -886,4 +887,367 @@ test('private journal routes reject non-admins with 403, enforce AES-256-GCM env
   assert.equal(trRes.status, 200);
   assert.equal(calledModel, '@cf/openai/whisper-large-v3-turbo');
   assert.equal((await trRes.json()).text, 'Today I finished accounting chapter 7.');
+});
+
+// ---------------------------------------------------------------------------
+// 11. Microsoft & GitHub OAuth 2.0 + PKCE Security, School Detection & Linking
+// ---------------------------------------------------------------------------
+test('GET /auth/config exposes Microsoft & GitHub only when properly configured', async () => {
+  const unsetRes = await worker.fetch(new Request(`${WORKER_URL}/auth/config`, {
+    method: 'GET',
+    headers: { Origin: ALLOWED_ORIGIN },
+  }), makeEnv());
+  assert.equal(unsetRes.status, 200);
+  const unset = await unsetRes.json();
+  assert.equal(unset.microsoftClientId, '');
+  assert.equal(unset.githubClientId, '');
+  assert.equal(unset.oauthOpenSignup, false);
+
+  // GitHub without secret must NOT advertise githubClientId
+  const partialRes = await worker.fetch(new Request(`${WORKER_URL}/auth/config`, {
+    method: 'GET',
+    headers: { Origin: ALLOWED_ORIGIN },
+  }), makeEnv({
+    MICROSOFT_CLIENT_ID: 'ms-client-123',
+    GITHUB_CLIENT_ID: 'gh-client-only',
+  }));
+  const partial = await partialRes.json();
+  assert.equal(partial.microsoftClientId, 'ms-client-123');
+  assert.equal(partial.githubClientId, '');
+  assert.equal(partial.oauthOpenSignup, true);
+
+  const fullRes = await worker.fetch(new Request(`${WORKER_URL}/auth/config`, {
+    method: 'GET',
+    headers: { Origin: ALLOWED_ORIGIN },
+  }), makeEnv({
+    MICROSOFT_CLIENT_ID: 'ms-client-123',
+    GITHUB_CLIENT_ID: 'gh-client-456',
+    GITHUB_CLIENT_SECRET: 'gh-secret-789',
+  }));
+  const full = await fullRes.json();
+  assert.equal(full.microsoftClientId, 'ms-client-123');
+  assert.equal(full.githubClientId, 'gh-client-456');
+  assert.equal(full.oauthOpenSignup, true);
+});
+
+test('Microsoft & GitHub OAuth reject untrusted redirectUri with 400 and enforce rate limits with 429', async () => {
+  const env = makeEnv({
+    MICROSOFT_CLIENT_ID: 'ms-client-123',
+    GITHUB_CLIENT_ID: 'gh-client-456',
+    GITHUB_CLIENT_SECRET: 'gh-secret-789',
+  });
+
+  const badRedirects = [
+    'https://evil.example/',
+    'http://studyos.no/',
+    'https://studyos.no/?foo=bar',
+    'https://studyos.no/#frag',
+    'javascript:alert(1)',
+    '',
+  ];
+  for (const endpoint of ['/auth/microsoft', '/auth/github']) {
+    for (const redirectUri of badRedirects) {
+      const res = await worker.fetch(new Request(`${WORKER_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { Origin: ALLOWED_ORIGIN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: 'valid-code-12345', codeVerifier: 'v'.repeat(64), redirectUri }),
+      }), env);
+      assert.equal(res.status, 400, `${endpoint} must reject redirectUri=${redirectUri}`);
+    }
+  }
+
+  // Rate-limit enforcement returns 429
+  const limitedEnv = makeEnv({
+    MICROSOFT_CLIENT_ID: 'ms-client-123',
+    AUTH_RATE_LIMIT: { async limit() { return { success: false }; } },
+  });
+  const rlRes = await worker.fetch(new Request(`${WORKER_URL}/auth/microsoft`, {
+    method: 'POST',
+    headers: { Origin: ALLOWED_ORIGIN, 'CF-Connecting-IP': '198.51.100.5', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: 'valid-code-12345', codeVerifier: 'v'.repeat(64), redirectUri: 'https://studyos.no/' }),
+  }), limitedEnv);
+  assert.equal(rlRes.status, 429);
+});
+
+test('GitHub OAuth end-to-end: school auto-detect, /auth/oauth/complete signup, returning login, devices, link conflict & unlink', async () => {
+  const profiles = new Map();
+  const oauthLinks = new Map();
+  const oauthPending = new Map();
+  const sessions = new Map();
+
+  const db = makeMockDb({
+    async first(sql, bound) {
+      if (sql.includes('FROM oauth_links l JOIN profiles p')) {
+        const key = `${bound[0]}:${bound[1]}`;
+        const link = oauthLinks.get(key);
+        if (!link) return null;
+        const prof = profiles.get(link.profile_id);
+        return prof ? { profile_id: prof.id, nickname: prof.nickname } : null;
+      }
+      if (sql.includes('SELECT ticket, provider, provider_sub') && sql.includes('FROM oauth_pending')) {
+        const row = oauthPending.get(bound[0]);
+        return row && row.expires_at >= bound[1] ? row : null;
+      }
+      if (sql.includes('SELECT profile_id FROM oauth_links WHERE provider = ? AND provider_sub = ?')) {
+        const link = oauthLinks.get(`${bound[0]}:${bound[1]}`);
+        return link ? { profile_id: link.profile_id } : null;
+      }
+      if (sql.includes('FROM profile_sessions') && sql.includes('JOIN profiles')) {
+        const sess = sessions.get(bound[0]);
+        if (!sess) return null;
+        const prof = profiles.get(sess.profile_id);
+        return prof ? { ...prof, primary_token_hash: prof.token_hash, session_last_used_at: sess.last_used_at } : null;
+      }
+      if (sql.includes('FROM profiles LEFT JOIN presence')) {
+        for (const prof of profiles.values()) {
+          if (prof.token_hash === bound[0]) return { ...prof, primary_token_hash: prof.token_hash };
+        }
+        return null;
+      }
+      return null;
+    },
+    async all(sql, bound) {
+      if (sql.includes('FROM oauth_links WHERE profile_id = ?')) {
+        const results = [...oauthLinks.values()]
+          .filter((l) => l.profile_id === bound[0])
+          .map((l) => ({ provider: l.provider, emailHint: l.email_hint, createdAt: l.created_at }));
+        return { results };
+      }
+      if (sql.includes('FROM profile_sessions WHERE profile_id = ?')) {
+        const results = [...sessions.entries()]
+          .filter(([, s]) => s.profile_id === bound[0])
+          .map(([token_hash, s]) => ({ token_hash, label: s.label, createdAt: s.created_at, lastUsedAt: s.last_used_at }));
+        return { results };
+      }
+      return { results: [] };
+    },
+    async run(sql, bound) {
+      if (sql.includes('INSERT INTO oauth_pending')) {
+        oauthPending.set(bound[0], {
+          ticket: bound[0], provider: bound[1], provider_sub: bound[2],
+          email_hint: bound[3], verified_email: bound[4], suggested_name: bound[5], expires_at: bound[6],
+        });
+        return { meta: { changes: 1 } };
+      }
+      if (sql.includes('DELETE FROM oauth_pending WHERE ticket = ?')) {
+        const existed = oauthPending.delete(bound[0]);
+        return { meta: { changes: existed ? 1 : 0 } };
+      }
+      if (sql.includes('INSERT OR IGNORE INTO profiles')) {
+        profiles.set(bound[0], { id: bound[0], token_hash: bound[1], nickname: bound[2], school: bound[4] });
+        return { meta: { changes: 1 } };
+      }
+      if (sql.includes('INSERT OR IGNORE INTO oauth_links') || sql.includes('INSERT INTO oauth_links')) {
+        const key = `${bound[0]}:${bound[1]}`;
+        if (oauthLinks.has(key) && sql.includes('OR IGNORE')) return { meta: { changes: 0 } };
+        oauthLinks.set(key, { provider: bound[0], provider_sub: bound[1], profile_id: bound[2], email_hint: bound[3], created_at: bound[4] });
+        return { meta: { changes: 1 } };
+      }
+      if (sql.includes('DELETE FROM oauth_links WHERE provider =')) {
+        const prov = sql.includes("'github'") ? 'github' : bound[0];
+        const pid = sql.includes("'github'") ? bound[0] : bound[1];
+        for (const [k, v] of oauthLinks.entries()) {
+          if (v.provider === prov && v.profile_id === pid) oauthLinks.delete(k);
+        }
+        return { meta: { changes: 1 } };
+      }
+      if (sql.includes('INSERT INTO profile_sessions')) {
+        sessions.set(bound[0], { profile_id: bound[1], label: bound[2], created_at: bound[3], last_used_at: bound[4] });
+        return { meta: { changes: 1 } };
+      }
+      return { meta: { changes: 1 } };
+    },
+  });
+
+  const env = makeEnv({
+    DB: db,
+    GITHUB_CLIENT_ID: 'gh-client-456',
+    GITHUB_CLIENT_SECRET: 'gh-secret-789',
+    MICROSOFT_CLIENT_ID: 'ms-client-123',
+  });
+
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const s = String(url);
+    if (s === 'https://github.com/login/oauth/access_token') {
+      return Response.json({ access_token: 'gho_mock_token_123' });
+    }
+    if (s === 'https://api.github.com/user') {
+      return Response.json({ id: 987654, login: 'shadjosef', name: 'Shad Student' });
+    }
+    if (s === 'https://api.github.com/user/emails') {
+      return Response.json([{ email: 's2400001@bi.no', primary: true, verified: true }]);
+    }
+    return origFetch(url);
+  };
+
+  try {
+    // 1. First-time GitHub login returns needsJoin + BI Oslo auto-detection
+    const startRes = await worker.fetch(new Request(`${WORKER_URL}/auth/github`, {
+      method: 'POST',
+      headers: { Origin: ALLOWED_ORIGIN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: 'gh-auth-code-123', codeVerifier: 'a'.repeat(64), redirectUri: 'https://studyos.no/' }),
+    }), env);
+    assert.equal(startRes.status, 200);
+    const startBody = await startRes.json();
+    assert.equal(startBody.needsJoin, true);
+    assert.equal(startBody.provider, 'github');
+    assert.equal(startBody.suggestedName, 'Shad');
+    assert.equal(startBody.detectedSchool?.school, 'BI Oslo');
+    assert.equal(startBody.detectedSchool?.canvasOrigin, 'https://canvas.bi.no');
+    assert.ok(startBody.ticket);
+
+    // 2. Complete signup via unified /auth/oauth/complete
+    const completeRes = await worker.fetch(new Request(`${WORKER_URL}/auth/oauth/complete`, {
+      method: 'POST',
+      headers: { Origin: ALLOWED_ORIGIN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ticket: startBody.ticket,
+        nickname: 'ShadBI',
+        school: 'BI Oslo',
+        canvasOrigin: 'https://canvas.bi.no',
+        tosAccepted: true,
+      }),
+    }), env);
+    assert.equal(completeRes.status, 201);
+    const completeBody = await completeRes.json();
+    assert.equal(completeBody.provider, 'github');
+    assert.equal(completeBody.nickname, 'ShadBI');
+    assert.ok(completeBody.token.startsWith('soc1_'));
+
+    // 3. Returning GitHub login signs straight in
+    const returnRes = await worker.fetch(new Request(`${WORKER_URL}/auth/github`, {
+      method: 'POST',
+      headers: { Origin: ALLOWED_ORIGIN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: 'gh-auth-code-456', codeVerifier: 'b'.repeat(64), redirectUri: 'https://studyos.no/' }),
+    }), env);
+    assert.equal(returnRes.status, 200);
+    const returnBody = await returnRes.json();
+    assert.equal(returnBody.nickname, 'ShadBI');
+    assert.ok(returnBody.token.startsWith('soc1_'));
+
+    // 4. GET /auth/devices reports github linked + microsoft enabled
+    const devRes = await worker.fetch(new Request(`${WORKER_URL}/auth/devices`, {
+      method: 'GET',
+      headers: { Origin: ALLOWED_ORIGIN, Authorization: `Bearer ${returnBody.token}` },
+    }), env);
+    assert.equal(devRes.status, 200);
+    const devBody = await devRes.json();
+    assert.equal(devBody.githubEnabled, true);
+    assert.equal(devBody.github.linked, true);
+    assert.equal(devBody.microsoftEnabled, true);
+    assert.equal(devBody.microsoft.linked, false);
+
+    // 5. Linking same GitHub account to a second profile returns 409 conflict
+    const secondToken = 'soc1_' + 'f'.repeat(64);
+    const secondHash = await sha256Hex(secondToken);
+    profiles.set('22222222-3333-4444-8555-666666666666', {
+      id: '22222222-3333-4444-8555-666666666666',
+      token_hash: secondHash,
+      nickname: 'OtherUser',
+    });
+    const conflictRes = await worker.fetch(new Request(`${WORKER_URL}/auth/github/link`, {
+      method: 'POST',
+      headers: { Origin: ALLOWED_ORIGIN, Authorization: `Bearer ${secondToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: 'gh-auth-code-789', codeVerifier: 'c'.repeat(64), redirectUri: 'https://studyos.no/' }),
+    }), env);
+    assert.equal(conflictRes.status, 409);
+
+    // 6. Owner can unlink GitHub cleanly
+    const unlinkRes = await worker.fetch(new Request(`${WORKER_URL}/auth/github/unlink`, {
+      method: 'POST',
+      headers: { Origin: ALLOWED_ORIGIN, Authorization: `Bearer ${returnBody.token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }), env);
+    assert.equal(unlinkRes.status, 200);
+    assert.equal(oauthLinks.size, 0);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
+});
+
+test('verifyMicrosoftIdToken validates RS256 JWKS signature, tenant issuer, audience, expiry, and detects BI Oslo', async () => {
+  const keyPair = await crypto.subtle.generateKey(
+    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true,
+    ['sign', 'verify']
+  );
+  const pubJwk = await crypto.subtle.exportKey('jwk', keyPair.publicKey);
+  const kid = 'test-ms-kid-1';
+  const jwkWithKid = { ...pubJwk, kid, use: 'sig', alg: 'RS256' };
+
+  const b64u = (input) => {
+    const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : new Uint8Array(input);
+    return Buffer.from(bytes).toString('base64url');
+  };
+  const signJwt = async (payload, header = { alg: 'RS256', kid, typ: 'JWT' }) => {
+    const body = `${b64u(JSON.stringify(header))}.${b64u(JSON.stringify(payload))}`;
+    const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', keyPair.privateKey, new TextEncoder().encode(body));
+    return `${body}.${b64u(sig)}`;
+  };
+
+  const tid = '11111111-2222-3333-4444-555555555555';
+  const nowSec = Math.floor(Date.now() / 1000);
+  const clientId = 'ms-app-client-id-001';
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('login.microsoftonline.com/common/discovery/v2.0/keys')) {
+      return Response.json({ keys: [jwkWithKid] });
+    }
+    return origFetch(url);
+  };
+
+  try {
+    const validJwt = await signJwt({
+      iss: `https://login.microsoftonline.com/${tid}/v2.0`,
+      tid,
+      aud: clientId,
+      sub: 'ms-subject-abcdef123456',
+      preferred_username: 's2499999@bi.no',
+      given_name: 'Nora',
+      exp: nowSec + 3600,
+    });
+    const verified = await verifyMicrosoftIdToken(validJwt, clientId, nowSec * 1000);
+    assert.equal(verified.provider, 'microsoft');
+    assert.equal(verified.sub, 'ms-subject-abcdef123456');
+    assert.equal(verified.suggestedName, 'Nora');
+    assert.equal(verified.detectedSchool?.school, 'BI Oslo');
+
+    // Wrong audience rejected
+    const badAudJwt = await signJwt({
+      iss: `https://login.microsoftonline.com/${tid}/v2.0`,
+      tid,
+      aud: 'different-app',
+      sub: 'ms-subject-abcdef123456',
+      exp: nowSec + 3600,
+    });
+    await assert.rejects(() => verifyMicrosoftIdToken(badAudJwt, clientId, nowSec * 1000), /audience/i);
+
+    // Mismatched issuer / non-UUID tid rejected
+    const badIssJwt = await signJwt({
+      iss: 'https://login.microsoftonline.com/../evil/v2.0',
+      tid: '../evil',
+      aud: clientId,
+      sub: 'ms-subject-abcdef123456',
+      exp: nowSec + 3600,
+    });
+    await assert.rejects(() => verifyMicrosoftIdToken(badIssJwt, clientId, nowSec * 1000), /issuer/i);
+
+    // Expired token rejected
+    const expiredJwt = await signJwt({
+      iss: `https://login.microsoftonline.com/${tid}/v2.0`,
+      tid,
+      aud: clientId,
+      sub: 'ms-subject-abcdef123456',
+      exp: nowSec - 120,
+    });
+    await assert.rejects(() => verifyMicrosoftIdToken(expiredJwt, clientId, nowSec * 1000), /expired/i);
+
+    // Tampered signature rejected
+    const parts = validJwt.split('.');
+    const tampered = `${parts[0]}.${parts[1]}.${parts[2].slice(0, -4)}AAAA`;
+    await assert.rejects(() => verifyMicrosoftIdToken(tampered, clientId, nowSec * 1000), /signature/i);
+  } finally {
+    globalThis.fetch = origFetch;
+  }
 });

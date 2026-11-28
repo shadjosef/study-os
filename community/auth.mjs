@@ -39,9 +39,257 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const LINK_CODE_TTL_MS = 5 * 60 * 1000;
 const OAUTH_PENDING_TTL_MS = 10 * 60 * 1000;
 const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+const MICROSOFT_JWKS_URL = 'https://login.microsoftonline.com/common/discovery/v2.0/keys';
+const MICROSOFT_TOKEN_URL = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
+const GITHUB_USER_URL = 'https://api.github.com/user';
+const GITHUB_EMAILS_URL = 'https://api.github.com/user/emails';
+const VALID_OAUTH_PROVIDERS = new Set(['google', 'microsoft', 'github']);
 const MAX_PASSKEYS_PER_PROFILE = 10;
 const MAX_SESSIONS_PER_PROFILE = 25;
 let googleJwksCache = { keys: [], fetchedAt: 0 };
+let microsoftJwksCache = { keys: [], fetchedAt: 0 };
+
+const SCHOOL_DOMAIN_HINTS = [
+  ['bi.no', { school: 'BI Oslo', canvasOrigin: 'https://canvas.bi.no' }],
+  ['nhh.no', { school: 'NHH', canvasOrigin: 'https://nhh.instructure.com' }],
+  ['ntnu.no', { school: 'NTNU', canvasOrigin: 'https://ntnu.instructure.com' }],
+  ['uio.no', { school: 'UiO', canvasOrigin: 'https://uio.instructure.com' }],
+  ['uib.no', { school: 'UiB', canvasOrigin: 'https://mitt.uib.no' }],
+  ['uia.no', { school: 'UiA', canvasOrigin: 'https://uia.instructure.com' }],
+  ['oslomet.no', { school: 'OsloMet', canvasOrigin: 'https://oslomet.instructure.com' }],
+  ['nmbu.no', { school: 'NMBU', canvasOrigin: 'https://nmbu.instructure.com' }],
+  ['uis.no', { school: 'UiS', canvasOrigin: 'https://uis.instructure.com' }],
+  ['uit.no', { school: 'UiT', canvasOrigin: 'https://uit.instructure.com' }],
+  ['hvl.no', { school: 'HVL', canvasOrigin: 'https://hvl.instructure.com' }],
+  ['kristiania.no', { school: 'Kristiania', canvasOrigin: 'https://kristiania.instructure.com' }],
+];
+
+function detectSchoolFromEmail(email) {
+  if (typeof email !== 'string' || !email.includes('@')) return null;
+  const domain = email.trim().toLowerCase().split('@').pop() || '';
+  for (const [suffix, info] of SCHOOL_DOMAIN_HINTS) {
+    if (domain === suffix || domain.endsWith('.' + suffix)) return info;
+  }
+  return null;
+}
+
+function validateOAuthRedirectUri(rawUri, env) {
+  if (typeof rawUri !== 'string' || !rawUri.trim() || rawUri.length > 300) return '';
+  let parsed;
+  try {
+    parsed = new URL(rawUri.trim());
+  } catch {
+    return '';
+  }
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    return '';
+  }
+  const allowed = new Set(
+    [env?.WEB_ORIGIN, env?.WEB_ADDITIONAL_ORIGIN]
+      .filter((v) => typeof v === 'string' && v.trim())
+      .map((v) => {
+        try { return new URL(v.trim()).origin; } catch { return ''; }
+      })
+      .filter(Boolean)
+  );
+  if (allowed.size > 0 && !allowed.has(parsed.origin)) return '';
+  return `${parsed.origin}${parsed.pathname}`;
+}
+
+async function fetchMicrosoftJwks(force = false) {
+  const now = Date.now();
+  if (!force && microsoftJwksCache.keys.length && now - microsoftJwksCache.fetchedAt < 3_600_000) {
+    return microsoftJwksCache.keys;
+  }
+  const res = await fetch(MICROSOFT_JWKS_URL, { signal: AbortSignal.timeout(8_000) });
+  if (!res.ok) throw new Error('Could not reach Microsoft sign-in keys.');
+  const body = await res.json();
+  const keys = Array.isArray(body?.keys) ? body.keys : [];
+  microsoftJwksCache = { keys, fetchedAt: now };
+  return keys;
+}
+
+export async function verifyMicrosoftIdToken(idToken, expectedClientId, now = Date.now()) {
+  if (!expectedClientId) throw new Error('Microsoft Sign-In is not configured yet.');
+  if (typeof idToken !== 'string' || idToken.length < 40 || idToken.length > 12_288) {
+    throw new Error('Invalid Microsoft token.');
+  }
+  const parts = idToken.split('.');
+  if (parts.length !== 3) throw new Error('Malformed Microsoft token.');
+  const [headerB64, payloadB64, sigB64] = parts;
+  const headerRaw = fromBase64Url(headerB64);
+  const payloadRaw = fromBase64Url(payloadB64);
+  const sigBytes = fromBase64Url(sigB64);
+  if (!headerRaw || !payloadRaw || !sigBytes) throw new Error('Could not decode Microsoft token.');
+
+  let header;
+  let payload;
+  try {
+    header = JSON.parse(decoder.decode(headerRaw));
+    payload = JSON.parse(decoder.decode(payloadRaw));
+  } catch {
+    throw new Error('Malformed Microsoft token JSON.');
+  }
+  if (header?.alg !== 'RS256' || typeof header?.kid !== 'string') {
+    throw new Error('Unsupported Microsoft token algorithm.');
+  }
+  const tid = typeof payload?.tid === 'string' ? payload.tid.trim() : '';
+  const validTid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tid);
+  const expectedIss = validTid ? `https://login.microsoftonline.com/${tid}/v2.0` : '';
+  if (!validTid || payload?.iss !== expectedIss) {
+    throw new Error('Invalid Microsoft token issuer.');
+  }
+  if (payload?.aud !== expectedClientId) {
+    throw new Error('Microsoft token audience mismatch.');
+  }
+  if (typeof payload?.sub !== 'string' || payload.sub.length < 6 || payload.sub.length > 160) {
+    throw new Error('Missing Microsoft account identifier.');
+  }
+  if (!Number.isFinite(Number(payload.exp)) || Number(payload.exp) * 1000 <= now - 30_000) {
+    throw new Error('Microsoft sign-in expired. Please try again.');
+  }
+
+  let keys = await fetchMicrosoftJwks(false);
+  let jwk = keys.find((k) => k?.kid === header.kid && k?.kty === 'RSA');
+  if (!jwk) {
+    keys = await fetchMicrosoftJwks(true);
+    jwk = keys.find((k) => k?.kid === header.kid && k?.kty === 'RSA');
+  }
+  if (!jwk) throw new Error('Microsoft signing key not found.');
+
+  const key = await crypto.subtle.importKey(
+    'jwk',
+    jwk,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['verify']
+  );
+  const valid = await crypto.subtle.verify(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    sigBytes,
+    encoder.encode(`${headerB64}.${payloadB64}`)
+  );
+  if (!valid) throw new Error('Invalid Microsoft signature.');
+
+  const rawEmail = typeof payload.email === 'string' && payload.email.includes('@')
+    ? payload.email.trim().toLowerCase()
+    : (typeof payload.preferred_username === 'string' && payload.preferred_username.includes('@')
+      ? payload.preferred_username.trim().toLowerCase()
+      : '');
+  const suggestedName = cleanSuggestedName(
+    payload.given_name || (typeof payload.name === 'string' ? payload.name.split(/\s+/)[0] : '') || rawEmail.split('@')[0] || ''
+  );
+  return {
+    provider: 'microsoft',
+    sub: payload.sub,
+    email: rawEmail,
+    emailHint: maskEmail(rawEmail) || 'Microsoft account',
+    suggestedName,
+    detectedSchool: detectSchoolFromEmail(rawEmail),
+  };
+}
+
+export async function verifyMicrosoftAuthCode(code, codeVerifier, redirectUri, env, now = Date.now()) {
+  const clientId = typeof env?.MICROSOFT_CLIENT_ID === 'string' ? env.MICROSOFT_CLIENT_ID.trim() : '';
+  const clientSecret = typeof env?.MICROSOFT_CLIENT_SECRET === 'string' ? env.MICROSOFT_CLIENT_SECRET.trim() : '';
+  if (!clientId) throw new Error('Microsoft Sign-In is not configured yet.');
+  const cleanRedirect = validateOAuthRedirectUri(redirectUri, env);
+  if (!cleanRedirect) throw new Error('Invalid sign-in redirect URL.');
+  if (typeof code !== 'string' || code.length < 8 || code.length > 4096) {
+    throw new Error('Missing Microsoft authorization code.');
+  }
+  const form = new URLSearchParams({
+    client_id: clientId,
+    grant_type: 'authorization_code',
+    code: code.trim(),
+    redirect_uri: cleanRedirect,
+    scope: 'openid profile email',
+  });
+  if (typeof codeVerifier === 'string' && /^[A-Za-z0-9._~-]{32,128}$/.test(codeVerifier.trim())) {
+    form.set('code_verifier', codeVerifier.trim());
+  }
+  if (clientSecret) {
+    form.set('client_secret', clientSecret);
+  }
+  const res = await fetch(MICROSOFT_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body: form,
+    signal: AbortSignal.timeout(10_000),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body?.id_token) {
+    throw new Error('Microsoft sign-in could not be completed. Please try again.');
+  }
+  return verifyMicrosoftIdToken(body.id_token, clientId, now);
+}
+
+export async function verifyGitHubAuthCode(code, codeVerifier, redirectUri, env) {
+  const clientId = typeof env?.GITHUB_CLIENT_ID === 'string' ? env.GITHUB_CLIENT_ID.trim() : '';
+  const clientSecret = typeof env?.GITHUB_CLIENT_SECRET === 'string' ? env.GITHUB_CLIENT_SECRET.trim() : '';
+  if (!clientId || !clientSecret) throw new Error('GitHub Sign-In is not configured yet.');
+  const cleanRedirect = validateOAuthRedirectUri(redirectUri, env);
+  if (!cleanRedirect) throw new Error('Invalid sign-in redirect URL.');
+  if (typeof code !== 'string' || code.length < 6 || code.length > 2048) {
+    throw new Error('Missing GitHub authorization code.');
+  }
+  const form = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    code: code.trim(),
+    redirect_uri: cleanRedirect,
+  });
+  if (typeof codeVerifier === 'string' && /^[A-Za-z0-9._~-]{32,128}$/.test(codeVerifier.trim())) {
+    form.set('code_verifier', codeVerifier.trim());
+  }
+  const tokRes = await fetch(GITHUB_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body: form,
+    signal: AbortSignal.timeout(10_000),
+  });
+  const tokBody = await tokRes.json().catch(() => null);
+  const accessToken = typeof tokBody?.access_token === 'string' ? tokBody.access_token.trim() : '';
+  if (!tokRes.ok || !accessToken) {
+    throw new Error('GitHub sign-in could not be completed. Please try again.');
+  }
+  const ghHeaders = {
+    Authorization: `Bearer ${accessToken}`,
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'Study-OS-Auth',
+  };
+  const userRes = await fetch(GITHUB_USER_URL, { headers: ghHeaders, signal: AbortSignal.timeout(8_000) });
+  const user = await userRes.json().catch(() => null);
+  if (!userRes.ok || !user?.id) {
+    throw new Error('Could not read GitHub account profile.');
+  }
+  let verifiedEmail = '';
+  try {
+    const emRes = await fetch(GITHUB_EMAILS_URL, { headers: ghHeaders, signal: AbortSignal.timeout(6_000) });
+    if (emRes.ok) {
+      const emails = await emRes.json();
+      if (Array.isArray(emails)) {
+        const primary = emails.find((e) => e?.primary && e?.verified && typeof e.email === 'string')
+          || emails.find((e) => e?.verified && typeof e.email === 'string');
+        if (primary) verifiedEmail = primary.email.trim().toLowerCase();
+      }
+    }
+  } catch {}
+  const login = typeof user.login === 'string' ? user.login.trim() : '';
+  const suggestedName = cleanSuggestedName(
+    (typeof user.name === 'string' ? user.name.split(/\s+/)[0] : '') || login || ''
+  );
+  return {
+    provider: 'github',
+    sub: String(user.id),
+    email: verifiedEmail,
+    emailHint: verifiedEmail ? maskEmail(verifiedEmail) : (login ? `@${login.slice(0, 32)}` : 'GitHub account'),
+    suggestedName,
+    detectedSchool: detectSchoolFromEmail(verifiedEmail),
+  };
+}
 
 function maskEmail(email) {
   if (typeof email !== 'string' || !email.includes('@')) return '';
@@ -302,13 +550,21 @@ export async function handlePublicAuth({
 }) {
   if (path === '/auth/config' && request.method === 'GET') {
     const googleClientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
+    const microsoftClientId = typeof env.MICROSOFT_CLIENT_ID === 'string' ? env.MICROSOFT_CLIENT_ID.trim() : '';
+    const githubClientId = (typeof env.GITHUB_CLIENT_ID === 'string' && env.GITHUB_CLIENT_ID.trim() && typeof env.GITHUB_CLIENT_SECRET === 'string' && env.GITHUB_CLIENT_SECRET.trim())
+      ? env.GITHUB_CLIENT_ID.trim()
+      : '';
     const siteKey = turnstileSiteKey(env);
     const settings = getJoinSettings ? await getJoinSettings(db, env) : { signupsOpen: true, archivePassEnabled: true, requireInviteForGoogle: false };
+    const anyOAuth = Boolean(googleClientId || microsoftClientId || githubClientId);
     return reply({
       googleClientId,
+      microsoftClientId,
+      githubClientId,
       turnstileSiteKey: siteKey,
       openSignup: Boolean(siteKey),
       googleOpenSignup: Boolean(googleClientId) && !settings.requireInviteForGoogle,
+      oauthOpenSignup: anyOAuth && !settings.requireInviteForGoogle,
       requireCodeOnLogin: Boolean(settings.requireInviteForGoogle),
       archivePassEnabled: Boolean(settings.archivePassEnabled),
       signupsOpen: Boolean(settings.signupsOpen),
@@ -335,6 +591,42 @@ export async function handlePublicAuth({
     return reply({ token, profileId: row.id, nickname: row.nickname });
   }
 
+  const finishOAuthProviderSignIn = async (provider, verified, labelFallback) => {
+    const existing = await db.prepare(`
+      SELECT l.profile_id, p.nickname
+      FROM oauth_links l JOIN profiles p ON p.id = l.profile_id
+      WHERE l.provider = ? AND l.provider_sub = ?
+    `).bind(provider, verified.sub).first();
+
+    if (existing) {
+      const token = await createDeviceSession(
+        db,
+        existing.profile_id,
+        cleanLabel(data.label, labelFallback),
+        now,
+        digest,
+        hex
+      );
+      return reply({ token, profileId: existing.profile_id, nickname: existing.nickname, provider });
+    }
+
+    await db.prepare('DELETE FROM oauth_pending WHERE expires_at < ?').bind(now).run();
+    const ticket = toBase64Url(crypto.getRandomValues(new Uint8Array(24)));
+    await db.prepare(`
+      INSERT INTO oauth_pending(ticket, provider, provider_sub, email_hint, verified_email, suggested_name, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(ticket, provider, verified.sub, verified.emailHint, verified.email || '', verified.suggestedName, now + OAUTH_PENDING_TTL_MS).run();
+
+    return reply({
+      needsJoin: true,
+      provider,
+      ticket,
+      suggestedName: verified.suggestedName,
+      emailHint: verified.emailHint,
+      detectedSchool: verified.detectedSchool || detectSchoolFromEmail(verified.email || '') || null,
+    });
+  };
+
   if (path === '/auth/google') {
     const clientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
     let verified;
@@ -343,50 +635,44 @@ export async function handlePublicAuth({
     } catch (err) {
       return reply({ error: err.message || 'Google sign-in failed.' }, 401);
     }
-    const existing = await db.prepare(`
-      SELECT l.profile_id, p.nickname
-      FROM oauth_links l JOIN profiles p ON p.id = l.profile_id
-      WHERE l.provider = 'google' AND l.provider_sub = ?
-    `).bind(verified.sub).first();
-
-    if (existing) {
-      const token = await createDeviceSession(
-        db,
-        existing.profile_id,
-        cleanLabel(data.label, 'Google sign-in'),
-        now,
-        digest,
-        hex
-      );
-      return reply({ token, profileId: existing.profile_id, nickname: existing.nickname });
-    }
-
-    await db.prepare('DELETE FROM oauth_pending WHERE expires_at < ?').bind(now).run();
-    const ticket = toBase64Url(crypto.getRandomValues(new Uint8Array(24)));
-    await db.prepare(`
-      INSERT INTO oauth_pending(ticket, provider, provider_sub, email_hint, verified_email, suggested_name, expires_at)
-      VALUES (?, 'google', ?, ?, ?, ?, ?)
-    `).bind(ticket, verified.sub, verified.emailHint, verified.email || '', verified.suggestedName, now + OAUTH_PENDING_TTL_MS).run();
-
-    return reply({
-      needsJoin: true,
-      ticket,
-      suggestedName: verified.suggestedName,
-      emailHint: verified.emailHint,
-    });
+    return finishOAuthProviderSignIn('google', verified, 'Google sign-in');
   }
 
-  if (path === '/auth/google/complete') {
+  if (path === '/auth/microsoft') {
+    let verified;
+    try {
+      verified = await verifyMicrosoftAuthCode(data.code, data.codeVerifier, data.redirectUri, env, now);
+    } catch (err) {
+      const status = /redirect/i.test(err?.message || '') ? 400 : 401;
+      return reply({ error: err.message || 'Microsoft sign-in failed.' }, status);
+    }
+    return finishOAuthProviderSignIn('microsoft', verified, 'Microsoft sign-in');
+  }
+
+  if (path === '/auth/github') {
+    let verified;
+    try {
+      verified = await verifyGitHubAuthCode(data.code, data.codeVerifier, data.redirectUri, env);
+    } catch (err) {
+      const status = /redirect/i.test(err?.message || '') ? 400 : 401;
+      return reply({ error: err.message || 'GitHub sign-in failed.' }, status);
+    }
+    return finishOAuthProviderSignIn('github', verified, 'GitHub sign-in');
+  }
+
+  if (path === '/auth/google/complete' || path === '/auth/oauth/complete') {
     const ticket = typeof data.ticket === 'string' ? data.ticket.trim() : '';
     if (!/^[A-Za-z0-9_-]{16,128}$/.test(ticket)) {
-      return reply({ error: 'Google sign-up session expired. Click Continue with Google again.' }, 401);
+      return reply({ error: 'Sign-up session expired. Please try signing in again.' }, 401);
     }
     const pending = await db.prepare(
-      "SELECT ticket, provider_sub, email_hint, verified_email FROM oauth_pending WHERE ticket = ? AND provider = 'google' AND expires_at >= ?"
+      'SELECT ticket, provider, provider_sub, email_hint, verified_email FROM oauth_pending WHERE ticket = ? AND expires_at >= ?'
     ).bind(ticket, now).first();
-    if (!pending) {
-      return reply({ error: 'Google sign-up session expired. Click Continue with Google again.' }, 401);
+    if (!pending || !VALID_OAUTH_PROVIDERS.has(pending.provider)) {
+      return reply({ error: 'Sign-up session expired. Please try signing in again.' }, 401);
     }
+    const prov = pending.provider;
+    const provTitle = prov === 'microsoft' ? 'Microsoft' : prov === 'github' ? 'GitHub' : 'Google';
 
     const check = await verifyJoinProof(db, env, data.proof, now, equalProof, true, data.proofUpper || '');
     if (!check.ok) return reply({ error: check.error }, 403);
@@ -405,10 +691,10 @@ export async function handlePublicAuth({
     const tosAcceptedAt = data.tosAccepted === false ? 0 : now;
 
     const consumed = await db.prepare(
-      "DELETE FROM oauth_pending WHERE ticket = ? AND provider = 'google' AND expires_at >= ?"
-    ).bind(ticket, now).run();
+      'DELETE FROM oauth_pending WHERE ticket = ? AND provider = ? AND expires_at >= ?'
+    ).bind(ticket, prov, now).run();
     if (!consumed.meta.changes) {
-      return reply({ error: 'Google sign-up session already used.' }, 409);
+      return reply({ error: `${provTitle} sign-up session already used.` }, 409);
     }
 
     const id = crypto.randomUUID();
@@ -418,11 +704,10 @@ export async function handlePublicAuth({
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(id, await digest(primaryToken), nickname, secondaryLanguage, school, major, canvasOrigin, newsletterOptIn, newsletterOptInAt, contactEmail, tosAcceptedAt).run();
     if (!inserted.meta.changes) {
-      // Put ticket back so user can pick another nickname without re-auth
       await db.prepare(`
         INSERT OR IGNORE INTO oauth_pending(ticket, provider, provider_sub, email_hint, verified_email, suggested_name, expires_at)
-        VALUES (?, 'google', ?, ?, ?, ?, ?)
-      `).bind(ticket, pending.provider_sub, pending.email_hint, pending.verified_email || '', nickname, now + OAUTH_PENDING_TTL_MS).run();
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(ticket, prov, pending.provider_sub, pending.email_hint, pending.verified_email || '', nickname, now + OAUTH_PENDING_TTL_MS).run();
       return reply({ error: 'That nickname is taken.' }, 409);
     }
 
@@ -436,22 +721,22 @@ export async function handlePublicAuth({
 
     const linked = await db.prepare(`
       INSERT OR IGNORE INTO oauth_links(provider, provider_sub, profile_id, email_hint, created_at)
-      VALUES ('google', ?, ?, ?, ?)
-    `).bind(pending.provider_sub, id, pending.email_hint, now).run();
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(prov, pending.provider_sub, id, pending.email_hint, now).run();
     if (!linked.meta.changes) {
       await db.prepare('DELETE FROM profiles WHERE id = ?').bind(id).run();
-      return reply({ error: 'This Google account is already linked to another profile.' }, 409);
+      return reply({ error: `This ${provTitle} account is already linked to another profile.` }, 409);
     }
 
     const sessionToken = await createDeviceSession(
       db,
       id,
-      cleanLabel(data.label, 'Google sign-in'),
+      cleanLabel(data.label, `${provTitle} sign-in`),
       now,
       digest,
       hex
     );
-    return reply({ token: sessionToken, profileId: id, nickname }, 201);
+    return reply({ token: sessionToken, profileId: id, nickname, provider: prov }, 201);
   }
 
   if (path === '/auth/passkey/login/options') {
@@ -619,7 +904,7 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
   }
 
   if (path === '/auth/devices' && request.method === 'GET') {
-    const [keysRes, sessRes, googleRow] = await Promise.all([
+    const [keysRes, sessRes, oauthRes] = await Promise.all([
       db.prepare(`
         SELECT credential_id AS id, label, algorithm, created_at AS createdAt, last_used_at AS lastUsedAt
         FROM passkeys WHERE profile_id = ? ORDER BY created_at DESC LIMIT 20
@@ -629,9 +914,9 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
         FROM profile_sessions WHERE profile_id = ? ORDER BY last_used_at DESC LIMIT 25
       `).bind(me.id).all(),
       db.prepare(`
-        SELECT email_hint AS emailHint, created_at AS createdAt
-        FROM oauth_links WHERE provider = 'google' AND profile_id = ? LIMIT 1
-      `).bind(me.id).first(),
+        SELECT provider, email_hint AS emailHint, created_at AS createdAt
+        FROM oauth_links WHERE profile_id = ? LIMIT 10
+      `).bind(me.id).all(),
     ]);
     const sessions = (sessRes.results || []).map((row) => ({
       id: row.token_hash.slice(0, 16),
@@ -640,14 +925,43 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
       lastUsedAt: Number(row.lastUsedAt || 0),
       current: row.token_hash === tokenHash,
     }));
+    const oauthByProv = new Map((oauthRes.results || []).map((r) => [r.provider, r]));
+    const fmtOAuth = (p) => {
+      const r = oauthByProv.get(p);
+      return r ? { linked: true, emailHint: r.emailHint || '', createdAt: Number(r.createdAt || 0) } : { linked: false };
+    };
     const googleClientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
+    const microsoftClientId = typeof env.MICROSOFT_CLIENT_ID === 'string' ? env.MICROSOFT_CLIENT_ID.trim() : '';
+    const githubEnabled = Boolean(
+      typeof env.GITHUB_CLIENT_ID === 'string' && env.GITHUB_CLIENT_ID.trim()
+      && typeof env.GITHUB_CLIENT_SECRET === 'string' && env.GITHUB_CLIENT_SECRET.trim()
+    );
     return reply({
       passkeys: keysRes.results || [],
       sessions,
       googleEnabled: Boolean(googleClientId),
-      google: googleRow ? { linked: true, emailHint: googleRow.emailHint || '', createdAt: Number(googleRow.createdAt || 0) } : { linked: false },
+      google: fmtOAuth('google'),
+      microsoftEnabled: Boolean(microsoftClientId),
+      microsoft: fmtOAuth('microsoft'),
+      githubEnabled,
+      github: fmtOAuth('github'),
     });
   }
+
+  const linkVerifiedProvider = async (provider, verified, label) => {
+    const existing = await db.prepare(
+      'SELECT profile_id FROM oauth_links WHERE provider = ? AND provider_sub = ?'
+    ).bind(provider, verified.sub).first();
+    if (existing && existing.profile_id !== me.id) {
+      return reply({ error: `This ${label} account is already linked to another Study-OS profile.` }, 409);
+    }
+    await db.prepare('DELETE FROM oauth_links WHERE provider = ? AND profile_id = ?').bind(provider, me.id).run();
+    await db.prepare(`
+      INSERT INTO oauth_links(provider, provider_sub, profile_id, email_hint, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(provider, verified.sub, me.id, verified.emailHint, now).run();
+    return reply({ ok: true, provider, emailHint: verified.emailHint });
+  };
 
   if (path === '/auth/google/link' && request.method === 'POST') {
     const clientId = typeof env.GOOGLE_CLIENT_ID === 'string' ? env.GOOGLE_CLIENT_ID.trim() : '';
@@ -657,22 +971,43 @@ export async function handleAuthedAuth({ request, path, db, env, me, tokenHash, 
     } catch (err) {
       return reply({ error: err.message || 'Could not verify Google account.' }, 401);
     }
-    const existing = await db.prepare(
-      "SELECT profile_id FROM oauth_links WHERE provider = 'google' AND provider_sub = ?"
-    ).bind(verified.sub).first();
-    if (existing && existing.profile_id !== me.id) {
-      return reply({ error: 'This Google account is already linked to another Study-OS profile.' }, 409);
-    }
-    await db.prepare("DELETE FROM oauth_links WHERE provider = 'google' AND profile_id = ?").bind(me.id).run();
-    await db.prepare(`
-      INSERT INTO oauth_links(provider, provider_sub, profile_id, email_hint, created_at)
-      VALUES ('google', ?, ?, ?, ?)
-    `).bind(verified.sub, me.id, verified.emailHint, now).run();
-    return reply({ ok: true, emailHint: verified.emailHint });
+    return linkVerifiedProvider('google', verified, 'Google');
   }
 
   if (path === '/auth/google/unlink' && request.method === 'POST') {
     await db.prepare("DELETE FROM oauth_links WHERE provider = 'google' AND profile_id = ?").bind(me.id).run();
+    return reply({ ok: true });
+  }
+
+  if (path === '/auth/microsoft/link' && request.method === 'POST') {
+    let verified;
+    try {
+      verified = await verifyMicrosoftAuthCode(data.code, data.codeVerifier, data.redirectUri, env, now);
+    } catch (err) {
+      const status = /redirect/i.test(err?.message || '') ? 400 : 401;
+      return reply({ error: err.message || 'Could not verify Microsoft account.' }, status);
+    }
+    return linkVerifiedProvider('microsoft', verified, 'Microsoft');
+  }
+
+  if (path === '/auth/microsoft/unlink' && request.method === 'POST') {
+    await db.prepare("DELETE FROM oauth_links WHERE provider = 'microsoft' AND profile_id = ?").bind(me.id).run();
+    return reply({ ok: true });
+  }
+
+  if (path === '/auth/github/link' && request.method === 'POST') {
+    let verified;
+    try {
+      verified = await verifyGitHubAuthCode(data.code, data.codeVerifier, data.redirectUri, env);
+    } catch (err) {
+      const status = /redirect/i.test(err?.message || '') ? 400 : 401;
+      return reply({ error: err.message || 'Could not verify GitHub account.' }, status);
+    }
+    return linkVerifiedProvider('github', verified, 'GitHub');
+  }
+
+  if (path === '/auth/github/unlink' && request.method === 'POST') {
+    await db.prepare("DELETE FROM oauth_links WHERE provider = 'github' AND profile_id = ?").bind(me.id).run();
     return reply({ ok: true });
   }
 

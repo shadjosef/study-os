@@ -5675,6 +5675,64 @@ dialog.security-sheet {
   min-height: 44px;
 }
 
+.auth-oauth-extra {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  width: 100%;
+}
+.auth-oauth-extra.is-pair {
+  grid-template-columns: 1fr 1fr;
+}
+.auth-oauth-btn {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
+}
+.auth-oauth-btn:hover:not(:disabled) {
+  background: var(--surface-alt, color-mix(in srgb, var(--line) 32%, var(--surface)));
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--line));
+}
+.auth-oauth-btn:active:not(:disabled) {
+  transform: scale(0.99);
+}
+.auth-oauth-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.auth-oauth-btn svg {
+  flex: 0 0 auto;
+}
+[data-theme="dark"] .auth-oauth-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+[data-theme="dark"] .auth-oauth-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.24);
+}
+.sec-oauth-connect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
 .auth-entry-links {
   display: flex;
   align-items: center;

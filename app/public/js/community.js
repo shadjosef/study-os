@@ -5,7 +5,9 @@ window.StudyCommunity = (() => {
   const keyName = 'study-os-community-profile';
   const demoKey = 'study-os-demo';
   const pendingCodeKey = 'study-os-pending-access-code';
+  const oauthFlowKey = 'study-os-oauth-flow-v1';
   const { esc, toast, clockSec, workClock } = window.StudyUI;
+  let pendingOAuthJoin = null;
   function setPendingAccessCode(code) {
     const clean = String(code || '').trim().slice(0, 120);
     if (!clean || /^sos1_/i.test(clean)) return;
@@ -827,6 +829,178 @@ window.StudyCommunity = (() => {
     }
   }
 
+  const MICROSOFT_ICON_SVG = `
+    <svg viewBox="0 0 21 21" width="17" height="17" aria-hidden="true">
+      <rect x="1" y="1" width="9" height="9" fill="#f25022"></rect>
+      <rect x="11" y="1" width="9" height="9" fill="#7fba00"></rect>
+      <rect x="1" y="11" width="9" height="9" fill="#00a4ef"></rect>
+      <rect x="11" y="11" width="9" height="9" fill="#ffb900"></rect>
+    </svg>`;
+
+  const GITHUB_ICON_SVG = `
+    <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true">
+      <path d="M12 1.5C6.2 1.5 1.5 6.2 1.5 12c0 4.64 3.01 8.58 7.18 9.97.53.1.72-.23.72-.51 0-.25-.01-1.08-.01-1.96-2.92.63-3.54-1.24-3.54-1.24-.48-1.21-1.17-1.54-1.17-1.54-.95-.65.07-.64.07-.64 1.05.07 1.61 1.08 1.61 1.08.94 1.61 2.46 1.14 3.06.87.09-.68.37-1.14.67-1.4-2.33-.26-4.78-1.16-4.78-5.18 0-1.14.41-2.08 1.08-2.81-.11-.27-.47-1.33.1-2.77 0 0 .88-.28 2.89 1.08A10.04 10.04 0 0 1 12 6.84c.89 0 1.79.12 2.63.35 2.01-1.36 2.89-1.08 2.89-1.08.57 1.44.21 2.5.1 2.77.67.73 1.08 1.67 1.08 2.81 0 4.03-2.46 4.91-4.8 5.17.38.33.71.97.71 1.95 0 1.41-.01 2.55-.01 2.9 0 .28.19.61.73.51A10.51 10.51 0 0 0 22.5 12C22.5 6.2 17.8 1.5 12 1.5z"></path>
+    </svg>`;
+
+  function providerDisplayName(provider) {
+    if (provider === 'microsoft') return 'Microsoft';
+    if (provider === 'github') return 'GitHub';
+    return 'Google';
+  }
+
+  function currentOAuthRedirectUri() {
+    const cleanPath = (window.location.pathname || '/').replace(/\/index\.html$/i, '/');
+    return `${window.location.origin}${cleanPath || '/'}`;
+  }
+
+  async function sha256Base64Url(input) {
+    const bytes = new TextEncoder().encode(input);
+    const hash = await crypto.subtle.digest('SHA-256', bytes);
+    return toBase64Url(hash);
+  }
+
+  async function startOAuthRedirect(provider, mode = 'login') {
+    if (!api) throw new Error('Cloud sign-in is unavailable.');
+    const cfg = await getAuthConfig();
+    const clientId = provider === 'microsoft' ? cfg.microsoftClientId : cfg.githubClientId;
+    if (!clientId) throw new Error(`${providerDisplayName(provider)} Sign-In is not configured yet.`);
+    if (!window.crypto?.subtle) throw new Error('Secure sign-in requires HTTPS.');
+
+    const state = toBase64Url(crypto.getRandomValues(new Uint8Array(24)));
+    const verifier = toBase64Url(crypto.getRandomValues(new Uint8Array(48)));
+    const challenge = await sha256Base64Url(verifier);
+    const redirectUri = currentOAuthRedirectUri();
+    try {
+      sessionStorage.setItem(oauthFlowKey, JSON.stringify({
+        provider,
+        mode,
+        state,
+        verifier,
+        redirectUri,
+        createdAt: Date.now(),
+      }));
+    } catch {
+      throw new Error('Enable browser storage to complete sign-in.');
+    }
+
+    let url;
+    if (provider === 'microsoft') {
+      url = new URL('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
+      url.searchParams.set('client_id', clientId);
+      url.searchParams.set('response_type', 'code');
+      url.searchParams.set('redirect_uri', redirectUri);
+      url.searchParams.set('response_mode', 'query');
+      url.searchParams.set('scope', 'openid profile email');
+      url.searchParams.set('state', state);
+      url.searchParams.set('code_challenge', challenge);
+      url.searchParams.set('code_challenge_method', 'S256');
+      url.searchParams.set('prompt', 'select_account');
+    } else if (provider === 'github') {
+      url = new URL('https://github.com/login/oauth/authorize');
+      url.searchParams.set('client_id', clientId);
+      url.searchParams.set('redirect_uri', redirectUri);
+      url.searchParams.set('scope', 'read:user user:email');
+      url.searchParams.set('state', state);
+      url.searchParams.set('code_challenge', challenge);
+      url.searchParams.set('code_challenge_method', 'S256');
+    } else {
+      throw new Error('Unsupported sign-in provider.');
+    }
+    window.location.assign(url.toString());
+  }
+
+  async function handleOAuthCallback() {
+    if (!api) return null;
+    const params = new URLSearchParams(window.location.search);
+    const state = params.get('state');
+    const code = params.get('code');
+    const errParam = params.get('error');
+    if (!state || (!code && !errParam)) return null;
+
+    // Immediately scrub OAuth return parameters so ?code= is never misread as a class invite
+    const cleanParams = new URLSearchParams(window.location.search);
+    ['code', 'state', 'error', 'error_description', 'session_state'].forEach((k) => cleanParams.delete(k));
+    const nextSearch = cleanParams.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash || ''}`;
+    try { window.history.replaceState({}, '', nextUrl); } catch {}
+
+    let flow = null;
+    try {
+      const raw = sessionStorage.getItem(oauthFlowKey);
+      sessionStorage.removeItem(oauthFlowKey);
+      flow = raw ? JSON.parse(raw) : null;
+    } catch {}
+
+    const validProvider = flow?.provider === 'microsoft' || flow?.provider === 'github';
+    const fresh = flow && (Date.now() - Number(flow.createdAt || 0) < 15 * 60 * 1000);
+    if (!validProvider || !fresh || flow.state !== state) {
+      toast('Sign-in session expired. Please try again.');
+      return { handled: true, error: 'expired' };
+    }
+
+    const provName = providerDisplayName(flow.provider);
+    if (errParam) {
+      const cancelled = errParam === 'access_denied';
+      toast(cancelled ? `${provName} sign-in cancelled.` : `${provName} sign-in could not be completed.`);
+      return { handled: true, error: errParam };
+    }
+
+    if (flow.mode === 'link') {
+      if (!token) {
+        toast('Sign in first to connect this account.');
+        return { handled: true, error: 'not_signed_in' };
+      }
+      try {
+        await request(`/auth/${flow.provider}/link`, {
+          code,
+          codeVerifier: flow.verifier,
+          redirectUri: flow.redirectUri,
+        });
+        toast(`${provName} Sign-In connected! You can now sign in with 1 click.`);
+        return { handled: true, linked: flow.provider };
+      } catch (err) {
+        toast(err.message || `Could not connect ${provName} account.`);
+        return { handled: true, error: err.message || 'link_failed' };
+      }
+    }
+
+    try {
+      const res = await request(`/auth/${flow.provider}`, {
+        code,
+        codeVerifier: flow.verifier,
+        redirectUri: flow.redirectUri,
+        label: detectDeviceLabel(),
+      }, '');
+      if (res.needsJoin && res.ticket) {
+        pendingOAuthJoin = { ...res, provider: flow.provider };
+        return { handled: true, needsJoin: true, provider: flow.provider };
+      }
+      if (res.token) {
+        useProfile(res.token);
+        try { sessionStorage.removeItem(demoKey); } catch {}
+        const pendingCode = getPendingAccessCode();
+        if (pendingCode && !/^sos1_/i.test(pendingCode)) {
+          const codeRes = await redeemAccessCode(pendingCode).catch(() => null);
+          if (codeRes?.archiveUnlocked) clearPendingAccessCode();
+        }
+        currentProfile = await request('/profile').catch(() => null);
+        const unlocked = await syncTransientArchiveFromProfile(currentProfile);
+        if (unlocked) clearPendingAccessCode();
+        toast(unlocked ? `Welcome back, ${res.nickname}! Course PDFs unlocked.` : `Welcome back, ${res.nickname}!`);
+        return { handled: true, signedIn: true, provider: flow.provider };
+      }
+      return { handled: true, error: 'empty_response' };
+    } catch (err) {
+      toast(err.message || `${provName} sign-in failed.`);
+      return { handled: true, error: err.message || 'login_failed' };
+    }
+  }
+
+  function resumePendingOAuthJoin() {
+    if (!pendingOAuthJoin) return Promise.resolve(false);
+    return requireProfile({ allowDemo: true, forcePrompt: true });
+  }
+
   function supportsPasskeys() {
     return Boolean(window.PublicKeyCredential && navigator.credentials?.create && navigator.credentials?.get && window.isSecureContext);
   }
@@ -1113,10 +1287,11 @@ window.StudyCommunity = (() => {
               </p>
             ` : isInAppBrowser ? `
               <p class="muted" style="margin:0 0 6px;font-size:12px;text-align:center">
-                In-app browser detected — tap <strong>Create free account</strong> below (10 sec), or open in Safari/Chrome for Google Sign-In.
+                In-app browser detected — tap <strong>Create free account</strong> below (10 sec), or open in Safari/Chrome for Google, Microsoft, or GitHub sign-in.
               </p>
             ` : `
               <div id="community-google-slot" class="auth-google-slot" hidden></div>
+              <div id="community-oauth-extra" class="auth-oauth-extra" hidden></div>
             `}
             ${passkeyReady ? `
               <button type="button" class="primary-btn auth-passkey-btn" id="community-passkey-login">
@@ -1201,11 +1376,11 @@ window.StudyCommunity = (() => {
           </div>
         </form>
 
-        <!-- GOOGLE FIRST-TIME COMPLETE STEP (1 fast focused step) -->
+        <!-- OAUTH FIRST-TIME COMPLETE STEP (Google / Microsoft / GitHub — 1 fast focused step) -->
         <div class="auth-step-pane" id="community-google-complete-wrap" data-step-pane="google" hidden>
           <div class="auth-step-nav">
             <button type="button" class="auth-back-btn" id="community-google-back">← Back</button>
-            <span class="badge good">Google verified ✓</span>
+            <span class="badge good" id="community-oauth-badge">Google verified ✓</span>
           </div>
           <div class="auth-step-heading">
             <h2>Finish your profile</h2>
@@ -1305,7 +1480,20 @@ window.StudyCommunity = (() => {
     }
 
     const googleSlot = root.querySelector('#community-google-slot');
+    const oauthExtraSlot = root.querySelector('#community-oauth-extra');
     const authOr = root.querySelector('#community-auth-or');
+    let googleShown = false;
+    let extraOAuthShown = false;
+    const syncEntryPrimaryCta = () => {
+      const anyPrimary = googleShown || extraOAuthShown || passkeyReady;
+      if (authOr) authOr.hidden = !anyPrimary;
+      const createBtn = root.querySelector('#community-start-signup');
+      if (createBtn && !isInAppBrowser) {
+        createBtn.classList.toggle('primary-btn', !anyPrimary);
+        createBtn.classList.toggle('auth-passkey-btn', !anyPrimary);
+        createBtn.classList.toggle('ghost-btn', anyPrimary);
+      }
+    };
     const topCodeWrap = root.querySelector('#community-top-code-wrap');
     const topCodeInput = root.querySelector('#community-top-code');
     const topCodeHint = root.querySelector('#community-top-code-hint');
@@ -1333,9 +1521,43 @@ window.StudyCommunity = (() => {
     toggleCodeBtn?.addEventListener('click', toggleTopCode);
     root.querySelector('#community-edit-code')?.addEventListener('click', toggleTopCode);
 
+    const openOAuthCompleteStep = (res) => {
+      const form = root.querySelector('#community-google-complete-form');
+      if (!form || !res?.ticket) return;
+      const prov = res.provider || 'google';
+      const provName = providerDisplayName(prov);
+      form.dataset.oauthProvider = prov;
+      form.elements.ticket.value = res.ticket;
+      form.elements.nickname.value = res.suggestedName || '';
+      const badge = root.querySelector('#community-oauth-badge');
+      if (badge) badge.textContent = `${provName} verified ✓`;
+      const note = root.querySelector('#community-google-complete-note');
+      if (note) {
+        note.textContent = res.detectedSchool?.school
+          ? `Detected ${res.detectedSchool.school} from your email — confirm your nickname to start.`
+          : 'Choose a nickname & optional school to start.';
+      }
+      const schInp = form.querySelector('input[name="schoolInput"]');
+      if (schInp && !schInp.value.trim() && res.detectedSchool?.school) {
+        schInp.value = res.detectedSchool.school;
+        const clearBtn = form.querySelector('[data-combo="school"] [data-combo-clear]');
+        if (clearBtn) clearBtn.hidden = false;
+        const customBox = form.querySelector('[data-school-custom]');
+        if (customBox) {
+          customBox.hidden = true;
+          customBox.querySelectorAll('input').forEach((inp) => { inp.disabled = true; });
+        }
+      }
+      if (form.elements.invite && topCodeInput?.value) {
+        form.elements.invite.value = topCodeInput.value.trim();
+      }
+      setStep('google');
+    };
+
     getAuthConfig().then((cfg) => {
       authCfg = cfg || authCfg;
-      const { openSignup, googleOpenSignup, requireCodeOnLogin, archivePassEnabled } = authCfg;
+      const { openSignup, googleOpenSignup, oauthOpenSignup, requireCodeOnLogin, archivePassEnabled, microsoftClientId, githubClientId } = authCfg;
+      const canOAuthOpenSignup = Boolean(oauthOpenSignup ?? googleOpenSignup);
       const mustShowTopCode = Boolean(requireCodeOnLogin) && !cleanPrefill;
       if (topCodeWrap) topCodeWrap.hidden = !mustShowTopCode;
       if (mustShowTopCode) {
@@ -1349,9 +1571,9 @@ window.StudyCommunity = (() => {
         topCodeHint.textContent = requireCodeOnLogin ? 'Required' : 'Optional';
       }
       root.querySelectorAll('[data-join-invite]').forEach((label) => {
-        const isGoogleField = label.dataset.joinInvite === 'google';
+        const isOAuthField = label.dataset.joinInvite === 'google';
         const hasTopCode = Boolean((topCodeInput?.value || '').trim());
-        const hideField = Boolean(openSignup || (isGoogleField && googleOpenSignup && !requireCodeOnLogin) || hasTopCode);
+        const hideField = Boolean(openSignup || (isOAuthField && canOAuthOpenSignup && !requireCodeOnLogin) || hasTopCode);
         label.hidden = hideField;
         const inp = label.querySelector('input');
         if (inp) {
@@ -1359,10 +1581,42 @@ window.StudyCommunity = (() => {
           inp.required = !hideField;
         }
       });
+
+      if (oauthExtraSlot && !isDesktopLoopback && !isInAppBrowser) {
+        const extras = [];
+        if (microsoftClientId) extras.push({ id: 'microsoft', name: 'Microsoft', icon: MICROSOFT_ICON_SVG });
+        if (githubClientId) extras.push({ id: 'github', name: 'GitHub', icon: GITHUB_ICON_SVG });
+        if (extras.length) {
+          const isPair = extras.length === 2;
+          oauthExtraSlot.classList.toggle('is-pair', isPair);
+          oauthExtraSlot.innerHTML = extras.map((p) => `
+            <button type="button" class="auth-oauth-btn auth-oauth-${p.id}" data-oauth-provider="${p.id}">
+              ${p.icon}
+              <span>${isPair ? p.name : `Continue with ${p.name}`}</span>
+            </button>
+          `).join('');
+          oauthExtraSlot.hidden = false;
+          extraOAuthShown = true;
+          syncEntryPrimaryCta();
+          oauthExtraSlot.querySelectorAll('[data-oauth-provider]').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+              const prov = btn.dataset.oauthProvider;
+              btn.disabled = true;
+              status.textContent = `Redirecting to ${providerDisplayName(prov)}…`;
+              try {
+                await startOAuthRedirect(prov, 'login');
+              } catch (err) {
+                btn.disabled = false;
+                status.textContent = err.message || `${providerDisplayName(prov)} sign-in failed.`;
+              }
+            });
+          });
+        }
+      }
     });
 
-    async function signupAccess(form, element, google = false) {
-      const { openSignup, googleOpenSignup, requireCodeOnLogin } = await getAuthConfig();
+    async function signupAccess(form, element, oauth = false) {
+      const { openSignup, googleOpenSignup, oauthOpenSignup, requireCodeOnLogin } = await getAuthConfig();
       const rawInvite = String(form.get('invite') || topCodeInput?.value || '').trim();
       if (/^sos1_/i.test(rawInvite)) {
         throw new Error('That is a 48-char sos1_… archive key — use your short class code here (or paste sos1_… in Settings → Private PDF Archive).');
@@ -1371,7 +1625,7 @@ window.StudyCommunity = (() => {
       if (openSignup) {
         return { humanToken: await humanToken(element, 'signup', status), ...(optionalHashes || {}) };
       }
-      if (google && googleOpenSignup && !requireCodeOnLogin) {
+      if (oauth && (oauthOpenSignup ?? googleOpenSignup) && !requireCodeOnLogin) {
         return optionalHashes || {};
       }
       if (!optionalHashes) throw new Error('Enter your class access code (e.g. BI2026).');
@@ -1394,37 +1648,24 @@ window.StudyCommunity = (() => {
       root.querySelector('#community-desktop-device-cta')?.addEventListener('click', () => setStep('device'));
     } else if (!isInAppBrowser) {
       mountGoogleButton(googleSlot, async (idToken) => {
-      status.textContent = 'Signing in with Google…';
-      try {
-        const res = await request('/auth/google', { idToken, label: detectDeviceLabel() }, '');
-        if (res.needsJoin && res.ticket) {
-          const form = root.querySelector('#community-google-complete-form');
-          form.elements.ticket.value = res.ticket;
-          form.elements.nickname.value = res.suggestedName || '';
-          if (form.elements.invite && topCodeInput?.value) {
-            form.elements.invite.value = topCodeInput.value.trim();
+        status.textContent = 'Signing in with Google…';
+        try {
+          const res = await request('/auth/google', { idToken, label: detectDeviceLabel() }, '');
+          if (res.needsJoin && res.ticket) {
+            openOAuthCompleteStep({ ...res, provider: 'google' });
+            return;
           }
-          setStep('google');
-          return;
+          useProfile(res.token);
+          const unlocked = await finalizeCodeAndArchive();
+          toast(unlocked ? `Welcome back, ${res.nickname}! Course PDFs unlocked.` : `Welcome back, ${res.nickname}!`);
+          await onSignedIn();
+        } catch (err) {
+          status.textContent = err.message || 'Google sign-in failed.';
         }
-        useProfile(res.token);
-        const unlocked = await finalizeCodeAndArchive();
-        toast(unlocked ? `Welcome back, ${res.nickname}! Course PDFs unlocked.` : `Welcome back, ${res.nickname}!`);
-        await onSignedIn();
-      } catch (err) {
-        status.textContent = err.message || 'Google sign-in failed.';
-      }
-    }).then((shown) => {
-      if (shown && authOr) {
-        authOr.hidden = false;
-      } else if (!shown && !passkeyReady) {
-        const createBtn = root.querySelector('#community-start-signup');
-        if (createBtn) {
-          createBtn.classList.remove('ghost-btn');
-          createBtn.classList.add('primary-btn', 'auth-passkey-btn');
-        }
-      }
-    });
+      }).then((shown) => {
+        googleShown = Boolean(shown);
+        syncEntryPrimaryCta();
+      });
     }
 
     root.querySelector('#community-start-signup')?.addEventListener('click', () => {
@@ -1485,7 +1726,7 @@ window.StudyCommunity = (() => {
     action(root.querySelector('#community-google-complete-form'), async (form, element) => {
       const { school, canvasOrigin } = extractSchoolFields(form);
       const major = extractMajorField(form);
-      const res = await request('/auth/google/complete', {
+      const res = await request('/auth/oauth/complete', {
         ticket: form.get('ticket'),
         nickname: form.get('nickname'),
         school,
@@ -1503,7 +1744,8 @@ window.StudyCommunity = (() => {
       currentProfile = await request('/profile').catch(() => null);
       const unlocked = await syncTransientArchiveFromProfile(currentProfile);
       if (unlocked) clearPendingAccessCode();
-      toast(unlocked ? `Welcome, ${res.nickname}! Course PDFs unlocked.` : `Welcome, ${res.nickname}! Google Sign-In is now linked.`);
+      const provName = providerDisplayName(res.provider || element.dataset.oauthProvider);
+      toast(unlocked ? `Welcome, ${res.nickname}! Course PDFs unlocked.` : `Welcome, ${res.nickname}! ${provName} Sign-In is now linked.`);
       await onSignedIn();
       window.StudySpotlightTour?.maybeStartAfterSignup?.();
     }, status);
@@ -1618,6 +1860,12 @@ window.StudyCommunity = (() => {
       element.reset();
       await onSignedIn();
     }, status);
+
+    if (pendingOAuthJoin?.ticket) {
+      const joinData = pendingOAuthJoin;
+      pendingOAuthJoin = null;
+      openOAuthCompleteStep(joinData);
+    }
   }
 
   async function requireProfile({ allowDemo = false, forcePrompt = false, silent = false, prefillCode = '' } = {}) {
@@ -1795,31 +2043,76 @@ window.StudyCommunity = (() => {
       };
 
       try {
-        const { passkeys, sessions, googleEnabled, google } = await request('/auth/devices');
+        const { passkeys, sessions, googleEnabled, google, microsoftEnabled, microsoft, githubEnabled, github } = await request('/auth/devices');
         const fmt = (ms) => ms ? new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Never';
-        const googleSectionHtml = googleEnabled ? `
-          <div class="sec-section">
-            <h3 class="ios-group-title" style="margin-left:2px">Google Sign-In</h3>
-            <div class="ios-group">
-              ${google?.linked ? `
-                <div class="ios-row">
-                  <span class="ios-row-copy">
-                    <span class="ios-row-label">Google account <span class="badge live">Connected</span></span>
-                    <small class="ios-row-sub">${esc(google.emailHint || 'Linked')} · Added ${fmt(google.createdAt)}</small>
-                  </span>
-                  <button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" id="sec-unlink-google">Disconnect</button>
-                </div>
-              ` : `
-                <div class="ios-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px">
-                  <small class="muted">Connect Google so you can sign in with 1 click on any phone, iPad, or laptop:</small>
-                  <div id="sec-link-google-slot" class="auth-google-slot"></div>
-                </div>
-              `}
+        const isDesktopLoopback = (
+          window.location?.hostname === '127.0.0.1'
+          || window.location?.hostname === 'localhost'
+          || document.documentElement?.dataset?.studyMode === 'local'
+        );
+        const oauthRows = [];
+        if (googleEnabled) {
+          oauthRows.push(google?.linked ? `
+            <div class="ios-row">
+              <span class="ios-row-copy">
+                <span class="ios-row-label">Google <span class="badge live">Connected</span></span>
+                <small class="ios-row-sub">${esc(google.emailHint || 'Linked')} · Added ${fmt(google.createdAt)}</small>
+              </span>
+              <button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" id="sec-unlink-google">Disconnect</button>
             </div>
+          ` : `
+            <div class="ios-row" style="flex-direction:column;align-items:stretch;gap:8px;padding:12px 14px">
+              <small class="muted">Connect Google for 1-click sign-in on any phone, iPad, or laptop:</small>
+              <div id="sec-link-google-slot" class="auth-google-slot"></div>
+            </div>
+          `);
+        }
+        if (microsoftEnabled) {
+          oauthRows.push(microsoft?.linked ? `
+            <div class="ios-row">
+              <span class="ios-row-copy">
+                <span class="ios-row-label">Microsoft <span class="badge live">Connected</span></span>
+                <small class="ios-row-sub">${esc(microsoft.emailHint || 'Linked')} · Added ${fmt(microsoft.createdAt)}</small>
+              </span>
+              <button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" data-unlink-oauth="microsoft">Disconnect</button>
+            </div>
+          ` : `
+            <div class="ios-row">
+              <span class="ios-row-copy">
+                <span class="ios-row-label">Microsoft</span>
+                <small class="ios-row-sub">${isDesktopLoopback ? 'Connect on studyos.no to link school or personal Microsoft account' : 'School (@bi.no, @ntnu.no, …) or Outlook account'}</small>
+              </span>
+              <button type="button" class="ghost-btn sec-oauth-connect-btn" data-link-oauth="microsoft" ${isDesktopLoopback ? 'disabled title="Connect on studyos.no"' : ''}>${MICROSOFT_ICON_SVG}<span>Connect</span></button>
+            </div>
+          `);
+        }
+        if (githubEnabled) {
+          oauthRows.push(github?.linked ? `
+            <div class="ios-row">
+              <span class="ios-row-copy">
+                <span class="ios-row-label">GitHub <span class="badge live">Connected</span></span>
+                <small class="ios-row-sub">${esc(github.emailHint || 'Linked')} · Added ${fmt(github.createdAt)}</small>
+              </span>
+              <button type="button" class="ghost-btn" style="padding:4px 10px;font-size:12px" data-unlink-oauth="github">Disconnect</button>
+            </div>
+          ` : `
+            <div class="ios-row">
+              <span class="ios-row-copy">
+                <span class="ios-row-label">GitHub</span>
+                <small class="ios-row-sub">${isDesktopLoopback ? 'Connect on studyos.no to link your GitHub account' : 'Sign in with 1 click using GitHub'}</small>
+              </span>
+              <button type="button" class="ghost-btn sec-oauth-connect-btn" data-link-oauth="github" ${isDesktopLoopback ? 'disabled title="Connect on studyos.no"' : ''}>${GITHUB_ICON_SVG}<span>Connect</span></button>
+            </div>
+          `);
+        }
+        const oauthSectionHtml = oauthRows.length ? `
+          <div class="sec-section">
+            <h3 class="ios-group-title" style="margin-left:2px">Connected Sign-In Accounts</h3>
+            <div class="ios-group">${oauthRows.join('')}</div>
           </div>
         ` : '';
         listsEl.innerHTML = `
-          ${googleSectionHtml}
+          ${oauthSectionHtml}
           <div class="sec-section">
             <h3 class="ios-group-title" style="margin-left:2px">Passkeys (${passkeys.length})</h3>
             ${passkeys.length ? `<div class="ios-group">${passkeys.map((k) => `
@@ -1868,6 +2161,31 @@ window.StudyCommunity = (() => {
             }
           }, { text: 'continue_with', width: 340 });
         }
+        listsEl.querySelectorAll('[data-unlink-oauth]').forEach((btn) => {
+          btn.onclick = async () => {
+            const prov = btn.dataset.unlinkOauth;
+            const label = providerDisplayName(prov);
+            if (!window.confirm(`Disconnect ${label} Sign-In from this profile?`)) return;
+            btn.disabled = true;
+            await request(`/auth/${prov}/unlink`, {}).catch(() => {});
+            toast(`${label} Sign-In disconnected.`);
+            await paint();
+          };
+        });
+        listsEl.querySelectorAll('[data-link-oauth]').forEach((btn) => {
+          btn.onclick = async () => {
+            const prov = btn.dataset.linkOauth;
+            const label = providerDisplayName(prov);
+            btn.disabled = true;
+            statusEl.textContent = `Redirecting to ${label}…`;
+            try {
+              await startOAuthRedirect(prov, 'link');
+            } catch (err) {
+              btn.disabled = false;
+              statusEl.textContent = err.message || `Could not connect ${label} account.`;
+            }
+          };
+        });
         listsEl.querySelectorAll('[data-del-passkey]').forEach((b) => {
           b.onclick = async () => {
             if (!window.confirm('Remove this passkey from your profile?')) return;
@@ -4599,6 +4917,8 @@ window.StudyCommunity = (() => {
     canShareSet,
     shareSet,
     requireProfile,
+    handleOAuthCallback,
+    resumePendingOAuthJoin,
     roomRequest,
     duelRequest,
     aiRequest,

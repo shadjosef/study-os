@@ -1,12 +1,15 @@
 const checks = new Map([
   ['/join', 'signup'],
   ['/auth/google/complete', 'signup'],
+  ['/auth/oauth/complete', 'signup'],
   ['/auth/link-redeem', 'link'],
   ['/auth/recovery', 'recovery'],
 ]);
 
 const rateOnlyPaths = new Map([
   ['/auth/google', 'google'],
+  ['/auth/microsoft', 'microsoft'],
+  ['/auth/github', 'github'],
   ['/auth/extension-link', 'extlink'],
   ['/auth/passkey/login/options', 'passkey_opts'],
   ['/auth/passkey/login/verify', 'passkey_verify'],

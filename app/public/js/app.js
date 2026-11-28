@@ -11870,8 +11870,10 @@ window.StudyApp = (() => {
       impFile.value = '';
     });
 
+    let oauthReturn = null;
     try {
       await window.StudyLocalSources?.init?.();
+      oauthReturn = await window.StudyCommunity?.handleOAuthCallback?.();
       const signedIn = await window.StudyCommunity.requireProfile({ allowDemo: true, silent: true });
       if (signedIn) {
         await window.StudyRooms.restore();
@@ -11891,6 +11893,11 @@ window.StudyApp = (() => {
       }
       await window.StudySets.activateDraft();
       bindMemberAccess();
+      if (oauthReturn?.needsJoin) {
+        window.StudyCommunity?.resumePendingOAuthJoin?.().catch(() => {});
+      } else if (oauthReturn?.linked) {
+        window.StudyCommunity?.openSecuritySheet?.().catch(() => {});
+      }
     } catch {
       const hero = document.getElementById('up-next-hero');
       hero.innerHTML = '<h1>Could not load Study-OS</h1><p>Check your connection and try again.</p><button type="button" class="primary-btn">Retry</button>';
