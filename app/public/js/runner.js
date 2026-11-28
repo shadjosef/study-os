@@ -1914,18 +1914,42 @@ window.StudyRunner = (() => {
 
   function renderInlineLocalPdfFigures(entries) {
     if (!Array.isArray(entries) || !entries.length) return { html: '', mountItems: [] };
+    // Group multiple slide/sheet pages from the same PDF into ONE unified viewer with quick page-jump pills
+    // instead of stacking 2–3 redundant PDF toolbars vertically.
+    const grouped = [];
+    const byDoc = new Map();
+    for (const entry of entries) {
+      const docBase = String(entry.sourceId || entry.key || '').replace(/#p\d+$/, '');
+      const pg = Math.max(1, Number(entry.page) || 1);
+      if (docBase && byDoc.has(docBase)) {
+        const g = byDoc.get(docBase);
+        if (!g.pages.includes(pg)) g.pages.push(pg);
+      } else {
+        const g = { entry, pages: [pg] };
+        if (docBase) byDoc.set(docBase, g);
+        grouped.push(g);
+      }
+    }
     const mountItems = [];
-    const html = entries
-      .map((entry, idx) => {
+    const html = grouped
+      .map(({ entry, pages }, idx) => {
+        const sortedPages = [...pages].sort((a, b) => a - b);
+        const startPage = sortedPages[0] || 1;
         const inlineKey = `inline:${entry.key}`;
-        mountItems.push({ key: inlineKey, source: entry, page: entry.page || 1 });
+        mountItems.push({ key: inlineKey, source: entry, page: startPage, refPages: sortedPages });
+        const jumpPillsHtml = sortedPages.length > 1
+          ? `<span class="pdf-inline-jump-pills" role="group" aria-label="Task pages">${sortedPages.map((pg, i) =>
+              `<button type="button" class="mini-tool-btn pdf-inline-jump-pill${i === 0 ? ' active' : ''}" data-inline-jump-page="${pg}" title="Jump to page ${pg}">p.${pg}</button>`
+            ).join('')}</span>`
+          : '';
         return `<figure class="pdf-figure pdf-figure-inline-local" data-fig-idx="${idx}" data-inline-pdf-key="${esc(inlineKey)}">
           <figcaption>
             <span class="pdf-inline-title" title="${esc(entry.label)}">${esc(entry.label)}</span>
             <span class="row-actions pdf-inline-controls">
+              ${jumpPillsHtml}
               <span class="pdf-inline-pager" data-inline-pager hidden>
                 <button type="button" class="mini-tool-btn" data-inline-prev aria-label="Previous page" disabled>‹</button>
-                <span class="pdf-inline-page-lbl" data-inline-page-lbl>${esc(entry.page || 1)}</span>
+                <span class="pdf-inline-page-lbl" data-inline-page-lbl>${esc(startPage)}</span>
                 <button type="button" class="mini-tool-btn" data-inline-next aria-label="Next page" disabled>›</button>
               </span>
               <span class="pdf-inline-zoom-grp" aria-label="Zoom">
@@ -1937,7 +1961,7 @@ window.StudyRunner = (() => {
               <button type="button" class="mini-tool-btn" data-inline-crop-toggle hidden>Full page</button>
               <button type="button" class="mini-tool-btn" data-inline-invert title="Invert PDF colors (dark mode)" aria-label="Invert PDF colors">◐</button>
               ${window.StudyPdfCraft?.isAvailable?.() ? `<button type="button" class="mini-tool-btn pdf-edit-craft-btn" data-edit-inline-pdf="${esc(entry.key)}" title="Edit, highlight, annotate, sign, or OCR in PdfCraft (pure Rust WASM)">Edit</button>` : ''}
-              <button type="button" class="mini-tool-btn" data-open-inline-pdf="${esc(entry.key)}" data-open-inline-page="${esc(entry.page || 1)}" title="Open full multi-page PDF reader (p.${esc(entry.page || 1)})" aria-label="Open full PDF">⤢</button>
+              <button type="button" class="mini-tool-btn" data-open-inline-pdf="${esc(entry.key)}" data-open-inline-page="${esc(startPage)}" title="Open full multi-page PDF reader (p.${esc(startPage)})" aria-label="Open full PDF">⤢</button>
             </span>
           </figcaption>
           <p class="muted pdf-status pdf-inline-loading" data-pdf-status role="status" hidden></p>
@@ -3395,13 +3419,40 @@ window.StudyRunner = (() => {
             ${numLiveFbHtml}
           </div>`
         : '';
-      workspaceHtml = `
-        <div style="margin:10px 0" class="draft-drop-zone" id="draft-drop-zone">
-          ${numCheckHtml}
-          <textarea id="inp-written-draft" style="min-height:${isSplit ? '210px' : '135px'}" placeholder="${esc(placeholder)}">${esc(st.draft)}</textarea>
-          ${renderDraftMediaBlock(st, autoSaveLabel)}
-        </div>
-      `;
+      const isAcctNoEssay = String(q.courseId || '') === 'acct-2527';
+      if (isAcctNoEssay) {
+        workspaceHtml = `
+          <div style="margin:10px 0" class="draft-drop-zone acct-paper-workspace" id="draft-drop-zone">
+            ${numCheckHtml}
+            <div class="acct-paper-card">
+              <div class="acct-paper-head">
+                <strong>${q.kind === 'calculation' ? 'Work on Paper or Tablet' : 'Active Recall Check'}</strong>
+                <span class="badge">${q.kind === 'calculation' ? 'Self-Check' : 'Concept'}</span>
+              </div>
+              <p class="muted" style="margin:4px 0 0;font-size:13px">
+                ${q.kind === 'calculation'
+                  ? 'Work out the T-accounts, statements, or numbers on paper/tablet, then tap <b>Reveal Solution</b> to grade against the checkpoints.'
+                  : 'Recall the core rule or contrast out loud (or on paper), then tap <b>Reveal Solution</b> to verify — no essay typing needed in Accounting.'}
+              </p>
+            </div>
+            <details class="acct-scratch-details"${String(st.draft || '').trim() || (st.draftImages?.length) ? ' open' : ''}>
+              <summary>Optional scratchpad / paper photo (⌘V)</summary>
+              <div style="margin-top:8px">
+                <textarea id="inp-written-draft" style="min-height:90px" placeholder="Optional quick numbers or notes (paste ⌘V photo of paper work)…">${esc(st.draft)}</textarea>
+                ${renderDraftMediaBlock(st, autoSaveLabel)}
+              </div>
+            </details>
+          </div>
+        `;
+      } else {
+        workspaceHtml = `
+          <div style="margin:10px 0" class="draft-drop-zone" id="draft-drop-zone">
+            ${numCheckHtml}
+            <textarea id="inp-written-draft" style="min-height:${isSplit ? '210px' : '135px'}" placeholder="${esc(placeholder)}">${esc(st.draft)}</textarea>
+            ${renderDraftMediaBlock(st, autoSaveLabel)}
+          </div>
+        `;
+      }
     }
 
     // Hints area (allowed in Practice & Exam modes; tracked on exam grade & best attempt)

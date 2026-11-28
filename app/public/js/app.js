@@ -6238,6 +6238,60 @@ window.StudyApp = (() => {
     });
   }
 
+  const CONCEPT_STOP_WORDS = new Set([
+    'the', 'and', 'for', 'with', 'from', 'that', 'this', 'what', 'which', 'when', 'how',
+    'are', 'not', 'all', 'one', 'two', 'three', 'four', 'five', 'per', 'into', 'under',
+    'autumn', 'spring', 'exam', 'mock', 'mcq', 'exercise', 'session', 'chapter', 'activity',
+    'problem', 'question', 'part', 'pts', 'ltd', 'inc', 'company', 'business', 'versus',
+  ]);
+
+  function questionConceptTokens(q) {
+    const raw = `${q?.title || ''} ${(q?.promptMarkdown || '').slice(0, 140)}`.toLowerCase();
+    const cleaned = raw.replace(/\b(?:wfa|wfb|wfc|wfd|e23f|e24h|e24v)[-\s]?[me]\d+\b/g, ' ');
+    const words = cleaned.match(/[a-z]{4,}/g) || [];
+    const set = new Set();
+    for (const w of words) {
+      if (!CONCEPT_STOP_WORDS.has(w)) set.add(w);
+    }
+    return set;
+  }
+
+  function areConceptSiblings(a, b) {
+    if (!a || !b || a.id === b.id) return false;
+    if (String(a.topicId || '') !== String(b.topicId || '')) return false;
+    const sa = questionConceptTokens(a);
+    const sb = questionConceptTokens(b);
+    if (sa.size < 2 || sb.size < 2) return false;
+    let shared = 0;
+    for (const w of sa) if (sb.has(w)) shared++;
+    const union = sa.size + sb.size - shared;
+    return shared >= 2 && union > 0 && shared / union >= 0.38;
+  }
+
+  function spreadSimilarQuestions(items) {
+    if (!Array.isArray(items) || items.length <= 2) return items;
+    const arr = [...items];
+    for (let i = 1; i < arr.length; i++) {
+      const prev = arr[i - 1];
+      const prev2 = i >= 2 ? arr[i - 2] : null;
+      if (areConceptSiblings(arr[i], prev) || (prev2 && areConceptSiblings(arr[i], prev2))) {
+        let swapIdx = -1;
+        for (let k = i + 1; k < arr.length; k++) {
+          if (!areConceptSiblings(arr[k], prev) && (!prev2 || !areConceptSiblings(arr[k], prev2))) {
+            swapIdx = k;
+            break;
+          }
+        }
+        if (swapIdx !== -1) {
+          const tmp = arr[i];
+          arr[i] = arr[swapIdx];
+          arr[swapIdx] = tmp;
+        }
+      }
+    }
+    return arr;
+  }
+
   function interleaveByTopic(items, bandKeyFn) {
     if (items.length <= 2) return items;
     const out = [];
@@ -6273,7 +6327,7 @@ window.StudyApp = (() => {
       }
       i = j;
     }
-    return out;
+    return spreadSimilarQuestions(out);
   }
 
   function isNonExamAccountingWritten(q, bank = null) {

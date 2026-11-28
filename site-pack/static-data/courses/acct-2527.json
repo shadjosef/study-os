@@ -2931,6 +2931,105 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/132527",
           "isSolution": false
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "gap",
+          "group": "Part 1–4 · Financing & Disclosure (£m)",
+          "label": "Outside funding gap G = I − EQ",
+          "type": "number",
+          "expected": 5.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 2
+        },
+        {
+          "id": "share_rev",
+          "group": "Part 1–4 · Financing & Disclosure (£m)",
+          "label": "Outside equity share with reliable report (high type)",
+          "type": "number",
+          "expected": 33.33,
+          "altExpected": [
+            0.3333
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 3
+        },
+        {
+          "id": "pooled_v",
+          "group": "Part 1–4 · Financing & Disclosure (£m)",
+          "label": "Expected firm value without report (pooled)",
+          "type": "number",
+          "expected": 11.8,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 2
+        },
+        {
+          "id": "share_unrev",
+          "group": "Part 1–4 · Financing & Disclosure (£m)",
+          "label": "Outside equity share without report",
+          "type": "number",
+          "expected": 42.37,
+          "altExpected": [
+            0.4237
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 3
+        },
+        {
+          "id": "gross_ben",
+          "group": "Part 1–4 · Financing & Disclosure (£m)",
+          "label": "Gross disclosure benefit to high-type owner",
+          "type": "number",
+          "expected": 1.36,
+          "altExpected": [
+            1.3559
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 4
+        },
+        {
+          "id": "comp_eq",
+          "group": "Part 5 · Comparative Statics",
+          "label": "Effect of increasing internal equity EQ (ceteris paribus)",
+          "type": "choice",
+          "options": [
+            "Decreases both outside shares and the gross disclosure benefit",
+            "Increases both outside shares and the gross disclosure benefit",
+            "Leaves the pooled share unchanged while raising gross benefit"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "comp_h",
+          "group": "Part 5 · Comparative Statics",
+          "label": "Effect of increasing high-type value H (ceteris paribus)",
+          "type": "choice",
+          "options": [
+            "Raises both outside shares and lowers disclosure benefit",
+            "Lowers both outside shares and increases high-type disclosure benefit",
+            "Has zero effect on the revealed share"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        }
       ]
     },
     {
@@ -3054,6 +3153,177 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/166057",
           "isSolution": true
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "mon_cash",
+          "group": "Exercise 1 · Daily Trading (Mon–Thu, £)",
+          "label": "Monday closing cash",
+          "type": "number",
+          "expected": 400.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "mon_prof",
+          "group": "Exercise 1 · Daily Trading (Mon–Thu, £)",
+          "label": "Monday profit",
+          "type": "number",
+          "expected": 50.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "tue_cash",
+          "group": "Exercise 1 · Daily Trading (Mon–Thu, £)",
+          "label": "Tuesday closing cash",
+          "type": "number",
+          "expected": 1000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "tue_prof",
+          "group": "Exercise 1 · Daily Trading (Mon–Thu, £)",
+          "label": "Tuesday profit",
+          "type": "number",
+          "expected": 150.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "wed_cash",
+          "group": "Exercise 1 · Daily Trading (Mon–Thu, £)",
+          "label": "Wednesday closing cash",
+          "type": "number",
+          "expected": 900.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "wed_prof",
+          "group": "Exercise 1 · Daily Trading (Mon–Thu, £)",
+          "label": "Wednesday profit",
+          "type": "number",
+          "expected": 25.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "thu_cash",
+          "group": "Exercise 1 · Daily Trading (Mon–Thu, £)",
+          "label": "Thursday closing cash",
+          "type": "number",
+          "expected": 1000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "thu_prof",
+          "group": "Exercise 1 · Daily Trading (Mon–Thu, £)",
+          "label": "Thursday profit / (loss)",
+          "type": "number",
+          "expected": -25.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "thu_eq",
+          "group": "Exercise 1 · Daily Trading (Mon–Thu, £)",
+          "label": "Thursday closing equity",
+          "type": "number",
+          "expected": 1000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ex2_assets",
+          "group": "Exercise 2 · 12-Transaction SFP (£)",
+          "label": "Closing Total Assets",
+          "type": "number",
+          "expected": 302000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "ex2_equity",
+          "group": "Exercise 2 · 12-Transaction SFP (£)",
+          "label": "Closing Equity",
+          "type": "number",
+          "expected": 237000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "ex2_od",
+          "group": "Exercise 2 · 12-Transaction SFP (£)",
+          "label": "Bank Overdraft",
+          "type": "number",
+          "expected": 21000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ex2_pay",
+          "group": "Exercise 2 · 12-Transaction SFP (£)",
+          "label": "Trade Payables",
+          "type": "number",
+          "expected": 44000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        }
       ]
     },
     {
@@ -3163,6 +3433,179 @@
           "canvasFileId": "166058",
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/166058",
           "isSolution": true
+        }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "disp_nbv",
+          "group": "Machinery Disposal & Depreciation (£)",
+          "label": "Old machine carrying amount (NBV) at disposal",
+          "type": "number",
+          "expected": 10500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "disp_loss",
+          "group": "Machinery Disposal & Depreciation (£)",
+          "label": "Loss on disposal (enter 3500 or -3500)",
+          "type": "number",
+          "expected": 3500.0,
+          "altExpected": [
+            -3500.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "mach_depr",
+          "group": "Machinery Disposal & Depreciation (£)",
+          "label": "Current-year machinery depreciation (30%)",
+          "type": "number",
+          "expected": 11790.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "mach_close",
+          "group": "Machinery Disposal & Depreciation (£)",
+          "label": "Closing machinery NBV",
+          "type": "number",
+          "expected": 27510.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "wages",
+          "group": "Adjusted Expenses (£)",
+          "label": "Wages expense",
+          "type": "number",
+          "expected": 22800.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "elec",
+          "group": "Adjusted Expenses (£)",
+          "label": "Electricity expense",
+          "type": "number",
+          "expected": 3400.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "rent",
+          "group": "Adjusted Expenses (£)",
+          "label": "Rent expense",
+          "type": "number",
+          "expected": 24000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "rent_prep",
+          "group": "Adjusted Expenses (£)",
+          "label": "Closing prepaid rent",
+          "type": "number",
+          "expected": 3000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "rates",
+          "group": "Adjusted Expenses (£)",
+          "label": "Rates expense",
+          "type": "number",
+          "expected": 3000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "op_prof",
+          "group": "Statements Summary (£)",
+          "label": "Operating profit (before £2,000 loan interest)",
+          "type": "number",
+          "expected": 20910.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "net_prof",
+          "group": "Statements Summary (£)",
+          "label": "Profit for the period",
+          "type": "number",
+          "expected": 18910.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "tot_assets",
+          "group": "Statements Summary (£)",
+          "label": "Total Assets (closing SFP)",
+          "type": "number",
+          "expected": 113010.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "close_eq",
+          "group": "Statements Summary (£)",
+          "label": "Closing Equity",
+          "type": "number",
+          "expected": 66210.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
         }
       ]
     },
@@ -3299,6 +3742,137 @@
           "canvasFileId": "",
           "canvasUrl": "",
           "isSolution": true
+        }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "sales",
+          "group": "Income Statement Closing Totals (£)",
+          "label": "Sales revenue",
+          "type": "number",
+          "expected": 187000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "cogs",
+          "group": "Income Statement Closing Totals (£)",
+          "label": "Cost of sales",
+          "type": "number",
+          "expected": 90000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "gp",
+          "group": "Income Statement Closing Totals (£)",
+          "label": "Gross profit",
+          "type": "number",
+          "expected": 97000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "van_depr",
+          "group": "Adjustments & Key Expenses (£)",
+          "label": "Annual straight-line van depreciation",
+          "type": "number",
+          "expected": 2500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "rent_exp",
+          "group": "Adjustments & Key Expenses (£)",
+          "label": "Rent expense (after prepayment)",
+          "type": "number",
+          "expected": 20000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "wages_exp",
+          "group": "Adjustments & Key Expenses (£)",
+          "label": "Wages expense (after accrual)",
+          "type": "number",
+          "expected": 34130.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "profit",
+          "group": "Closing Position (£)",
+          "label": "Profit for the year",
+          "type": "number",
+          "expected": 26900.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "assets",
+          "group": "Closing Position (£)",
+          "label": "Total Assets",
+          "type": "number",
+          "expected": 100150.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "equity",
+          "group": "Closing Position (£)",
+          "label": "Closing Equity",
+          "type": "number",
+          "expected": 76900.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "tb_check",
+          "group": "Double-Entry Principle",
+          "label": "Does a balanced trial balance prove every transaction was recorded?",
+          "type": "choice",
+          "options": [
+            "Yes — any missing transaction breaks trial-balance equality",
+            "No — omitting both debit and credit still leaves totals equal"
+          ],
+          "answerIndex": 1,
+          "points": 2
         }
       ]
     },
@@ -3589,6 +4163,138 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/172809",
           "isSolution": true
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "r_price",
+          "group": "Part 1 · Rennes Ltd CVP (£)",
+          "label": "Selling price per service",
+          "type": "number",
+          "expected": 50.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "r_cm",
+          "group": "Part 1 · Rennes Ltd CVP (£)",
+          "label": "Contribution per unit of service",
+          "type": "number",
+          "expected": 40.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "r_vc",
+          "group": "Part 1 · Rennes Ltd CVP (£)",
+          "label": "Variable cost per unit of service",
+          "type": "number",
+          "expected": 10.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "r_fc",
+          "group": "Part 1 · Rennes Ltd CVP (£)",
+          "label": "Total monthly fixed costs",
+          "type": "number",
+          "expected": 10000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "r_bep_u",
+          "group": "Part 1 · Rennes Ltd CVP (£)",
+          "label": "Break-even point (units)",
+          "type": "number",
+          "expected": 250.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "r_bep_s",
+          "group": "Part 1 · Rennes Ltd CVP (£)",
+          "label": "Break-even sales revenue",
+          "type": "number",
+          "expected": 12500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "l_x_cm",
+          "group": "Part 2 · Lorient Ltd Scarce Material (£)",
+          "label": "Product X contribution per unit",
+          "type": "number",
+          "expected": 30.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "l_x_kg",
+          "group": "Part 2 · Lorient Ltd Scarce Material (£)",
+          "label": "Product X contribution per scarce kg",
+          "type": "number",
+          "expected": 40.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/kg",
+          "points": 3
+        },
+        {
+          "id": "l_y_p",
+          "group": "Part 2 · Lorient Ltd Scarce Material (£)",
+          "label": "Indifference selling price for Product Y",
+          "type": "number",
+          "expected": 85.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "l_z_p",
+          "group": "Part 2 · Lorient Ltd Scarce Material (£)",
+          "label": "Indifference selling price for Product Z",
+          "type": "number",
+          "expected": 104.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        }
       ]
     },
     {
@@ -3685,6 +4391,99 @@
           "canvasFileId": "178635",
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/178635",
           "isSolution": true
+        }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "oh_pool",
+          "group": "Overhead Pool & Absorption Rates (£)",
+          "label": "Total indirect manufacturing overheads",
+          "type": "number",
+          "expected": 720000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "wage",
+          "group": "Overhead Pool & Absorption Rates (£)",
+          "label": "Direct labour wage rate per hour",
+          "type": "number",
+          "expected": 6.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/hr",
+          "points": 2
+        },
+        {
+          "id": "oar_dlh",
+          "group": "Overhead Pool & Absorption Rates (£)",
+          "label": "Overhead absorption rate (direct labour hour basis)",
+          "type": "number",
+          "expected": 7.2,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/DLH",
+          "points": 3
+        },
+        {
+          "id": "oar_mh",
+          "group": "Overhead Pool & Absorption Rates (£)",
+          "label": "Overhead absorption rate (machine-hour basis)",
+          "type": "number",
+          "expected": 8.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/MH",
+          "points": 3
+        },
+        {
+          "id": "ord_dc",
+          "group": "Order No. 101 Full Cost (£)",
+          "label": "Direct (prime) cost of Order 101",
+          "type": "number",
+          "expected": 29000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ord_dlh",
+          "group": "Order No. 101 Full Cost (£)",
+          "label": "Full cost of Order 101 (DLH basis)",
+          "type": "number",
+          "expected": 57800.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "ord_mh",
+          "group": "Order No. 101 Full Cost (£)",
+          "label": "Full cost of Order 101 (machine-hour basis)",
+          "type": "number",
+          "expected": 44200.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
         }
       ]
     },
@@ -3860,6 +4659,140 @@
           "canvasFileId": "",
           "canvasUrl": "",
           "isSolution": true
+        }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "mylo_p1",
+          "group": "Ex 10.1 · Mylo Ltd (10% NPV, £000)",
+          "label": "Project 1 NPV at 10%",
+          "type": "number",
+          "expected": 9.36,
+          "altExpected": [
+            9360.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£000",
+          "points": 3
+        },
+        {
+          "id": "mylo_p2",
+          "group": "Ex 10.1 · Mylo Ltd (10% NPV, £000)",
+          "label": "Project 2 NPV at 10%",
+          "type": "number",
+          "expected": 6.97,
+          "altExpected": [
+            6970.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£000",
+          "points": 3
+        },
+        {
+          "id": "mylo_pick",
+          "group": "Ex 10.1 · Mylo Ltd (10% NPV, £000)",
+          "label": "Which project creates higher shareholder wealth?",
+          "type": "choice",
+          "options": [
+            "Project 1",
+            "Project 2"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "newt_1",
+          "group": "Ex 10.2 · Newton Electronics (10% NPV, £m)",
+          "label": "Option 1 (Manufacture) NPV",
+          "type": "number",
+          "expected": 19.6,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 3
+        },
+        {
+          "id": "newt_2",
+          "group": "Ex 10.2 · Newton Electronics (10% NPV, £m)",
+          "label": "Option 2 (Royalties) NPV",
+          "type": "number",
+          "expected": 24.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 3
+        },
+        {
+          "id": "newt_3",
+          "group": "Ex 10.2 · Newton Electronics (10% NPV, £m)",
+          "label": "Option 3 (Patent instalments) NPV",
+          "type": "number",
+          "expected": 21.9,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£m",
+          "points": 3
+        },
+        {
+          "id": "newt_pick",
+          "group": "Ex 10.2 · Newton Electronics (10% NPV, £m)",
+          "label": "Best financial option for Newton Electronics",
+          "type": "choice",
+          "options": [
+            "Option 1 (Manufacture)",
+            "Option 2 (Royalties)",
+            "Option 3 (Patent instalments)"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        },
+        {
+          "id": "ches_pl",
+          "group": "Ex 10.3 · Chesterfield Wanderers (10% NPV, £000)",
+          "label": "Player option NPV at 10%",
+          "type": "number",
+          "expected": 1747.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£000",
+          "points": 3
+        },
+        {
+          "id": "ches_gr",
+          "group": "Ex 10.3 · Chesterfield Wanderers (10% NPV, £000)",
+          "label": "Ground option NPV at 10%",
+          "type": "number",
+          "expected": 1949.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£000",
+          "points": 3
+        },
+        {
+          "id": "ches_pick",
+          "group": "Ex 10.3 · Chesterfield Wanderers (10% NPV, £000)",
+          "label": "Financially preferred option on NPV",
+          "type": "choice",
+          "options": [
+            "Player option",
+            "Ground option"
+          ],
+          "answerIndex": 1,
+          "points": 2
         }
       ]
     },
@@ -6345,6 +7278,73 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/132534",
           "isSolution": true
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "cash",
+          "group": "Monday Statements (£)",
+          "label": "Closing cash",
+          "type": "number",
+          "expected": 450.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "cogs",
+          "group": "Monday Statements (£)",
+          "label": "Cost of sales",
+          "type": "number",
+          "expected": 300.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "profit",
+          "group": "Monday Statements (£)",
+          "label": "Profit for Monday",
+          "type": "number",
+          "expected": 150.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "inv",
+          "group": "Monday Statements (£)",
+          "label": "Closing inventory",
+          "type": "number",
+          "expected": 100.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "assets",
+          "group": "Monday Statements (£)",
+          "label": "Total Assets (= Closing Equity)",
+          "type": "number",
+          "expected": 550.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        }
       ]
     },
     {
@@ -6452,6 +7452,112 @@
           "canvasFileId": "132534",
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/132534",
           "isSolution": true
+        }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "tue_cash",
+          "group": "Tuesday (£)",
+          "label": "Tuesday closing cash",
+          "type": "number",
+          "expected": 730.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "tue_prof",
+          "group": "Tuesday (£)",
+          "label": "Tuesday profit",
+          "type": "number",
+          "expected": 180.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "tue_inv",
+          "group": "Tuesday (£)",
+          "label": "Tuesday closing inventory",
+          "type": "number",
+          "expected": 0.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 1
+        },
+        {
+          "id": "tue_eq",
+          "group": "Tuesday (£)",
+          "label": "Tuesday closing equity",
+          "type": "number",
+          "expected": 730.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "wed_cash",
+          "group": "Wednesday (£)",
+          "label": "Wednesday closing cash",
+          "type": "number",
+          "expected": 590.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "wed_prof",
+          "group": "Wednesday (£)",
+          "label": "Wednesday profit",
+          "type": "number",
+          "expected": 90.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "wed_inv",
+          "group": "Wednesday (£)",
+          "label": "Wednesday closing inventory",
+          "type": "number",
+          "expected": 230.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "wed_eq",
+          "group": "Wednesday (£)",
+          "label": "Wednesday closing equity",
+          "type": "number",
+          "expected": 820.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
         }
       ]
     },
@@ -6627,6 +7733,99 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/132534",
           "isSolution": true
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "norm_a",
+          "group": "Baseline (£5,000 Final Sale)",
+          "label": "Closing Total Assets",
+          "type": "number",
+          "expected": 37000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "norm_eq",
+          "group": "Baseline (£5,000 Final Sale)",
+          "label": "Closing Equity",
+          "type": "number",
+          "expected": 22000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "norm_bor",
+          "group": "Baseline (£5,000 Final Sale)",
+          "label": "Borrowings",
+          "type": "number",
+          "expected": 12000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "norm_pay",
+          "group": "Baseline (£5,000 Final Sale)",
+          "label": "Trade Payables",
+          "type": "number",
+          "expected": 3000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "low_a",
+          "group": "Alternative (£1,000 Final Sale)",
+          "label": "Closing Total Assets",
+          "type": "number",
+          "expected": 33000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "low_eq",
+          "group": "Alternative (£1,000 Final Sale)",
+          "label": "Closing Equity",
+          "type": "number",
+          "expected": 18000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "low_liab",
+          "group": "Alternative (£1,000 Final Sale)",
+          "label": "Total Liabilities",
+          "type": "number",
+          "expected": 15000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        }
       ]
     },
     {
@@ -6762,6 +7961,138 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/158740",
           "isSolution": true
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "fifo_cogs",
+          "group": "FIFO (£)",
+          "label": "FIFO Cost of Sales",
+          "type": "number",
+          "expected": 90000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "fifo_inv",
+          "group": "FIFO (£)",
+          "label": "FIFO Closing Inventory",
+          "type": "number",
+          "expected": 270000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "fifo_gp",
+          "group": "FIFO (£)",
+          "label": "FIFO Gross Profit",
+          "type": "number",
+          "expected": 45000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "lifo_cogs",
+          "group": "LIFO (£)",
+          "label": "LIFO Cost of Sales",
+          "type": "number",
+          "expected": 117000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "lifo_inv",
+          "group": "LIFO (£)",
+          "label": "LIFO Closing Inventory",
+          "type": "number",
+          "expected": 243000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "lifo_gp",
+          "group": "LIFO (£)",
+          "label": "LIFO Gross Profit",
+          "type": "number",
+          "expected": 18000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "avco_u",
+          "group": "AVCO (£)",
+          "label": "Weighted average cost per tonne",
+          "type": "number",
+          "expected": 12.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/t",
+          "points": 2
+        },
+        {
+          "id": "avco_cogs",
+          "group": "AVCO (£)",
+          "label": "AVCO Cost of Sales",
+          "type": "number",
+          "expected": 108000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "avco_inv",
+          "group": "AVCO (£)",
+          "label": "AVCO Closing Inventory",
+          "type": "number",
+          "expected": 252000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "avco_gp",
+          "group": "AVCO (£)",
+          "label": "AVCO Gross Profit",
+          "type": "number",
+          "expected": 27000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        }
       ]
     },
     {
@@ -6856,6 +8187,34 @@
           "canvasFileId": "158750",
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/158750",
           "isSolution": true
+        }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "cash_gen",
+          "group": "Operating Cash Bridge",
+          "label": "Cash generated from operations",
+          "type": "number",
+          "expected": 164.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "net_ocf",
+          "group": "Operating Cash Bridge",
+          "label": "Net cash from operating activities",
+          "type": "number",
+          "expected": 118.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
         }
       ]
     },
@@ -6992,6 +8351,201 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/172793",
           "isSolution": true
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "no_cm",
+          "group": "Without Machine (500 baskets/month)",
+          "label": "Contribution per basket",
+          "type": "number",
+          "expected": 2.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "no_prof",
+          "group": "Without Machine (500 baskets/month)",
+          "label": "Monthly profit at 500 baskets",
+          "type": "number",
+          "expected": 500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "no_bep",
+          "group": "Without Machine (500 baskets/month)",
+          "label": "Break-even point (baskets)",
+          "type": "number",
+          "expected": 250.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "baskets",
+          "points": 2
+        },
+        {
+          "id": "no_mos",
+          "group": "Without Machine (500 baskets/month)",
+          "label": "Margin of safety (baskets)",
+          "type": "number",
+          "expected": 250.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "baskets",
+          "points": 2
+        },
+        {
+          "id": "no_mos_pct",
+          "group": "Without Machine (500 baskets/month)",
+          "label": "Margin of safety (%)",
+          "type": "number",
+          "expected": 50.0,
+          "altExpected": [
+            0.5
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "no_cs",
+          "group": "Without Machine (500 baskets/month)",
+          "label": "Contribution / sales ratio (%)",
+          "type": "number",
+          "expected": 14.29,
+          "altExpected": [
+            0.1429
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "m_cm",
+          "group": "With Machine (500 baskets/month)",
+          "label": "Contribution per basket",
+          "type": "number",
+          "expected": 7.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "m_prof",
+          "group": "With Machine (500 baskets/month)",
+          "label": "Monthly profit at 500 baskets",
+          "type": "number",
+          "expected": 500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "m_bep",
+          "group": "With Machine (500 baskets/month)",
+          "label": "Break-even point (baskets)",
+          "type": "number",
+          "expected": 428.57,
+          "altExpected": [
+            429.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "baskets",
+          "points": 2
+        },
+        {
+          "id": "m_mos",
+          "group": "With Machine (500 baskets/month)",
+          "label": "Margin of safety (baskets)",
+          "type": "number",
+          "expected": 71.43,
+          "altExpected": [
+            71.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "baskets",
+          "points": 2
+        },
+        {
+          "id": "m_mos_pct",
+          "group": "With Machine (500 baskets/month)",
+          "label": "Margin of safety (%)",
+          "type": "number",
+          "expected": 14.29,
+          "altExpected": [
+            0.1429
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "m_cs",
+          "group": "With Machine (500 baskets/month)",
+          "label": "Contribution / sales ratio (%)",
+          "type": "number",
+          "expected": 50.0,
+          "altExpected": [
+            0.5
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "indiff_q",
+          "group": "Indifference Volume & Decision",
+          "label": "Equal-profit volume Q (baskets/month)",
+          "type": "number",
+          "expected": 500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "baskets",
+          "points": 3
+        },
+        {
+          "id": "above_500",
+          "group": "Indifference Volume & Decision",
+          "label": "Above 500 baskets/month, which option earns higher profit?",
+          "type": "choice",
+          "options": [
+            "With the machine (higher unit contribution £7 vs £2)",
+            "Without the machine (lower fixed cost £500 vs £3,000)"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        }
       ]
     },
     {
@@ -7074,6 +8628,99 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/172793",
           "isSolution": true
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "cm_b17",
+          "group": "Contribution per Scarce Machine Hour (£/hr)",
+          "label": "B17 contribution per machine hour",
+          "type": "number",
+          "expected": 4.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/hr",
+          "points": 2
+        },
+        {
+          "id": "cm_b14",
+          "group": "Contribution per Scarce Machine Hour (£/hr)",
+          "label": "B14 contribution per machine hour",
+          "type": "number",
+          "expected": 3.75,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/hr",
+          "points": 2
+        },
+        {
+          "id": "cm_b22",
+          "group": "Contribution per Scarce Machine Hour (£/hr)",
+          "label": "B22 contribution per machine hour",
+          "type": "number",
+          "expected": 2.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/hr",
+          "points": 2
+        },
+        {
+          "id": "q_b17",
+          "group": "Optimal Production Plan (148 hrs)",
+          "label": "Optimal units of B17",
+          "type": "number",
+          "expected": 20.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "q_b14",
+          "group": "Optimal Production Plan (148 hrs)",
+          "label": "Optimal units of B14",
+          "type": "number",
+          "expected": 22.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "q_b22",
+          "group": "Optimal Production Plan (148 hrs)",
+          "label": "Optimal units of B22",
+          "type": "number",
+          "expected": 0.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "tot_cm",
+          "group": "Optimal Production Plan (148 hrs)",
+          "label": "Maximum total contribution",
+          "type": "number",
+          "expected": 570.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        }
       ]
     },
     {
@@ -7155,6 +8802,74 @@
           "canvasFileId": "172793",
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/172793",
           "isSolution": true
+        }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "gc_cm",
+          "group": "Relevant Cost Analysis",
+          "label": "General clothes department contribution",
+          "type": "number",
+          "expected": 37.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "cur_prof",
+          "group": "Relevant Cost Analysis",
+          "label": "Current total shop profit (all 3 departments)",
+          "type": "number",
+          "expected": 52.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "",
+          "points": 2
+        },
+        {
+          "id": "cls_prof",
+          "group": "Relevant Cost Analysis",
+          "label": "Total shop profit if General Clothes closes (0 fixed cost saved)",
+          "type": "number",
+          "expected": 15.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "prof_diff",
+          "group": "Relevant Cost Analysis",
+          "label": "Profit impact of closure (enter -37 or 37 loss)",
+          "type": "number",
+          "expected": -37.0,
+          "altExpected": [
+            37.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "",
+          "points": 2
+        },
+        {
+          "id": "decision",
+          "group": "Decision",
+          "label": "Financially, if all fixed costs remain, should the shop close General Clothes?",
+          "type": "choice",
+          "options": [
+            "Keep General Clothes open (positive contribution +37 covers shared fixed costs)",
+            "Close General Clothes immediately (it shows an allocated loss of -9)"
+          ],
+          "answerIndex": 0,
+          "points": 3
         }
       ]
     },
@@ -7304,6 +9019,99 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/172792",
           "isSolution": true
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "q2",
+          "group": "Optimal Production Programme",
+          "label": "Optimal units of Product 2",
+          "type": "number",
+          "expected": 250.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "q1",
+          "group": "Optimal Production Programme",
+          "label": "Optimal units of Product 1",
+          "type": "number",
+          "expected": 25.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "extra_p",
+          "group": "Optimal Production Programme",
+          "label": "Extra units of factor P purchased",
+          "type": "number",
+          "expected": 475.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "rev",
+          "group": "Profit & Opportunity-Cost Valuation",
+          "label": "Total revenue",
+          "type": "number",
+          "expected": 142000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "",
+          "points": 2
+        },
+        {
+          "id": "hist_prof",
+          "group": "Profit & Opportunity-Cost Valuation",
+          "label": "Historical-cost profit",
+          "type": "number",
+          "expected": 24500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "opp_prof",
+          "group": "Profit & Opportunity-Cost Valuation",
+          "label": "Opportunity-cost valuation profit",
+          "type": "number",
+          "expected": 8500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "mv_q",
+          "group": "Profit & Opportunity-Cost Valuation",
+          "label": "Total marginal value of scarce factor Q per unit",
+          "type": "number",
+          "expected": 240.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "/unit",
+          "points": 3
+        }
       ]
     },
     {
@@ -7426,6 +9234,77 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/178605",
           "isSolution": false
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "margin_25",
+          "group": "Mark-Up vs Sales Margin",
+          "label": "Sales margin (%) equivalent to a 25% mark-up on cost",
+          "type": "number",
+          "expected": 20.0,
+          "altExpected": [
+            0.2
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "markup_20",
+          "group": "Mark-Up vs Sales Margin",
+          "label": "Mark-up on cost (%) equivalent to a 20% sales margin",
+          "type": "number",
+          "expected": 25.0,
+          "altExpected": [
+            0.25
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "q_star",
+          "group": "Slide Demand Example",
+          "label": "Profit-maximising volume Q* (from lecture slide)",
+          "type": "number",
+          "expected": 50.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "pi_star",
+          "group": "Slide Demand Example",
+          "label": "Maximum profit at Q* (from lecture slide)",
+          "type": "number",
+          "expected": 500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "",
+          "points": 2
+        },
+        {
+          "id": "why_circ",
+          "group": "Cost-Plus Limitation",
+          "label": "Why does adding a fixed mark-up to full unit cost NOT guarantee expected profit?",
+          "type": "choice",
+          "options": [
+            "Full unit cost depends on assumed volume Q, which itself changes when price changes",
+            "Variable costs always equal fixed costs at every output level",
+            "Mark-up percentage is always smaller than sales margin percentage"
+          ],
+          "answerIndex": 0,
+          "points": 3
+        }
       ]
     },
     {
@@ -7521,6 +9400,102 @@
           "canvasFileId": "178604",
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/178604",
           "isSolution": true
+        }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "prime",
+          "group": "Direct (Prime) Cost (£)",
+          "label": "Direct (prime) cost of laptop repair",
+          "type": "number",
+          "expected": 75.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "dlh_oar",
+          "group": "1. Direct Labour Hour (DLH) Basis",
+          "label": "OAR per direct labour hour",
+          "type": "number",
+          "expected": 10.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/DLH",
+          "points": 2
+        },
+        {
+          "id": "dlh_oh",
+          "group": "1. Direct Labour Hour (DLH) Basis",
+          "label": "Overhead absorbed by laptop repair (DLH basis)",
+          "type": "number",
+          "expected": 30.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "dlh_full",
+          "group": "1. Direct Labour Hour (DLH) Basis",
+          "label": "Full job cost (DLH basis)",
+          "type": "number",
+          "expected": 105.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "mat_oar",
+          "group": "2. Direct Material Cost Basis",
+          "label": "OAR (% of direct material cost, or 3.33 £/£)",
+          "type": "number",
+          "expected": 333.33,
+          "altExpected": [
+            3.3333,
+            3.33
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "mat_oh",
+          "group": "2. Direct Material Cost Basis",
+          "label": "Overhead absorbed by laptop repair (material basis)",
+          "type": "number",
+          "expected": 50.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "mat_full",
+          "group": "2. Direct Material Cost Basis",
+          "label": "Full job cost (material basis)",
+          "type": "number",
+          "expected": 125.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
         }
       ]
     },
@@ -7619,6 +9594,60 @@
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/178604",
           "isSolution": true
         }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "tot_drv",
+          "group": "ABC Storage Pool (Example 8.5)",
+          "label": "Total expected product-weeks driver volume",
+          "type": "number",
+          "expected": 150000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "product-weeks",
+          "points": 3
+        },
+        {
+          "id": "abc_rate",
+          "group": "ABC Storage Pool (Example 8.5)",
+          "label": "ABC storage cost per product-week",
+          "type": "number",
+          "expected": 0.6,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "/prod-wk",
+          "points": 3
+        },
+        {
+          "id": "unit_a",
+          "group": "ABC Storage Pool (Example 8.5)",
+          "label": "Storage overhead per unit of Product A",
+          "type": "number",
+          "expected": 0.6,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "/unit",
+          "points": 2
+        },
+        {
+          "id": "unit_b",
+          "group": "ABC Storage Pool (Example 8.5)",
+          "label": "Storage overhead per unit of Product B",
+          "type": "number",
+          "expected": 2.4,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "/unit",
+          "points": 2
+        }
       ]
     },
     {
@@ -7714,6 +9743,120 @@
           "canvasFileId": "209033",
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/209033",
           "isSolution": true
+        }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "depr",
+          "group": "ARR & Payback",
+          "label": "Annual straight-line depreciation",
+          "type": "number",
+          "expected": 16.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 2
+        },
+        {
+          "id": "avg_prof",
+          "group": "ARR & Payback",
+          "label": "Average annual accounting profit",
+          "type": "number",
+          "expected": 24.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 2
+        },
+        {
+          "id": "avg_inv",
+          "group": "ARR & Payback",
+          "label": "Average investment",
+          "type": "number",
+          "expected": 60.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 2
+        },
+        {
+          "id": "arr",
+          "group": "ARR & Payback",
+          "label": "Accounting Rate of Return (ARR %)",
+          "type": "number",
+          "expected": 40.0,
+          "altExpected": [
+            0.4
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "payback",
+          "group": "ARR & Payback",
+          "label": "Payback period (years — continuous 2.67 or year-end 3)",
+          "type": "number",
+          "expected": 2.67,
+          "altExpected": [
+            3.0
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "yrs",
+          "points": 2
+        },
+        {
+          "id": "npv20",
+          "group": "NPV, IRR & Max Price (20%)",
+          "label": "NPV at 20% cost of capital",
+          "type": "number",
+          "expected": 24.18,
+          "altExpected": [
+            24.177
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        },
+        {
+          "id": "irr",
+          "group": "NPV, IRR & Max Price (20%)",
+          "label": "Internal Rate of Return (IRR %)",
+          "type": "number",
+          "expected": 29.16,
+          "altExpected": [
+            0.2916
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 3
+        },
+        {
+          "id": "max_p0",
+          "group": "NPV, IRR & Max Price (20%)",
+          "label": "Maximum time-0 price worth paying at 20%",
+          "type": "number",
+          "expected": 124.18,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
         }
       ]
     },
@@ -7875,6 +10018,190 @@
           "canvasFileId": "178645",
           "canvasUrl": "https://canvas.bi.no/courses/2527/files/178645",
           "isSolution": false
+        }
+      ],
+      "wiseflowFields": [
+        {
+          "id": "fcf0",
+          "group": "1. Cash Flows & NPV (10%, £)",
+          "label": "Free cash flow t = 0",
+          "type": "number",
+          "expected": -50000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "fcf1",
+          "group": "1. Cash Flows & NPV (10%, £)",
+          "label": "Free cash flow t = 1",
+          "type": "number",
+          "expected": 10000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "fcf2",
+          "group": "1. Cash Flows & NPV (10%, £)",
+          "label": "Free cash flow t = 2",
+          "type": "number",
+          "expected": 10000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "fcf3",
+          "group": "1. Cash Flows & NPV (10%, £)",
+          "label": "Free cash flow t = 3",
+          "type": "number",
+          "expected": 16500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "fcf4",
+          "group": "1. Cash Flows & NPV (10%, £)",
+          "label": "Free cash flow t = 4",
+          "type": "number",
+          "expected": 16500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "fcf5",
+          "group": "1. Cash Flows & NPV (10%, £)",
+          "label": "Free cash flow t = 5",
+          "type": "number",
+          "expected": 32500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "npv",
+          "group": "1. Cash Flows & NPV (10%, £)",
+          "label": "Project NPV at 10%",
+          "type": "number",
+          "expected": 11201.73,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "ni1",
+          "group": "2. LIFO Net Income & Residual Income (£)",
+          "label": "Net income t = 1",
+          "type": "number",
+          "expected": 8000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ni2",
+          "group": "2. LIFO Net Income & Residual Income (£)",
+          "label": "Net income t = 2",
+          "type": "number",
+          "expected": 2000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ni3",
+          "group": "2. LIFO Net Income & Residual Income (£)",
+          "label": "Net income t = 3",
+          "type": "number",
+          "expected": 3750.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ni4",
+          "group": "2. LIFO Net Income & Residual Income (£)",
+          "label": "Net income t = 4",
+          "type": "number",
+          "expected": 6500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ni5",
+          "group": "2. LIFO Net Income & Residual Income (£)",
+          "label": "Net income t = 5",
+          "type": "number",
+          "expected": 15250.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "pv_ni",
+          "group": "2. LIFO Net Income & Residual Income (£)",
+          "label": "PV of Net Income alone at 10% (≠ NPV)",
+          "type": "number",
+          "expected": 25651.69,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "pv_ri",
+          "group": "2. LIFO Net Income & Residual Income (£)",
+          "label": "PV of Residual Incomes at 10% (= NPV)",
+          "type": "number",
+          "expected": 11201.73,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
         }
       ]
     },
@@ -11156,7 +13483,48 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "qual",
+          "group": "Conceptual Foundations",
+          "label": "What are the two fundamental qualitative characteristics of accounting information?",
+          "type": "choice",
+          "options": [
+            "Comparability and verifiability",
+            "Relevance and faithful representation",
+            "Consistency and prudence"
+          ],
+          "answerIndex": 1,
+          "points": 3
+        },
+        {
+          "id": "wealth",
+          "group": "Conceptual Foundations",
+          "label": "Why does maximizing sales or short-term accounting profit not guarantee maximum owners' wealth?",
+          "type": "choice",
+          "options": [
+            "Sales and profit ignore risk, cash-flow timing, and capital's opportunity cost",
+            "Accounting profit always equals cash flow",
+            "IFRS forbids companies from maximizing profit"
+          ],
+          "answerIndex": 0,
+          "points": 3
+        },
+        {
+          "id": "fa_ma",
+          "group": "Conceptual Foundations",
+          "label": "How do financial and management accounting primarily differ?",
+          "type": "choice",
+          "options": [
+            "Financial accounting is general-purpose (mainly external users); management accounting is tailored for internal decisions",
+            "Managers are prohibited from reading financial statements",
+            "Management accounting must follow statutory IFRS templates annually"
+          ],
+          "answerIndex": 0,
+          "points": 3
+        }
+      ]
     },
     {
       "id": "acct-2527:D12",
@@ -11224,7 +13592,78 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "gap",
+          "group": "Disclosure & Financing Model",
+          "label": "Outside financing needed",
+          "type": "number",
+          "expected": 80.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "",
+          "points": 2
+        },
+        {
+          "id": "sh_rev",
+          "group": "Disclosure & Financing Model",
+          "label": "Outside ownership share with credible report (%)",
+          "type": "number",
+          "expected": 40.0,
+          "altExpected": [
+            0.4
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "pool_v",
+          "group": "Disclosure & Financing Model",
+          "label": "Pooled expected payoff without report",
+          "type": "number",
+          "expected": 160.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "",
+          "points": 2
+        },
+        {
+          "id": "sh_unrev",
+          "group": "Disclosure & Financing Model",
+          "label": "Outside ownership share without report (%)",
+          "type": "number",
+          "expected": 50.0,
+          "altExpected": [
+            0.5
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "gross_b",
+          "group": "Disclosure & Financing Model",
+          "label": "Gross benefit of disclosure to high-type owner",
+          "type": "number",
+          "expected": 20.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "",
+          "points": 3
+        }
+      ]
     },
     {
       "id": "acct-2527:D2",
@@ -11291,7 +13730,35 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "profit",
+          "group": "Equity Roll-Forward (£)",
+          "label": "Profit for the period",
+          "type": "number",
+          "expected": 17000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 4
+        },
+        {
+          "id": "draw_sign",
+          "group": "Equity Roll-Forward (£)",
+          "label": "Why are owner drawings (£9,000) added back when recovering profit?",
+          "type": "choice",
+          "options": [
+            "Drawings reduced closing equity without being a business expense",
+            "Drawings are recorded as sales revenue",
+            "Drawings increased closing equity without being earned"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        }
+      ]
     },
     {
       "id": "acct-2527:D4",
@@ -11360,7 +13827,165 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "gp",
+          "group": "Income Statement (£)",
+          "label": "Gross profit",
+          "type": "number",
+          "expected": 6000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "profit",
+          "group": "Income Statement (£)",
+          "label": "Profit for the period",
+          "type": "number",
+          "expected": 3800.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "bank",
+          "group": "Closing Statement of Financial Position (£)",
+          "label": "Closing Bank",
+          "type": "number",
+          "expected": 21500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ar",
+          "group": "Closing Statement of Financial Position (£)",
+          "label": "Trade Receivables",
+          "type": "number",
+          "expected": 3000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "inv",
+          "group": "Closing Statement of Financial Position (£)",
+          "label": "Closing Inventory",
+          "type": "number",
+          "expected": 2000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "equip",
+          "group": "Closing Statement of Financial Position (£)",
+          "label": "Equipment (net of depreciation)",
+          "type": "number",
+          "expected": 10800.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "tot_a",
+          "group": "Closing Statement of Financial Position (£)",
+          "label": "Total Assets",
+          "type": "number",
+          "expected": 37300.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "tot_l",
+          "group": "Closing Statement of Financial Position (£)",
+          "label": "Total Liabilities",
+          "type": "number",
+          "expected": 13500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "close_eq",
+          "group": "Closing Statement of Financial Position (£)",
+          "label": "Closing Equity",
+          "type": "number",
+          "expected": 23800.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "ocf",
+          "group": "Direct Cash Flow Statement (£)",
+          "label": "Operating cash flow",
+          "type": "number",
+          "expected": 3500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "icf",
+          "group": "Direct Cash Flow Statement (£)",
+          "label": "Investing cash flow",
+          "type": "number",
+          "expected": -12000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "fcf",
+          "group": "Direct Cash Flow Statement (£)",
+          "label": "Financing cash flow",
+          "type": "number",
+          "expected": 30000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        }
+      ]
     },
     {
       "id": "acct-2527:D3",
@@ -11428,7 +14053,47 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "sale_je",
+          "group": "Perpetual Inventory Entries",
+          "label": "Which double-entry records the £2,000 credit sale of goods costing £1,200?",
+          "type": "choice",
+          "options": [
+            "Dr Receivables £2,000 / Cr Sales £2,000 ONLY",
+            "Dr Receivables £2,000 / Cr Sales £2,000 AND Dr Cost of Sales £1,200 / Cr Inventory £1,200",
+            "Dr Cash £2,000 / Cr Inventory £2,000"
+          ],
+          "answerIndex": 1,
+          "points": 3
+        },
+        {
+          "id": "rem_ar",
+          "group": "Collection & Trial Balance",
+          "label": "Remaining trade receivable after £700 collection",
+          "type": "number",
+          "expected": 1300.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "tb_omit",
+          "group": "Collection & Trial Balance",
+          "label": "Would omitting the entire sale make the trial balance disagree?",
+          "type": "choice",
+          "options": [
+            "Yes — debits would exceed credits by £2,000",
+            "No — omitting both debit and credit leaves trial-balance totals equal"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        }
+      ]
     },
     {
       "id": "acct-2527:D9",
@@ -11496,7 +14161,35 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "cash_gen",
+          "group": "Indirect Operating Cash Flow (£)",
+          "label": "Cash generated from operations",
+          "type": "number",
+          "expected": 16200.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "net_ocf",
+          "group": "Indirect Operating Cash Flow (£)",
+          "label": "Net cash from operating activities",
+          "type": "number",
+          "expected": 13200.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        }
+      ]
     },
     {
       "id": "acct-2527:D5",
@@ -11564,7 +14257,87 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "price",
+          "group": "CVP Parameters & Targets (£)",
+          "label": "Selling price per unit",
+          "type": "number",
+          "expected": 80.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "cm",
+          "group": "CVP Parameters & Targets (£)",
+          "label": "Contribution per unit",
+          "type": "number",
+          "expected": 50.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "vc",
+          "group": "CVP Parameters & Targets (£)",
+          "label": "Variable cost per unit",
+          "type": "number",
+          "expected": 30.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "fc",
+          "group": "CVP Parameters & Targets (£)",
+          "label": "Total fixed costs",
+          "type": "number",
+          "expected": 12000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "bep",
+          "group": "CVP Parameters & Targets (£)",
+          "label": "Break-even volume (units)",
+          "type": "number",
+          "expected": 240.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "tgt",
+          "group": "CVP Parameters & Targets (£)",
+          "label": "Units needed for £20,000 profit",
+          "type": "number",
+          "expected": 640.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 3
+        }
+      ]
     },
     {
       "id": "acct-2527:D6",
@@ -11632,7 +14405,59 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "spare_p",
+          "group": "Spare Capacity Scenario",
+          "label": "Incremental profit effect",
+          "type": "number",
+          "expected": 500.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "spare_d",
+          "group": "Spare Capacity Scenario",
+          "label": "Decision under spare capacity",
+          "type": "choice",
+          "options": [
+            "Accept order",
+            "Reject order"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        },
+        {
+          "id": "full_p",
+          "group": "Full Capacity (£1,600 Displaced Contribution)",
+          "label": "Net profit effect",
+          "type": "number",
+          "expected": -1100.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "full_d",
+          "group": "Full Capacity (£1,600 Displaced Contribution)",
+          "label": "Decision under full capacity",
+          "type": "choice",
+          "options": [
+            "Accept order",
+            "Reject order"
+          ],
+          "answerIndex": 1,
+          "points": 2
+        }
+      ]
     },
     {
       "id": "acct-2527:D7",
@@ -11700,7 +14525,74 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "a_hr",
+          "group": "Contribution per Scarce Hour (£/hr)",
+          "label": "Product A contribution per scarce hour",
+          "type": "number",
+          "expected": 10.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/hr",
+          "points": 2
+        },
+        {
+          "id": "b_hr",
+          "group": "Contribution per Scarce Hour (£/hr)",
+          "label": "Product B contribution per scarce hour",
+          "type": "number",
+          "expected": 20.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/hr",
+          "points": 2
+        },
+        {
+          "id": "q_b",
+          "group": "Optimal Production Plan (120 hrs)",
+          "label": "Optimal units of Product B",
+          "type": "number",
+          "expected": 30.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "q_a",
+          "group": "Optimal Production Plan (120 hrs)",
+          "label": "Optimal units of Product A",
+          "type": "number",
+          "expected": 12.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "units",
+          "points": 2
+        },
+        {
+          "id": "tot_cm",
+          "group": "Optimal Production Plan (120 hrs)",
+          "label": "Maximum total contribution",
+          "type": "number",
+          "expected": 1800.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        }
+      ]
     },
     {
       "id": "acct-2527:D8",
@@ -11768,7 +14660,61 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "r_setup",
+          "group": "ABC Driver Rates & Job Cost (£)",
+          "label": "Setup driver rate",
+          "type": "number",
+          "expected": 200.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/setup",
+          "points": 2
+        },
+        {
+          "id": "r_insp",
+          "group": "ABC Driver Rates & Job Cost (£)",
+          "label": "Inspection driver rate",
+          "type": "number",
+          "expected": 30.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£/insp",
+          "points": 2
+        },
+        {
+          "id": "job_oh",
+          "group": "ABC Driver Rates & Job Cost (£)",
+          "label": "Assigned job overhead",
+          "type": "number",
+          "expected": 900.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "job_full",
+          "group": "ABC Driver Rates & Job Cost (£)",
+          "label": "Full job cost",
+          "type": "number",
+          "expected": 5900.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 3
+        }
+      ]
     },
     {
       "id": "acct-2527:D10",
@@ -11836,7 +14782,120 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "depr",
+          "group": "ARR & Payback",
+          "label": "Annual depreciation",
+          "type": "number",
+          "expected": 10000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "avg_inv",
+          "group": "ARR & Payback",
+          "label": "Average investment",
+          "type": "number",
+          "expected": 20000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "arr",
+          "group": "ARR & Payback",
+          "label": "ARR (%)",
+          "type": "number",
+          "expected": 20.0,
+          "altExpected": [
+            0.2
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 2
+        },
+        {
+          "id": "pb",
+          "group": "ARR & Payback",
+          "label": "Payback period (years, uniform within-year)",
+          "type": "number",
+          "expected": 2.86,
+          "altExpected": [
+            2.857
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "yrs",
+          "points": 2
+        },
+        {
+          "id": "npv10",
+          "group": "NPV & IRR",
+          "label": "NPV at 10%",
+          "type": "number",
+          "expected": 4378.12,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "npv20",
+          "group": "NPV & IRR",
+          "label": "NPV at 20%",
+          "type": "number",
+          "expected": -3757.72,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 3
+        },
+        {
+          "id": "irr",
+          "group": "NPV & IRR",
+          "label": "Interpolated IRR (% — or exact 14.96%)",
+          "type": "number",
+          "expected": 15.38,
+          "altExpected": [
+            14.96,
+            0.1538,
+            0.1496
+          ],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "%",
+          "points": 3
+        },
+        {
+          "id": "dec",
+          "group": "NPV & IRR",
+          "label": "Recommendation at 10% cost of capital",
+          "type": "choice",
+          "options": [
+            "Accept (NPV > 0)",
+            "Reject (NPV < 0)"
+          ],
+          "answerIndex": 0,
+          "points": 2
+        }
+      ]
     },
     {
       "id": "acct-2527:D11",
@@ -11904,7 +14963,126 @@
         "synthetic": false,
         "llmModel": null,
         "sourceDetail": "Original Course Diagnostics (D1–D12)"
-      }
+      },
+      "wiseflowFields": [
+        {
+          "id": "cc1",
+          "group": "Capital Charges at 10% (£)",
+          "label": "Year 1 capital charge",
+          "type": "number",
+          "expected": 4000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 1
+        },
+        {
+          "id": "cc2",
+          "group": "Capital Charges at 10% (£)",
+          "label": "Year 2 capital charge",
+          "type": "number",
+          "expected": 3000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 1
+        },
+        {
+          "id": "cc3",
+          "group": "Capital Charges at 10% (£)",
+          "label": "Year 3 capital charge",
+          "type": "number",
+          "expected": 2000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 1
+        },
+        {
+          "id": "cc4",
+          "group": "Capital Charges at 10% (£)",
+          "label": "Year 4 capital charge",
+          "type": "number",
+          "expected": 1000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 1
+        },
+        {
+          "id": "ri1",
+          "group": "Residual Income & Reconciliation (£)",
+          "label": "Year 1 residual income",
+          "type": "number",
+          "expected": 0.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ri2",
+          "group": "Residual Income & Reconciliation (£)",
+          "label": "Year 2 residual income",
+          "type": "number",
+          "expected": 1000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ri3",
+          "group": "Residual Income & Reconciliation (£)",
+          "label": "Year 3 residual income",
+          "type": "number",
+          "expected": 2000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "ri4",
+          "group": "Residual Income & Reconciliation (£)",
+          "label": "Year 4 residual income",
+          "type": "number",
+          "expected": 3000.0,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 0,
+          "unit": "£",
+          "points": 2
+        },
+        {
+          "id": "pv_ri",
+          "group": "Residual Income & Reconciliation (£)",
+          "label": "Present value of residual incomes at 10% (= NPV)",
+          "type": "number",
+          "expected": 4378.12,
+          "altExpected": [],
+          "relTol": 0.02,
+          "absTol": 0.02,
+          "decimals": 2,
+          "unit": "£",
+          "points": 4
+        }
+      ]
     },
     {
       "id": "acct-2527:B1-R1",
@@ -34602,7 +37780,7 @@
       "courseId": "acct-2527",
       "collectionId": "WF-MOCK-D",
       "topicId": "1",
-      "title": "WFD-M2 · Users of financial vs management accounting",
+      "title": "WFD-M2 · Primary external stakeholder information needs",
       "kind": "mcq",
       "origin": "mock_exam",
       "available": true,
@@ -34610,19 +37788,19 @@
       "dlpfcBase": 1,
       "cognitiveType": "recall",
       "points": 4,
-      "promptMarkdown": "Which statement best distinguishes **management accounting** from financial accounting?",
+      "promptMarkdown": "Which pairing best matches an **external financial-statement user group** with its primary information focus?",
       "contextMarkdown": "",
       "options": [
-        "Management accounting must strictly follow IFRS reporting formats",
-        "Management accounting focuses exclusively on audited historical transactions",
-        "Management accounting is tailored to internal decision-makers and often uses forward-looking estimates",
-        "Management accounting is legally mandated for all limited companies once a year"
+        "Lenders (banks) — assessing cash-flow generation, liquidity, and asset collateral to judge debt repayment risk",
+        "External suppliers — demanding daily machine-level variance reports prepared internally for factory supervisors",
+        "Tax authorities — relying solely on unaudited management budgets to assess annual corporate tax",
+        "Competitors — receiving statutory confidential product-by-product cost breakdowns inside published annual accounts"
       ],
-      "answerIndex": 2,
+      "answerIndex": 0,
       "hints": [
         "Eliminate options that violate core accounting conventions or cash-flow vs accrual definitions."
       ],
-      "solutionMarkdown": "**Correct: C.** Management accounting serves internal managers, is not bound by IFRS, and frequently uses budgets, forecasts, and relevant future costs.",
+      "solutionMarkdown": "**Correct: A.** Lenders focus on liquidity, solvency, operating cash flows, and collateral to evaluate whether interest and principal will be repaid. Internal daily variance reports and confidential product costs belong to management accounting.",
       "pitfall": "Read underlined/bold qualifiers carefully — BI MCQs often flip one word such as 'profit' vs 'cash flow' or 'relevant' vs 'irrelevant'.",
       "rubricChecks": [],
       "wiseflowFields": [],

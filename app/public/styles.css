@@ -16818,6 +16818,41 @@ button, a, [role="button"], select, input {
   font-size: 12px;
 }
 
+.pdf-inline-jump-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.pdf-inline-jump-pill.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  font-weight: 700;
+}
+.acct-paper-card {
+  padding: 13px 15px;
+  border-radius: 13px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 4%, var(--panel));
+  margin-bottom: 10px;
+}
+.acct-paper-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.acct-scratch-details {
+  margin-top: 6px;
+}
+.acct-scratch-details > summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  user-select: none;
+}
+
 /* Global Reduced-Motion Accessibility Safety */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

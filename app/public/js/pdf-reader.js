@@ -859,6 +859,9 @@ window.StudyPdf = (() => {
               if (prevBtn) prevBtn.disabled = clamped <= 1;
               if (nextBtn) nextBtn.disabled = clamped >= doc.numPages;
             }
+            figure.querySelectorAll('[data-inline-jump-page]').forEach((btn) => {
+              btn.classList.toggle('active', Number(btn.dataset.inlineJumpPage) === clamped);
+            });
             if (fullBtn) {
               fullBtn.title = `Open full multi-page PDF reader (p.${clamped})`;
               fullBtn.dataset.openInlinePage = String(clamped);
@@ -969,6 +972,12 @@ window.StudyPdf = (() => {
 
         if (prevBtn) prevBtn.onclick = () => drawInlinePage(state.page - 1, state.showFullPage);
         if (nextBtn) nextBtn.onclick = () => drawInlinePage(state.page + 1, state.showFullPage);
+        figure.querySelectorAll('[data-inline-jump-page]').forEach((btn) => {
+          btn.onclick = () => {
+            const pg = Number(btn.dataset.inlineJumpPage);
+            if (Number.isFinite(pg) && pg >= 1) drawInlinePage(pg, state.showFullPage);
+          };
+        });
         if (cropBtn) {
           cropBtn.onclick = () => {
             state.showFullPage = !state.showFullPage;

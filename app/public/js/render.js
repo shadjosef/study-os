@@ -80,8 +80,9 @@ window.StudyUI = (() => {
     safe = safe.replace(/\\\(([\s\S]+?)\\\)/g, (_, tex) => stash(tex, false));
     safe = safe.replace(/(^|[^\\$])\$([^\n$]+?)\$/g, (m, pre, tex) => {
       if (/^\s|\s$/.test(tex) && !/[\\^_{}=+\-*/]/.test(tex)) return m;
-      // Avoid mistaking prose between two currency amounts ($20,000 ... $8,000) for inline math
-      if (/^\d[\d,.]*(?:\s|[*_:])/.test(tex) && !/[\\^_{}=+<>≤≥≠≈]/.test(tex)) return m;
+      // Avoid mistaking prose between two currency amounts ($20,000 in cash... $8,000) for inline math,
+      // while still rendering pure math expressions starting with a number ($0 < p < 1$, $100 - 2p$, $83 - 68$, $0, 2, 5$)
+      if (/^\d[\d,.]*(?:\s|[*_:])/.test(tex) && /\b[a-zA-Z]{2,}\b/.test(tex) && !/[\\^_{}=+<>≤≥≠≈]/.test(tex)) return m;
       return `${pre}${stash(tex, false)}`;
     });
 
